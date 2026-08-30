@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>软包装外贸英语 · Soft Packaging Foreign Trade English</title>
+<meta name="description" content="一站式软包装外贸英语学习网站：核心术语、商务邮件、询盘报价、谈判、付款物流、展会口语、跨境电商，另含外贸实操 SOP（订单内部流转、PI/CI/PL/BL/CO 单证规范、报关报检、海运空运快递、T/T 与 L/C 风控、Incoterms 2020），支持朗读、跟读、听写、单词卡与测验。">
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#2563eb">
+</head>
+<body>
+
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a class="brand" href="#/home">
+      <span class="brand-badge">🌐</span>
+      <span class="brand-text">软包装外贸英语<span class="brand-sub">Soft Packaging Foreign Trade English</span></span>
+    </a>
+    <nav class="main-nav" id="mainNav">
+      <a href="#/home" data-nav="home">首页</a>
+      <a href="#/units" data-nav="units">课程</a>
+      <a href="#/sop" data-nav="sop">实操 SOP</a>
+      <a href="#/tutor" data-nav="tutor">AI 陪练</a>
+      <a href="#/flash" data-nav="flash">单词卡</a>
+      <a href="#/quiz" data-nav="quiz">测验</a>
+      <a href="#/speak" data-nav="speak">听说训练</a>
+      <a href="#/eval4" data-nav="eval4">四维实战</a>
+      <a href="#/listen" data-nav="listen">辨音</a>
+      <a href="#/coach" data-nav="coach">AI 教练手册</a>
+    </nav>
+    <div class="header-right">
+      <div class="searchbox">
+        <input id="searchInput" type="search" placeholder="搜索单词 / 短语 / 对话…" autocomplete="off">
+        <button id="searchBtn" title="搜索">🔍</button>
+        <div class="search-drop" id="searchDrop" hidden></div>
+      </div>
+      <button class="icon-btn" id="settingsBtn" title="发音设置">⚙️</button>
+      <span class="stat-pill" id="headerStat" title="已掌握单词">🎯 0</span>
+      <button class="icon-btn" id="navToggle" title="菜单" hidden>☰</button>
+    </div>
+  </div>
+</header>
+
+<main id="app" class="app container" aria-live="polite"></main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div>
+      <strong>软包装外贸英语</strong>
+      <p>纯静态站点 · 无需服务器 · 数据保存在本地浏览器（localStorage）</p>
+    </div>
+    <div class="footer-tips">
+      <span>💡 快捷键：单词卡界面按 <kbd>Space</kbd> 翻面</span>
+      <span>🔊 发音使用浏览器自带的语音合成（需联网获取音色时可能首次无声）</span>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-mask" id="settingsModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <b>⚙️ 发音设置</b>
+      <button class="icon-btn" data-action="settings-close" title="关闭">✕</button>
+    </div>
+    <div class="field">
+      <label>发音引擎</label>
+      <select id="setEngine">
+        <option value="native">浏览器语音（含高音质在线人声）</option>
+        <option value="azure">Azure 语音（微软神经人声 · 需填 Key）</option>
+        <option value="google">Google 在线音源（第三方接口 · 不稳定）</option>
+      </select>
+      <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得接近真人的微软神经网络人声（免费、无需 Key，质量对标 Google 在线语音）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为第三方免费端点，常被 Google 封禁而失效，失败时会自动回退浏览器语音，故不再推荐。</p>
+    </div>
+    <div class="field" id="setAzureField" hidden>
+      <label>Azure 语音 · 订阅 Key（仅保存在本浏览器）</label>
+      <input type="password" id="setAzureKey" value="" placeholder="Azure Speech 的订阅密钥" autocomplete="off">
+      <label style="margin-top:8px">Region（区域，如 eastasia / eastus）</label>
+      <input type="text" id="setAzureRegion" value="" placeholder="eastasia" autocomplete="off">
+      <label style="margin-top:8px">发音人（神经网络人声名，可选）</label>
+      <input type="text" id="setAzureVoice" value="en-US-JennyNeural" placeholder="en-US-JennyNeural" autocomplete="off">
+      <div style="margin-top:10px">
+        <button class="btn btn-outline btn-sm" data-action="settings-test-azure">🔍 测试 Azure 发音</button>
+        <span class="field-note" id="azureTestResult" style="display:inline-block;margin:0 0 0 8px"></span>
+      </div>
+      <p class="field-note">填写后在 Azure 门户创建「Speech」资源，复制 Key 与区域填入即可。常见英文人声：en-US-JennyNeural、en-US-AriaNeural、en-US-GuyNeural、en-GB-SoniaNeural。失败时会自动回退浏览器语音。</p>
+      <label class="step-toggle" style="margin-top:8px" title="在「四维口语实战」中用同一 Key 调用 Azure 发音评测，可输出逐词与逐音素分（准确率/流利度/完整性/发音），跨浏览器可用，无需下载本地模型">
+        <input type="checkbox" id="setAzurePA" checked> 🎯 同时用此 Key 做「音素级发音评测」（四维口语实战）
+      </label>
+    </div>
+    <div class="field">
+      <label>发音人（浏览器语音时生效）</label>
+      <select id="setVoice"><option value="">自动选择（优选高质量发音人）</option></select>
+    </div>
+    <div class="field">
+      <label>默认朗读语速：<b id="setRateVal">1.0×</b></label>
+      <div class="rate-wrap">
+        <span>0.5×</span>
+        <input type="range" id="setRate" min="0.5" max="1.5" step="0.1" value="1">
+        <span>1.5×</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>🗣 识别来源（跟读评测 / AI 陪练语音输入）</label>
+      <label class="step-toggle"><input type="checkbox" id="setLocalASR"> 🎙 优先使用本地离线识别（vosk-browser）</label>
+      <p class="field-note">跨浏览器/断网用 Kaldi wasm。需把解压后的 <code>models/vosk-model-small-en-us-0.15/</code> 放到本站目录（运行 <code>tools/fetch-vosk-model.ps1</code> 或手动下载解压），并把 <code>vosk.js</code> 放进 <code>js/vendor/</code>；未就绪时自动回退浏览器在线识别。</p>
+    </div>
+    <div class="field">
+      <label>📦 学习数据（保存在本浏览器）</label>
+      <div class="data-btns">
+        <button class="btn btn-outline btn-sm" data-action="data-export">⬇️ 导出进度备份</button>
+        <button class="btn btn-outline btn-sm" data-action="data-import">⬆️ 导入备份</button>
+        <button class="btn btn-outline btn-sm" data-action="data-csv-vocab">📄 词表 CSV（可导入 Anki）</button>
+        <button class="btn btn-outline btn-sm" data-action="data-csv-wrong">❗ 错题 CSV</button>
+      </div>
+      <input type="file" id="dataImportFile" accept=".json,application/json" hidden>
+      <p class="field-note">导出的 JSON 含掌握词、单词卡记忆状态、测验成绩、打卡与错题；换电脑或换浏览器时导入即可续学。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
+    </div>
+    <div class="field" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-outline btn-sm" data-action="settings-close">关闭</button>
+      <button class="btn btn-primary btn-sm" data-action="settings-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/data-ops.js"></script>
+<script src="js/data-ocean.js"></script>
+<script src="js/data-incoterms.js"></script>
+<script src="js/data-settle.js"></script>
+<script src="js/lvl-map.js"></script>
+<script src="js/player.js"></script>
+<script src="js/flashcards.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/tutor.js"></script>
+<script src="js/eval4.js"></script>
+<script src="js/listen.js"></script>
+<script src="js/sop.js"></script>
+<script src="js/export.js"></script>
+<script src="js/asr-local.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+/* PWA：注册 Service Worker（http/https 下生效；file:// 直接打开时自动跳过）。
+   新版本就绪后提示刷新，避免用户一直用着旧缓存。 */
+(function () {
+  if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").then(function (reg) {
+      if (reg.waiting && navigator.serviceWorker.controller) notifyUpdate(reg);
+      reg.addEventListener("updatefound", function () {
+        var sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", function () {
+          if (sw.state === "installed" && navigator.serviceWorker.controller) notifyUpdate(reg);
+        });
+      });
+    }).catch(function () { /* 注册失败不影响正常使用 */ });
+  });
+  function notifyUpdate(reg) {
+    var bar = document.createElement("div");
+    bar.className = "sw-update";
+    bar.innerHTML = '<span>🔄 已下载新版本</span><button class="btn btn-primary btn-sm">立即刷新</button>';
+    bar.querySelector("button").addEventListener("click", function () {
+      if (reg.waiting) reg.waiting.postMessage("skip-waiting");
+      location.reload();
+    });
+    document.body.appendChild(bar);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# 大模型与本地构建缓存（可选离线用；若需随站发布，请移除此行并手动上传 models/）
+models/
+
+# 系统 / 编辑器 / 日志
+.DS_Store
+Thumbs.db
+*.log
+node_modules/

@@ -1,0 +1,31 @@
+{
+  "name": "软包装外贸英语 · Soft Packaging Foreign Trade English",
+  "short_name": "外贸英语",
+  "description": "软包装外贸英语学习与外贸实操 SOP：词汇、对话、跟读听写、AI 陪练、单证与报关清单，离线可用。",
+  "lang": "zh-CN",
+  "start_url": "./index.html#/home",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f7fb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "实操 SOP", "url": "./index.html#/sop" },
+    { "name": "听说训练", "url": "./index.html#/speak" },
+    { "name": "单词卡", "url": "./index.html#/flash" }
+  ]
+}
