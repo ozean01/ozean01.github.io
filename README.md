@@ -6,6 +6,10 @@
 >
 > 同时强化 **实操能力**：导航「🧭 实操 SOP」把订单确认后的内部流转、单证制作、订舱报关、货款回收做成可勾选清单，每一步都配可直接发出去的英文。
 
+> **导航版块（信息架构）**：顶部导航已从 11 个平铺入口收敛为 **5 个分组 + 首页**（桌面端为下拉分组，移动端为纵向手风琴）：
+> **📚 学习**（课程）· **🎤 口语听说**（听说训练 / 辨音 / 四维实战）· **🧭 外贸实操**（实操 SOP）· **🤖 AI 陪练**（AI 对练 / ⚙️ 计划·打卡·手册）· **🃏 记忆与测验**（单词卡 / 测验 / ⚠️ 易错点）。
+> 首页「学习路径」另按 **三阶段**（商务基础 → 通用外贸 → 软包装专业·实操）递进分组，替代纯平铺目录。
+
 ---
 
 ## 🚀 快速开始
@@ -116,9 +120,9 @@ python -m http.server 8000
 
 > 规则以官方原文为准；订舱提前期、通关预留时间、免箱期等实操惯例按公司与航线略有差异，页面中的天数为常见区间。
 
-### 🏭 软包装复膜胶产业链术语（已融入，源于 D 盘高盟工作资料）
+### 🏭 软包装复膜胶产业链术语（已融入）
 
-> 术语依据 `D:\高盟工作资料` 中的真实业务资料整理（英文 TDS/MSDS、产品调查表、客户对接记录、部门报价与质检流程等）。已在原有基础上新增独立单元 **🎞️ U11 软包装专业词汇（201 词）**，全站词汇已扩至 **460+ 个**。
+> 已在原有基础上新增独立单元 **🎞️ U11 软包装专业词汇（201 词）**，全站词汇已扩至 **460+ 个**。
 
 - **胶粘剂与树脂化工**（U1/U3/U11）：laminating adhesive 复合胶、resin 树脂、two-component 双组分、polyurethane 聚氨酯、prepolymer 预聚物、isocyanate 异氰酸酯、polyol 多元醇、MDI、curing agent/hardener 固化剂、base resin 主剂、main agent 主剂、catalyst 催化剂、acrylic 丙烯酸、solvent-based / water-based / solventless / hot-melt 各体系、solid content 固含量、mixing ratio 配比、viscosity 粘度、pot life 适用期、ethyl acetate 醋酸乙酯、thinner/diluent 稀释剂、migration 迁移
 - **薄膜/膜材**（U11）：BOPP、PET、CPP、PE/LDPE/HDPE、PA/nylon、EVOH、aluminum foil 铝箔、metallized film 镀铝膜、barrier film 阻隔膜、shrink film 收缩膜、stretch film 缠绕膜、corona treatment 电晕处理、surface tension 表面张力、micron/gauge 厚度、priming 底涂

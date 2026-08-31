@@ -70,6 +70,30 @@ kbd{background:#eef2f7;border:1px solid var(--line);border-bottom-width:2px;bord
 }
 .main-nav a:hover{background:var(--primary-soft);color:var(--primary);text-decoration:none}
 .main-nav a.active{background:var(--primary);color:#fff}
+/* ---------- 分组式导航（dropdown · 服务端无需 JS） ---------- */
+.nav-group{position:relative}
+.nav-group summary{
+  list-style:none;display:inline-flex;align-items:center;gap:6px;
+  padding:7px 13px;border-radius:9px;color:var(--muted);
+  font-weight:600;font-size:14.5px;cursor:pointer;user-select:none;
+}
+.nav-group summary::-webkit-details-marker{display:none}
+.nav-group summary:hover{background:var(--primary-soft);color:var(--primary)}
+.nav-group summary.active{background:var(--primary);color:#fff}
+.nav-group summary::after{
+  content:"";width:6px;height:6px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;
+  transform:rotate(45deg);margin-left:2px;transition:transform .2s;opacity:.55;
+}
+.nav-group[open] summary::after{transform:rotate(-135deg)}
+.nav-sub{
+  position:absolute;top:calc(100% + 6px);left:0;min-width:210px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+  padding:6px;z-index:60;display:none;flex-direction:column;gap:2px;
+}
+.nav-group[open] .nav-sub{display:flex}
+.nav-sub a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);font-weight:600;font-size:13.5px;white-space:nowrap}
+.nav-sub a:hover,.nav-sub a.active{background:var(--primary-soft);color:var(--primary)}
+.nav-sub a.active{background:var(--primary);color:#fff}
 .header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
 .searchbox{position:relative}
 .searchbox input{
@@ -564,6 +588,18 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .footer-inner{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px}
 .footer-tips{display:flex;flex-direction:column;gap:5px;text-align:right}
 
+/* ---------- 三阶段学习路径 ---------- */
+.path-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 16px}
+.path-stage{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.ps-head{display:flex;align-items:center;gap:8px;font-size:15px}
+.ps-emo{font-size:18px}
+.ps-badge{margin-left:auto;font-size:11px;font-weight:700;color:var(--primary);background:var(--primary-soft);border-radius:999px;padding:3px 8px;white-space:nowrap}
+.ps-desc{font-size:12.5px;color:var(--muted);margin:8px 0 10px;line-height:1.5}
+.ps-units{display:flex;flex-wrap:wrap;gap:6px}
+.ps-chip{font-size:12px;font-weight:600;color:var(--ink);background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:4px 8px;white-space:nowrap}
+.ps-chip:hover{border-color:var(--primary);color:var(--primary);text-decoration:none}
+@media (max-width:960px){.path-stages{grid-template-columns:1fr}}
+
 /* ---------- 响应式 ---------- */
 @media (max-width:960px){
   .grid-3{grid-template-columns:repeat(2,1fr)}
@@ -574,7 +610,11 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 }
 @media (max-width:720px){
   .header-inner{flex-wrap:wrap}
-  .main-nav{order:3;width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
+  .main-nav{order:3;width:100%;flex-direction:column;align-items:stretch;gap:2px;padding-bottom:2px}
+  .nav-home-link{display:block}
+  .nav-group{width:100%}
+  .nav-group summary{width:100%;justify-content:space-between}
+  .nav-sub{position:static;min-width:0;width:100%;box-shadow:none;border:none;margin-left:8px}
   .searchbox input{width:140px}
   .grid-2,.grid-3{grid-template-columns:1fr}
   .hero{padding:32px 22px}

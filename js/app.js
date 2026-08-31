@@ -230,13 +230,22 @@
   }
 
   function setNavActive(view) {
-    document.querySelectorAll("#mainNav a").forEach(function (a) {
+    document.querySelectorAll("#mainNav a[data-nav]").forEach(function (a) {
       const key = a.getAttribute("data-nav");
       let active = false;
       if (view === "unit" || view === "units") active = key === "units";
+      else if (view === "home") active = key === "home";
       else if (view === "search") active = false;
       else active = key === view;
       a.classList.toggle("active", active);
+    });
+    // 高亮并展开包含当前项的导航分组（dropdown 版块）
+    document.querySelectorAll("#mainNav .nav-group").forEach(function (g) {
+      const isActive = !!g.querySelector("a.active");
+      if (isActive) g.setAttribute("open", "");
+      else g.removeAttribute("open");
+      const sum = g.querySelector("summary");
+      if (sum) sum.classList.toggle("active", isActive);
     });
   }
 
@@ -267,6 +276,34 @@
   }
 
   /* ================= 首页 ================= */
+  /* ---- 三阶段学习路径：把 16 个单元按能力递进分组，替代纯平铺目录 ---- */
+  function pathStagesHtml() {
+    const stages = [
+      { name: "第一阶段 · 商务基础", emoji: "🟢",
+        desc: "从贸易流程、询盘报价到谈判与付款，搭起外贸的地基",
+        ids: [1, 2, 3, 4, 5, 6] },
+      { name: "第二阶段 · 通用外贸", emoji: "🔵",
+        desc: "物流货运、电话会议、质量售后与跨境电商，覆盖常见场景",
+        ids: [7, 8, 9, 10] },
+      { name: "第三阶段 · 软包装专业 · 实操", emoji: "🟣",
+        desc: "进入行业深水区：专业词汇 + 单证/海运/Incoterms/收款/合规，衔接实操 SOP",
+        ids: [11, 12, 13, 14, 15, 16] }
+    ];
+    const html = stages.map(function (s) {
+      const units = DATA.units.filter(function (u) { return s.ids.indexOf(u.id) !== -1; });
+      const done = units.filter(function (u) { return unitPct(u) >= 100; }).length;
+      const pct = units.length ? Math.round(done / units.length * 100) : 0;
+      return `<div class="path-stage">
+        <div class="ps-head"><span class="ps-emo">${s.emoji}</span><b>${s.name}</b>
+          <span class="ps-badge">${done}/${units.length} 单元</span></div>
+        <div class="ps-desc">${esc(s.desc)}</div>
+        <div class="ps-units">${units.map(function (u) { return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) + '</a>'; }).join("")}</div>
+        <div class="progressbar" style="max-width:240px;margin-top:8px"><i class="${pct === 100 ? "full" : ""}" style="width:${pct}%"></i></div>
+      </div>`;
+    }).join("");
+    return `<div class="path-stages">${html}</div>`;
+  }
+
   /* ---- 单元掌握度分布（可视化） ---- */
   function masteryBlockHtml() {
     const rows = DATA.units.map(function (u) {
@@ -522,7 +559,8 @@
 
     ${retentionForecastHtml()}
 
-    <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习，掌握完整外贸流程</span></h3>
+    <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习 · 分三阶段递进</span></h3>
+    ${pathStagesHtml()}
     <div class="grid grid-3">${DATA.units.map(unitCardHtml).join("")}</div>
 
     ${freqRepeatHtml()}
