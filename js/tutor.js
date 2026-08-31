@@ -76,6 +76,7 @@
     if (coach && coach.correctFormat) L.push("When you review an error, present it in these 4 labeled lines so the student can compare:\n  ① My sentence (the original)\n  ② Correct grammar\n  ③ More natural\n  ④ Why it was wrong");
     if (coach && coach.score) L.push("At the end of the session, give the student a score out of 10 and name what to focus on next time, then suggest one small challenge for the next session.");
     if (coach && coach.termCheck) L.push("Content-verification mode: foreign-trade industry terminology (e.g. laminating, corona treatment, MOQ, peel strength) is exact and high-stakes. When the student produces or you supply such a term, briefly add a short note like [请人工核对术语：xxx] if you are not fully certain of its standard technical English, so the student double-checks it in their glossary before using it in real business.");
+    if (coach && coach.concise) L.push("Feedback must be minimal and surgical (\"enough, and no simpler\"): explain at most ONE most-relevant point each time, review at most 2 errors per round, offer at most 1 more natural expression and 1 sentence worth repeating, then STOP. Do not over-explain, do not pile on extra grammar rules or alternative wordings, and stop once the student can confidently proceed. Precise and economical answers only — never a wall of text.");
     return L.join("\n");
   }
 
@@ -96,7 +97,7 @@
       systemPrompt: COACH_PROMPT,
       saved: [],   // 已保存的 Provider 列表 [{label, baseUrl, model, apiKey}]，切换模型不必重填 Key
       profile: { level: "", goal: "", scene: "", useCn: false },
-      coach: { correctMode: "round3", pace: "normal", waitDone: false, score: true, iPlus: true, correctFormat: true, termCheck: false }
+      coach: { correctMode: "round3", pace: "normal", waitDone: false, score: true, iPlus: true, correctFormat: true, termCheck: false, concise: true }
     };
   }
   function loadCfg() {
@@ -238,6 +239,7 @@
             <label class="step-toggle" title="让对话难度保持在「约 80% 可懂 + 20% 新表达」"><input type="checkbox" id="coachIPlus"${cfg.coach && cfg.coach.iPlus ? " checked" : ""}> 80% 可懂 + 20% 新</label>
             <label class="step-toggle" title="集中复盘时按「我的原句 / 正确版 / 更自然版 / 原因」四段式输出，解决中式英语"><input type="checkbox" id="coachFormat"${cfg.coach && cfg.coach.correctFormat ? " checked" : ""}> 四段式纠错</label>
             <label class="step-toggle" title="AI 对拿不准的行业术语会标注「请人工核对」，降低术语出错风险"><input type="checkbox" id="coachTermCheck"${cfg.coach && cfg.coach.termCheck ? " checked" : ""}> 行业术语人工核对提示</label>
+            <label class="step-toggle" title="反馈要「点到为止」：每轮只讲透 1 个点、最多复盘 2 个错误、给 1 个更自然表达 + 1 句值得复述就停，避免 AI 讲太多让你学晕"><input type="checkbox" id="coachConcise"${(cfg.coach && cfg.coach.concise) || !cfg.coach ? " checked" : ""}> 点到为止（反馈给得刚好）</label>
             <button class="btn btn-soft btn-sm" data-action="tutor-preset" title="把系统提示词与规则一键重置为推荐的教练式预设">⤵ 一键教练预设</button>
           </div>
         </details>
@@ -311,6 +313,7 @@
       { label: "商务谈判", en: "Role-play: we are negotiating delivery time and price. Push back politely but stay friendly, and try to reach a deal. Start in English." },
       { label: "电话沟通", en: "Role-play: I call you about an order. Answer the phone, ask who is calling, and take a note. One question at a time. Start." },
       { label: "售后客诉", en: "Role-play: I am upset about a damaged shipment. You are customer service: apologize, confirm the issue, then propose a solution — all in English. Start." },
+      { label: "合同与合规", en: "Role-play: I am your buyer and have received the goods but found a compliance or warranty issue. I want to talk about force majeure, a claim and the remedy, and I also ask whether the replacement film is EU food-contact compliant. You are the sales rep: respond professionally, discuss a solution, and confirm the compliance documents (declaration of conformity, certificate of analysis, migration test report). One point at a time. Start in English." },
       { label: "视频会议", en: "Role-play: this is a short online meeting. Greet me, recap one item, ask ONE question, and keep it brief. Start." },
       { label: "物流与货运", en: "Role-play: I ask about shipping, container and bill of lading. Explain in simple English, one question at a time. Start." },
       { label: "机场 / 酒店", en: "Role-play: I just landed and I am checking into a hotel. You are the receptionist; do the check-in in plain English. Start." },
@@ -700,6 +703,8 @@
     if (cfmt) cc.correctFormat = cfmt.checked;
     const cterm = document.getElementById("coachTermCheck");
     if (cterm) cc.termCheck = cterm.checked;
+    const cconc = document.getElementById("coachConcise");
+    if (cconc) cc.concise = cconc.checked;
     /* 我的档案 */
     const pf = cfg.profile || (cfg.profile = {});
     const pfLevel = document.getElementById("pfLevel");

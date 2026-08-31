@@ -150,8 +150,8 @@
               explain: v.w + " " + v.ipa + " — " + v.cn + "\n" + v.ex + "\n" + v.exCn
             };
           } else {
-            // 例句不含该词则退回英译中
-            ti--; continue;
+            // 例句不含该词则跳过 fill（不退回复用同类型，避免短句/短语根本不匹配时卡死在 fill）
+            continue;
           }
         }
         if (q && q.options.length === 4) { q.wid = v.wid; questions.push(q); }

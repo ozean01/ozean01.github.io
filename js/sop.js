@@ -642,7 +642,8 @@
     { id: 12, icon: "📄", t: "订单执行与出口单证", cn: "PI / CI / PL / B/L / CO 与验货、订舱、报关的英文表达" },
     { id: 13, icon: "🚢", t: "海运操作与货代术语", cn: "箱型、附加费、滞期滞留、截关、VGM、甩柜怎么说" },
     { id: 14, icon: "📐", t: "Incoterms 2020 与报价核算", cn: "11 种术语的英文用法与 FOB / CIF / DDP 报价表达" },
-    { id: 15, icon: "🏦", t: "货款回收、票据与保险", cn: "T/T、L/C、D/P、D/A 谈判与不符点、索赔英文" }
+    { id: 15, icon: "🏦", t: "货款回收、票据与保险", cn: "T/T、L/C、D/P、D/A 谈判与不符点、索赔英文" },
+    { id: 16, icon: "⚖️", t: "合同风险、贸易纠纷与产品合规", cn: "违约、仲裁、管辖、保密与 CE / REACH / RoHS / FDA 合规表达" }
   ];
 
   /* 参考来源（可点开核对规则原文） */
@@ -663,6 +664,7 @@
     { k: "docs", label: "📑 单证规范" },
     { k: "logi", label: "🚢 运输与报关" },
     { k: "pay", label: "🏦 收款与风控" },
+    { k: "legal", label: "⚖️ 合同与合规" },
     { k: "terms", label: "📐 Incoterms 2020" },
     { k: "tools", label: "🧮 实用工具" }
   ];
@@ -867,9 +869,36 @@
       CHASE_LINES.map(function (l) { return enLineHtml(l.en, l.cn); }).join("") + '</div>';
   }
 
+  /* 合同与合规：直接复用 U16（js/data-risk.js）的词汇/例句，单一数据源自动同步 */
+  function legalHtml() {
+    var u = (typeof FTE_DATA !== "undefined" && FTE_DATA.units && FTE_DATA.units.find) ? FTE_DATA.units.find(function (x) { return x.id === 16; }) : null;
+    var vocab = (u && u.vocab) ? u.vocab : [];
+    if (!vocab.length) return '<div class="card"><div class="chat-head"><span>⚖️ 合同与合规</span></div><p class="sop-tipline">词汇库未就绪，请先确保 js/data-risk.js 已加载。</p></div>';
+    var RISK = /\b(breach|force majeure|liquidated|penalty|damages|indemn|liab|claim|dispute|settle|arbitr|mediat|litig|govern|jurisdic|terminat|nonperform|warrant|remedy|waiver|confident|notice|amendment)/i;
+    var COMP = /\b(compliance|declaration of conformity|food contact|migration|CE marking|UKCA|FCC|FDA|REACH|SVHC|RoHS|phthalate|certificate of analysis|material safety|test report)\b/i;
+    var risk = vocab.filter(function (v) { return RISK.test(v.w + " " + v.cn) && !COMP.test(v.w + " " + v.cn); });
+    var comp = vocab.filter(function (v) { return COMP.test(v.w + " " + v.cn); });
+
+    var card = function (icon, title, list, hint) {
+      return '<div class="card"><div class="chat-head"><span>' + icon + " " + title + '</span>' +
+        '<span class="sop-hint">点 ▶ 朗读 · 点 📋 复制，进 U16 练整段对话</span></div>' +
+        list.map(function (v) {
+          return '<div class="sop-tl"><div><b>' + esc(v.w) + '</b> ' +
+            '<span class="sop-en-cn">' + esc(v.ipa || "") + '</span> — ' + esc(v.cn) + '</div>' +
+            enLineHtml(v.ex, v.exCn) + '</div>';
+        }).join("") +
+        (hint ? '<p class="sop-tipline">' + esc(hint) + '</p>' : "") +
+        '<div class="sop-overall-a" style="margin-top:10px"><a class="btn btn-soft btn-sm" href="#/unit/16">去 U16 练整段对话 →</a></div></div>';
+    };
+
+    return card("📜", "合同风险与争议解决", risk,
+      "签合同先看三块：违约与救济（谁来赔、赔多少、怎么赔）、争议解决（先协商→仲裁还是诉讼、在哪、适用哪国法）、以及通知与保密。仲裁通常比在外国法院诉讼更可控。") +
+      card("🧪", "产品认证与市场合规", comp,
+      "认证没有一个标志走天下：CE 管欧盟、UKCA 管英国、FCC/UL 管美国；软包装还要盯食品接触的迁移限量（EU 1935/2004、美国 FDA 21 CFR）。务必让供应商提供对应批次的 CoA、MSDS 与第三方检测报告，而不是一句『合规』了事。");
+  }
+
   function termsHtml() {
-    var rows = INCOTERMS.map(function (t) {
-      var sellerCls = function (v) { return v.indexOf("卖方") === 0 ? ' class="sop-seller"' : ""; };
+    var rows = INCOTERMS.map(function (t) {      var sellerCls = function (v) { return v.indexOf("卖方") === 0 ? ' class="sop-seller"' : ""; };
       return '<tr><td><b>' + esc(t.ab) + '</b><span class="sop-td-en">' + esc(t.cn) + '</span></td>' +
         '<td>' + esc(t.mode) + '</td>' +
         '<td>' + esc(t.risk) + '</td>' +
@@ -1066,7 +1095,8 @@
     var body = State.tab === "docs" ? docsHtml()
       : State.tab === "logi" ? logiHtml()
         : State.tab === "pay" ? payHtml()
-          : State.tab === "terms" ? termsHtml()
+          : State.tab === "legal" ? legalHtml()
+            : State.tab === "terms" ? termsHtml()
             : State.tab === "tools" ? toolsHtml()
               : flowHtml();
 

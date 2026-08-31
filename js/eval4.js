@@ -66,6 +66,16 @@
       follow: "A buyer pushes: \"Your competitor quoted 15% lower. If you don't match it, I'll have to switch suppliers.\"",
       followCn: "买家施压：你的竞争对手报价低 15%。如果你不跟进，我只能更换供应商。",
       terms: ["budget", "quantity", "volume discount", "raw material cost"]
+    },
+    {
+      id: "compliance-claim",
+      icon: "⚖️",
+      title: "合规与索赔",
+      ref: "The adhesive is food-contact compliant under EU Regulation 1935/2004, and we can provide the declaration of conformity, the migration test report and the certificate of analysis for this batch.",
+      refCn: "该复合胶符合欧盟 1935/2004 食品接触法规，我们可为该批次提供符合性声明、迁移检测报告和分析证书。",
+      follow: "A buyer asks: \"The inspector found the total migration is above the food-contact limit, and there is a breach-of-contract clause. What are you going to do?\"",
+      followCn: "买家追问：验货发现总迁移量超过食品接触限量，而且合同里有违约条款。你们打算怎么办？",
+      terms: ["food contact", "declaration of conformity", "migration test", "certificate of analysis", "breach of contract"]
     }
   ];
 

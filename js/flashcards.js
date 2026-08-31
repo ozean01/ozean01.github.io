@@ -123,9 +123,10 @@
       return curve(t, st);
     },
 
-    /* 全部到期卡 + 新词排序（保持原语义） */
-    buildQueue: function (cards, progress, limit) {
+    /* 全部到期卡 + 新词排序（保持原语义）。maxNew 控制一次最多引入的新卡数，默认 15 */
+    buildQueue: function (cards, progress, limit, maxNew) {
       limit = limit || 30;
+      maxNew = maxNew == null ? 15 : maxNew;
       var now = Date.now();
       var wrong = progress.wrong || {};
       var fresh = [], due = [];
@@ -142,7 +143,6 @@
         if (wa !== wb) return wb - wa;
         return (fa.ef || EF_START) - (fb.ef || EF_START);
       });
-      var maxNew = 15;
       var queue = fresh.slice(0, maxNew);
       var dueGot = due.slice(0, limit);
       queue = queue.concat(dueGot);

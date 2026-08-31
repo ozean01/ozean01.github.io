@@ -145,7 +145,9 @@
     speak: null,
     speakMode: "shadow",
     evalRec: null,
-    recLine: null
+    recLine: null,
+    mistFlow: "all",
+    mistReveal: false
   };
 
   /* ---------------- 搜索索引 ---------------- */
@@ -166,13 +168,21 @@
         });
       });
     });
+    const MK = window.FTE_MISTAKES;
+    if (MK && MK.groups) {
+      MK.groups.forEach(function (g) {
+        g.items.forEach(function (m) {
+          idx.push({ type: "易错点", text: g.title + " · " + m.right, sub: m.why, href: "#/mistakes", hl: m.wrong });
+        });
+      });
+    }
     return idx;
   }
   function queryIndex(q) {
     if (!searchIndex) searchIndex = buildIndex();
     const ql = q.toLowerCase();
     const rank = {
-      "单词": 0, "短语": 1, "对话": 2, "单元": 3
+      "单词": 0, "短语": 1, "对话": 2, "单元": 3, "易错点": 2
     };
     return searchIndex
       .filter(function (it) {
@@ -215,7 +225,7 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "home"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -238,6 +248,7 @@
     try {
       if (route.view === "home") renderHome();
       else if (route.view === "units") renderUnits();
+      else if (route.view === "mistakes") renderMistakes();
       else if (route.view === "unit") renderUnit(route);
       else if (route.view === "flash") renderFlash();
       else if (route.view === "quiz") renderQuiz();
@@ -344,8 +355,136 @@
     </div>`;
   }
 
-  function renderHome() {    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });
-    const nextUnit = firstTodo || DATA.units[0];
+  /* 「分级限词 · 高频复现」：把跨单元里同一个行业高频词的真实例句聚合起来，
+     展示「同一个词在不同业务场景反复出现」——靠重复与情境自然记住，而非一次性背。 */
+  function freqRepeatHtml() {
+    /* 复现语料 = 词汇例句 + 短语例句 + 对话台词（真实业务语境） */
+    const corpus = [];
+    DATA.units.forEach(function (u) {
+      u.vocab.forEach(function (v) { corpus.push({ ex: v.ex }); });
+      u.phrases.forEach(function (p) { corpus.push({ ex: p.ex }); });
+      u.dialogues.forEach(function (d) { d.lines.forEach(function (l) { corpus.push({ ex: l.en }); }); });
+    });
+    const terms = {};
+    DATA.units.forEach(function (u) {
+      u.vocab.forEach(function (v) {
+        const k = String(v.w).toLowerCase();
+        if (!terms[k]) terms[k] = { w: v.w, tag: wordFreqTag(v.w), occ: [] };
+      });
+    });
+    Object.keys(terms).forEach(function (k) {
+      const t = terms[k];
+      let re;
+      try { re = new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i"); } catch (e) { re = null; }
+      if (!re) return;
+      corpus.forEach(function (c) { if (re.test(c.ex)) t.occ.push({ ex: c.ex }); });
+    });
+    /* 真正『反复出现』的词（>=3 处，跨多个业务语境），按复现次数取前 12 */
+    const list = Object.keys(terms).map(function (k) { return terms[k]; })
+      .filter(function (t) { return t.occ.length >= 3; })
+      .sort(function (a, b) { return b.occ.length - a.occ.length; })
+      .slice(0, 12);
+    if (!list.length) return "";
+    let feui = 0;
+    return `
+    <h3 class="section-title">📌 高频行业词 · 多场景复现 <span class="sub">同一个词在不同业务场景反复出现，靠重复自然记住（每个例句都能点 🎯 跟读评测）</span></h3>
+    <div class="freq-grid">
+      ${list.map(function (it) {
+        return `<details class="freq-item">
+          <summary><b>${esc(it.w)}</b><span class="word-freq ${it.tag.cls}">${it.tag.label}</span><em>${it.occ.length} 处复现</em></summary>
+          <div class="freq-exs">${it.occ.map(function (e) {
+            const id = "freq-ev-" + (feui++);
+            return `<div class="freq-ex">
+              <span class="freq-sentence">${esc(e.ex)}</span>
+              ${Player.recognitionSupported()
+                ? '<button class="eval-btn" data-action="freq-shadow" data-txt="' + esc(e.ex) + '" data-idx="' + id + '" title="跟读评测：听一遍再跟读打分">🎯</button>'
+                : ""}
+              <div class="freq-eval" id="${id}"></div>
+            </div>`;
+          }).join("")}</div>
+        </details>`;
+      }).join("")}
+    </div>`;
+  }
+
+  /* 本周易错 / 高频词回顾：首页卡片，聚合「常错词、AI 陪练错句、未掌握的高频词」 */
+  function recurringTop(n) {
+    const corpus = [];
+    DATA.units.forEach(function (u) {
+      u.vocab.forEach(function (v) { corpus.push(v.ex); });
+      u.phrases.forEach(function (p) { corpus.push(p.ex); });
+      u.dialogues.forEach(function (d) { d.lines.forEach(function (l) { corpus.push(l.en); }); });
+    });
+    const count = {}, meta = {};
+    DATA.units.forEach(function (u) {
+      u.vocab.forEach(function (v, i) {
+        const k = String(v.w).toLowerCase();
+        if (count[k] == null) count[k] = 0;
+        if (!meta[k]) meta[k] = { w: v.w, ipa: v.ipa || "", id: u.id + "-" + i, uid: u.id };
+      });
+    });
+    Object.keys(count).forEach(function (k) {
+      let re;
+      try { re = new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i"); } catch (e) { re = null; }
+      if (!re) return;
+      corpus.forEach(function (c) { if (re.test(c)) count[k]++; });
+    });
+    return Object.keys(count).map(function (k) {
+      return { w: meta[k].w, ipa: meta[k].ipa, n: count[k], id: meta[k].id, uid: meta[k].uid };
+    }).filter(function (x) { return x.n >= 3; }).sort(function (a, b) { return b.n - a.n; }).slice(0, n);
+  }
+
+  function weekReviewHtml() {
+    const weekAgo = Date.now() - 7 * 86400000;
+    const map = {};
+    DATA.units.forEach(function (u) { u.vocab.forEach(function (v, i) { map[u.id + "-" + i] = { v: v, u: u }; }); });
+    /* 本周常错词：本周认真复习过且错得多 */
+    const wrong = Object.keys(progress.wrong || {}).map(function (id) {
+      const rec = progress.flash && progress.flash[id];
+      return { id: id, n: progress.wrong[id], last: rec && rec.last ? rec.last : 0 };
+    }).filter(function (x) { return x.n >= 1 && map[x.id] && x.last >= weekAgo; })
+      .sort(function (a, b) { return b.n - a.n; }).slice(0, 6);
+    const review = (progress.tutorReview || []).slice(0, 3);
+    /* 高频词：复现最多、但还没掌握 */
+    const high = recurringTop(9).filter(function (x) { return !progress.learned[x.id]; }).slice(0, 6);
+
+    const chip = function (text, id, unitId, extra) {
+      return '<span class="wk-word"><button class="play-btn" data-action="play-text" data-text="' + esc(text) + '" title="朗读">▶</button>' +
+        '<span class="wk-t">' + esc(text) + '</span>' +
+        (extra ? '<span class="wk-x">' + esc(extra) + '</span>' : "") +
+        '<a class="wk-go" href="#/unit/' + unitId + '">去学 →</a></span>';
+    };
+
+    return `
+    <div class="card wk-review">
+      <div class="chat-head"><span>📅 本周易错 / 高频词回顾</span><span class="sop-hint">凭记忆先想，再点 ▶ 朗读，复习错词与被忽略的高频词</span></div>
+      <div class="wk-cols">
+        <div class="wk-col">
+          <b>🔥 本周常错词 <span class="wk-sub">（最近复习仍易错的词）</span></b>
+          <div class="wk-list">${wrong.length
+            ? wrong.map(function (x) { return chip(map[x.id].v.w, x.id, map[x.id].u.id, "错 " + x.n + " 次"); }).join("")
+            : '<p class="sop-tipline">这周很稳或刚起步。去 <a href="#/flash">单词卡</a> / <a href="#/quiz">测验</a> 做几题，这里会生成你该复习的词。</p>'}</div>
+          ${review.length
+            ? '<div class="wk-sub2">📌 今天没说顺的句子（AI 陪练）</div><div class="wk-list">' +
+              review.map(function (r) { return chip(r.en, "", 1, ""); }).join("") + '</div>'
+            : ""}
+        </div>
+        <div class="wk-col">
+          <b>📌 高频词 · 还没掌握 <span class="wk-sub">（业务里反复出现但没记住）</span></b>
+          <div class="wk-list">${high.length
+            ? high.map(function (h) { return chip(h.w, h.id, h.uid, h.n + " 处"); }).join("")
+            : '<p class="sop-tipline">高频词都掌握了！可去「📌 高频行业词·多场景复现」再读一遍保持复现。</p>'}</div>
+        </div>
+      </div>
+      <div class="wk-actions">
+        <a class="btn btn-soft btn-sm" href="#/flash">🃏 去单词卡复习 →</a>
+        <a class="btn btn-outline btn-sm" href="#/mistakes">⚠️ 易错点 →</a>
+        <a class="btn btn-outline btn-sm" href="#/tutor">🤖 AI 陪练 →</a>
+      </div>
+    </div>`;
+  }
+
+  function renderHome() {    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });    const nextUnit = firstTodo || DATA.units[0];
     const nextPct = unitPct(nextUnit);
     const doneCount = DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
 
@@ -385,6 +524,10 @@
 
     <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习，掌握完整外贸流程</span></h3>
     <div class="grid grid-3">${DATA.units.map(unitCardHtml).join("")}</div>
+
+    ${freqRepeatHtml()}
+
+    ${weekReviewHtml()}
 
     <h3 class="section-title">✨ 功能亮点</h3>
     <div class="grid grid-3">
@@ -500,6 +643,83 @@
       <div class="en">${DATA.units.length} 个单元 · 覆盖外贸全流程</div>
     </div>
     <div class="grid grid-2" style="margin-top:18px">${DATA.units.map(unitCardHtml).join("")}</div>`;
+  }
+
+  /* ================= 中国外贸人高频易错点 ================= */
+  function renderMistakes() {
+    const MK = window.FTE_MISTAKES;
+    if (!MK || !MK.groups || !MK.groups.length) {
+      app.innerHTML = '<div class="page-head"><h2>⚠️ 易错点</h2></div><div class="empty"><div class="e-icon">📭</div>易错点库尚未就绪。</div>';
+      return;
+    }
+    const flows = MK.flows || [];
+    const activeFlow = State.mistFlow || "all";
+    const reveal = State.mistReveal;
+
+    const flowTabs = [
+      '<button class="chip ' + (activeFlow === "all" ? "active" : "") + '" data-action="mistake-flow" data-flow="all">全部流程</button>'
+    ].concat(flows.map(function (f) {
+      return '<button class="chip ' + (activeFlow === f.id ? "active" : "") + '" data-action="mistake-flow" data-flow="' + f.id + '">' + esc(f.label) + '</button>';
+    })).join("");
+
+    const groups = MK.groups.filter(function (g) { return activeFlow === "all" || g.flow === activeFlow; });
+
+    const groupHtml = groups.map(function (g) {
+      const items = g.items.map(function (m, i) {
+        return `
+        <div class="mistake-card" style="margin-top:12px">
+          <div class="mk-wrong">❌ <span>${esc(m.wrong)}</span>
+            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.wrong)}" title="朗读错误版（感受为什么别扭）">▶</button>
+          </div>
+          <div class="mk-right">
+            ${reveal
+              ? '✅ <span>' + esc(m.right) + '</span><button class="play-btn" data-action="mistake-speak" data-text="' + esc(m.right) + '" title="朗读正确版">▶</button>'
+              : '<span class="mk-hidden" data-action="mistake-reveal" title="点击揭晓正确表达">（先想一下，再点揭晓）</span>'}
+          </div>
+          <div class="mk-why">💡 <b>为什么：</b>${esc(m.why)}</div>
+          <div class="mk-ex">📖 行业例句：<span>${esc(m.ex)}</span>
+            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.ex)}" title="朗读例句">▶</button>
+            <span class="mk-excn">${esc(m.exCn)}</span>
+          </div>
+        </div>`;
+      }).join("");
+
+      return `
+      <div class="card" style="padding:18px 20px;margin-top:18px">
+        <div class="mk-head">
+          <div style="font-size:24px">${g.icon}</div>
+          <div>
+            <h3 style="margin:0">${esc(g.title)}</h3>
+            <span class="badge badge-muted">${esc(flowLabel(flows, g.flow))} · ${g.items.length} 条</span>
+          </div>
+        </div>
+        <p style="font-size:13.5px;color:var(--muted);margin:10px 0 4px">${esc(g.intro)}</p>
+        <div class="mk-items">${items}</div>
+      </div>`;
+    }).join("");
+
+    app.innerHTML = `
+    <div class="page-head">
+      <div class="crumbs"><a href="#/home">首页</a> / 易错点</div>
+      <h2>⚠️ 中国外贸人高频易错点</h2>
+      <div class="en">提前把你"自己都不知道自己会犯的错"挖出来，再逐个讲清</div>
+      <p style="margin-top:8px;max-width:760px;color:var(--muted)">${esc(MK.note || "")}<br>
+        用法：先看<b>错误表达（红线）</b>，自己想一下该怎么改，再点揭晓正确版 → 听正确的 → 用<b>行业例句</b>跟读练一遍，把语感记牢。</p>
+    </div>
+    <div class="mistake-toolbar">
+      <div class="chip-row">${flowTabs}</div>
+      <button class="btn btn-outline btn-sm" data-action="mistake-reveal">${reveal ? "🙈 隐藏正确答案" : "👁 显示全部正确答案"}</button>
+    </div>
+    ${groupHtml || '<div class="empty"><div class="e-icon">📭</div>该流程下暂无易错点。</div>'}
+    <div class="card" style="margin-top:18px;padding:14px 18px;font-size:13px;color:var(--muted)">
+      <b>把这些"坑"练成条件反射：</b>去 <a href="#/flash">单词卡</a> 勾选「⚠️ 同时复习易错点」→ 正面是错误句，翻面看正确说法，刻意记牢；或去 <a href="#/quiz">智能测验</a> 的「出题范围」选「⚠️ 易错点（专门测）」→ 集中考你对"更地道表达"的判断。也可放进 <a href="#/tutor">AI 陪练</a>（教练规则开「四段式纠错」+「点到为止」）。
+      <a href="#/units" style="margin-left:8px">去系统学 →</a>
+    </div>`;
+  }
+
+  function flowLabel(flows, id) {
+    const hit = flows.find(function (f) { return f.id === id; });
+    return hit ? hit.label : id;
   }
 
   /* ================= 单元详情 ================= */
@@ -820,12 +1040,16 @@
             <span class="flash-meta">
               <span class="fs-badge fs-${state.cls}">${esc(state.label)}</span>
               ${wron > 0 ? '<span class="fs-badge fs-wrong">常错 ' + wron + ' 次</span>' : ""}
+              ${card.kind === "mistake" ? '<span class="fs-badge fs-wrong">⚠️ 错句 · 怎么改？</span>' : ""}
             </span>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="flash-say" title="朗读">🔊</button>
-            <div class="hint">点击卡片查看释义</div>
+            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : "点击卡片查看释义"}</div>
           </div>
           <div class="flash-face flash-back">
-            <div class="cn">${esc(card.cn)}</div>
+            ${card.kind === "mistake"
+              ? '<div class="cn" style="color:var(--ok);font-weight:800">✓ 正确：' + esc(card.cn) + '</div>' +
+                '<div class="cn" style="margin-top:6px;color:var(--accent);font-weight:600">💡 ' + esc(card.why || "") + '</div>'
+              : '<div class="cn">' + esc(card.cn) + '</div>'}
             <div class="ex">${esc(card.ex)}</div>
             <div class="ex">${esc(card.exCn)}</div>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px;background:rgba(255,255,255,.2);color:#fff" data-action="flash-say" title="朗读例句">🔊</button>
@@ -849,6 +1073,11 @@
       <div class="field">
         <label>选择单元</label>
         <select id="flashUnit">${DATA.units.map(function (u) { return '<option value="' + u.id + '">' + u.id + '. ' + esc(u.title) + '</option>'; }).join("")}</select>
+      </div>
+      <div class="field">
+        <label class="step-toggle" title="在本次单词卡里加入「中国外贸人高频易错点」：正面是错误句，翻面看正确说法与原因，刻意复习你容易踩的坑">
+          <input type="checkbox" id="flashMistakes"> ⚠️ 同时复习易错点（错句→正确说法）
+        </label>
       </div>
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" data-action="flash-start">开始学习 →</button>
@@ -890,15 +1119,59 @@
     </div>`;
   }
 
+  /* 把易错点转成单词卡（正面=错误句，背面=正确版+原因+例句），供「含易错点」复习 */
+  function mistakeFlashCards() {
+    const MK = window.FTE_MISTAKES;
+    if (!MK || !MK.groups) return [];
+    const out = [];
+    MK.groups.forEach(function (g) {
+      g.items.forEach(function (m, i) {
+        out.push({
+          id: "mk-" + g.id + "-" + i,
+          w: m.wrong, ipa: "", cn: m.right, ex: m.ex, exCn: m.exCn,
+          why: m.why, kind: "mistake"
+        });
+      });
+    });
+    return out;
+  }
+  /* 把易错点转成「伪单元」（词条+例句），供测验出题 */
+  function mistakeQuizUnits() {
+    const MK = window.FTE_MISTAKES;
+    if (!MK || !MK.groups) return [];
+    return MK.groups.map(function (g, gi) {
+      return {
+        id: "mk-" + g.id, title: "易错点·" + g.title, icon: g.icon, summary: "",
+        vocab: g.items.map(function (m) {
+          return { w: m.right, ipa: "", pos: "phrase.", cn: m.exCn, ex: m.ex, exCn: m.exCn };
+        }),
+        phrases: [], dialogues: [], tips: []
+      };
+    });
+  }
+
   function startFlashSession(prefUnit) {
     const sel = document.getElementById("flashUnit");
     const u = prefUnit || (sel ? getUnit(parseInt(sel.value, 10)) : DATA.units[0]);
-    const cards = unitWords(u).map(function (w) {
+    let cards = unitWords(u).map(function (w) {
       return { id: w.id, w: w.v.w, ipa: w.v.ipa, cn: w.v.cn, ex: w.v.ex, exCn: w.v.exCn };
     });
-    const built = Flashcards.buildQueue(cards, progress, 30);
+    const fmk = document.getElementById("flashMistakes");
+    const includeMk = fmk && fmk.checked;
+    if (includeMk) {
+      /* 单元词与易错词交错排列，避免易错词排在后面被「最多 15 张新卡」裁掉 */
+      const mkCards = mistakeFlashCards();
+      const mixed = [];
+      const max = Math.max(cards.length, mkCards.length);
+      for (let i = 0; i < max; i++) {
+        if (mkCards[i]) mixed.push(mkCards[i]);
+        if (cards[i]) mixed.push(cards[i]);
+      }
+      cards = mixed;
+    }
+    const built = Flashcards.buildQueue(cards, progress, 30, includeMk ? 26 : 15);
     State.flash = {
-      unit: u,
+      unit: includeMk ? { id: u.id, title: u.title + " + ⚠️易错点" } : u,
       queue: built.queue,
       idx: 0,
       stats: { known: 0, unknown: 0 },
@@ -982,6 +1255,7 @@
           <select id="quizUnit">
             <option value="all">全部单元</option>
             ${DATA.units.map(function (u) { return '<option value="' + u.id + '">' + u.id + '. ' + esc(u.title) + '</option>'; }).join("")}
+            <option value="mistakes">⚠️ 易错点（专门测）</option>
           </select>
         </div>
         <div class="field">
@@ -1035,9 +1309,9 @@
     const types = Array.prototype.filter.call(document.querySelectorAll(".quiz-type"), function (c) { return c.checked; })
       .map(function (c) { return c.value; });
     if (!types.length) { toast("请至少选择一种题型"); return; }
-    const units = unitSel.value === "all"
-      ? DATA.units
-      : [getUnit(parseInt(unitSel.value, 10))];
+    let units;
+    if (unitSel.value === "mistakes") units = mistakeQuizUnits();
+    else units = unitSel.value === "all" ? DATA.units : [getUnit(parseInt(unitSel.value, 10))];
     State.quiz = {
       questions: Quiz.build(units, { count: parseInt(countSel.value, 10), types: types }),
       uid: units.map(function (u) { return u.id; }),
@@ -1546,6 +1820,33 @@
     });
   }
 
+  /* 高频复现例句 · 跟读评测：先读一遍原声，再跟读打分（复用 Player 与 ASR 评测） */
+  function startFreqShadow(el) {
+    const target = el.getAttribute("data-txt");
+    const box = document.getElementById(el.getAttribute("data-idx"));
+    if (State.evalRec) { try { State.evalRec.stop(); } catch (e) { /* ignore */ } State.evalRec = null; }
+    if (el) { el.classList.add("listening"); el.disabled = true; }
+    if (box) { box.hidden = false; box.innerHTML = '<div class="eval-transcript">🔊 先听一遍，然后请大声跟读这一句（说完自动停止）…</div>'; }
+    const done = function (text) {
+      if (el) { el.classList.remove("listening"); el.disabled = false; }
+      if (box) { box.hidden = false; box.innerHTML = evalResultHtml(target, text); }
+      State.evalRec = null;
+    };
+    Player.speak(target, {
+      rate: 0.95,
+      onend: function () {
+        Player.micRequest().then(function () {
+          State.evalRec = Player.recognize({
+            lang: "en-US",
+            onError: function (err) { done(""); const m = Player.recErrorText(err); if (m) toast(m); },
+            onEnd: done
+          });
+          if (!State.evalRec) { done(""); toast("语音识别启动失败，建议使用 Chrome / Edge 并允许麦克风权限"); }
+        }).catch(function (err) { done(""); const m = Player.recErrorText(err); if (m) toast(m); });
+      }
+    });
+  }
+
   function renderDict(s) {
     const results = s.dictResults;
     const doneCount = Object.keys(results).length;
@@ -1678,6 +1979,23 @@
       case "play-sentence": playSentence(id); break;
       case "play-text":
         Player.speak(el.getAttribute("data-text"), { rate: 1 });
+        break;
+      case "mistake-speak": {
+        const mt = el.getAttribute("data-text");
+        if (mt) Player.speak(mt, { rate: 1 });
+        break;
+      }
+      case "mistake-reveal":
+        State.mistReveal = !State.mistReveal;
+        renderRoute();
+        toast(State.mistReveal ? "👁 已显示全部正确答案" : "🙈 已隐藏正确答案，先自己想再揭晓");
+        break;
+      case "mistake-flow":
+        State.mistFlow = el.getAttribute("data-flow") || "all";
+        renderRoute();
+        break;
+      case "freq-shadow":
+        startFreqShadow(el);
         break;
       case "play-line": playLineOnly(id, parseInt(idx, 10), parseInt(li, 10)); break;
       case "step-prev": stepGo(-1); break;
@@ -2552,8 +2870,63 @@
   setupSettings();
   if (!location.hash) location.hash = "#/home";
   renderRoute();
+  showOnboarding();
 
-  /* ---------------- 供 eval4.js（四维口语实战）复用的工具 ---------------- */
+  /* ---------------- 首次上手导流「拆掉'怕'」（来自 ELLLO 深度评） ----------------
+     功能再强，新用户最怕的是：怕太难、怕太乱、怕学的东西用不上、怕开始。
+     首次进入用一次引导，替用户把「我从哪里开始」定下来，而不是丢给他们一堆菜单。 */
+  function showOnboarding() {
+    if (localStorage.getItem("fte-onboarded")) return;
+    const next = DATA.units[0];
+    const mask = document.createElement("div");
+    mask.className = "modal-mask";
+    mask.style.zIndex = "300";
+    mask.innerHTML = `
+    <div class="modal" style="max-width:540px">
+      <div class="modal-head"><b>👋 别急着学，我先把你带进门</b></div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:12px">
+        这个站功能很多，但<b>你不用一次学完</b>。我只回答你最担心的几件事：
+      </div>
+      <div class="ob-fears">
+        <div class="ob-fear"><b>😰 怕太难？</b> 内容按从易到难排好，你练的是「踮踮脚就够得着」的难度。</div>
+        <div class="ob-fear"><b>😰 怕太乱？</b> 从下面这个起点开始就行，顺着它走，不用自己搭体系。</div>
+        <div class="ob-fear"><b>😰 怕学的东西用不上？</b> 全是询盘、报价、装运、客诉这类你每天会碰到的真实场景。</div>
+        <div class="ob-fear"><b>😰 怕坚持不下来？</b> 每天 20 分钟就够，一次只做一件事。</div>
+      </div>
+      <div class="ob-step">
+        <b>① 你先在这里</b>：从「${esc(next.title)}」开始（外贸流程的开头）。
+      </div>
+      <div class="ob-step">
+        <b>② 顺着顺序走</b>：先认识这个词 → 听它的例句 → 点「✓ 记住了」。一个单元一个单元来。
+      </div>
+      <div class="ob-step">
+        <b>③ 今天 20 分钟就这么走</b>：<br>
+        <span class="ob-mini">3 分钟</span> 读一遍本单元词汇<br>
+        <span class="ob-mini">8 分钟</span> 听一段场景对话（跟着开口说）<br>
+        <span class="ob-mini">5 分钟</span> 用「🎯 智能评测」跟读一句<br>
+        <span class="ob-mini">4 分钟</span> 把今天记的 3 个词放进单词卡<br>
+        <span style="color:var(--muted)">完成了点「✅ 今天的任务」，明天继续。</span>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" data-action="ob-skip">😌 我熟练，跳过</button>
+        <button class="btn btn-primary" data-action="ob-start">🚀 开始我的第一步</button>
+      </div>
+    </div>`;
+    document.body.appendChild(mask);
+    mask.addEventListener("click", function (e) {
+      const t = e.target.closest('[data-action]');
+      if (!t) return;
+      if (t.getAttribute("data-action") === "ob-skip") {
+        localStorage.setItem("fte-onboarded", "1");
+        closeOb();
+      } else if (t.getAttribute("data-action") === "ob-start") {
+        localStorage.setItem("fte-onboarded", "1");
+        closeOb();
+        location.hash = "#/unit/" + next.id;
+      }
+    });
+    function closeOb() { if (mask.parentNode) mask.parentNode.removeChild(mask); }
+  }
   window.ASRUtil = {
     norm: norm,
     esc: esc,
