@@ -666,7 +666,8 @@
     { k: "pay", label: "🏦 收款与风控" },
     { k: "legal", label: "⚖️ 合同与合规" },
     { k: "terms", label: "📐 Incoterms 2020" },
-    { k: "tools", label: "🧮 实用工具" }
+    { k: "tools", label: "🧮 实用工具" },
+    { k: "docgen", label: "📄 单证生成" }
   ];
 
   function allSteps() {
@@ -1098,6 +1099,7 @@
           : State.tab === "legal" ? legalHtml()
             : State.tab === "terms" ? termsHtml()
             : State.tab === "tools" ? toolsHtml()
+              : State.tab === "docgen" ? docgenHtml()
               : flowHtml();
 
     app.innerHTML = '<div class="page-head">' +
@@ -1109,27 +1111,56 @@
         return '<button class="tab' + (State.tab === t.k ? " active" : "") + '" data-action="sop-tab" data-tab="' + t.k + '">' + t.label + '</button>';
       }).join("") + '</div>' +
       '<div id="sopBody">' + body + footerHtml() + '</div>';
+    if (State.tab === "docgen") dgLineBody();
   }
 
   /* ================= 交互 ================= */
+  /* 集装箱内尺寸（经验值，米）。实际以货代/船公司实测为准。 */
+  var CONTAINERS = [
+    { k: "20GP", name: "20GP", L: 5.90, W: 2.35, H: 2.39, cbm: 33.2, pay: 17500 },
+    { k: "40GP", name: "40GP", L: 12.03, W: 2.35, H: 2.39, cbm: 67.5, pay: 26500 },
+    { k: "40HQ", name: "40HQ", L: 12.03, W: 2.35, H: 2.69, cbm: 76.0, pay: 26500 }
+  ];
+  /* 贪心 3D 装箱：统一尺寸纸箱，按 6 种朝向分别算能码多少，取最优（不是体积除法，避免系统性高估） */
+  function fitCartons(c, l, w, h) {   // 纸箱 l/w/h 单位为米
+    var dims = [l, w, h];
+    var perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    var best = 0, i;
+    for (i = 0; i < perms.length; i++) {
+      var o = perms[i];
+      var nx = Math.floor(c.L / dims[o[0]]);
+      var ny = Math.floor(c.W / dims[o[1]]);
+      var nz = Math.floor(c.H / dims[o[2]]);
+      var f = nx * ny * nz;
+      if (f > best) best = f;
+    }
+    return best;
+  }
   function doCbm() {
     var L = num("cbmL"), W = num("cbmW"), H = num("cbmH"), N = num("cbmN"), G = num("cbmG");
-    var one = L * W * H / 1000000;
+    var l = L / 100, w = W / 100, h = H / 100;         // 输入为厘米 → 米
+    var one = l * w * h;
     var total = one * N;
     var gw = G * N;
-    var box = function (name, cap) {
-      var n = cap > 0 ? Math.floor(total > 0 ? cap / one : 0) : 0;
-      return "<tr><th>" + name + "</th><td>约 " + cap + " CBM，本箱型可装约 <b>" + n + "</b> 箱</td></tr>";
-    };
     var out = document.getElementById("sopCbmOut");
     if (!out) return;
+    if (!(L > 0 && W > 0 && H > 0)) { out.hidden = false; out.innerHTML = '<p class="sop-warn">请先填入纸箱长宽高（厘米）。</p>'; return; }
     out.hidden = false;
+    var rows = CONTAINERS.map(function (c) {
+      var fits = fitCartons(c, l, w, h) || 0;
+      var byWeight = G > 0 ? Math.floor(c.pay / G) : Infinity;   // 受限重
+      var actual = Math.min(fits, N, byWeight);
+      var note = byWeight < fits ? '（按限重 ' + (c.pay / 1000) + ' 吨，最多 ' + byWeight + ' 箱）' : '';
+      var volOnly = c.cbm > 0 && one > 0 ? Math.floor(c.cbm / one) : 0;
+      return "<tr><th>" + c.name + "</th><td><b>" + actual + "</b> 箱" + note +
+        ' <span class="sop-hint">（按码放方向优化；旧体积法 ' + volOnly + ' 箱会高估）</span></td></tr>';
+    }).join("");
     out.innerHTML = '<table class="sop-kv"><tbody>' +
       "<tr><th>单箱体积</th><td><b>" + one.toFixed(4) + "</b> CBM</td></tr>" +
       "<tr><th>总体积</th><td><b>" + total.toFixed(3) + "</b> CBM</td></tr>" +
       (G > 0 ? "<tr><th>总毛重</th><td><b>" + gw.toFixed(1) + "</b> KGS</td></tr>" : "") +
-      box("20GP 参考", 28) + box("40GP 参考", 58) + box("40HQ 参考", 68) +
-      '</tbody></table><p class="sop-tipline">柜型容积为经验值（20GP 约 28、40GP 约 58、40HQ 约 68 CBM），实际装载还受重量限制与码放方式影响；20GP 重货一般不超过 17.5 吨。</p>';
+      rows +
+      '</tbody></table><p class="sop-tipline">柜内尺寸与限重为经验值，实际以货代/船公司实测为准；20GP 重货一般不超过 17.5 吨。贪心按朝向码放，比体积除法更接近真实装载量。</p>';
   }
 
   function doCif() {
@@ -1247,6 +1278,384 @@
     toast("✨ 已生成，可直接编辑后复制");
   }
 
+  /* ================= 单证同源生成器（PI / CI / PL 一键生成） =================
+     一次录入买卖双方、订单与装运信息 + 明细行，同源生成形式发票 PI、商业发票 CI、
+     装箱单 PL 三份，从源头杜绝「单单不一致」。核心零依赖、离线可用；
+     导出 .xlsx 走 ExcelJS（运行时按需从 CDN 加载，加载失败自动回退打印/PDF 与 CSV）。
+     数据存 localStorage：fte-docgen-v1。 */
+  var DG_KEY = "fte-docgen-v1";
+  var DG_STATE = null;
+  var DG_FIELDS = [
+    { id: "dgsellerName", lb: "公司名称 Company", grp: "seller", ph: "e.g. SoftPack Packaging Co., Ltd." },
+    { id: "dgsellerAddr", lb: "地址 Address", grp: "seller" },
+    { id: "dgsellerContact", lb: "联系人 / 电话 / 邮箱", grp: "seller" },
+    { id: "dgsellerBank", lb: "开户行 Bank（名称+地址）", grp: "seller" },
+    { id: "dgsellerAcc", lb: "账号 Account No.", grp: "seller" },
+    { id: "dgsellerSwift", lb: "SWIFT", grp: "seller" },
+    { id: "dgbuyerName", lb: "公司名称 Company", grp: "buyer" },
+    { id: "dgbuyerAddr", lb: "地址 Address", grp: "buyer" },
+    { id: "dgbuyerContact", lb: "联系人 / 电话 / 邮箱", grp: "buyer" },
+    { id: "dgbuyerNotify", lb: "通知方 Notify Party（可空）", grp: "buyer" },
+    { id: "dgorderNo", lb: "单号 Order / PI No.", grp: "order" },
+    { id: "dgdate", lb: "日期 Date", grp: "order" },
+    { id: "dgcurrency", lb: "币种 Currency", grp: "order" },
+    { id: "dgincoterm", lb: "贸易术语 Incoterms", grp: "order" },
+    { id: "dgplace", lb: "术语地点 / 目的港 Place", grp: "order" },
+    { id: "dgpay", lb: "付款方式 Payment", grp: "order" },
+    { id: "dgvalidity", lb: "有效期 Validity", grp: "order" },
+    { id: "dgvessel", lb: "船名航次 Vessel & Voyage", grp: "ship" },
+    { id: "dgbl", lb: "提单号 B/L No.", grp: "ship" },
+    { id: "dgpol", lb: "装运港 Port of Loading", grp: "ship" },
+    { id: "dgpod", lb: "卸货港 Port of Discharge", grp: "ship" },
+    { id: "dgshipdate", lb: "装船日期 Ship Date", grp: "ship" },
+    { id: "dgmarks", lb: "唛头 Shipping Mark", grp: "ship" }
+  ];
+
+  function money(n) { n = isFinite(n) ? n : 0; return n.toFixed(2); }
+  function mon(n) { n = isFinite(n) ? n : 0; return (Math.round(n * 10) / 10).toFixed(1); }
+
+  function dgDefault() {
+    return {
+      h: {
+        dgsellerName: "", dgsellerAddr: "", dgsellerContact: "", dgsellerBank: "", dgsellerAcc: "", dgsellerSwift: "",
+        dgbuyerName: "", dgbuyerAddr: "", dgbuyerContact: "", dgbuyerNotify: "",
+        dgorderNo: "", dgdate: "", dgcurrency: "USD", dgincoterm: "FOB", dgplace: "", dgpay: "T/T 30% deposit, 70% before shipment", dgvalidity: "30 days",
+        dgvessel: "", dgbl: "", dgpol: "", dgpod: "", dgshipdate: "", dgmarks: ""
+      },
+      items: [{ desc: "", hs: "", qty: "", unit: "PCS", price: "", nwt: "", gwt: "", ctns: "", cbm: "" }]
+    };
+  }
+  function dgLoadState() {
+    var base = dgDefault();
+    var raw;
+    try { raw = localStorage.getItem(DG_KEY); } catch (e) { return base; }
+    if (!raw) return base;
+    try {
+      var o = JSON.parse(raw);
+      if (o.h) Object.keys(base.h).forEach(function (k) { if (o.h[k] != null) base.h[k] = o.h[k]; });
+      if (Array.isArray(o.items) && o.items.length) base.items = o.items;
+    } catch (e) { /* ignore corrupt */ }
+    return base;
+  }
+  function dgSaveState() {
+    try { localStorage.setItem(DG_KEY, JSON.stringify({ h: DG_STATE.h, items: DG_STATE.items })); } catch (e) { /* ignore */ }
+  }
+
+  function dgField(f) {
+    var v = DG_STATE.h[f.id] || "";
+    var list = (f.id === "dgpol" || f.id === "dgpod") ? ' list="fte-ports" autocomplete="off"' : "";
+    return '<div class="field"><label class="dg-field-lb">' + esc(f.lb) + '</label>' +
+      '<input id="' + f.id + '" data-dg="' + f.id + '" value="' + esc(v) + '" placeholder="' + esc(f.ph || "") + '"' + list + '></div>';
+  }
+  function dgGrp(grp, title) {
+    var arr = DG_FIELDS.filter(function (f) { return f.grp === grp; });
+    if (!arr.length) return "";
+    return '<div class="dg-lb">' + esc(title) + '</div><div class="dg-grid">' + arr.map(dgField).join("") + '</div>';
+  }
+
+  function dgLineRow(i, l) {
+    l = l || {};
+    var inp = function (k, w, type) {
+      return '<td style="width:' + w + '"><input data-l="' + k + '" type="' + (type || "text") + '" value="' + esc(l[k] == null ? "" : l[k]) + '"></td>';
+    };
+    return '<tr data-dg-line>' +
+      '<td class="dg-no">' + (i + 1) + '.</td>' +
+      inp("desc", "") + inp("hs", "78px") +
+      inp("qty", "62px", "number") + inp("unit", "54px") +
+      inp("price", "72px", "number") + inp("nwt", "62px", "number") +
+      inp("gwt", "62px", "number") + inp("ctns", "58px", "number") +
+      inp("cbm", "58px", "number") +
+      '<td style="width:24px"><button class="dg-rm" data-action="dg-rm" data-idx="' + (i + 1) + '" title="删除该行">✕</button></td>' +
+      '</tr>';
+  }
+  function dgLineBody() {
+    var tb = document.getElementById("dgLineBody");
+    if (!tb) return;
+    tb.innerHTML = DG_STATE.items.map(function (l, i) { return dgLineRow(i, l); }).join("");
+  }
+  function dgReadLines() {
+    var out = [], rows = document.querySelectorAll("[data-dg-line]");
+    for (var i = 0; i < rows.length; i++) {
+      var tr = rows[i];
+      var g = function (k) { var el = tr.querySelector('[data-l="' + k + '"]'); return el ? el.value : ""; };
+      var r = {
+        desc: g("desc"), hs: g("hs"),
+        qty: parseFloat(g("qty")) || 0, unit: g("unit"),
+        price: parseFloat(g("price")) || 0, nwt: parseFloat(g("nwt")) || 0,
+        gwt: parseFloat(g("gwt")) || 0, ctns: parseFloat(g("ctns")) || 0, cbm: parseFloat(g("cbm")) || 0
+      };
+      var no = tr.querySelector(".dg-no"); if (no) no.textContent = (i + 1) + ".";
+      out.push(r);
+    }
+    return out;
+  }
+
+  function dgBuild() {
+    var h = {};
+    DG_FIELDS.forEach(function (f) { h[f.id] = val(f.id); });
+    var items = dgReadLines();
+    var cur = (h.dgcurrency && String(h.dgcurrency).trim()) ? String(h.dgcurrency).trim() : "USD";
+    var totalAmount = 0, totalQty = 0, totalNwt = 0, totalGwt = 0, totalCtn = 0, totalCBM = 0;
+    items.forEach(function (r) {
+      var amt = (r.price || 0) * (r.qty || 0);
+      r.amount = amt;
+      totalAmount += amt; totalQty += r.qty || 0;
+      totalNwt += (r.nwt || 0) * (r.qty || 0); totalGwt += (r.gwt || 0) * (r.qty || 0);
+      totalCtn += r.ctns || 0; totalCBM += r.cbm || 0;
+    });
+    return {
+      h: h, items: items, cur: cur,
+      totalAmount: totalAmount, totalQty: totalQty, totalNwt: totalNwt,
+      totalGwt: totalGwt, totalCtn: totalCtn, totalCBM: totalCBM
+    };
+  }
+
+  function dgDoc(type, S) {
+    var h = S.h, cur = S.cur;
+    var join = function (arr) { return arr.filter(function (x) { return x; }).join(", "); };
+    var seller = join([h.dgsellerName, h.dgsellerAddr]);
+    var buyer = join([h.dgbuyerName, h.dgbuyerAddr]);
+    var ship = function () {
+      return [
+        ["Vessel & Voyage", h.dgvessel], ["B/L No.", h.dgbl],
+        ["Port of Loading", h.dgpol], ["Port of Discharge", h.dgpod],
+        ["Ship Date", h.dgshipdate], ["Shipping Mark", h.dgmarks]
+      ];
+    };
+    var title, info, th, rows, sum;
+    if (type === "PL") {
+      title = "PACKING LIST";
+      info = [["Doc No.", h.dgorderNo], ["Date", h.dgdate], ["Shipper", seller], ["Buyer", buyer]].concat(ship());
+      th = ["No", "Description", "HS", "Cartons", "Qty", "Net Wt (KGS)", "Gross Wt (KGS)", "CBM"];
+      S.items.forEach(function (r, i) {
+        rows = rows || [];
+        rows.push([(i + 1) + ".", r.desc || "", r.hs || "", r.ctns || 0, r.qty || 0, mon(r.nwt * r.qty), mon(r.gwt * r.qty), r.cbm || ""]);
+      });
+      sum = ["Totals: " + S.totalCtn + " cartons / " + S.totalQty + " pcs  |  Net " + mon(S.totalNwt) + " KGS  |  Gross " + mon(S.totalGwt) + " KGS  |  " + mon(S.totalCBM) + " CBM"];
+    } else {
+      title = type === "PI" ? "PROFORMA INVOICE" : "COMMERCIAL INVOICE";
+      info = [["Doc No.", h.dgorderNo], ["Date", h.dgdate], ["Invoice No.", h.dgorderNo], ["Seller", seller], ["Buyer", buyer]];
+      info.push(["Trade Term", join([h.dgincoterm, h.dgplace])]);
+      info.push(["Payment", h.dgpay], ["Currency", cur]);
+      if (type === "CI") info = info.concat(ship());
+      else info.push(["Validity", h.dgvalidity], ["Bank", join([h.dgsellerBank, h.dgsellerAcc, h.dgsellerSwift])]);
+      th = ["No", "Description", "HS", "Qty", "Unit", "Unit Price", "Amount"];
+      rows = [];
+      S.items.forEach(function (r, i) {
+        rows.push([(i + 1) + ".", r.desc || "", r.hs || "", r.qty || 0, r.unit || "", money(r.price), money(r.amount) + " " + cur]);
+      });
+      sum = ["Total Qty: " + S.totalQty + "   |   Total Amount: " + money(S.totalAmount) + " " + cur];
+    }
+    var metaHtml = info.map(function (p) { return '<div class="dg-meta"><b>' + esc(p[0]) + '</b> ' + esc(p[1] || "") + '</div>'; }).join("");
+    var tableHtml = '<table class="sop-table"><thead><tr>' + th.map(function (t) { return '<th>' + esc(t) + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table>';
+    var sumHtml = '<div class="dg-sum">' + sum.map(function (s) { return '<span>' + esc(s) + '</span>'; }).join("") + '</div>';
+    return { title: title, info: info, th: th, rows: rows, sum: sum, metaHtml: metaHtml, tableHtml: tableHtml, sumHtml: sumHtml };
+  }
+
+  function dgDocPreview(S, type) {
+    var d = dgDoc(type, S);
+    var tag = type === "PI" ? "装船前 · 内部下单/收款依据" : type === "CI" ? "装船后 · 清关与结汇核心" : "装箱单 · 件数与重量";
+    return '<div class="dg-doc"><h4>' + esc(d.title) + ' <span style="font-weight:400;font-size:12px;color:var(--muted)">' + esc(tag) + '</span></h4>' +
+      '<button class="btn btn-outline btn-sm" style="margin-bottom:10px" data-action="dg-print" data-doc="' + type + '">🖨 打印 / PDF</button>' +
+      d.metaHtml + d.tableHtml + d.sumHtml + '</div>';
+  }
+
+  function docgenHtml() {
+    DG_STATE = dgLoadState();
+    var portOpts = (window.FTE_PORTS || []).map(function (p) {
+      return '<option value="' + esc(p.city + " (" + p.code + ")") + '"></option>';
+    }).join("");
+    return '<datalist id="fte-ports">' + portOpts + '</datalist>' +
+      '<div class="card" style="margin-bottom:14px"><div class="chat-head"><span>📄 单证同源生成器 · 一次录入，PI/CI/PL 三份一致</span></div>' +
+      '<p class="sop-tipline">填一份订单信息，同源生成形式发票 PI、商业发票 CI、装箱单 PL——金额、品名、数量、唛头从同一份数据来，杜绝单单不一致。导出 .xlsx 需联网加载 ExcelJS；离线可直接「打印 / PDF」。</p>' +
+      dgGrp("seller", "卖方 Seller") + dgGrp("buyer", "买方 Buyer / Consignee") +
+      dgGrp("order", "订单 Order") + dgGrp("ship", "装运 Shipment（用于 CI / PL）") +
+      '<div class="dg-lb">明细行 Line Items <span class="sop-hint">净重/毛重按「每个」填，自动累加</span></div>' +
+      '<table class="dg-lines"><thead><tr>' +
+      '<th class="dg-no">#</th><th>品名 Description</th><th>HS</th><th style="width:60px">数量 Qty</th><th style="width:54px">单位</th><th style="width:72px">单价</th><th style="width:62px">净重/个</th><th style="width:62px">毛重/个</th><th style="width:58px">箱数</th><th style="width:58px">CBM</th><th style="width:24px"></th>' +
+      '</tr></thead><tbody id="dgLineBody"></tbody></table>' +
+      '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-primary btn-sm" data-action="dg-gen">⚙️ 生成三份单证</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-add">➕ 添加明细行</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-xl">📊 导出 Excel (.xlsx)</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-clear">🗑 清空</button>' +
+      '</div></div>' +
+      '<div class="dg-out" id="dgOut" hidden></div>';
+  }
+
+  function dgGen() {
+    DG_STATE.items = dgReadLines();
+    var S = dgBuild();
+    dgSaveState();
+    var out = document.getElementById("dgOut");
+    if (!out) return;
+    out.hidden = false;
+    if (!S.items.length || S.totalQty <= 0) {
+      out.innerHTML = '<p class="dg-empty">请先添加并填写至少一行「数量 &gt; 0」的明细，再生成。</p>';
+      toast("请先填写明细行（数量 > 0）");
+      return;
+    }
+    out.innerHTML =
+      '<div style="margin:4px 0 12px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px">' +
+      '<span>💰 <b>' + esc(S.cur) + ' ' + money(S.totalAmount) + '</b></span>' +
+      '<span>📦 ' + S.totalCtn + ' 箱</span>' +
+      '<span>⚖️ 净 ' + mon(S.totalNwt) + ' KGS</span>' +
+      '<span>毛 ' + mon(S.totalGwt) + ' KGS</span>' +
+      '<span>📐 ' + mon(S.totalCBM) + ' CBM</span>' +
+      '</div>' +
+      dgDocPreview(S, "PI") + dgDocPreview(S, "CI") + dgDocPreview(S, "PL");
+    toast("✅ 已同源生成 PI / CI / PL 三份（一致）");
+  }
+  function dgAdd() {
+    DG_STATE.items = dgReadLines();
+    DG_STATE.items.push({ desc: "", hs: "", qty: "", unit: "PCS", price: "", nwt: "", gwt: "", ctns: "", cbm: "" });
+    dgLineBody();
+    dgSaveState();
+  }
+  function dgRm(idx) {
+    DG_STATE.items = dgReadLines();
+    if (idx >= 1 && idx <= DG_STATE.items.length) DG_STATE.items.splice(idx - 1, 1);
+    if (!DG_STATE.items.length) DG_STATE.items = [{ desc: "", hs: "", qty: "", unit: "PCS", price: "", nwt: "", gwt: "", ctns: "", cbm: "" }];
+    dgLineBody();
+    dgSaveState();
+  }
+  function dgClear() {
+    DG_STATE = dgDefault();
+    dgSaveState();
+    render();
+    toast("已清空，可重新录入");
+  }
+
+  /* ---------- 打印 / PDF（零依赖，自包含样式） ---------- */
+  function printWrap(d, cur) {
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(d.title) + '</title>' +
+      '<style>' +
+      'body{font-family:Georgia,SimSun,serif;color:#111;font-size:13px;margin:32px;}' +
+      'h1{font-size:20px;text-align:center;letter-spacing:2px;margin:0 0 6px;}' +
+      'table{width:100%;border-collapse:collapse;margin-top:14px;}' +
+      'th,td{border:1px solid #333;padding:5px 8px;text-align:left;}' +
+      'th{background:#f2f2f2;}' +
+      '.meta{margin:8px 0;font-size:12px;}' +
+      '.sum{margin-top:10px;font-weight:700;}' +
+      '@page{margin:18mm;}' +
+      '</style></head><body>' +
+      '<h1>' + esc(d.title) + '</h1>' +
+      d.metaHtml + d.tableHtml + '<div class="sum">' + d.sum.map(function (s) { return esc(s) + "<br>"; }).join("") + '</div>' +
+      '</body></html>';
+  }
+  function dgPrint(docKey) {
+    var S = dgBuild();
+    if (!S.items.length || S.totalQty <= 0) { toast("请先填写明细行（数量 > 0）"); return; }
+    var d = dgDoc(docKey || "PI", S);
+    var w = window.open("", "_blank");
+    if (!w) { toast("浏览器拦截了弹窗，请在地址栏允许弹窗后重试"); return; }
+    w.document.write(printWrap(d, S.cur));
+    w.document.close();
+    w.onload = function () { w.focus(); w.print(); };
+  }
+
+  /* ---------- 导出 .xlsx（ExcelJS 运行时按需加载） ---------- */
+  var DG_THIN = { top: { style: "thin", color: { argb: "FFB7BEC8" } }, left: { style: "thin", color: { argb: "FFB7BEC8" } }, bottom: { style: "thin", color: { argb: "FFB7BEC8" } }, right: { style: "thin", color: { argb: "FFB7BEC8" } } };
+  function ensureExcelJS(cb) {
+    if (window.ExcelJS) return cb(true);
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+    s.onload = function () { cb(!!window.ExcelJS); };
+    s.onerror = function () { cb(false); };
+    document.head.appendChild(s);
+  }
+  function addDocSheet(wb, name, d) {
+    var ws = wb.addWorksheet(name);
+    ws.columns = [{ width: 6 }, { width: 34 }, { width: 12 }, { width: 9 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }];
+    var rn;
+    rn = ws.rowCount + 1;
+    var t = ws.addRow([d.title]);
+    ws.mergeCells(rn, 1, rn, 8);
+    t.getCell(1).font = { bold: true, size: 14 };
+    t.alignment = { horizontal: "center" };
+    t.height = 22;
+    rn++;
+    ws.addRow([]); rn++;
+    d.info.forEach(function (p) {
+      var r = ws.addRow([p[0], p[1] || ""]);
+      r.getCell(1).font = { bold: true };
+      r.getCell(1).alignment = { vertical: "top" };
+      ws.mergeCells(rn, 2, rn, 8);
+      r.height = Math.max(15, Math.ceil(String(p[1] || "").length / 26) * 14 + 4);
+      r.alignment = { vertical: "top", wrapText: true };
+      rn++;
+    });
+    ws.addRow([]); rn++;
+    var hr = ws.addRow(d.th);
+    hr.font = { bold: true };
+    hr.alignment = { horizontal: "center", vertical: "middle" };
+    for (var c = 1; c <= d.th.length; c++) {
+      hr.getCell(c).border = DG_THIN;
+      hr.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2F7" } };
+    }
+    rn++;
+    d.rows.forEach(function (row) {
+      var r = ws.addRow(row);
+      for (var cc = 1; cc <= d.th.length; cc++) {
+        var cell = r.getCell(cc);
+        cell.border = DG_THIN;
+        if (d.th[cc - 1] && /Amount|Weight|Qty|Price|Cartons/.test(d.th[cc - 1])) cell.alignment = { horizontal: "right" };
+      }
+      rn++;
+    });
+    d.sum.forEach(function (s) {
+      var r = ws.addRow([s]);
+      r.font = { bold: true };
+      ws.mergeCells(rn, 1, rn, 8);
+      rn++;
+    });
+  }
+  function dgExportXlsx() {
+    var S = dgBuild();
+    if (!S.items.length || S.totalQty <= 0) { toast("请先填写明细行（数量 > 0）"); return; }
+    ensureExcelJS(function (ok) {
+      if (!ok) { toast("加载 ExcelJS 失败（需联网）→ 已改用 CSV / 打印"); dgCsvFallback(S); return; }
+      try {
+        var wb = new ExcelJS.Workbook();
+        wb.creator = "软包装外贸英语";
+        addDocSheet(wb, "PI", dgDoc("PI", S));
+        addDocSheet(wb, "CI", dgDoc("CI", S));
+        addDocSheet(wb, "PL", dgDoc("PL", S));
+        wb.xlsx.writeBuffer().then(function (buf) {
+          var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+          var name = (S.h.dgorderNo || "doc") + "-PI-CI-PL.xlsx";
+          var a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+          toast("✅ 已导出三份单证 " + name);
+        }).catch(function (e) { toast("导出失败：" + (e && e.message || e)); });
+      } catch (e) { toast("导出失败：" + e.message); }
+    });
+  }
+  function dgCsvFallback(S) {
+    var parts = ["PI", "CI", "PL"].map(function (k) {
+      var d = dgDoc(k, S);
+      return "=== " + d.title + " ===\n" +
+        d.info.map(function (p) { return '"' + p[0] + '","' + String(p[1] || "").replace(/"/g, '""') + '"'; }).join("\n") +
+        "\n" + d.th.map(function (t) { return '"' + t + '"'; }).join(",") + "\n" +
+        d.rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n") +
+        "\n" + d.sum.join("\n");
+    }).join("\n\n\n");
+    try {
+      var blob = new Blob(["\ufeff" + parts], { type: "text/csv;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (S.h.dgorderNo || "doc") + "-PI-CI-PL.csv";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    } catch (e) { toast("导出失败：" + e.message); }
+  }
+
   document.addEventListener("click", function (e) {
     var el = e.target.closest("[data-action]");
     if (!el) return;
@@ -1283,7 +1692,27 @@
     } else if (act === "sop-tpl-say") {
       var ta2 = document.getElementById("tplOut");
       if (ta2 && ta2.value) speak(ta2.value); else toast("先生成邮件内容");
+    } else if (act === "dg-gen") {
+      dgGen();
+    } else if (act === "dg-add") {
+      dgAdd();
+    } else if (act === "dg-rm") {
+      dgRm(parseInt(el.getAttribute("data-idx"), 10));
+    } else if (act === "dg-clear") {
+      dgClear();
+    } else if (act === "dg-xl") {
+      dgExportXlsx();
+    } else if (act === "dg-print") {
+      dgPrint(el.getAttribute("data-doc") || "PI");
     }
+  });
+  /* 单证生成器：表单与明细行输入时实时保存到本地（fte-docgen-v1） */
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest("[data-dg-line]")) { DG_STATE.items = dgReadLines(); dgSaveState(); return; }
+    var id = t.getAttribute && t.getAttribute("data-dg");
+    if (id) { DG_STATE.h[id] = t.value; dgSaveState(); }
   });
 
   window.SOP = {

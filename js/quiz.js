@@ -68,7 +68,9 @@
       { id: "en2cn", label: "英译中" },
       { id: "cn2en", label: "中译英" },
       { id: "listening", label: "听句选义" },
-      { id: "fill", label: "选词填空" }
+      { id: "fill", label: "选词填空" },
+      { id: "reorder", label: "句块重排" },
+      { id: "write", label: "✍️ 写作产出（词级批改，可 AI 润色）" }
     ],
 
     /* units: 数组；opts: { count, types: [..] }
@@ -153,8 +155,33 @@
             // 例句不含该词则跳过 fill（不退回复用同类型，避免短句/短语根本不匹配时卡死在 fill）
             continue;
           }
+        } else if (type === "reorder") {
+          /* 句块重排：把一句切成语块并打乱，学习者按正确语序拼回（练语序+句型 chunk） */
+          const sp = window.SentenceParser && window.SentenceParser.chunks(v.ex);
+          if (!sp || sp.blocks.length < 2) continue;
+          q = {
+            type: "reorder",
+            typeLabel: "句块重排 · 按正确语序点选拼回整句（先看中文义）",
+            prompt: v.exCn,
+            sub: v.w + " " + v.ipa,
+            chunks: sp.blocks,      // 已打乱，每块带原始位 o
+            answer: v.ex,
+            explain: v.ex + "\n" + v.exCn
+          };
+        } else if (type === "write") {
+          /* 写作产出：看中文义 → 学习者自己写英文（自由文本），提交后按词级比对给反馈。
+             复用已有例句（ex/exCn），完全离线、零构建；可选后再用 LLM 润色批改。 */
+          q = {
+            type: "write",
+            typeLabel: "✍️ 写作产出 · 看中文写英文（自由输入）",
+            prompt: v.exCn,          // 中文义 → 用户写英文
+            sub: "本句用到「" + v.cn + "」。请用英语写出来（一句即可），点提交看词级批改。",
+            answer: v.ex,            // 目标英文（参考）
+            explain: v.ex + "\n" + v.exCn,
+            wid: v.wid, kw: v.w, kcn: v.cn
+          };
         }
-        if (q && q.options.length === 4) { q.wid = v.wid; questions.push(q); }
+        if (q && (q.type === "reorder" || q.type === "write" ? true : q.options.length === 4)) { if (!q.wid) q.wid = v.wid; questions.push(q); }
       }
       return questions;
     }

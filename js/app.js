@@ -1,9 +1,76 @@
 /* ============ 软包装外贸英语 · 应用主逻辑 ============ */
+/* ---------------------------------------------------------------------
+   目录（本文件是「路由 + 全部页面渲染器 + 交互」单一编排器，引擎模块已拆分为
+   独立文件：player/parser/flashcards/quiz/listen/eval4/sop/export/asr-local/
+   sources/subtitle/tutor 等。因全文件为一个闭包(IIFE)，逐函数共享 State/progress/
+   DATA/U()/esc 等私有状态，故「不引入构建工具」下不把本文件再物理拆分，
+   以免破坏 file:// 双击即用与离线 PWA 的零构建属性。以下为分区索引，便于定位。
+
+   [00] 工具 helpers ......... ~8–49    esc/nl2br/hlText/norm/wordOverlap/shuffle
+   [01] 进度 load/save ........ ~51–135  defaultProgress/loadProgress/saveProgress/unit*
+   [02] 全局状态 State ........ ~137–154 当前视图/临时状态对象
+   [03] 搜索索引 .............. ~155–199  buildIndex/queryIndex
+   [04] Toast 提示 ............ ~201–215
+   [05] 头部状态 .............. ~217–222  updateHeaderStat
+   [06] 路由 parseHash/renderRoute ~223–283  含 setNavActive
+   [07] 首页 Home 渲染器 ...... ~284–752   学习路径/掌握度/SOP横幅/FSRS保持率/高频词/
+                                            周回顾/三Tab分流/单元卡/功能亮点/四维概览
+   [08] 单元页 renderUnit ...... ~754–975   词汇/短语/对话/技巧/词级难度标注
+   [09] 难度·水平自测 ......... ~961–1172  renderPlacement 及推荐/阶段
+   [10] 词汇/对话共享渲染 ...... ~1174–1215 wordRowHtml/dialogueCardHtml
+   [11] 播放 Player 助手 ...... ~1217–1334 playWord/playSentence/playDialogue
+   [12] 单词卡 Flash .......... ~1355–1546  setup/会话/评分评级(FSRS 四档)
+   [13] 测验 Quiz ............. ~1548–1765  五题型/句块重排/结果
+   [14] 听说 Speak ............ ~1767–2224  五阶段闯关/逐句评测(识别)/录音波形
+   [15] 听写 Dict ............ ~2251–2321
+   [16] 搜索页 renderSearch ... ~2323–2649
+   [17] 头部搜索 + 听写回车 .... ~2650–2780
+   [18] 打卡/时长/连续天数 ..... ~2761–3204  coach* 计时/热力图/徽章/周报
+   [19] 设置 setupSettings .... ~3205–3297  发音引擎/评测来源/数据导出
+   [20] 启动 + 首次上手导流 .... ~3299–3427
+   --------------------------------------------------------------------- */
 (function () {
   "use strict";
 
+  /* ---- 启动前完整性校验：index.html 里按顺序引入了一堆 <script>，
+        任一被删/顺序错/加载失败都会让某全局变 undefined。这里在启动时检查一遍，
+        缺失即在控制台醒目报错（而不是静默坏掉），便于定位加载顺序耦合问题。 ---- */
+  var _missing = [];
+  function _need(name, ok) { if (!ok) _missing.push(name); }
+  var _unitsOk = (typeof FTE_DATA !== "undefined" && FTE_DATA && FTE_DATA.units) ? FTE_DATA.units.length : 0;
+  _need("课程数据 data.js", typeof FTE_DATA !== "undefined" && !!FTE_DATA);
+  _need("U12 单证 data-ops.js", _unitsOk >= 12);
+  _need("U13 海运 data-ocean.js", _unitsOk >= 13);
+  _need("U14 Incoterms data-incoterms.js", _unitsOk >= 14);
+  _need("U15 收汇 data-settle.js", _unitsOk >= 15);
+  _need("U18 合规/客诉 data-deep.js", _unitsOk >= 18);
+  _need("U19 会议/汇报 data-meeting.js", _unitsOk >= 19);
+  _need("易错点 data-mistakes.js", !!window.FTE_MISTAKES);
+  _need("助记 data-mnemonic.js", !!window.FTE_MEMO);
+  _need("难度标定 difficulty-map.js", !!window.FTE_DIFF);
+  _need("语音引擎 player.js", !!window.Player);
+  _need("单词卡 flashcards.js", !!window.Flashcards);
+  _need("测验 quiz.js", !!window.Quiz);
+  _need("句块 parser.js", !!window.SentenceParser);
+  _need("辨音 listen.js", !!window.Listen);
+  _need("四维口语 eval4.js", !!window.Eval4);
+  _need("AI 陪练 tutor.js", !!window.Tutor);
+  _need("实操 SOP sop.js", !!window.SOP);
+  _need("导出 export.js", !!window.FTEExport);
+  _need("本地识别 asr-local.js", !!window.LocalASR);
+  _need("听音源 sources.js", !!window.Sources);
+  _need("字幕 subtitle.js", !!window.Subtitle);
+  _need("写作专区 write.js", !!window.WriteStudio);
+  _need("句型库 patterns.js", !!window.Patterns);
+  _need("自由表达 speech.js", !!window.SpeechAnalyzer);
+  _need("任务看板 board.js", !!window.TaskBoard);
+  _need("口语雷达 radar.js", !!window.SpeakingRadar);
+  if (_missing.length) {
+    console.error("[软包装外贸英语] ⚠️ 以下脚本未加载或顺序错误（站点可能部分功能异常，请核对 index.html 的 <script> 顺序）：\n  - " + _missing.join("\n  - "));
+  }
+
   const app = document.getElementById("app");
-  const DATA = FTE_DATA;
+  const DATA = (typeof FTE_DATA !== "undefined" && FTE_DATA) ? FTE_DATA : { site: {}, units: [] };
 
   /* ---------------- 工具 ---------------- */
   const esc = function (s) {
@@ -51,11 +118,12 @@
   /* ---------------- 进度 ---------------- */
   const PROG_KEY = "fte-progress-v1";
   const PREF_KEY = "fte-pref-v2";
+  const HIST_KEY = "fte-history-v1";   /* 每日学习效果快照（本地，无网络），供「学习走势」 */
   function defaultProgress() {
     /* 默认使用浏览器内置语音（离线可用、最可靠）。在线高音质（Google 音源）端点已被 Google
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
-    return { learned: {}, quizBest: {}, dict: {}, flash: {}, done: {}, rate: 1, voice: "",
+    return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, done: {}, rate: 1, voice: "",
       engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, localASR: false };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
@@ -65,7 +133,9 @@
     try {
       const p = JSON.parse(localStorage.getItem(PROG_KEY));
       if (p && typeof p === "object") {
-        const merged = Object.assign(defaultProgress(), p);
+        let merged = Object.assign(defaultProgress(), p);
+        /* 版本化迁移：老数据自动升级到当前 schema（见 js/schema.js），未来加字段更安全 */
+        if (window.FTE_SCHEMA && window.FTE_SCHEMA.migrate) merged = window.FTE_SCHEMA.migrate(merged);
         if (merged.useGoogle && !localStorage.getItem(MIG_KEY)) {
           localStorage.setItem(MIG_KEY, "1");
           merged.useGoogle = false;
@@ -78,6 +148,53 @@
   let progress = loadProgress();
   function saveProgress() {
     try { localStorage.setItem(PROG_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
+    recordSnapshot();                 // 每次学习动作后，按「每日一次」记录效果快照（去重，几乎零开销）
+  }
+
+  /* ---------------- 学习走势（本地效果快照，纯本地、零网络） ----------------
+     把「已掌握词 / 整体保持率 / 7 天到期数 / 完成单元」每天记一次快照，
+     首页画一条趋势，让你自己看得见"学得对不对 / 有没有变好"，而非靠宣称。 */
+  const HIST_MAX = 90;   /* 最多保留 90 天 */
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveHistory(h) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-HIST_MAX))); } catch (e) { /* ignore */ } }
+  function dayStr(t) { const d = new Date(t); return d.getFullYear() + "-" + (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + "-" + (d.getDate() < 10 ? "0" : "") + d.getDate(); }
+  /* 整体保持率：所有已复习词的 FSRS 遗忘曲线 R(t,S) 平均（0-1） */
+  function overallRetention(now) {
+    if (!window.Flashcards) return null;
+    let sum = 0, n = 0;
+    DATA.units.forEach(function (u) {
+      unitWords(u).forEach(function (w) {
+        const f = progress.flash[w.id];
+        if (!f || !f.reps) return;
+        const r = window.Flashcards.retentionOf(f, now || Date.now());
+        if (r != null) { sum += r; n++; }
+      });
+    });
+    return n ? sum / n : null;
+  }
+  function doneUnitCount() {
+    return DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
+  }
+  function recordSnapshot() {
+    const now = Date.now();
+    const learned = totalLearned();
+    if (!learned) return;                       // 还没学词，不记（无意义快照）
+    const ret = overallRetention(now);
+    if (ret == null) return;
+    const DAY = 86400000;
+    let due7 = 0;
+    Object.keys(progress.flash).forEach(function (k) {
+      const f = progress.flash[k];
+      if (f && f.reps && f.due && (f.due - now) / DAY <= 7) due7++;
+    });
+    const rec = { day: dayStr(now), t: now, learned: learned, retention: Math.round(ret * 100), done: doneUnitCount(), due7: due7 };
+    const h = loadHistory();
+    const last = h[h.length - 1];
+    if (last && last.day === rec.day) h[h.length - 1] = rec;   // 同日仅更新
+    else h.push(rec);
+    saveHistory(h);
   }
 
   /* 将保存的设置同步到语音引擎 */
@@ -147,7 +264,9 @@
     evalRec: null,
     recLine: null,
     mistFlow: "all",
-    mistReveal: false
+    mistGrammar: "all",
+    mistReveal: false,
+    homeTab: ""            /* 首页用户旅程 Tab：new / study / ops */
   };
 
   /* ---------------- 搜索索引 ---------------- */
@@ -225,7 +344,7 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -252,6 +371,7 @@
   function renderRoute() {
     const route = parseHash();
     clearCoachTimer();          // 离开「AI 教练手册」页时停止计时器
+    if (window.SpeechAnalyzer && window.SpeechAnalyzer.cleanup) window.SpeechAnalyzer.cleanup();  // 离开「自由表达」页时停识别
     setNavActive(route.view);
     updateHeaderStat();
     try {
@@ -259,6 +379,7 @@
       else if (route.view === "units") renderUnits();
       else if (route.view === "mistakes") renderMistakes();
       else if (route.view === "unit") renderUnit(route);
+      else if (route.view === "placement") renderPlacement();
       else if (route.view === "flash") renderFlash();
       else if (route.view === "quiz") renderQuiz();
       else if (route.view === "speak") renderSpeak();
@@ -267,6 +388,13 @@
       else if (route.view === "tutor") window.Tutor.render();
       else if (route.view === "coach") renderCoach();
       else if (route.view === "sop") window.SOP.render();
+      else if (route.view === "sources") window.Sources.render();
+      else if (route.view === "subtitle") window.Subtitle.render();
+      else if (route.view === "write") window.WriteStudio.render();
+      else if (route.view === "patterns") window.Patterns.render();
+      else if (route.view === "speech") window.SpeechAnalyzer.render();
+      else if (route.view === "board") window.TaskBoard.render();
+      else if (route.view === "speaking") window.SpeakingRadar.render();
       else if (route.view === "search") renderSearch(route);
     } catch (err) {
       console.error(err);
@@ -276,19 +404,119 @@
   }
 
   /* ================= 首页 ================= */
+  /* ---- 首页「分区导航」：把全站按能力分成 6 个区，一页讲清“从哪开始 + 各区干嘛”，
+        顶部可点 ⭐ 收藏到常用（Flo 式一页分区 + 收藏）。区别于原有“用户旅程 Tab”，
+        这块是“全局地图”，让新用户一眼看懂全站结构、不迷路。 ---- */
+  var HOME_FAV_KEY = "fte-home-favs";
+  var HOME_GOAL_KEY = "fte-home-goal";
+  const HOME_ZONES = [
+    { id: "today",    icon: "🎯", title: "今天怎么走", desc: "测起点 · 选目标 · 拿到今天该练什么", href: "#/home", act: "home-tab", tab: "new" },
+    { id: "speak",    icon: "🎤", title: "开口说",     desc: "自由表达 · 跟读 · 四维 · AI 陪练 · 辨音", href: "#/speech", act: "" },
+    { id: "learn",    icon: "📖", title: "学 · 记",     desc: "19 单元 · 单词卡 · 易错点 · 测验", href: "#/units", act: "" },
+    { id: "write",    icon: "✍️", title: "写",          desc: "邮件场景写作 · 句型克隆", href: "#/write", act: "" },
+    { id: "ops",      icon: "🧭", title: "实操",        desc: "四阶段 SOP · 单证 · 报关 · 风控 · 工具", href: "#/sop", act: "" },
+    { id: "progress", icon: "📊", title: "我的进步",     desc: "学习走势 · 掌握度 · 打卡 · 周报", href: "#/coach", act: "" }
+  ];
+  /* 按「工作目标」筛选：每个目标推荐它最相关的区（per-zone filter），选一个后这些区被高亮 */
+  const HOME_GOALS = [
+    { id: "all",    label: "全部" },
+    { id: "prospect", label: "开客户", zones: ["speak", "write", "today"] },
+    { id: "quote",   label: "报价议价", zones: ["speak", "learn", "today"] },
+    { id: "negot",   label: "谈判签约", zones: ["speak", "learn", "today"] },
+    { id: "doc",     label: "跟单单证", zones: ["ops", "write", "progress"] },
+    { id: "claim",   label: "客诉索赔", zones: ["speak", "write", "today"] },
+    { id: "fair",    label: "展会接待", zones: ["speak", "today", "learn"] }
+  ];
+  function homeGoalLoad() { try { return localStorage.getItem(HOME_GOAL_KEY) || "all"; } catch (e) { return "all"; } }
+  function homeGoalSave(g) { try { localStorage.setItem(HOME_GOAL_KEY, g); } catch (e) { /* ignore */ } }
+  function homeGoalZones() {
+    const g = HOME_GOALS.find(function (x) { return x.id === homeGoalLoad(); });
+    return (g && g.zones) ? g.zones : [];
+  }
+  /* 首页「一页式锚点导航」：在页内各区域之间平滑滚动（避免改 hash 触发路由重渲染）。
+     只给出 .hero 之前的顶部条 + 几个主要区域的 id。 */
+  function homeAnchorBarHtml() {
+    return `
+    <div class="home-anchor" role="navigation" aria-label="首页分区锚点">
+      <button data-action="home-anchor" data-target="home-start">🚀 我的第一步</button>
+      <button data-action="home-anchor" data-target="home-map">🗺 全站地图</button>
+      <button data-action="home-anchor" data-target="home-body">📚 学习 / 进度</button>
+    </div>`;
+  }
+  function homeFavsLoad() {
+    try { const a = JSON.parse(localStorage.getItem(HOME_FAV_KEY) || "[]"); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function homeFavsSave(a) { try { localStorage.setItem(HOME_FAV_KEY, JSON.stringify(a)); } catch (e) { /* ignore */ } }
+  function homeFavToggle(id) {
+    let a = homeFavsLoad();
+    const i = a.indexOf(id);
+    if (i === -1) a.push(id); else a.splice(i, 1);
+    homeFavsSave(a);
+    renderHome();
+  }
+  function homeZonesHtml() {
+    const favs = homeFavsLoad();
+    const goalId = homeGoalLoad();
+    const goalZones = homeGoalZones();
+    const goal = HOME_GOALS.find(function (x) { return x.id === goalId; });
+    return `
+    <div class="home-zones" id="home-map">
+      <div class="home-zones-head"><b>🗺 从这里开始</b><span>全站 6 大区，点任意一块进入；右上角 ⭐ 收藏到常用</span></div>
+      <div class="home-goal-filter">
+        <span class="hgf-label">按你的目标筛选</span>
+        ${HOME_GOALS.map(function (g) {
+          return '<button class="hgf-chip' + (g.id === goalId ? " on" : "") + '" data-action="home-goal" data-goal="' + g.id + '">' + esc(g.label) + '</button>';
+        }).join("")}
+      </div>
+      ${goal && goal.id !== "all" ? '<div class="home-goal-hint">🎯 选了「' + esc(goal.label) + '」：优先从这几个区开始 <b>' +
+        goalZones.map(function (z) { const zz = HOME_ZONES.find(function (x) { return x.id === z; }); return zz ? esc(zz.title) : ""; }).filter(Boolean).join(" · ") + '</b></div>' : ""}
+      <div class="home-zones-grid">
+        ${HOME_ZONES.map(function (z) {
+          const isFav = favs.indexOf(z.id) !== -1;
+          const hot = goalZones.indexOf(z.id) !== -1;
+          const inner = '<div class="z-ic">' + z.icon + '</div><div class="z-body"><b>' + esc(z.title) + '</b><small>' + esc(z.desc) + '</small></div>';
+          return '<div class="zone-card' + (hot ? " goal-hot" : "") + '">' +
+            '<a class="zone-link" href="' + z.href + '"' + (z.act ? ' data-action="home-tab" data-tab="' + z.tab + '"' : "") + '>' + inner + '</a>' +
+            '<button class="zone-star' + (isFav ? " on" : "") + '" data-action="home-fav" data-id="' + z.id + '" title="收藏到常用">' + (isFav ? "★" : "☆") + '</button>' +
+            '</div>';
+        }).join("")}
+      </div>
+    </div>`;
+  }
+  function homeFavsRowHtml() {
+    const favs = homeFavsLoad().filter(function (id) { return HOME_ZONES.some(function (z) { return z.id === id; }); });
+    if (!favs.length) {
+      return '<div class="home-favs"><div class="hf-head">⭐ 我的常用</div><div class="hf-empty">在上方各区点 ⭐ 收藏你的高频入口，它们会显示在这里。</div></div>';
+    }
+    return `
+    <div class="home-favs">
+      <div class="hf-head">⭐ 我的常用</div>
+      <div class="hf-row">
+        ${favs.map(function (id) {
+          const z = HOME_ZONES.find(function (x) { return x.id === id; });
+          if (!z) return "";
+          return '<a class="hf-chip" href="' + z.href + '"' + (z.act ? ' data-action="home-tab" data-tab="' + z.tab + '"' : "") + '>' + z.icon + " " + esc(z.title) + '</a>';
+        }).join("")}
+      </div>
+    </div>`;
+  }
+  /* 🎯 三步上手向导：把「测水平 → 选目标 → 生成本周看板」串成一条明确起点（新用户/无进度时显示）。
+     步骤即有：测起点(placement) · 选目标(本页目标筛选) · 生成本周看板(board，自动按目标+水平生成)。 */
+  function homeGoalPathHtml() {
+    return `
+    <div class="home-goal-path">
+      <b>🎯 三步上手</b>
+      <ol>
+        <li><a href="#/placement"><b>测水平</b><em>30 秒定位</em></a></li>
+        <li><a href="#/home" data-action="home-anchor" data-target="home-map"><b>选目标</b><em>本页「按目标筛选」选一个</em></a></li>
+        <li><a href="#/board"><b>生成本周看板</b><em>自动按目标+水平排</em></a></li>
+      </ol>
+    </div>`;
+  }
   /* ---- 三阶段学习路径：把 16 个单元按能力递进分组，替代纯平铺目录 ---- */
   function pathStagesHtml() {
-    const stages = [
-      { name: "第一阶段 · 商务基础", emoji: "🟢",
-        desc: "从贸易流程、询盘报价到谈判与付款，搭起外贸的地基",
-        ids: [1, 2, 3, 4, 5, 6] },
-      { name: "第二阶段 · 通用外贸", emoji: "🔵",
-        desc: "物流货运、电话会议、质量售后与跨境电商，覆盖常见场景",
-        ids: [7, 8, 9, 10] },
-      { name: "第三阶段 · 软包装专业 · 实操", emoji: "🟣",
-        desc: "进入行业深水区：专业词汇 + 单证/海运/Incoterms/收款/合规，衔接实操 SOP",
-        ids: [11, 12, 13, 14, 15, 16] }
-    ];
+    const stages = pathStagesData();
     const html = stages.map(function (s) {
       const units = DATA.units.filter(function (u) { return s.ids.indexOf(u.id) !== -1; });
       const done = units.filter(function (u) { return unitPct(u) >= 100; }).length;
@@ -297,7 +525,11 @@
         <div class="ps-head"><span class="ps-emo">${s.emoji}</span><b>${s.name}</b>
           <span class="ps-badge">${done}/${units.length} 单元</span></div>
         <div class="ps-desc">${esc(s.desc)}</div>
-        <div class="ps-units">${units.map(function (u) { return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) + '</a>'; }).join("")}</div>
+        <div class="ps-units">${units.map(function (u) {
+          const du = unitDifficulty(u);
+          return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) +
+            (du ? '<em class="ps-d">' + esc(du.band) + '</em>' : "") + '</a>';
+        }).join("")}</div>
         <div class="progressbar" style="max-width:240px;margin-top:8px"><i class="${pct === 100 ? "full" : ""}" style="width:${pct}%"></i></div>
       </div>`;
     }).join("");
@@ -346,7 +578,17 @@
   function retentionForecastHtml() {
     const now = Date.now(), DAY = 86400000;
     const day = (t) => Math.ceil((t - now) / DAY);
-    let sum = 0, n = 0, due7 = 0, due30 = 0;
+    let sum = 0, n = 0;
+    /* 到期量分桶：把「未来每天复习多少」画出来，提前看到复习负担峰值 */
+    const buckets = [
+      { k: "today", label: "今天", lo: -Infinity, hi: 0, c: 0 },
+      { k: "d1", label: "明天", lo: 0, hi: 1, c: 0 },
+      { k: "d3", label: "2–3 天", lo: 1, hi: 3, c: 0 },
+      { k: "d7", label: "4–7 天", lo: 3, hi: 7, c: 0 },
+      { k: "d14", label: "8–14 天", lo: 7, hi: 14, c: 0 },
+      { k: "d30", label: "15–30 天", lo: 14, hi: 30, c: 0 },
+      { k: "d30p", label: ">30 天", lo: 30, hi: Infinity, c: 0 }
+    ];
     const perUnit = [];
     DATA.units.forEach(function (u) {
       let uSum = 0, uN = 0;
@@ -357,8 +599,7 @@
         if (r == null) return;
         uSum += r; uN++; sum += r; n++;
         const d = day(f.due || now);
-        if (d <= 7) due7++;
-        if (d <= 30) due30++;
+        buckets.forEach(function (b) { if (d > b.lo && d <= b.hi) b.c++; });
       });
       if (uN) perUnit.push({ u: u, r: uSum / uN });
     });
@@ -373,27 +614,159 @@
         <div class="m-bar"><div class="m-fill" style="width:${p}%;background:${col}"></div></div>
         <span class="m-pct">${p}%</span></div>`;
     }).join("");
+    /* —— 到期量分布图（纯 SVG/条形，零依赖）—— */
+    const maxC = Math.max.apply(null, buckets.map(function (b) { return b.c; })) || 1;
+    const bars = buckets.map(function (b) {
+      const p = Math.round(b.c / maxC * 100);
+      return `<div class="rf-row"><span class="rf-lb">${b.label}</span>` +
+        `<div class="rf-bar"><div class="rf-fill" style="width:${p}%;background:${b.c ? "var(--primary)" : "var(--track)"}"></div></div>` +
+        `<span class="rf-num">${b.c}</span></div>`;
+    }).join("");
+    let weekSum = 0, peak = buckets[0];
+    buckets.forEach(function (b) {
+      if (b.k === "today" || b.k === "d1" || b.k === "d3" || b.k === "d7") weekSum += b.c;
+      if (b.c > peak.c) peak = b;
+    });
+    let insight;
+    if (weekSum >= 40) insight = `未来一周到期 <b>${weekSum}</b> 词，负担较集中——建议按每天 ${Math.ceil(weekSum / 7)}–15 词分批复习，别堆到同一天。`;
+    else if ((peak.k === "today" || peak.k === "d1") && peak.c >= 15) insight = `今明两天到期较多（${peak.c} 词），优先清掉这批到期卡。`;
+    else insight = "到期分布均匀，按 FSRS 节奏走即可，无需赶进度。";
+    const chartHtml =
+      '<div class="rf-chart" role="img" aria-label="未来到期复习量分布">' +
+      '<div class="rf-chart-h">📅 未来到期量 <span class="sop-hint">未来每天各需要复习多少词（按 FSRS 到期日）</span></div>' +
+      bars +
+      '<div class="rf-insight">' + insight + '</div></div>';
     return `
     <h3 class="section-title">🧠 记忆保持率 <span class="sub">FSRS 遗忘曲线估算 · 越接近 100% 记得越牢</span></h3>
     <div class="card mastery-wrap">
       <div class="sop-overall-a" style="margin-top:2px">
         <span class="badge badge-ok">整体保持率 <b>${Math.round(avgR * 100)}%</b></span>
-        <span class="badge badge-muted">未来 7 天到期 <b>${due7}</b> 词</span>
-        <span class="badge badge-muted">未来 30 天到期 <b>${due30}</b> 词</span>
+        <span class="badge badge-muted">未来 7 天到期 <b>${weekSum}</b> 词</span>
+        <span class="badge badge-muted">未来 30 天到期 <b>${buckets.reduce(function (s, b) { return s + b.c; }, 0)}</b> 词</span>
         <span class="sop-hint">保持率按 FSRS 遗忘曲线 R(t,S) 估算；低于 70% 说明该补复习了。</span>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <div class="progressbar" style="max-width:320px"><i class="${rCls === "bad" ? "" : "full"}" style="width:${Math.round(avgR * 100)}%;background:${avgR >= 0.85 ? "var(--ok)" : avgR >= 0.7 ? "var(--accent)" : "var(--bad)"}"></i></div>
         <span class="pct">${Math.round(avgR * 100)}%</span>
       </div>
-      <div style="margin-top:12px"><b style="font-size:13px;color:var(--muted)">最需要复习的单元（保持率最低）</b>
+      ${chartHtml}
+      <div style="margin-top:14px"><b style="font-size:13px;color:var(--muted)">最需要复习的单元（保持率最低）</b>
         <div style="margin-top:6px">${weakHtml}</div>
       </div>
     </div>`;
   }
 
-  /* 「分级限词 · 高频复现」：把跨单元里同一个行业高频词的真实例句聚合起来，
-     展示「同一个词在不同业务场景反复出现」——靠重复与情境自然记住，而非一次性背。 */
+  /* 首页：易忘词榜（记忆健康洞察）——把「当前最容易忘」的具体词挑出来并列在最前，
+     由 FSRS 保持率 R(t,S) 升序 + 复习错次降序排。纯本地（用 progress.flash），无网络。 */
+  /* 复用：把「学过且有 FSRS 状态」的词按风险排序，供面板展示与「一键复习」复用。 */
+  function atRiskRows() {
+    if (!window.Flashcards) return [];
+    const now = Date.now();
+    const rows = [];
+    DATA.units.forEach(function (u) {
+      unitWords(u).forEach(function (w) {
+        const f = progress.flash[w.id];
+        if (!f || !f.reps) return;                 // 只统计学过/复习过的词
+        const ret = window.Flashcards.retentionOf(f, now);
+        if (ret == null) return;
+        rows.push({ w: w, ret: ret, wc: Flashcards.wrongCount(progress, w.id), due: f.due });
+      });
+    });
+    rows.sort(function (a, b) { return (a.ret - b.ret) || (b.wc - a.wc); });
+    return rows;
+  }
+  function atRiskWordsHtml() {
+    const now = Date.now();
+    const rows = atRiskRows();
+    if (!rows.length) return "";
+    const top = rows.slice(0, 8);
+    const dueNow = rows.filter(function (r) { return (r.due || 0) <= now; }).length;
+    const items = top.map(function (r) {
+      const p = Math.round(r.ret * 100);
+      const col = p >= 85 ? "var(--ok)" : p >= 70 ? "var(--accent)" : "var(--bad)";
+      return `<div class="weak-item">
+        <span class="w-w">${esc(r.w.v.w)}</span>
+        <span class="w-u">${esc(r.w.u.title)}</span>
+        <span class="w-bar"><span style="width:${p}%;background:${col}"></span></span>
+        <span class="w-p">${p}%</span>
+        ${r.wc ? '<span class="w-wc" title="复习中错 ' + r.wc + ' 次">⚠' + r.wc + '</span>' : ""}
+        <button class="play-btn" data-action="play-word" data-id="${r.w.id}" title="朗读单词">🔊</button>
+        <a class="w-go" href="#/unit/${r.w.u.id}" title="去该单元重学">重学</a>
+      </div>`;
+    }).join("");
+    return `
+    <h3 class="section-title">⚠️ 易忘词 · 当前最该复习</h3>
+    <div class="card mastery-wrap">
+      <div class="sop-overall-a" style="margin-top:2px">
+        <span class="badge badge-muted">在学词共 <b>${rows.length}</b> 个</span>
+        <span class="badge ${dueNow ? "badge-ok" : "badge-muted"}" style="${dueNow ? "" : "opacity:.6"}">已到期 <b>${dueNow}</b> 个</span>
+        <span class="sop-hint">按 FSRS 保持率升序排，越低越易忘；⚠N 表示复习时错过 N 次。</span>
+      </div>
+      <div class="weak-list" style="margin-top:8px">${items}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" data-action="atrisk-flash">🧠 一键复习易忘词（最多 20 张）</button>
+        <label class="step-toggle" title="默认关闭。开启后复习会把词的下次到期时间压在 3 天内（即使答对）；这会优先于 FSRS 原定间隔，属人工加急。默认完全信任 FSRS，故为关。">
+          <input type="checkbox" id="atriskReinforce"> 🔁 遗忘后用 3 天加急再现（默认关）
+        </label>
+      </div>
+      <div class="field-note" style="margin-top:8px">点 🔊 朗读、「重学」回该单元，或直接「🧠 一键复习」把它们拉进单词卡会话。复习排序与排队完全按 FSRS 的到期调度，不做人工干预。</div>
+    </div>`;
+  }
+
+  /* 易忘词 · 一键复习：把最易忘的一批直接建成单词卡会话（忽略是否到期，强制先复习）。
+     reinforce=true 时启用「3 天加急再现」：复习后把到期时间压在 3 天内，防刚忘的词又沉下去。 */
+  function startAtRiskFlash(reinforce) {
+    const rows = atRiskRows();
+    if (!rows.length) { toast("还没有可复习的词，先在单词卡里学几轮再回来"); return; }
+    const set = rows.slice(0, 20);
+    const cards = set.map(function (r) {
+      const v = r.w.v;
+      return { id: r.w.id, w: v.w, ipa: v.ipa, cn: v.cn, ex: v.ex, exCn: v.exCn };
+    });
+    State.flash = {
+      unit: { id: "atrisk", title: "⚠️ 易忘词 · 加急复习" },
+      queue: cards,                      // 强制包含全部选中词（不按是否到期过滤）
+      idx: 0,
+      stats: { known: 0, unknown: 0 },
+      reinforce: !!reinforce
+    };
+    toast("已生成 " + cards.length + " 张易忘词复习卡" + (reinforce ? "（启用 3 天加急）" : ""));
+    location.hash = "#/flash";
+  }
+
+  /* 首页：学习效果走势（本地快照趋势）。纯本地、零网络；把每日「已掌握/保持率/到期/完成」画成折线，
+     让"学没学对、有没有进步"自己看得见。 */
+  function renderTrendHtml() {
+    const hist = loadHistory().slice(-30);
+    if (!hist.length) return "";
+    const cur = hist[hist.length - 1];
+    const retCls = cur.retention >= 85 ? "badge-ok" : cur.retention >= 70 ? "badge-warn" : "badge-bad";
+    const badges =
+      '<div class="sop-overall-a" style="margin-top:2px">' +
+      '<span class="badge badge-ok">已掌握 <b>' + cur.learned + '</b> 词</span>' +
+      '<span class="badge ' + retCls + '">保持率 <b>' + cur.retention + '%</b></span>' +
+      '<span class="badge badge-muted">7 天到期 <b>' + (cur.due7 || 0) + '</b></span>' +
+      '<span class="badge badge-muted">完成单元 <b>' + cur.done + '/' + DATA.units.length + '</b></span>' +
+      '</div>';
+    if (hist.length < 2) {
+      return '<div class="card mastery-wrap">' + badges +
+        '<div class="field-note" style="margin-top:8px">样本还太少——再学几天、多复习几轮，这里会出现保持率的走势线，好让你自己判断有没有真的在进步。</div></div>';
+    }
+    const W = 560, H = 150, pad = 10, MIN = 50, MAX = 100;
+    const vals = hist.map(function (h) { return h.retention; });
+    const px = function (i) { return pad + i * (W - 2 * pad) / (vals.length - 1); };
+    const py = function (v) { var t = (v - MIN) / (MAX - MIN); return H - 18 - t * (H - 34); };
+    const line = vals.map(function (v, i) { return (i ? "L" : "M") + px(i).toFixed(1) + " " + py(v).toFixed(1); }).join(" ");
+    const dots = vals.map(function (v, i) { return '<circle cx="' + px(i).toFixed(1) + '" cy="' + py(v).toFixed(1) + '" r="2.6" fill="#2563eb"/>'; }).join("");
+    return '<div class="card mastery-wrap">' + badges +
+      '<div style="margin-top:8px"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:112px" role="img" aria-label="保持率走势">' +
+      '<line x1="' + pad + '" y1="' + py(MAX) + '" x2="' + (W - pad) + '" y2="' + py(MAX) + '" stroke="var(--track)" stroke-dasharray="3 4"></line>' +
+      '<polyline points="' + line + '" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>' + esc(hist[0].day) + '</span><span>保持率 ' + MIN + '–' + MAX + '%</span><span>' + esc(hist[hist.length - 1].day) + '</span></div>' +
+      '<div class="field-note" style="margin-top:4px">图为最近 ' + hist.length + ' 天的整体保持率走势（FSRS 遗忘曲线估算，越低越需要复习）。</div>' +
+      '</div></div>';
+  }
+
   function freqRepeatHtml() {
     /* 复现语料 = 词汇例句 + 短语例句 + 对话台词（真实业务语境） */
     const corpus = [];
@@ -521,88 +894,181 @@
     </div>`;
   }
 
+  /* 首页一致性图标：内置线性 SVG（Feather 风格），避免跨平台 emoji 差异、更精致 */
+  const HOME_ICON = {
+    words: '<path d="M4 4h9a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M20 20h-7"/>',
+    phrases: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    dlg: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    lines: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+    vol: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    mic: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>',
+    bot: '<rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/>',
+    layers: '<path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
+    flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-1.87-2.11-2.5-2.5-4.5C5.5 6 5 8 5 10.5A4.5 4.5 0 0 0 8.5 14.5z"/><path d="M12 21a6 6 0 0 0 6-6c0-1.5-1-2.5-1.5-4-1 1-2 1.5-2.5 2.5C13 12 12 11 12.5 8.5 10.5 9.5 9.5 11 9 13a4 4 0 0 0 3 8z"/>',
+    check: '<path d="M20 6L9 17l-5-5"/>',
+    cards: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    clip: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>'
+  };
+  function icon(name, size) {
+    size = size || 20;
+    return '<svg class="ic" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (HOME_ICON[name] || "") + '</svg>';
+  }
+  function ringHtml(pct) {
+    pct = Math.max(0, Math.min(100, pct));
+    const r = 18, C = 2 * Math.PI * r, off = C * (1 - pct / 100);
+    return '<svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">' +
+      '<circle cx="23" cy="23" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="5"></circle>' +
+      '<circle cx="23" cy="23" r="' + r + '" fill="none" stroke="var(--primary)" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 23 23)"></circle>' +
+      '<text x="23" y="27" text-anchor="middle" font-size="11" font-weight="800" fill="var(--primary)">' + Math.round(pct) + '%</text></svg>';
+  }
+  /* 首页「我的第一步」：给首次进入者一个清晰的行动序列（非阻塞、可跳过） */
+  function firstStepHtml(nextUnit) {
+    const id = nextUnit ? nextUnit.id : 1;
+    const title = esc(nextUnit ? nextUnit.title : "第 1 单元");
+    return `
+    <section class="mfs-card" id="home-start" aria-label="我的第一步">
+      <div class="mfs-head"><b>🚀 我的第一步</b><span class="hc-sub">三小步，今天就动起来（随时可跳过，不影响浏览）</span></div>
+      <div class="mfs-steps">
+        <a class="mfs-step" href="#/placement"><span class="mfs-n">1</span><span class="mfs-t"><b>测测起点</b><em>30 秒定位该从哪学</em></span></a>
+        <span class="mfs-arrow" aria-hidden="true">→</span>
+        <a class="mfs-step" href="#/unit/${id}"><span class="mfs-n">2</span><span class="mfs-t"><b>学第 ${id} 单元</b><em>从「${title}」开始</em></span></a>
+        <span class="mfs-arrow" aria-hidden="true">→</span>
+        <a class="mfs-step" href="#/coach"><span class="mfs-n">3</span><span class="mfs-t"><b>今日任务</b><em>10 句句型 + 写 1 篇</em></span></a>
+      </div>
+    </section>`;
+  }
+
   function renderHome() {    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });    const nextUnit = firstTodo || DATA.units[0];
     const nextPct = unitPct(nextUnit);
     const doneCount = DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
+    const donePct = Math.round(doneCount / DATA.units.length * 100);
+    const hasProgress = totalLearned() > 0 || doneCount > 0 ||
+      (progress.flash && Object.keys(progress.flash).length > 0);
+    const active = State.homeTab || (hasProgress ? "study" : "new");   /* 默认按是否有进度分流 */
 
     app.innerHTML = `
     <section class="hero">
+      <div class="hero-layers" aria-hidden="true"><span></span><span></span><span></span></div>
       <h1>${esc(DATA.site.name)}</h1>
       <p>${esc(DATA.site.slogan)}</p>
       <div class="hero-tags">
-        <span>🔊 真人发音朗读</span><span>🎤 跟读录音对比</span><span>✍️ 听写训练</span>
-        <span>🤖 AI 口语陪练</span><span>🗂 ${totals.words} 个核心词汇</span><span>💬 ${totals.dlg} 段实战对话</span>
+        <span>${icon("vol",16)} 真人发音朗读</span><span>${icon("mic",16)} 跟读录音对比</span><span>${icon("lines",16)} 听写训练</span>
+        <span>${icon("bot",16)} AI 口语陪练</span><span>${icon("layers",16)} ${totals.words} 个核心词汇</span><span>${icon("dlg",16)} ${totals.dlg} 段实战对话</span>
       </div>
       <div class="hero-cta">
-        <a class="btn btn-ghost" href="#/unit/${nextUnit.id}">${doneCount === DATA.units.length ? "复习课程" : "继续学习：" + esc(nextUnit.title)} →</a>
-        <a class="btn btn-ghost" href="#/sop">🧭 外贸实操 SOP</a>
-        <a class="btn btn-ghost" href="#/speak">🎤 开始听说训练</a>
-        <a class="btn btn-ghost" href="#/flash">🃏 单词卡</a>
+        <a class="btn btn-primary" href="#/placement">🎯 测测起点 · 告诉我该从哪学 →</a>
+        <a class="btn btn-ghost" href="#/unit/${nextUnit.id}">${doneCount === DATA.units.length ? "复习课程" : "直接开始：第 " + nextUnit.id + " 单元"} →</a>
       </div>
     </section>
-
-    ${sopBannerHtml()}
-
-    ${coachBannerHtml()}
 
     <section class="stats-row">
-      <div class="stat-card"><div class="num">${totals.words}</div><div class="lbl">核心词汇</div></div>
-      <div class="stat-card"><div class="num">${totals.phrases}</div><div class="lbl">常用短语</div></div>
-      <div class="stat-card"><div class="num">${totals.dlg}</div><div class="lbl">场景对话</div></div>
-      <div class="stat-card"><div class="num">${totals.lines}</div><div class="lbl">对话语句</div></div>
-      <div class="stat-card"><div class="num">${coachStats().streak}</div><div class="lbl">连续打卡(天) · 今天 ${coachStats().today} 分 <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
-      <div class="stat-card"><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
-      <div class="stat-card"><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
+      <div class="stat-card"><div class="stat-ic">${icon("words")}</div><div class="num">${totals.words}</div><div class="lbl">核心词汇</div></div>
+      <div class="stat-card"><div class="stat-ic">${icon("phrases")}</div><div class="num">${totals.phrases}</div><div class="lbl">常用短语</div></div>
+      <div class="stat-card"><div class="stat-ic">${icon("dlg")}</div><div class="num">${totals.dlg}</div><div class="lbl">场景对话</div></div>
+      <div class="stat-card"><div class="stat-ic">${icon("lines")}</div><div class="num">${totals.lines}</div><div class="lbl">对话语句</div></div>
+      <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${coachStats().streak}</div><div class="lbl">连续打卡(天) · 今天 ${coachStats().today} 分 <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
+      <div class="stat-card stat-p"><div class="stat-ic">${ringHtml(donePct)}</div><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
+      <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
     </section>
 
-    ${masteryBlockHtml()}
+    ${homeAnchorBarHtml()}
 
-    ${retentionForecastHtml()}
+    ${hasProgress ? "" : homeGoalPathHtml()}
 
-    <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习 · 分三阶段递进</span></h3>
-    ${pathStagesHtml()}
-    <div class="grid grid-3">${DATA.units.map(unitCardHtml).join("")}</div>
+    ${homeFavsRowHtml()}
+    ${homeZonesHtml()}
 
-    ${freqRepeatHtml()}
+    ${firstStepHtml(nextUnit)}
 
-    ${weekReviewHtml()}
+    <div id="home-body">
+    ${homeTabBarHtml(active)}
 
-    <h3 class="section-title">✨ 功能亮点</h3>
-    <div class="grid grid-3">
-      <div class="card">
-        <div style="font-size:30px">🗣️</div>
-        <h3 style="margin:8px 0 4px">AI 口语陪练</h3>
-        <p style="font-size:13.5px;color:var(--muted)">接入你的大模型 API，与 native speaker 全英文对话：说错立刻纠正、生词自动收录、回复一键朗读、支持语音输入。</p>
-        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/tutor">开始对话 →</a>
-      </div>
-      <div class="card">
-        <div style="font-size:30px">🎤</div>
-        <h3 style="margin:8px 0 4px">听说训练</h3>
-        <p style="font-size:13.5px;color:var(--muted)">TTS 真人发音朗读、逐句跟读并录音对比、听写训练、角色扮演对练，专攻“开口说”。</p>
-        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/speak">开始训练 →</a>
-      </div>
-      <div class="card">
-        <div style="font-size:30px">🃏</div>
-        <h3 style="margin:8px 0 4px">记忆单词卡</h3>
-        <p style="font-size:13.5px;color:var(--muted)">基于间隔重复（Leitner）算法，自动安排复习时间，用最少的时间记住最多的词。</p>
-        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/flash">开始背词 →</a>
-      </div>
-      <div class="card">
-        <div style="font-size:30px">🧭</div>
-        <h3 style="margin:8px 0 4px">外贸实操 SOP</h3>
-        <p style="font-size:13.5px;color:var(--muted)">订单确认后怎么走：内部流转、单证规范、订舱报关、T/T 与 L/C 风控、Incoterms 2020 速查，可勾选清单 + 英文话术 + CBM 与 CIF 计算器。</p>
-        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/sop">按流程自查 →</a>
-      </div>
-      <div class="card">
-        <div style="font-size:30px">📝</div>
-        <h3 style="margin:8px 0 4px">智能测验</h3>
-        <p style="font-size:13.5px;color:var(--muted)">英译中、中译英、听句选义、选词填空四种题型，做完即时批改并保存最好成绩。</p>
-        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/quiz">去测验 →</a>
-      </div>
+    ${active === "new" ? homeTabNewHtml() : ""}
+    ${active === "study" ? homeTabStudyHtml(nextUnit, nextPct, doneCount) : ""}
+    ${active === "ops" ? homeTabOpsHtml() : ""}
     </div>
+    `;
+  }
 
-    ${eval4OverviewHtml()}
+  /* 首页用户旅程 Tab 栏：把 13 块内容按「你是谁/在哪一步」分流，首屏只露当前所需 */
+  function homeTabBarHtml(active) {
+    return `
+    <div class="tabs home-tabs" role="tablist">
+      <button class="tab ${active === "new" ? "active" : ""}" data-action="home-tab" data-tab="new" role="tab">🆕 新手 · 从零学起</button>
+      <button class="tab ${active === "study" ? "active" : ""}" data-action="home-tab" data-tab="study" role="tab">📚 学习中 · 我的进度</button>
+      <button class="tab ${active === "ops" ? "active" : ""}" data-action="home-tab" data-tab="ops" role="tab">🧭 实操 · 外贸流程</button>
+    </div>
+    <div class="home-tabpanel" role="tabpanel">
+      ${active === "new" ? '<p class="home-tab-hint">已按从易到难排好。先用上面「🎯 测起点」定位，或直接顺着下方路径学。</p>' : ""}
+      ${active === "study" ? '<p class="home-tab-hint">这里聚焦你的进度与需要复习的内容，远离无关选项。</p>' : ""}
+      ${active === "ops" ? '<p class="home-tab-hint">订单确认后怎么走？用下方清单自查，并补齐配套的英文表达。</p>' : ""}
+    </div>`;
+  }
 
+  /* Tab ① 新手 · 从零学起：学习路径 + 开首几课 + 会用到的工具 */
+  function homeTabNewHtml() {
+    return `
+    <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习 · 分三阶段递进 · 每单元标注相对难度 · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
+    ${pathStagesHtml()}
+    <h3 class="section-title">🚀 从第 1 单元开始 <span class="sub">先学这几课，再<strong> <a href="#/units" style="color:var(--primary)">查看全部 ${DATA.units.length} 单元 →</a></strong></span></h3>
+    ${unitCardsByIdsHtml([1, 2, 3, 4])}
+    <details class="home-collapse">
+      <summary><b>✨ 你可能会用到</b><span class="hc-sub">AI 陪练 · 听说 · 单词卡 · SOP · 测验（点开查看工具）</span></summary>
+      <div class="hc-body">${featureCardsHtml()}</div>
+    </details>
+    `;
+  }
+
+  /* Tab ② 学习中 · 我的进度：当前进度 + 需要复习的内容 + 全部单元 */
+  function homeTabStudyHtml(nextUnit, nextPct, doneCount) {
+    const trend = renderTrendHtml();
+    return `
+    ${coachBannerHtml()}
+    ${currentProgressCardHtml(nextUnit, nextPct, doneCount)}
+    ${trend ? '<h3 class="section-title">📈 学习趋势 <span class="sub">保持率 · 最近走势</span></h3>' + trend : ""}
+    ${weekReviewHtml()}
+    ${homeDataCollapseHtml()}
+    <h3 class="section-title">📚 全部单元</h3>
+    <div class="grid grid-3">${DATA.units.map(unitCardHtml).join("")}</div>
+    `;
+  }
+
+  /* 「学习数据」可折叠面板：把掌握度 / 保持率 / 高频词这几个数据仪表盘收纳起来，
+     默认折叠，需要看数据的人再展开 —— 减少无关认知负荷、避免长长一面墙。 */
+  function homeDataCollapseHtml() {
+    return `
+    <details class="home-collapse">
+      <summary><b>📊 学习数据</b><span class="hc-sub">单元掌握度 · 记忆保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
+      <div class="hc-body">
+        ${masteryBlockHtml()}
+        ${freqRepeatHtml()}
+        ${atRiskWordsHtml()}
+        ${retentionForecastHtml()}
+        ${eval4OverviewHtml()}
+      </div>
+    </details>`;
+  }
+
+  /* Tab ③ 实操 · 外贸流程：SOP 清单 + 实操/单证衔接单元 */
+  function homeTabOpsHtml() {
+    return `
+    ${sopBannerHtml()}
+    <h3 class="section-title">🧭 实操衔接单元 <span class="sub">走完 SOP 后，把单证 / 海运 / 报价 / 合规的英文也吃透 · <a href="#/sop" style="color:var(--primary);font-weight:700">进入 SOP →</a></span></h3>
+    ${unitCardsByIdsHtml([11, 12, 13, 14, 15, 16])}
+    `;
+  }
+
+  /* 按 id 列表渲染单元卡（首页不同 Tab 只展示相关子集，避免全平铺） */
+  function unitCardsByIdsHtml(ids) {
+    return `<div class="grid grid-3">${ids.map(function (id) {
+      const u = DATA.units.find(function (x) { return x.id === id; });
+      return u ? unitCardHtml(u) : "";
+    }).join("")}</div>`;
+  }
+
+  /* 当前进度卡（学习中 Tab 主行动） */
+  function currentProgressCardHtml(nextUnit, nextPct, doneCount) {
+    return `
     <div class="card" style="margin-top:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="font-size:26px">📖</div>
       <div style="flex:1;min-width:220px">
@@ -612,8 +1078,44 @@
         </div>
       </div>
       <a class="btn btn-primary" href="#/unit/${nextUnit.id}">${doneCount === DATA.units.length ? "进入复习" : "继续学习 →"}</a>
-    </div>
-    `;
+    </div>`;
+  }
+
+  /* 功能亮点 5 卡（新手 Tab 用：告诉你有哪些工具可以上手） */
+  function featureCardsHtml() {
+    return `
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="fc-ic">${icon("bot",28)}</div>
+        <h3 style="margin:8px 0 4px">AI 口语陪练</h3>
+        <p style="font-size:13.5px;color:var(--muted)">接入你的大模型 API，与 native speaker 全英文对话：说错立刻纠正、生词自动收录、回复一键朗读、支持语音输入。</p>
+        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/tutor">开始对话 →</a>
+      </div>
+      <div class="card">
+        <div class="fc-ic">${icon("mic",28)}</div>
+        <h3 style="margin:8px 0 4px">听说训练</h3>
+        <p style="font-size:13.5px;color:var(--muted)">TTS 真人发音朗读、逐句跟读并录音对比、听写训练、角色扮演对练，专攻“开口说”。</p>
+        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/speak">开始训练 →</a>
+      </div>
+      <div class="card">
+        <div class="fc-ic">${icon("cards",28)}</div>
+        <h3 style="margin:8px 0 4px">记忆单词卡</h3>
+        <p style="font-size:13.5px;color:var(--muted)">基于间隔重复（Leitner）算法，自动安排复习时间，用最少的时间记住最多的词。</p>
+        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/flash">开始背词 →</a>
+      </div>
+      <div class="card">
+        <div class="fc-ic">${icon("clip",28)}</div>
+        <h3 style="margin:8px 0 4px">外贸实操 SOP</h3>
+        <p style="font-size:13.5px;color:var(--muted)">订单确认后怎么走：内部流转、单证规范、订舱报关、T/T 与 L/C 风控、Incoterms 2020 速查，可勾选清单 + 英文话术 + CBM 与 CIF 计算器。</p>
+        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/sop">按流程自查 →</a>
+      </div>
+      <div class="card">
+        <div class="fc-ic">${icon("check",28)}</div>
+        <h3 style="margin:8px 0 4px">智能测验</h3>
+        <p style="font-size:13.5px;color:var(--muted)">英译中、中译英、听句选义、选词填空四种题型，做完即时批改并保存最好成绩。</p>
+        <a class="btn btn-soft btn-sm" style="margin-top:10px" href="#/quiz">去测验 →</a>
+      </div>
+    </div>`;
   }
 
   /* 四维口语实战 · 首页概览：最近一次成绩的四维条 + 最近 5 次列表 */
@@ -655,6 +1157,12 @@
   function unitCardHtml(u) {
     const pct = unitPct(u);
     const done = progress.done[u.id] || pct === 100;
+    const du = unitDifficulty(u);
+    const diffHtml = du
+      ? '<span class="badge uc-diff" title="难度（可由水平自测校准）。平均 CEFR ' + cefrLabel(du.avgCefr) +
+        ' · 平均每句 ' + du.wordsPerSentence + ' 词 · 可读性 Flesch ' + du.flesch +
+        '。词级为真实 CEFR 分级（CEFR-J），单元指标站内相对排序。">难度：' + esc(du.band) + '</span>'
+      : "";
     return `
     <a class="unit-card" href="#/unit/${u.id}" style="color:inherit">
       <div class="uc-top">
@@ -665,10 +1173,12 @@
         </div>
       </div>
       <div class="uc-sum">${esc(u.summary)}</div>
+      ${du ? '<div class="uc-diffline">' + diffHtml +
+        '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
       <div class="uc-meta">
         <div class="progressbar"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
-        ${done ? '<span class="badge badge-ok">✓ 已完成</span>' : '<span class="badge badge-muted">继续学习</span>'}
+        ${done ? '<span class="badge badge-ok">✓ 已完成</span>' : (pct === 0 ? '<span class="badge badge-muted">从这里开始</span>' : '<span class="badge badge-muted">继续学习</span>')}
       </div>
     </a>`;
   }
@@ -691,7 +1201,9 @@
       return;
     }
     const flows = MK.flows || [];
+    const grammars = MK.grammars || [];
     const activeFlow = State.mistFlow || "all";
+    const activeGrammar = State.mistGrammar || "all";
     const reveal = State.mistReveal;
 
     const flowTabs = [
@@ -700,10 +1212,31 @@
       return '<button class="chip ' + (activeFlow === f.id ? "active" : "") + '" data-action="mistake-flow" data-flow="' + f.id + '">' + esc(f.label) + '</button>';
     })).join("");
 
-    const groups = MK.groups.filter(function (g) { return activeFlow === "all" || g.flow === activeFlow; });
+    /* 「按语法知识点」二级索引：跟随当前流程，标出这个维度下有哪些语法点（对应《英语常见问题
+       解答大词典》那本书的"按语法/按试题多目录索引"思路），点击二级筛选合并到同级过滤。 */
+    const grammarTabs = [
+      '<button class="chip ' + (activeGrammar === "all" ? "active" : "") + '" data-action="mistake-grammar" data-grammar="all">全部语法点</button>'
+    ].concat(grammars.map(function (g) {
+      const count = MK.groups.reduce(function (n, gr) {
+        return n + (activeFlow === "all" || gr.flow === activeFlow
+          ? gr.items.filter(function (m) { return m.grammar === g.id; }).length : 0);
+      }, 0);
+      if (!count) return "";
+      return '<button class="chip ' + (activeGrammar === g.id ? "active" : "") + '" data-action="mistake-grammar" data-grammar="' + g.id + '">' + esc(g.label) + ' · ' + count + '</button>';
+    })).filter(Boolean).join("");
 
-    const groupHtml = groups.map(function (g) {
-      const items = g.items.map(function (m, i) {
+    const groups = MK.groups.filter(function (g) {
+      if (activeFlow !== "all" && g.flow !== activeFlow) return false;
+      return true;
+    }).map(function (g) {
+      /* 保留全组，但按语法点过滤其条目；筛后若无条目且显式选了语法点则整组隐藏 */
+      const items = g.items.filter(function (m) { return activeGrammar === "all" || m.grammar === activeGrammar; });
+      return { g: g, items: items };
+    }).filter(function (x) { return activeGrammar === "all" || x.items.length; });
+
+    const groupHtml = groups.map(function (x) {
+      const g = x.g;
+      const items = x.items.map(function (m, i) {
         return `
         <div class="mistake-card" style="margin-top:12px">
           <div class="mk-wrong">❌ <span>${esc(m.wrong)}</span>
@@ -728,7 +1261,8 @@
           <div style="font-size:24px">${g.icon}</div>
           <div>
             <h3 style="margin:0">${esc(g.title)}</h3>
-            <span class="badge badge-muted">${esc(flowLabel(flows, g.flow))} · ${g.items.length} 条</span>
+            <span class="badge badge-muted">${esc(flowLabel(flows, g.flow))} · ${x.items.length} 条</span>
+            ${activeGrammar !== "all" ? '<span class="badge" style="background:var(--accent);color:#fff">语法：' + esc(grammarLabel(grammars, activeGrammar)) + '</span>' : ""}
           </div>
         </div>
         <p style="font-size:13.5px;color:var(--muted);margin:10px 0 4px">${esc(g.intro)}</p>
@@ -746,6 +1280,9 @@
     </div>
     <div class="mistake-toolbar">
       <div class="chip-row">${flowTabs}</div>
+      <div class="chip-row" style="margin-top:8px;border-top:1px dashed var(--line,#e2e8f0);padding-top:8px">
+        <span class="mistake-dim">📐 按语法知识点（二级索引）：</span>${grammarTabs}
+      </div>
       <button class="btn btn-outline btn-sm" data-action="mistake-reveal">${reveal ? "🙈 隐藏正确答案" : "👁 显示全部正确答案"}</button>
     </div>
     ${groupHtml || '<div class="empty"><div class="e-icon">📭</div>该流程下暂无易错点。</div>'}
@@ -757,6 +1294,10 @@
 
   function flowLabel(flows, id) {
     const hit = flows.find(function (f) { return f.id === id; });
+    return hit ? hit.label : id;
+  }
+  function grammarLabel(grammars, id) {
+    const hit = grammars.find(function (g) { return g.id === id; });
     return hit ? hit.label : id;
   }
 
@@ -811,6 +1352,7 @@
       <h2>${u.icon} ${esc(u.title)}</h2>
       <div class="en">${esc(u.titleEn)}</div>
       <p style="margin-top:8px;color:var(--muted);max-width:760px">${esc(u.summary)}</p>
+      ${unitDiffBlockHtml(u)}
       <div style="display:flex;align-items:center;gap:12px;margin-top:14px;max-width:520px;flex-wrap:wrap">
         <div class="progressbar"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
@@ -849,32 +1391,224 @@
     State.pendingHl = null;
   }
 
-  /* ---- 词频/难度标注 ----
-     优先使用构建期脚本生成的 lvl 数据（window.FTE_LVL，按 词 -> lvl 的 Map），
-     元数据缺失时回退到下面的启发式正则。 */
+  /* ---- 词级难度标注 ----
+     唯一来源：构建期生成的 js/difficulty-map.js（window.FTE_DIFF，词 -> {dif:易/中/难, dom:是否行业术语}）。
+     这是一个基于「音节数+词长」的客观代理量（加工难度近似），并非 COCA/BNC/CEFR 官方频表；
+     dom 为行业术语性标注，与加工难度正交。缺失时（如未生成地图）回退到旧启发式正则。 */
   const FREQ_HIGH = /^(trade|export|import|buyer|seller|supplier|sample|contract|shipment|customs|tariff|offer|price|order|payment|goods|market|customer|company|business|product|quality|service|shipping|delivery|invoice|receipt|goods|email|phone|meeting|visit|factory|agent|discount|total|amount|money|address|name|date|time|week|month|year|office|trip|thank|welcome|please|confirm|ask|question|answer|problem|work|need|make|send|receive|pay|sign|check|call|show|come|buy|sell|pack|load|ship|start|finish|ready|free|clear|team|sales|quote|deal)$/i;
   const FREQ_TECH = /(adhesive|resin|prepolymer|isocyanate|polyol|polyurethane|polyether|polyester|polyamide|laminate|laminating|coating|corona|solventless|solvent-based|water-based|two-component|curing|hardener|catalyst|endothermic|exothermic|peel|delamination|retort|boil|pouch|spout|zipper|tonnage|bench-scale|certification|declaration|compliance|specification|tolerance|viscosity|solid|reactive|membrane|isocyanate|diisocyanate|catalyst|monomer|additive|plasticizer|extrusion|barrier|permeability|incoterms|documentary|letter-?of-?credit|tender|despatch|demurrage|incoterm|certificate)/i;
 
-  /* 由 tools/audit-ipa.js 生成：词小写 -> lvl('high'|'common'|'tech') */
-  const LVL_MAP = (window.FTE_LVL) || {};
+  const DIFF = window.FTE_DIFF || {};
+  const DIFF_WORDS = DIFF.words || {};
+  const BAND_LABEL = DIFF.bandLabels || { easy: "易", mid: "中", hard: "难" };
+  function bandCls(dif) { return dif === "easy" ? "wf-high" : dif === "mid" ? "wf-common" : "wf-tech"; }
 
   function wordFreqTag(w) {
-    const s = String(w);
-    const lvl = LVL_MAP[s.toLowerCase()];
-    if (lvl === "high") return { label: "高频", cls: "wf-high" };
-    if (lvl === "tech") return { label: "专业", cls: "wf-tech" };
-    if (lvl === "common") return { label: "常用", cls: "wf-common" };
-    /* 回退前的启发式 */
-    if (FREQ_HIGH.test(s) && !FREQ_TECH.test(s)) return { label: "高频", cls: "wf-high" };
-    if (FREQ_TECH.test(s) || s.length > 11 || s.indexOf(" ") !== -1) return { label: "专业", cls: "wf-tech" };
-    return { label: "常用", cls: "wf-common" };
+    const s = String(w).toLowerCase();
+    const rec = DIFF_WORDS[s];
+    if (rec) {
+      const label = BAND_LABEL[rec.dif] || (rec.dif === "easy" ? "易" : rec.dif === "mid" ? "中" : "难");
+      const cefrTxt = rec.cefr ? " · CEFR " + rec.cefr : (rec.dif === "hard" ? " · 超过基础清单" : "");
+      return {
+        label: label, cls: bandCls(rec.dif), dom: !!rec.dom, cefr: rec.cefr || null,
+        title: (rec.cefr ? "CEFR " + rec.cefr : "未在 CEFR 基础清单内") + (rec.dom ? " · 行业术语" : "")
+      };
+    }
+    /* 回退启发式：高频->易 / 专业->难 */
+    const hi = FREQ_HIGH.test(s) && !FREQ_TECH.test(s);
+    const te = FREQ_TECH.test(s) || s.length > 11 || s.indexOf(" ") !== -1;
+    return {
+      label: hi ? "易" : (te ? "难" : "中"),
+      cls: hi ? "wf-high" : (te ? "wf-tech" : "wf-common"),
+      dom: !!te, cefr: null, title: "难度（估计值）"
+    };
+  }
+
+  /* 单元级难度数据（由 gen-difficulty.js 生成） */
+  const DIFF_UNITS = DIFF.units || {};
+  function unitDifficulty(u) { return DIFF_UNITS[String(u.id)] || null; }
+
+  /* 单元难度说明块（客观指标，供「从易到难」可量化） */
+  function unitDiffBlockHtml(u) {
+    const du = unitDifficulty(u);
+    if (!du) return "";
+    return `
+    <div class="card uc-diff-card" style="margin-top:12px;max-width:760px">
+      <div class="uc-diff-bars">
+        <div><b>难度档</b><span class="uc-diff-val">${esc(du.band)}</span><small>综合 CEFR 档/词长/句长/专业词占比</small></div>
+        <div><b>平均 CEFR 档</b><span class="uc-diff-val">${cefrLabel(du.avgCefr)}</span><small>1=A1 … 6=C2（未收录按 B2 计）</small></div>
+        <div><b>平均句长</b><span class="uc-diff-val">${du.wordsPerSentence} 词</span><small>越长信息密度越高</small></div>
+        <div><b>可读性 Flesch</b><span class="uc-diff-val">${du.flesch}</span><small>越高越易读（约 60 为中等）</small></div>
+        <div><b>专业词占比</b><span class="uc-diff-val">${Math.round(du.domPct * 100)}%</span><small>行业术语密度</small></div>
+        <div><b>站内难度序</b><span class="uc-diff-val">#${du.sortIdx}</span><small>1 = 最易，${DATA.units.length} = 最难</small></div>
+      </div>
+      <div class="uc-diff-note">词级为真实 CEFR 分级（CEFR-J + C1-C2 开放画像）；<b>平均 CEFR 档</b>：A1/A2=易，B1=中，B2/C1/C2=难，未收录行业/复合术语按难度兜底并标「专」。单元指标相对本站语料归一，用于站内相对排序。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
+    </div>`;
+  }
+  function cefrLabel(c) {
+    if (c == null) return "—";
+    const m = Math.round(c);
+    return ["", "A1", "A2", "B1", "B2", "C1", "C2"][m] || "B2+";
+  }
+
+  /* ================= 水平自测（placement）=================
+     用难度梯度上采样的几道词义题，估计学习者当前水平，并推荐起点单元与阶段。
+     答案据 difficulty-map 的相对难度分档选取（干扰项尽量同难度档）。 */
+  function flatVocab() {
+    if (State._flatVocab) return State._flatVocab;
+    const arr = [];
+    DATA.units.forEach(function (u) {
+      u.vocab.forEach(function (v) {
+        const w = String(v.w).toLowerCase();
+        const rec = DIFF_WORDS[w];
+        arr.push({ w: v.w, cn: v.cn, ex: v.ex || "", uid: u.id, dif: rec ? rec.dif : null });
+      });
+    });
+    State._flatVocab = arr;
+    return arr;
+  }
+  function buildPlacementItems() {
+    const order = DIFF.order && DIFF.order.length ? DIFF.order : DATA.units.map(function (u) { return u.id; });
+    // 在难度梯度上均匀采样 6 个单元（从易到难）
+    const pos = [0, 2.5, 5, 8, 11, order.length - 1];
+    const pool = flatVocab();
+    const got = {}, items = [];
+    pos.forEach(function (p) {
+      const uId = order[Math.min(order.length - 1, Math.round(p))];
+      if (got[uId]) return;
+      got[uId] = true;
+      const cands = pool.filter(function (x) { return x.uid === uId && x.cn && x.ex; });
+      if (cands.length) items.push(pick(cands));
+    });
+    // 若采样不足，补充；保证 6 道
+    while (items.length < 6 && pool.length) {
+      const c = pick(pool);
+      if (!items.some(function (it) { return it.w === c.w; })) items.push(c);
+    }
+    return items.slice(0, 6);
+  }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function placementOptions(item, n) {
+    const pool = flatVocab().filter(function (x) { return x.cn && x.w.toLowerCase() !== item.w.toLowerCase() && x.cn !== item.cn; });
+    let same = pool.filter(function (x) { return x.dif === item.dif; });
+    let opts = [];
+    while (opts.length < n && pool.length) {
+      const poolSrc = same.length ? same : pool;
+      const c = pick(poolSrc);
+      const dup = opts.some(function (o) { return o === c.cn; });
+      if (!dup) opts.push(c.cn);
+    }
+    opts.unshift(item.cn);
+    return shuffle(opts);
+  }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  const PLACE_N = 6;
+  function placementRecommend(score) {
+    const order = DIFF.order && DIFF.order.length ? DIFF.order : DATA.units.map(function (u) { return u.id; });
+    // score(0..6) → 相对的起点档次（0=最容易 … 1=最难对应的单元）
+    const ratio = score / Math.max(1, PLACE_N);
+    let rel;
+    if (ratio < 0.25) rel = 0;        // 新手 → 最基础
+    else if (ratio < 0.5) rel = 0.15; // 基础 → 商务基础前段
+    else if (ratio < 0.75) rel = 0.4; // 中级 → 通用外贸中段
+    else rel = 0.65;                  // 中高级 → 专业/实操前段
+    const idx = Math.round(rel * Math.max(0, order.length - 1));
+    const unitId = order[Math.min(order.length - 1, idx)];
+    const u = getUnit(unitId);
+    const stage = stageOfUnit(unitId);
+    return { unitId: unitId, unit: u, stage: stage, score: score };
+  }
+  function stageOfUnit(id) {
+    const stages = pathStagesData();
+    for (let i = 0; i < stages.length; i++) if (stages[i].ids.indexOf(id) !== -1) return stages[i].name;
+    return "";
+  }
+  function pathStagesData() {
+    return [
+      { name: "第一阶段 · 商务基础", emoji: "🟢",
+        desc: "从贸易流程、询盘报价到谈判与付款，搭起外贸的地基",
+        ids: [1, 2, 3, 4, 5, 6] },
+      { name: "第二阶段 · 通用外贸", emoji: "🔵",
+        desc: "物流货运、电话会议、质量售后与跨境电商，覆盖常见场景",
+        ids: [7, 8, 9, 10] },
+      { name: "第三阶段 · 软包装专业 · 实操", emoji: "🟣",
+        desc: "进入行业深水区：专业词汇 + 单证/海运/Incoterms/收款/合规 + 技术深挖，衔接实操 SOP",
+        ids: [11, 12, 13, 14, 15, 16, 17, 18, 19] }
+    ];
+  }
+
+  function renderPlacement() {
+    const items = State.placementItems || (State.placementItems = buildPlacementItems());
+    const idx = State.placementIdx || 0;
+    const score = State.placementScore || 0;
+    const answered = State.placementAnswered || false;
+
+    if (idx >= items.length) {
+      const rec = placementRecommend(score);
+      return finishPlacementHtml(rec);
+    }
+    const item = items[idx];
+    const opts = State.placementOpts && State.placementOpts[idx]
+      ? State.placementOpts[idx]
+      : (State.placementOpts = State.placementOpts || {})[idx] || (State.placementOpts[idx] = placementOptions(item, 3));
+
+    app.innerHTML = `
+    <div class="page-head">
+      <h2>🎯 水平自测 <span class="sub">6 道词义题 · 估计你的起点</span></h2>
+      <div class="en">题目按难度梯度（从易到难）采样，答案自动推荐你该从哪个单元开始。</div>
+    </div>
+    <div class="card" style="max-width:560px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="uc-diff-val">第 ${idx + 1} / ${items.length} 题</span>
+        <span style="font-size:12.5px;color:var(--muted)">已答对 ${score}</span>
+      </div>
+      <div class="progressbar" style="margin-bottom:16px"><i style="width:${Math.round(idx / items.length * 100)}%"></i></div>
+      <div style="font-size:22px;font-weight:800">${esc(item.w)}</div>
+      <div class="en" style="margin:4px 0 2px">${esc(item.ex)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">它是什么意思？</div>
+      <div class="quiz-opts">
+        ${opts.map(function (o, i) {
+          return '<button class="chip" data-action="placement-opt" data-idx="' + i + '" data-cn="' + esc(o) + '" data-w="' + esc(item.w) + '">' + esc(o) + '</button>';
+        }).join("")}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:14px" data-action="placement-skip">😌 跳过 · 直接从最基础的开始</button>
+    </div>`;
+  }
+
+  function finishPlacementHtml(rec) {
+    const score = rec.score;
+    const ratio = score / PLACE_N;
+    try { localStorage.setItem("fte-placement", JSON.stringify(rec.unitId)); } catch (e) {}
+    let levelTxt, levelHint;
+    if (ratio < 0.25) { levelTxt = "新手起步"; levelHint = "从最基础的商务场景打地基，单词卡与听写优先。"; }
+    else if (ratio < 0.5) { levelTxt = "基础适用"; levelHint = "直接进商务基础阶段，先扎实常用词与流程。"; }
+    else if (ratio < 0.75) { levelTxt = "中级进阶"; levelHint = "可进通用外贸阶段，场景对话与听说是重点。"; }
+    else { levelTxt = "中高级"; levelHint = "可直接进入软包装专业与实操单元，多练术语发言。"; }
+    const recUnit = rec.unit;
+    app.innerHTML = `
+    <div class="page-head">
+      <h2>🎯 自测完成</h2>
+      <div class="en">答对 ${score} / ${PLACE_N} 题 · 水平：${levelTxt}</div>
+    </div>
+    <div class="card" style="max-width:560px;margin-top:12px">
+      <div style="font-size:15px;color:var(--muted)">${levelHint}</div>
+      <div class="uc-diff-note" style="margin-top:16px">
+        <b>建议起点</b>：${esc(rec.stage || "第一阶段 · 商务基础")} → <a href="#/unit/${rec.unitId}">${esc(recUnit ? recUnit.title : "第一个单元")}</a>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <a class="btn btn-primary" href="#/unit/${rec.unitId}">从推荐单元开始 →</a>
+        <button class="btn btn-outline" data-action="placement-retest">🔁 重新测试</button>
+        <a class="btn btn-ghost" href="#/units">浏览全部课程</a>
+      </div>
+    </div>`;
   }
 
   function wordRowHtml(w, hl) {
     const learned = !!progress.learned[w.id];
     const ft = wordFreqTag(w.v.w);
     return `<div class="word-row" id="w-${w.id}">
-      <span class="w">${hlText(w.v.w, hl)}<span class="word-freq ${ft.cls}" title="词频/难度提示（估计值）">${ft.label}</span></span>
+      <span class="w">${hlText(w.v.w, hl)}<span class="word-freq ${ft.cls}" title="${esc(ft.title || "")}">${ft.label}${ft.dom ? '<i class="wf-dom">专</i>' : ""}</span></span>
       <span class="ipa">${esc(w.v.ipa || "")}</span>
       <span class="pos">${esc(w.v.pos || "")}</span>
       <span class="cn">${hlText(w.v.cn, hl)}</span>
@@ -1088,15 +1822,20 @@
               ? '<div class="cn" style="color:var(--ok);font-weight:800">✓ 正确：' + esc(card.cn) + '</div>' +
                 '<div class="cn" style="margin-top:6px;color:var(--accent);font-weight:600">💡 ' + esc(card.why || "") + '</div>'
               : '<div class="cn">' + esc(card.cn) + '</div>'}
+            ${window.FTE_MEMO && card.kind !== "mistake" && window.FTE_MEMO[String(card.w).toLowerCase()]
+              ? '<div class="cn memo">💡 助记：' + esc(window.FTE_MEMO[String(card.w).toLowerCase()]) + '</div>' : ""}
             <div class="ex">${esc(card.ex)}</div>
             <div class="ex">${esc(card.exCn)}</div>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px;background:rgba(255,255,255,.2);color:#fff" data-action="flash-say" title="朗读例句">🔊</button>
           </div>
         </div>
       </div>
+      <div class="flash-actions-hint">凭记忆先想，再按掌握程度评分</div>
       <div class="flash-actions">
-        <button class="btn btn-danger" data-action="flash-grade" data-known="0">✗ 不认识</button>
-        <button class="btn btn-ok" data-action="flash-grade" data-known="1">✓ 认识</button>
+        <button class="btn btn-danger" data-action="flash-grade" data-rating="1" title="完全想不起来，隔天再来">😵 忘了</button>
+        <button class="btn btn-outline" data-action="flash-grade" data-rating="2" title="勉强想起、有点模糊，稍后再复习">😐 模糊</button>
+        <button class="btn btn-ok" data-action="flash-grade" data-rating="3" title="想起来了，按正常间隔复习">🙂 认识</button>
+        <button class="btn btn-ok" data-action="flash-grade" data-rating="4" title="秒答，很牢，拉长复习间隔">😀 秒答</button>
       </div>
       <button class="btn btn-outline btn-sm" style="margin-top:16px" data-action="flash-exit">退出学习</button>
     </div>`;
@@ -1121,7 +1860,7 @@
         <button class="btn btn-primary" data-action="flash-start">开始学习 →</button>
         <button class="btn btn-soft" data-action="flash-reset">🗑 重置本单元记忆数据</button>
       </div>
-      <p style="font-size:12.5px;color:var(--muted);margin-top:12px">采用 <b>SM-2 间隔重复算法</b>（Anki 同款）：学会的词按遗忘曲线自动拉长复习间隔，答错的词重置并优先复习；<b>常错的词</b>会出现在卡片上并优先进入下次队列。每次最多 15 张新卡 + 到期卡。</p>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:12px">采用 <b>FSRS-6 间隔重复算法</b>（现代记忆调度，按遗忘曲线与可回忆度建模）：学会的词按遗忘曲线自动拉长复习间隔，答错的词重置并优先复习；<b>常错的词</b>会出现在卡片上并优先进入下次队列。每次最多 15 张新卡 + 到期卡。</p>
     </div>`;
   }
 
@@ -1219,16 +1958,27 @@
     renderFlash();
   }
 
-  function gradeFlash(known) {
+  function gradeFlash(rating) {
     const s = State.flash;
     if (!s || s.idx >= s.queue.length) return;
     const card = s.queue[s.idx];
-    Flashcards.grade(progress, card.id, known === 1);
-    if (known === 1) s.stats.known++; else s.stats.unknown++;
-    /* 错题权重：不认识 → 累加该词错误次数，供“错题优先复习”用 */
-    if (known === 0) {
+    Flashcards.grade(progress, card.id, rating);
+    /* 3=认识 4=秒答 记掌握；1=忘了 2=模糊 记未掌握 */
+    const known = rating >= 3;
+    if (known) s.stats.known++; else s.stats.unknown++;
+    /* 错题权重：忘了(1)/模糊(2) → 累加该词错误次数，供“错题优先复习”用 */
+    if (!known) {
       if (!progress.wrong) progress.wrong = {};
       progress.wrong[card.id] = (progress.wrong[card.id] || 0) + 1;
+    }
+    /* 加急易忘词会话：复习后把到期压在 3 天内（a/b 功能），防刚忘的词又沉下去。
+       只改该卡的 due（下次暴露时间），不改 FSRS 的 stability/difficulty 状态，故不影响算法与审计。 */
+    if (s.reinforce) {
+      const f = progress.flash[card.id];
+      if (f) {
+        const cap = Date.now() + 3 * 86400000;
+        if (f.due == null || f.due > cap) f.due = cap;
+      }
     }
     s.idx++;
     saveProgress();
@@ -1261,18 +2011,15 @@
         <div class="q-text">${esc(q.prompt)}</div>
         ${q.sub ? '<div class="q-sub">' + esc(q.sub) + '</div>' : ""}
       </div>
-      <div class="quiz-options">
-        ${q.options.map(function (o, oi) {
-          let cls = "";
-          let disabled = "";
-          if (chosen) {
-            disabled = "disabled";
-            if (o === q.answer) cls = "correct";
-            else if (oi === q.chosen) cls = "wrong";
-          }
-          return '<button class="option ' + cls + '" ' + disabled + ' data-action="quiz-opt" data-i="' + oi + '">' + esc(o) + '</button>';
-        }).join("")}
-      </div>
+      ${q.type === "reorder"
+        ? reorderHtml(q, s)
+        : q.type === "write"
+          ? writeHtml(q, s)
+          : '<div class="quiz-options">' + q.options.map(function (o, oi) {
+            let cls = ""; let disabled = "";
+            if (chosen) { disabled = "disabled"; if (o === q.answer) cls = "correct"; else if (oi === q.chosen) cls = "wrong"; }
+            return '<button class="option ' + cls + '" ' + disabled + ' data-action="quiz-opt" data-i="' + oi + '">' + esc(o) + '</button>';
+          }).join("") + "</div>"}
       ${chosen
         ? '<div class="q-explain show">' + nl2br(q.explain) +
           '<div style="margin-top:12px"><button class="btn btn-primary btn-sm" data-action="quiz-next">' +
@@ -1284,7 +2031,7 @@
   function quizSetupHtml() {
     return `
     <div class="page-head"><h2>📝 智能测验</h2>
-      <div class="en">四种题型混合出题，测完即时批改、保存最好成绩</div>
+      <div class="en">混合题型（含句块重排）出题，测完即时批改、保存最好成绩</div>
     </div>
     <div class="card" style="max-width:640px;margin-top:18px">
       <div class="form-row">
@@ -1331,10 +2078,17 @@
     <div class="card" style="margin-top:16px">
       <b>答题回顾</b>
       ${s.questions.map(function (q, i) {
-        const ok = q.chosen === q.options.indexOf(q.answer);
+        const isRe = q.type === "reorder";
+        const isWr = q.type === "write";
+        const ok = isRe ? !!q._reorderOk : isWr ? !!q.writeOk : q.chosen === q.options.indexOf(q.answer);
+        const ansLine = isRe
+          ? (q._reorderOk ? "✓ 正确" : "✗ 语序不对（见正确答案）")
+          : isWr
+            ? (q.writeOk ? "✓ 写得不错" : "✗ 你的答案：" + esc(q.typed || "未作答"))
+            : ("✗ 你的答案：" + esc(q.options[q.chosen] != null ? q.options[q.chosen] : "未作答"));
         return `<div class="review-item">
           <div class="rq">${i + 1}. ${esc(q.prompt.length > 70 ? q.prompt.slice(0, 70) + "…" : q.prompt)}</div>
-          <div class="ra ${ok ? "ok" : "no"}">${ok ? "✓ 正确" : "✗ 你的答案：" + esc(q.options[q.chosen] != null ? q.options[q.chosen] : "未作答")}</div>
+          <div class="ra ${ok ? "ok" : "no"}">${ok ? "✓ 正确" : ansLine}</div>
           <div class="ra">正确答案：<b>${esc(q.answer)}</b></div>
         </div>`;
       }).join("")}
@@ -1378,8 +2132,125 @@
     renderQuiz();
   }
 
-  function nextQuiz() {
-    const s = State.quiz;
+  function reorderHtml(q, s) {
+    if (!s.reorder) s.reorder = { picked: [], done: false, ok: false, wrongCi: -1, slot: -1 };
+    const r = s.reorder;
+    const n = q.chunks.length;
+    let slots = "";
+    for (let i = 0; i < n; i++) {
+      let inner; let cls = "";
+      if (i < r.picked.length) { inner = esc(q.chunks[r.picked[i]].t); cls = "filled"; }
+      else if (r.done && r.wrongCi >= 0 && i === r.slot) { inner = "✗ " + esc(q.chunks[i] ? q.chunks[i].t : ""); cls = "wrong"; }
+      else inner = "＿";
+      slots += '<span class="re-slot ' + cls + '">' + inner + "</span>";
+    }
+    const used = {};
+    r.picked.forEach(function (ci) { used[ci] = true; });
+    const chunksHtml = q.chunks.map(function (c, ci) {
+      if (used[ci]) return "";
+      const cls = (r.done && r.wrongCi >= 0 && ci === r.wrongCi) ? " wrong" : "";
+      return '<button class="option re-chunk' + cls + '" data-action="reorder-pick" data-ci="' + ci + '">' + esc(c.t) + '</button>';
+    }).join("");
+    const doneBlock = r.done
+      ? '<div style="margin-top:8px;font-weight:800;color:' + (r.ok ? "var(--ok)" : "var(--bad)") + '">' + (r.ok ? "✓ 语序正确！" : "✗ 语序不对，正确答案是：") + '</div>' +
+        '<div class="q-explain show" style="margin-top:8px">' + nl2br(q.explain) + '</div>' +
+        '<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">' +
+        '<button class="btn btn-primary btn-sm" data-action="quiz-next">' + (s.idx + 1 >= s.questions.length ? "查看结果 →" : "下一题 →") + '</button>' +
+        '<button class="btn btn-outline btn-sm" data-action="reorder-retry">🔄 重做</button>' +
+        '</div>'
+      : "";
+    return '<div class="quiz-options reorder"><div class="reorder-answer">' + slots + '</div>' +
+      '<div class="re-chunks">' + chunksHtml + '</div>' + doneBlock + '</div>';
+  }
+
+  function reorderPick(ci) {
+    const s = State.quiz; if (!s || s.idx >= s.questions.length) return;
+    const q = s.questions[s.idx];
+    if (q.type !== "reorder") return;
+    if (!s.reorder) s.reorder = { picked: [], done: false, ok: false, wrongCi: -1, slot: -1 };
+    const r = s.reorder; if (r.done) return;
+    const slot = r.picked.length;
+    const block = q.chunks[ci];
+    if (block && block.o === slot) {
+      r.picked.push(ci);
+      if (r.picked.length === q.chunks.length) {
+        r.done = true; r.ok = true; q._reorderOk = true;
+        s.correct++;
+        s.answers.push({ q: q, ok: true });
+      }
+    } else {
+      r.done = true; r.ok = false; r.wrongCi = ci; r.slot = slot; q._reorderOk = false;
+      if (q.wid) { if (!progress.wrong) progress.wrong = {}; progress.wrong[q.wid] = (progress.wrong[q.wid] || 0) + 1; }
+      s.answers.push({ q: q, ok: false });
+    }
+    renderQuiz();
+  }
+
+  /* ---------- 写作产出（中译英 · 自由输入 + 词级批改 + 可选 AI 润色） ---------- */
+  /* 用 evaluateSpeech 对齐用户所写与参考答案，逐词给「精确/近似/漏」反馈，复用 ASR 评测样式。 */
+  function writeHtml(q, s) {
+    if (!q.writeDone) {
+      return '<div class="quiz-options">' +
+        '<textarea id="quizWriteInput" class="write-input" rows="2" placeholder="看上面的中文，用英语写出来（一句即可）…" autofocus></textarea>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-primary btn-sm" data-action="quiz-write-submit">✍️ 提交</button>' +
+        '<span class="sop-hint">自由输入，不是选项；点提交看逐词批改。</span>' +
+        '</div></div>';
+    }
+    const ev = q.writeEv;
+    const aim = ev ? ev.matched.map(function (m) {
+      if (m.errType === "ok") return '<span class="wm ok">' + esc(m.w) + '</span>';
+      if (m.errType === "near") return '<span class="eval-pair"><span class="wm no">' + esc(m.w) + '</span><span class="eval-said">≈' + esc(m.said) + '</span></span>';
+      return '<span class="wm no">' + esc(m.w) + '</span>';
+    }).join(" ") : "";
+    const aiBtn = (window.Tutor && window.Tutor.hasConfig())
+      ? '<button class="btn btn-outline btn-sm" data-action="quiz-write-ai">🤖 AI 批改（更地道）+</button>'
+      : "";
+    return '<div class="quiz-options">' +
+      '<div style="font-weight:700;color:' + (q.writeOk ? "var(--ok)" : "var(--bad)") + '">' + (q.writeOk ? "✓ 写得不错（≥70% 词对）" : "✗ 还有些偏，对照下面批改") + '</div>' +
+      '<div style="margin-top:8px"><b>你的：</b>' + esc(q.typed || "（未作答）") + '</div>' +
+      (aim ? '<div class="eval-target" style="margin-top:6px"><b>参考答案逐词：</b>' + aim + '</div>' : "") +
+      '<div style="margin-top:6px"><b>参考：</b>' + esc(q.answer) + '</div>' +
+      '<div class="q-explain show" style="margin-top:8px">' + nl2br(q.explain) + '</div>' +
+      '<div id="quizWriteAi" class="qa-ai" hidden></div>' +
+      '<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">' +
+      '<button class="btn btn-primary btn-sm" data-action="quiz-next">' + (s.idx + 1 >= s.questions.length ? "查看结果 →" : "下一题 →") + '</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="quiz-write-retry">🔄 重写</button>' + aiBtn +
+      '</div></div>';
+  }
+  function gradeWrite() {
+    const s = State.quiz; if (!s || s.idx >= s.questions.length) return;
+    const q = s.questions[s.idx];
+    if (q.writeDone) return;
+    const inp = document.getElementById("quizWriteInput");
+    const typed = (inp ? inp.value : "").trim();
+    if (!typed) { toast("请先写一句英文再提交"); return; }
+    const ev = evaluateSpeech(q.answer, typed);   // 单词近似度对齐（复用 ASR 评测）
+    const ok = ev.acc >= 70;
+    q.typed = typed; q.writeEv = ev; q.writeOk = ok; q.writeDone = true;
+    if (ok) s.correct++;
+    else if (q.wid) { if (!progress.wrong) progress.wrong = {}; progress.wrong[q.wid] = (progress.wrong[q.wid] || 0) + 1; }
+    s.answers.push({ q: q, ok: ok });
+    saveProgress(); updateHeaderStat();
+    renderQuiz();
+  }
+  /* 可选 AI 润色：用 AI 陪练的模型（须已配置），对这句给出更地道版本 + 为什么。 */
+  function writeAi() {
+    const s = State.quiz; if (!s || s.idx >= s.questions.length) return;
+    const q = s.questions[s.idx];
+    const out = document.getElementById("quizWriteAi");
+    if (!out) return;
+    if (!(window.Tutor && window.Tutor.hasConfig())) { toast("请先到「AI 陪练」填好模型 Key。"); return; }    out.hidden = false; out.innerHTML = '<p class="field-note">🤖 正在请 AI 批改…（需联网）</p>';
+    const sys = "你是资深外贸英语教练。请用中文给出：1) 这句英语哪里不地道/不专业（针对软包装外贸场景）；2) 一个更地道自然的版本；3) 为什么。只针对这一句，简洁。" + (q.kcn ? " 核心表达：「" + q.kcn + "」。" : "") + " 参考答案（供参考，不必照抄）：" + q.answer;
+    const user = "用户写的英文：\n" + (q.typed || "");
+    window.Tutor.callChat([{ role: "system", content: sys }, { role: "user", content: user }]).then(function (txt) {
+      out.innerHTML = '<div class="qa-ai-in">🤖 <b>AI 批改</b><div style="margin-top:6px">' + nl2br(txt) + '</div></div>';
+    }).catch(function (e) {
+      out.innerHTML = '<p class="sop-warn">AI 批改失败：' + esc(e && e.message ? e.message : "（检查 Key / 网络）") + '</p>';
+    });
+  }
+
+  function nextQuiz() {    const s = State.quiz;
     if (!s) return;
     if (s.idx + 1 >= s.questions.length) {
       const uids = s.uid || null;
@@ -1397,6 +2268,7 @@
         }
       }
     }
+    s.reorder = null;
     s.idx++;
     renderQuiz();
   }
@@ -1815,6 +2687,7 @@
     return '<div class="eval-score">🎯 准确率 <span class="' + cls + '">' + ev.acc + "%</span>" +
       (ev.precise !== ev.acc ? ' <span style="font-size:12px;color:var(--muted)">精确 ' + ev.precise + "%</span>" : "") +
       "</div>" +
+      '<div class="eval-note" style="font-size:12px;color:var(--muted);margin-top:4px">📌 识别<b>参考分</b>：来自浏览器语音识别转写比对（<b>识别≠发音</b>），口音/行业术语/噪音可致其偏低，仅供练习参考；要更权威请用四维实战的「🔎 Azure 音素级评测」。</div>' +
       '<div class="eval-target">' + targetHtml + "</div>" +
       (ev.transcript
         ? '<div class="eval-transcript">识别到：' + esc(ev.transcript) + "</div>"
@@ -1993,9 +2866,47 @@
     const li = el.getAttribute("data-li");
 
     switch (act) {
+      case "placement-opt": {
+        const i = parseInt(idx, 10);
+        if (i == null) { State.placementOpts = {}; renderPlacement(); break; }
+        const items = State.placementItems || [];
+        const item = items[State.placementIdx || 0];
+        const opts = State.placementOpts && State.placementOpts[State.placementIdx || 0] || [];
+        const correct = item && opts[i] === item.cn;
+        State.placementScore = (State.placementScore || 0) + (correct ? 1 : 0);
+        State.placementIdx = (State.placementIdx || 0) + 1;
+        renderPlacement();
+        if (window.Player && Player.say) Player.say(item && item.w);
+        break;
+      }
+      case "placement-skip":
+        State.placementIdx = (State.placementItems || []).length; State.placementScore = 0;
+        renderPlacement();
+        break;
+      case "placement-retest":
+        State.placementItems = null; State.placementIdx = 0; State.placementScore = 0; State.placementOpts = {};
+        renderPlacement();
+        break;
       case "unit-tab":
         State.unitTab = el.getAttribute("data-tab");
         renderRoute();
+        break;
+      case "home-tab":
+        State.homeTab = el.getAttribute("data-tab");
+        renderRoute();
+        break;
+      case "home-fav":
+        homeFavToggle(el.getAttribute("data-id"));
+        break;
+      case "home-anchor": {
+        const target = document.getElementById(el.getAttribute("data-target"));
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+        break;
+      }
+      case "home-goal":
+        homeGoalSave(el.getAttribute("data-goal"));
+        renderHome();
         break;
       case "mark-done":
         progress.done[parseInt(id, 10)] = true;
@@ -2013,8 +2924,12 @@
         renderUnit({ id: w.u.id });
         break;
       }
-      case "play-word": playWord(id); break;
-      case "play-sentence": playSentence(id); break;
+      case "play-word": playWord(id); break;      case "play-sentence": playSentence(id); break;
+      case "atrisk-flash": {
+        const rb = document.getElementById("atriskReinforce");
+        startAtRiskFlash(!!(rb && rb.checked));
+        break;
+      }
       case "play-text":
         Player.speak(el.getAttribute("data-text"), { rate: 1 });
         break;
@@ -2030,6 +2945,10 @@
         break;
       case "mistake-flow":
         State.mistFlow = el.getAttribute("data-flow") || "all";
+        renderRoute();
+        break;
+      case "mistake-grammar":
+        State.mistGrammar = el.getAttribute("data-grammar") || "all";
         renderRoute();
         break;
       case "freq-shadow":
@@ -2076,10 +2995,13 @@
         Player.speak(flipped ? card.ex : card.w, { rate: 0.9 });
         break;
       }
-      case "flash-grade": gradeFlash(parseInt(el.getAttribute("data-known"), 10)); break;
+      case "flash-grade": gradeFlash(parseInt(el.getAttribute("data-rating"), 10)); break;
       case "flash-start": startFlashSession(); break;
       case "flash-again": {
-        if (State.flash) startFlashSession(State.flash.unit);
+        if (State.flash) {
+          if (State.flash.unit && State.flash.unit.id === "atrisk") startAtRiskFlash(State.flash.reinforce);
+          else startFlashSession(State.flash.unit);
+        }
         break;
       }
       case "flash-exit":
@@ -2097,6 +3019,11 @@
 
       case "quiz-start": startQuiz(); break;
       case "quiz-opt": answerQuiz(parseInt(el.getAttribute("data-i"), 10)); break;
+      case "reorder-pick": reorderPick(parseInt(el.getAttribute("data-ci"), 10)); break;
+      case "quiz-write-submit": gradeWrite(); break;
+      case "quiz-write-retry": { const wq = State.quiz && State.quiz.questions[State.quiz.idx]; if (wq) { wq.writeDone = false; wq.typed = ""; wq.writeEv = null; wq.writeOk = false; } renderQuiz(); break; }
+      case "quiz-write-ai": writeAi(); break;
+      case "reorder-retry": (function () { const s = State.quiz; if (s) s.reorder = { picked: [], done: false, ok: false, wrongCi: -1, slot: -1 }; renderQuiz(); })(); break;
       case "quiz-next": nextQuiz(); break;
       case "quiz-listen": {
         const s = State.quiz;
@@ -2174,6 +3101,7 @@
       case "coach-seg": coachJump(parseInt(el.getAttribute("data-seg"), 10)); break;
       case "coach-copy-report": coachCopyReport(); break;
       case "coach-download-report": coachDownloadReport(); break;
+      case "coach-copy-local": { try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(localReportText()).then(function(){ toast("📋 已复制本周自测"); }).catch(function(){ toast("复制失败，请手动选择"); }); } else { prompt("复制本周自测：", localReportText()); } } catch (e) { prompt("复制本周自测：", localReportText()); } break; }
       case "coach-7day": {
         try { localStorage.setItem("fte-tutor-fill", el.getAttribute("data-en") || ""); } catch (e) { /* ignore */ }
         location.hash = "#/tutor";
@@ -2369,15 +3297,111 @@
   function coachPad(n) { return (n < 10 ? "0" + n : "" + n); }
   function coachToday() { const d = new Date(); return d.getFullYear() + "-" + coachPad(d.getMonth() + 1) + "-" + coachPad(d.getDate()); }
   function coachYesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return d.getFullYear() + "-" + coachPad(d.getMonth() + 1) + "-" + coachPad(d.getDate()); }
-  function coachCreditSecs() {
+  function coachAddSecs(n) {
+    /* 累计练习时长（秒）到「连续打卡天数 / 今日 / 累计」；n 默认 1，供运行计时器与写作/句型活动共用。 */
     if (!progress.coach) progress.coach = { lastDate: "", today: 0, total: 0, streak: 0 };
     const t = coachToday(), c = progress.coach;
     if (c.lastDate !== t) {
       c.streak = (c.lastDate === coachYesterday()) ? c.streak + 1 : 1;
       c.lastDate = t; c.today = 0;
     }
-    c.today += 1; c.total += 1;
+    c.today += (n || 1); c.total += (n || 1);
     if (++coachSinceSave >= 10) { coachSinceSave = 0; saveProgress(); coachRefreshStats(); }
+  }
+  function coachCreditSecs() { coachAddSecs(1); }
+
+  /* 今日「写作 / 句型」任务：接入打卡（练了就把时长计入连续天数、并把任务进度记下来）。
+     目标：句型 10 句 / 写作 1 篇（每天自动重置）。 */
+  const STUDIO_GOAL = { patterns: 10, write: 1 };
+  function studioGoal() {
+    const t = coachToday();
+    if (!progress.studio || progress.studio.day !== t) {
+      progress.studio = { day: t, patterns: { done: 0, target: STUDIO_GOAL.patterns }, write: { done: 0, target: STUDIO_GOAL.write } };
+    }
+    return progress.studio;
+  }
+  function studioDone(kind, secs) {
+    const g = studioGoal();
+    if (kind === "patterns") g.patterns.done = Math.min(g.patterns.target, g.patterns.done + 1);
+    else if (kind === "write") g.write.done = Math.min(g.write.target, g.write.done + 1);
+    /* 每日台账：供「本周本地自测」按周汇总 */
+    const t = coachToday();
+    if (!progress.studioDays) progress.studioDays = {};
+    if (!progress.studioDays[t]) progress.studioDays[t] = { patterns: 0, write: 0 };
+    if (kind === "patterns") progress.studioDays[t].patterns += 1;
+    else if (kind === "write") progress.studioDays[t].write += 1;
+    coachAddSecs(secs || 120);   // 一次完成约记 2 分钟，计入连续打卡/今日时长
+    saveProgress();
+    coachRefreshStats();
+  }
+  window.CoachBridge = {
+    goal: studioGoal,
+    done: studioDone,
+    credit: coachAddSecs,
+    text: function () {
+      const g = studioGoal();
+      return "今日目标：🧩 句型 " + g.patterns.done + "/" + g.patterns.target + " · ✍️ 写作 " + g.write.done + "/" + g.write.target;
+    }
+  };
+
+  /* 本地本周进步自测（纯本地、无需 AI，非"宣称"而是"你本地数据算出来的结论"）。
+     用 trend 历史 + 打卡/时长 + 每日写作/句型台账，给出一周的"练了多少 / 是否向上"判断。 */
+  function weekDayStr(agoDays) { const d = new Date(Date.now() - agoDays * 86400000); return d.getFullYear() + "-" + coachPad(d.getMonth() + 1) + "-" + coachPad(d.getDate()); }
+  function localWeekReport() {
+    const sd = progress.studioDays || {};
+    let patterns = 0, write = 0, practicedDays = 0;
+    for (let k = 0; k < 7; k++) { const day = weekDayStr(k); const r = sd[day]; if (r) { patterns += r.patterns || 0; write += r.write || 0; if ((r.patterns || 0) + (r.write || 0) > 0) practicedDays++; } }
+    const hist = loadHistory().slice(-30);
+    const last = hist[hist.length - 1];
+    const weekAgo = weekDayStr(6);
+    let first = null;
+    for (let i = 0; i < hist.length; i++) { if (hist[i].day <= weekAgo) { first = hist[i]; break; } }
+    const retNow = last ? last.retention : null;
+    const retThen = first ? first.retention : null;
+    const learnedNow = last ? last.learned : totalLearned();
+    const learnedThen = first ? first.learned : null;
+    const delta = (learnedNow != null && learnedThen != null) ? Math.max(0, learnedNow - learnedThen) : null;
+    const trend = (retNow != null && retThen != null) ? (retNow - retThen) : null;
+    let conclusion;
+    if (retNow == null) conclusion = "先学几轮词、至少有一天保持率数据，再看看。";
+    else if (trend == null) conclusion = "样本还少，多练几天才能看出方向。";
+    else if (trend >= 5) conclusion = "▲ 保持率在上升，复习很有效——继续按节奏走。";
+    else if (trend >= 1) conclusion = "↗ 保持率稳中有升，节奏良好。";
+    else if (trend <= -3) conclusion = "▼ 保持率在下滑，本周漏复习多了，建议补几轮单词卡。";
+    else conclusion = "→ 保持率基本稳定，保持习惯即可。";
+    return { practicedDays: practicedDays, patterns: patterns, write: write, learned: learnedNow, delta: delta, retNow: retNow, retThen: retThen, trend: trend, conclusion: conclusion };
+  }
+  function localReportText() {
+    const r = localWeekReport();
+    const ret = r.retNow != null ? r.retNow + "%" : "—";
+    const retChg = r.trend != null ? (r.trend >= 0 ? "+" : "") + r.trend + "%" : "—";
+    return "【软包装外贸英语 · 本周本地自测】\n" +
+      "本周练习天数：" + r.practicedDays + " 天\n" +
+      "本周完成：句型 " + r.patterns + " 句 · 写作 " + r.write + " 篇\n" +
+      "已掌握词汇：" + r.learned + (r.delta != null ? "（本周 +" + r.delta + "）" : "") + "\n" +
+      "整体保持率：" + ret + "（较上周 " + retChg + "）\n" +
+      "结论：" + r.conclusion;
+  }
+  function localReportHtml() {
+    const r = localWeekReport();
+    const retCls = r.retNow == null ? "badge-muted" : r.retNow >= 85 ? "badge-ok" : r.retNow >= 70 ? "badge-warn" : "badge-bad";
+    const trendGlyph = r.trend == null ? "" : r.trend >= 5 ? "▲" : r.trend >= 1 ? "↗" : r.trend <= -3 ? "▼" : "→";
+    return `
+    <div class="card" style="margin-top:14px">
+      <div class="chat-head"><span>📊 本周进步 · 本地自测</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:400">用你的本地记录算出来，无需 AI</span></div>
+      <div class="sop-overall-a" style="margin-top:8px">
+        <span class="badge badge-ok">本周练习 <b>${r.practicedDays}</b> 天</span>
+        <span class="badge badge-muted">🧩 句型 <b>${r.patterns}</b></span>
+        <span class="badge badge-muted">✍️ 写作 <b>${r.write}</b></span>
+        <span class="badge badge-muted">词汇 <b>${r.learned}</b>${r.delta != null ? '（本周 +' + r.delta + '）' : ""}</span>
+        <span class="badge ${retCls}">保持率 <b>${r.retNow != null ? r.retNow + "%" : "—"}</b> ${trendGlyph}</span>
+      </div>
+      <div class="ws-feed" style="margin-top:10px"><b>结论：</b>${esc(r.conclusion)}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" data-action="coach-copy-local">📋 复制自测</button>
+      </div>
+    </div>`;
   }
   function coachStats() {
     const c = progress.coach;
@@ -2578,15 +3602,20 @@
   function coachBannerHtml() {
     const s = coachStats(), w = coachWeekMin();
     const doneToday = (progress.coach && progress.coach.today || 0) >= 60;  // 已 ≥1 分钟
+    const g = studioGoal();
+    const gDone = g.patterns.done >= g.patterns.target && g.write.done >= g.write.target;
     return `
     <section class="coach-banner">
       <span class="cb-flame">🔥</span>
       <div class="cb-main">
         <b>${doneToday ? "今日已打卡 " + s.today + " 分钟" : "今天还没开口？"}</b>
         <span>已连续 <b>${s.streak}</b> 天 · 近 7 天 ${w.sum} 分钟 · 累计 ${s.totalMin} 分钟</span>
+        <span class="cb-goal">🎯 今日任务：🧩 句型 ${g.patterns.done}/${g.patterns.target} · ✍️ 写作 ${g.write.done}/${g.write.target}${gDone ? " · ✅ 完成" : ""}</span>
       </div>
       <div class="cb-actions">
-        <a class="btn btn-soft btn-sm" href="#/coach">🎬 去训练 →</a>
+        <a class="btn btn-primary btn-sm" href="#/write">✍️ 写作 ${g.write.done}/${g.write.target}</a>
+        <a class="btn btn-soft btn-sm" href="#/patterns">🧩 句型 ${g.patterns.done}/${g.patterns.target}</a>
+        <a class="btn btn-outline btn-sm" href="#/coach">🎬 口语训练</a>
         <button class="btn btn-outline btn-sm" data-action="coach-copy-report">📋 复制周报</button>
         <button class="btn btn-outline btn-sm" data-action="coach-download-report">⬇️ 下载周报</button>
       </div>
@@ -2698,6 +3727,8 @@
   function renderCoach() {
     coachRestore();   // 从上次未完成的段落继续
     const resumed = progress.coachLast && !progress.coachLast.done && coachState.seg > 0;
+    const g = studioGoal();
+    const gDone = g.patterns.done >= g.patterns.target && g.write.done >= g.write.target;
     const steps = [
       { t: "第 1 步 · 先选一个具体场景", d: "不要只写“练英语”。点一个外贸真实场景（展会接待、询盘报价、商务谈判、电话沟通、售后客诉、视频会议、物流、机场/酒店），或自己描述一个周末闲聊、出差住宿。场景越具体，越容易持续开口。" },
       { t: "第 2 步 · 让它先了解你", d: "在「AI 陪练 → 教练规则」先填好「👤 我的档案」（水平/目标/最需要的场景）并选定语速、纠错节奏、是否 80% 可懂 + 20% 新、是否四段式纠错。刚起步可要求一次只问一个问题、每次回复 2 句话以内。" },
@@ -2739,10 +3770,13 @@
       </div>
     </div>
 
+    ${localReportHtml()}
+
     <div class="card" style="margin-top:14px">
       <div class="chat-head"><span>⏱ 每日 20 分钟训练（带倒计时）</span>
         <span style="font-size:12px;color:var(--muted);font-weight:400">跟随下方节奏，你也可以直接在「AI 陪练」里对话</span></div>
       <div class="coach-stats" id="ctStats">${coachStatsHtml()}</div>
+      <div class="cb-goal" style="margin-top:8px">🎯 今日任务：<a href="#/patterns" style="color:inherit;text-decoration:none">🧩 句型 ${g.patterns.done}/${g.patterns.target}</a> · <a href="#/write" style="color:inherit;text-decoration:none">✍️ 写作 ${g.write.done}/${g.write.target}</a>${gDone ? " · ✅ 完成" : ""}</div>
       ${coachTimerHtml()}
     </div>
 
@@ -2903,68 +3937,8 @@
   }
 
   /* ---------------- 启动 ---------------- */
-  window.addEventListener("hashchange", renderRoute);
-  setupHeaderSearch();
-  setupSettings();
-  if (!location.hash) location.hash = "#/home";
-  renderRoute();
-  showOnboarding();
-
-  /* ---------------- 首次上手导流「拆掉'怕'」（来自 ELLLO 深度评） ----------------
-     功能再强，新用户最怕的是：怕太难、怕太乱、怕学的东西用不上、怕开始。
-     首次进入用一次引导，替用户把「我从哪里开始」定下来，而不是丢给他们一堆菜单。 */
-  function showOnboarding() {
-    if (localStorage.getItem("fte-onboarded")) return;
-    const next = DATA.units[0];
-    const mask = document.createElement("div");
-    mask.className = "modal-mask";
-    mask.style.zIndex = "300";
-    mask.innerHTML = `
-    <div class="modal" style="max-width:540px">
-      <div class="modal-head"><b>👋 别急着学，我先把你带进门</b></div>
-      <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:12px">
-        这个站功能很多，但<b>你不用一次学完</b>。我只回答你最担心的几件事：
-      </div>
-      <div class="ob-fears">
-        <div class="ob-fear"><b>😰 怕太难？</b> 内容按从易到难排好，你练的是「踮踮脚就够得着」的难度。</div>
-        <div class="ob-fear"><b>😰 怕太乱？</b> 从下面这个起点开始就行，顺着它走，不用自己搭体系。</div>
-        <div class="ob-fear"><b>😰 怕学的东西用不上？</b> 全是询盘、报价、装运、客诉这类你每天会碰到的真实场景。</div>
-        <div class="ob-fear"><b>😰 怕坚持不下来？</b> 每天 20 分钟就够，一次只做一件事。</div>
-      </div>
-      <div class="ob-step">
-        <b>① 你先在这里</b>：从「${esc(next.title)}」开始（外贸流程的开头）。
-      </div>
-      <div class="ob-step">
-        <b>② 顺着顺序走</b>：先认识这个词 → 听它的例句 → 点「✓ 记住了」。一个单元一个单元来。
-      </div>
-      <div class="ob-step">
-        <b>③ 今天 20 分钟就这么走</b>：<br>
-        <span class="ob-mini">3 分钟</span> 读一遍本单元词汇<br>
-        <span class="ob-mini">8 分钟</span> 听一段场景对话（跟着开口说）<br>
-        <span class="ob-mini">5 分钟</span> 用「🎯 智能评测」跟读一句<br>
-        <span class="ob-mini">4 分钟</span> 把今天记的 3 个词放进单词卡<br>
-        <span style="color:var(--muted)">完成了点「✅ 今天的任务」，明天继续。</span>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
-        <button class="btn btn-outline btn-sm" data-action="ob-skip">😌 我熟练，跳过</button>
-        <button class="btn btn-primary" data-action="ob-start">🚀 开始我的第一步</button>
-      </div>
-    </div>`;
-    document.body.appendChild(mask);
-    mask.addEventListener("click", function (e) {
-      const t = e.target.closest('[data-action]');
-      if (!t) return;
-      if (t.getAttribute("data-action") === "ob-skip") {
-        localStorage.setItem("fte-onboarded", "1");
-        closeOb();
-      } else if (t.getAttribute("data-action") === "ob-start") {
-        localStorage.setItem("fte-onboarded", "1");
-        closeOb();
-        location.hash = "#/unit/" + next.id;
-      }
-    });
-    function closeOb() { if (mask.parentNode) mask.parentNode.removeChild(mask); }
-  }
+  /* 先导出 ASRUtil，再执行首次 renderRoute()：否则 #/eval4、#/listen、#/tutor 等
+     模块在初次渲染时拿不到 window.ASRUtil（U().esc 会抛 undefined）。 */
   window.ASRUtil = {
     norm: norm,
     esc: esc,
@@ -2987,4 +3961,58 @@
       return null;
     }
   };
+  window.addEventListener("hashchange", renderRoute);
+  setupHeaderSearch();
+  setupSettings();
+  /* 布局兜底：确保 <main id="app"> 是 <body> 的直接子节点。
+     某些 HTML 解析（该站点导航分组用 <details>/<summary> + 子菜单 <a>）会把
+     <main> 误包进导航分组里最后一个 <a href="#/mistakes">，导致点击内部任何按钮
+     都被该锚点原生跳转到 #/mistakes。这里把 #app 重挂回 body，切断误包。 */
+  if (app && app.parentNode && app.parentNode !== document.body) {
+    (app.parentNode).removeChild(app);
+    document.body.appendChild(app);
+  }
+  if (!location.hash) location.hash = "#/home";
+  recordSnapshot();          // 启动时补记今天的效果快照（老用户回归也能进走势）
+  renderRoute();
+  showOnboarding();
+
+  /* ---------------- 首次上手导流：非阻塞横幅（替代原全屏 3 步引导） ----------------
+     科学依据（first-run / HCI 最佳实践）：首次进入的引导应【不阻塞内容】、可随时关闭、
+     低负担，且只推向真正的价值点；全屏强制答题会挡掉首页核心价值（progressive disclosure）。
+     本方案改为：首次访问在导航下方常驻一条可关闭横幅，只做三件事——测起点 / 进第 1 单元 / 关闭；
+     点击任意一项或 ✕ 即写入 fte-onboarded，此后永不再显示。 */
+  function showOnboarding() {
+    if (localStorage.getItem("fte-onboarded")) return;
+    const header = document.getElementById("siteHeader");
+    if (!header) return;
+
+    const firstUnitId = (DATA.units && DATA.units[0]) ? DATA.units[0].id : 1;
+    const bar = document.createElement("div");
+    bar.className = "ob-bar";
+    bar.setAttribute("role", "note");
+    bar.innerHTML =
+      '<div class="ob-bar-t"><b>👋 从这里开始</b>' +
+      '<span class="ob-bar-sub">不用一次学完：先 30 秒定位起点，或直接从第 1 单元学起。</span></div>' +
+      '<div class="ob-bar-ops">' +
+      '<button class="btn btn-primary btn-sm" data-act="ob-start">🎯 测测起点</button>' +
+      '<button class="btn btn-outline btn-sm" data-act="ob-unit">📚 从第 1 单元开始</button>' +
+      '<button class="ob-bar-x" data-act="ob-close" title="关闭，不再显示">✕ 不再显示</button>' +
+      '</div>';
+
+    header.insertAdjacentElement("afterend", bar);
+
+    function done() {
+      localStorage.setItem("fte-onboarded", "1");
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+    }
+    bar.addEventListener("click", function (e) {
+      const b = e.target.closest("[data-act]");
+      if (!b) return;
+      const a = b.getAttribute("data-act");
+      if (a === "ob-close") { done(); }
+      else if (a === "ob-start") { done(); location.hash = "#/placement"; setTimeout(function () { renderRoute(); }, 0); }
+      else if (a === "ob-unit") { done(); location.hash = "#/unit/" + firstUnitId; setTimeout(function () { renderRoute(); }, 0); }
+    });
+  }
 })();

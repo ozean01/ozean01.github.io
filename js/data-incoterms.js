@@ -40,14 +40,14 @@
       { w: "insurable value", ipa: "/ɪnˈʃʊərəbl ˈvæljuː/", pos: "n.", cn: "保险金额（insurable value）", ex: "The insurable value is the CIF value plus ten percent, as the contract requires.", exCn: "按合同要求，保险金额为 CIF 货值加百分之十。" },
       { w: "unloading", ipa: "/ˌʌnˈləʊdɪŋ/", pos: "n.", cn: "卸货（unloading）", ex: "Under DAP unloading at destination is at the buyer's risk and cost.", exCn: "在 DAP 条件下目的地卸货由买方承担风险和费用。" },
       { w: "door-to-door", ipa: "/ˌdɔː tə ˈdɔː/", pos: "adj.", cn: "门到门（door-to-door）", ex: "Our forwarder offers a door-to-door service for full containers of packaging bags.", exCn: "我们的货代为整柜包装袋提供门到门服务。" },
-      { w: "landed cost", ipa: "/ˌlændɪd ˈkɒst/", pos: "n.", cn: "到岸成本、落地成本（landed cost）", ex: "Your landed cost per thousand bags will be about eighteen dollars after duty and VAT.", exCn: "扣完关税和增值税后，你方每千个袋子的到岸成本约十八美元。" },
-      { w: "profit margin", ipa: "/ˈprɒfɪt ˌmɑːdʒɪn/", pos: "n.", cn: "利润率（profit margin）", ex: "A ten percent profit margin is built into the FOB price of this adhesive.", exCn: "这款胶水的 FOB 价格中已包含百分之十的利润率。" },
+      { w: "landed cost", ipa: "/ˌlændɪd ˈkɑːst/", pos: "n.", cn: "到岸成本、落地成本（landed cost）", ex: "Your landed cost per thousand bags will be about eighteen dollars after duty and VAT.", exCn: "扣完关税和增值税后，你方每千个袋子的到岸成本约十八美元。" },
+      { w: "profit margin", ipa: "/ˈprɑːfɪt ˌmɑːdʒɪn/", pos: "n.", cn: "利润率（profit margin）", ex: "A ten percent profit margin is built into the FOB price of this adhesive.", exCn: "这款胶水的 FOB 价格中已包含百分之十的利润率。" },
       { w: "commission", ipa: "/kəˈmɪʃn/", pos: "n.", cn: "佣金（commission）", ex: "The quotation includes a three percent commission for your agent in Istanbul.", exCn: "报价中含给你方伊斯坦布尔代理的百分之三佣金。" },
       { w: "bank charges", ipa: "/ˈbæŋk ˌtʃɑːdʒɪz/", pos: "n.", cn: "银行费用（bank charges）", ex: "Bank charges outside China are for the buyer's account under this contract.", exCn: "本合同项下中国境外的银行费用由买方承担。" },
       { w: "inland freight", ipa: "/ˌɪnlənd ˈfreɪt/", pos: "n.", cn: "内陆运费（inland freight）", ex: "Inland freight from our Dongguan plant to Yantian port is about 1,200 yuan per container.", exCn: "从我们东莞工厂到盐田港的内陆运费约每柜 1,200 元。" },
       { w: "customs broker fee", ipa: "/ˈkʌstəmz ˈbrəʊkə fiː/", pos: "n.", cn: "报关代理费（customs broker fee）", ex: "The customs broker fee and the terminal handling charge are included in our FOB price.", exCn: "报关代理费和码头操作费已包含在我们的 FOB 价格中。" },
       { w: "quotation formula", ipa: "/kwəʊˈteɪʃn ˈfɔːmjələ/", pos: "n.", cn: "报价公式（quotation formula）", ex: "Our quotation formula adds inland freight, port charges and margin to the ex-works cost.", exCn: "我们的报价公式是在出厂成本上加内陆运费、港杂费和利润。" },
-      { w: "cost breakdown", ipa: "/ˈkɒst ˌbreɪkdaʊn/", pos: "n.", cn: "成本拆分、成本明细（cost breakdown）", ex: "Please send us a cost breakdown so that we can compare your FOB and CIF prices.", exCn: "请发一份成本明细给我们，以便比较你方的 FOB 价和 CIF 价。" },
+      { w: "cost breakdown", ipa: "/ˈkɑːst ˌbreɪkdaʊn/", pos: "n.", cn: "成本拆分、成本明细（cost breakdown）", ex: "Please send us a cost breakdown so that we can compare your FOB and CIF prices.", exCn: "请发一份成本明细给我们，以便比较你方的 FOB 价和 CIF 价。" },
       { w: "export tax refund", ipa: "/ˈekspɔːt tæks ˈriːfʌnd/", pos: "n.", cn: "出口退税（duty drawback / export tax refund）", ex: "The thirteen percent export tax refund allows us to lower the FOB price slightly.", exCn: "百分之十三的出口退税让我们可以把 FOB 价格略降一些。" }
     ],
     phrases: [

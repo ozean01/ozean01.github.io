@@ -11,6 +11,54 @@
   const MAX_HISTORY = 24;   // 携带的历史消息条数（控制 token 消耗）
   const MAX_WORDBOOK = 200;
 
+  /* ============ 🎙 深度口语操练（即兴 + 追问 + 三层复盘 + PREP 范文 + 三语对照） ============
+     对应「查比先生」文章里最打动人的那套练法：出题 → 即兴 90 秒 → 被深度追问 →
+     三层复盘（观点结构 / 语言结构 / 表达方式）→ 整理成 PREP 结构漂亮稿 → 英/中/日成段对照。 */
+  const DRILL_SECONDS = 90;
+
+  /* 深度话题库：混合「价值/判断类」与「软包装行业类」，都能逼出有内容的英文表达 */
+  const DRILL_TOPICS = [
+    { en: "Do you think AI makes people think less? Or does it sharpen our thinking?", cn: "你认为 AI 会让人更少思考吗？还是会让人思考更敏锐？" },
+    { en: "As machines automate more of our work, do we risk losing the skills that make us human?", cn: "当机器接管更多工作，我们会因此失去那些让我们成为「人」的技能吗？" },
+    { en: "Is the flexible packaging business more about technology, or more about trust and service?", cn: "软包装生意，更多是拼技术，还是拼信任与服务？" },
+    { en: "When a customer keeps pushing you to cut the price, where is the right line between winning the deal and protecting value?", cn: "当客户不断压价时，赢下订单与守住价值之间的界线在哪里？" },
+    { en: "Is food-contact compliance worth the extra cost, even for small orders?", cn: "食品接触合规就算只是小单，也值得多付成本吗？" },
+    { en: "Would you rather rely on one long-term supplier or spread orders across several? Why?", cn: "你更依赖一个长期供应商，还是把订单分散给几家？为什么？" },
+    { en: "Our industry often says \"quality wins\". But in a price-driven market, is that actually true?", cn: "行业常说「品质为王」。但在价格驱动的市场里，这真的成立吗？" },
+    { en: "If a buyer complains about film delamination, how would you calm them down and keep the relationship?", cn: "客户投诉复合膜脱层时，你怎么安抚对方并保住关系？" },
+    { en: "Should a company take a risk on a brand-new coating process, even if the trial cost is high?", cn: "即便试错成本很高，公司也该冒险试新的涂布工艺吗？" },
+    { en: "Do small-batch customization and big-volume production need two different ways of thinking?", cn: "小批量定制与大批量生产，需要两套不同的思路吗？" },
+    { en: "What makes a foreign trade specialist valuable now that AI can translate and draft emails for us?", cn: "当 AI 会翻译、会写邮件了，外贸人还有哪些不可替代的价值？" },
+    { en: "Is it better to apologize and compensate first, or to investigate the root cause first, when a defect is found?", cn: "发现缺陷时，是先道歉补偿，还是先查清根因？" }
+  ];
+
+  /* 深度操练的进行状态（不持久化到档案，话题/回答/成果由「存档」单独记录） */
+  let drill = null;
+  let drillTimerId = null;
+  function defaultDrill() {
+    return {
+      topic: DRILL_TOPICS[0].en, topicCn: DRILL_TOPICS[0].cn,
+      steps: "topic",        // topic | impromptu | question | done
+      answer: "",            // 即兴回答（英文）
+      followUps: [],         // 被追问期间你补的回答
+      fuCount: 0,            // 已经追问了几轮
+      _pendingFu: 0,         // 待作答的追问计数
+      _lastFu: "",           // 教练刚刚抛出的追问
+      review: "",            // 三层复盘（观点/语言/表达）
+      essay: "",             // PREP 范文
+      en: "", cn: "", jp: "" // 三语成段对照
+    };
+  }
+  function getDrill() { if (!drill) drill = defaultDrill(); return drill; }
+  function stopDrillTimer() { if (drillTimerId) { clearInterval(drillTimerId); drillTimerId = null; } }
+
+  /* 存档记录：progress.drillRecords（可回顾 / 可清空 / 可再练） */
+  function getDrillRecords() {
+    const p = E().getProgress();
+    if (!Array.isArray(p.drillRecords)) p.drillRecords = [];
+    return p.drillRecords;
+  }
+
   /* ---------------- 配置 ---------------- */
   const PROVIDERS = {
     deepseek: { label: "DeepSeek（推荐，支持跨域）", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
@@ -135,6 +183,7 @@
       </div>
       ${configHtml(hasKey)}
       ${hasKey ? chatHtml() : noKeyHtml()}
+      ${hasKey ? drillHtml() : ""}
       ${wordbookHtml()}
       ${hasKey ? reviewHtml() : ""}
       `;
@@ -318,10 +367,21 @@
       { label: "物流与货运", en: "Role-play: I ask about shipping, container and bill of lading. Explain in simple English, one question at a time. Start." },
       { label: "机场 / 酒店", en: "Role-play: I just landed and I am checking into a hotel. You are the receptionist; do the check-in in plain English. Start." },
       { label: "观点讨论", en: "Let's discuss one viewpoint: \"Will AI replace a lot of jobs?\" You state YOUR view first, then I respond. Discuss ONE point at a time. If my answer is too short, push me with follow-ups asking for a reason, an example and a counter-argument. When we finish, summarize 5 reusable opinion sentence patterns (like \"From my perspective…\", \"The main reason is…\", \"A good example would be…\", \"I agree to some extent, but…\")." },
-      { label: "听力复述", en: "Listen-and-retell: tell me a short English story at A2-B1 level, under 80 words. Say it once at normal speed, then once more slowly. Then I will retell it in my own words. Do NOT require word-for-word; check only whether my main ideas, logic and naturalness are clear, then gently point out anything to improve." }
+      { label: "听力复述", en: "Listen-and-retell: tell me a short English story at A2-B1 level, under 80 words. Say it once at normal speed, then once more slowly. Then I will retell it in my own words. Do NOT require word-for-word; check only whether my main ideas, logic and naturalness are clear, then gently point out anything to improve." },
+      { label: "📊 客户会议", en: "Role-play: we are in a short customer meeting (you are a buyer's purchasing team). Open the meeting, recap one item, and drive the agenda in English. Present one clear point at a time, ask ONE question, and keep it professional but friendly. Start by greeting me and opening the meeting." },
+      { label: "🗣 产品汇报", en: "Role-play: I am a buyer and you are introducing a NEW product (e.g. a solventless adhesive). Present it like a real product demo in English: state the key benefit (higher bonding strength, lower residual solvent, food-contact compliant), support it with one fact, then ask me if I have questions. One idea at a time. Start with the product name and the biggest benefit." },
+      { label: "🛡 回答质询", en: "Role-play: I am a tough buyer and I will challenge your claims with hard questions (price, lead time, compliance, alternatives). You are the sales rep: answer each directly and professionally, acknowledge my concern, give a reason or a realistic option, and stay polite even when I push. Do NOT get defensive. Start by asking me what I'd like to challenge." }
     ];
-    return `<div class="starter-chips"><div class="starter-title">🎬 选一个场景开始对练（点击填入，再按发送）：</div>${starters.map(function (s) {
+    /* 陪练「模式化」（模块 E）：用限定输入 + 单一任务把练习逼得更聚焦，而非自由聊。 */
+    const MODES = [
+      { label: "⚔️ 辩论模式", en: "DEBATE MODE. We will debate one topic: \"Should a small flexible-packaging factory chase big brands, or focus on niche loyal customers?\" Take the OPPOSITE side from me and push back hard: give a reason, ask me for a reason, demand a real example, and challenge with a counter-argument. Stay on the topic. If my point is thin, keep pressing. Maintain the debate until we end by me summarizing my final stance. Start by stating YOUR side first." },
+      { label: "🖼 看样描述模式", en: "DESCRIBE-A-PRODUCT MODE. We are a buyer and a sales rep. You (the buyer) ask me to describe a soft-packaging product as if you were seeing a sample. Ask ONE clarifying question at a time about material, structure (e.g. lamination layers), printing, MOQ, unit price, lead time, and food-contact compliance. Do NOT give me the words — let me describe it myself; nudge me only with a keyword if I'm stuck. Start by asking which product I'd like to show you." },
+      { label: "📞 电话-会议质感模式", en: "PHONE / CALL MODE. You CANNOT see me — pretend we are on the phone or an audio teleconference. Open with a brief greeting, speak a little more slowly and clearly (as over a phone line), and once say \"sorry, could you repeat that? I think we have a bad connection\" to simulate the audio-only pressure. Keep it realistic, one point at a time. Start with the greeting." }
+    ];
+    return `<div class="starter-chips"><div class="starter-title">🎬 选一个场景 / 模式开始对练（点击填入，再按发送）：</div>${starters.map(function (s) {
       return '<button class="starter-chip" data-action="tutor-fill" data-text="' + esc(s.en) + '">' + esc(s.label) + "</button>";
+    }).join("")}<div class="starter-title" style="margin-top:8px">🧭 模式化进阶（限定任务，练得更聚焦）</div>${MODES.map(function (s) {
+      return '<button class="starter-chip starter-mode" data-action="tutor-fill" data-text="' + esc(s.en) + '">' + esc(s.label) + "</button>";
     }).join("")}</div>`;
   }
 
@@ -681,6 +741,308 @@
     });
   }
 
+  /* ---------------- 🎙 深度口语操练：渲染 ---------------- */
+  function drillHtml() {
+    const d = getDrill();
+    const recs = getDrillRecords();
+    return `
+    <div class="card tutor-drill" style="margin-top:14px">
+      <details class="sysprompt-wrap">
+        <summary class="sysprompt-toggle">🎙 深度口语操练（即兴 90 秒 · 被追问 · 三层复盘 · 三语范文）</summary>
+        <p class="field-note" style="margin-top:6px">
+          <b>练法</b>：① 选一个话题 → ② <b>即兴说 90 秒</b>（只讲不停顿，讲完把你说的写/录下来）→ ③ 让教练<b>深度追问</b>（被逼着补理由、例子、反方）→ ④ <b>三层复盘</b>（观点结构 / 语言结构 / 表达方式）→ ⑤ 整理成 <b>PREP 结构漂亮稿</b> → ⑥ <b>英 / 中 / 日成段对照</b> 存档。
+          这一套专治「脑子里知道想说什么，但英语句子来不及出来」——把一段说得坑坑洼洼的话，练成能背、能对、能记住的好稿子。
+        </p>
+      </details>
+      ${drillBodyHtml(d)}
+      ${recs.length ? drillRecordsHtml(recs) : ""}
+    </div>`;
+  }
+
+  function drillBodyHtml(d) {
+    /* ------ 步骤 1：选话题 ------ */
+    if (d.steps === "topic") {
+      return `
+      <div class="drill-steplabel">① 选一个话题（点击即选中，可「随机」换一个）</div>
+      <div class="starter-chips drill-topics">
+        <button class="starter-chip" data-action="drill-rand" title="随机换一个话题">🎲 随机</button>
+        ${DRILL_TOPICS.map(function (t, i) {
+          return '<button class="starter-chip" data-action="drill-pick" data-i="' + i + '">' + esc(t.en) + "</button>";
+        }).join("")}
+      </div>
+      <div class="drill-topic-got"><b>当前话题：</b>${esc(d.topic)}<br><span class="drill-cn">${esc(d.topicCn)}</span></div>
+      <button class="btn btn-primary drill-go" data-action="drill-start">▶ 开始即兴 ${DRILL_SECONDS} 秒</button>`;
+    }
+    /* ------ 步骤 2：即兴表达（带倒计时） ------ */
+    if (d.steps === "impromptu") {
+      return `
+      <div class="drill-steplabel">② 即兴表达 ${DRILL_SECONDS} 秒 <span class="drill-timer">⏱ <b id="drillSec">${DRILL_SECONDS}</b> 秒</span></div>
+      <div class="drill-topic-got"><b>说这个：</b>${esc(d.topic)}<br><span class="drill-cn">${esc(d.topicCn)}</span></div>
+      <div class="drill-answer">
+        <textarea id="drillAns" rows="5" placeholder="讲完以后，把你刚说的话写下来（或点 🎤 用语音输入）；只管把你想到的都说出来，不用追求完美。"></textarea>
+        <div class="drill-ans-row">
+          <button class="mic-btn" data-action="drill-mic" title="语音输入（Chrome/Edge + 可访问 Google 时最好用）">🎤 语音输入</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-outline btn-sm" data-action="drill-back" title="换个话题重来">← 换话题</button>
+          <button class="btn btn-primary btn-sm" data-action="drill-submit">✍ 我讲完了，提交给教练 →</button>
+        </div>
+        <p class="field-note">⏱ 倒计时到 0 只是提示，不代表你停——讲多少算多少，关键是<b>开口不停顿</b>。</p>
+      </div>`;
+    }
+    /* ------ 步骤 3：被追问（含对被追问作答的输入框） ------ */
+    if (d.steps === "question") {
+      const pendingQ = d._lastFu || (d.followUps.length ? d.followUps[d.followUps.length - 1].q : "");
+      return `
+      <div class="drill-steplabel">③ 深度追问（被逼着补理由 / 例子 / 反方）</div>
+      <div class="drill-answer">
+        <div class="drill-myans"><b>我即兴说的：</b><span>${esc(d.answer)}</span></div>
+        ${d.followUps.length ? '<div class="drill-fus">' + d.followUps.map(function (f, i) {
+          return '<div class="drill-fu"><span class="drill-q">追问${i + 1}：' + esc(f.q) + "</span><span class=\"drill-a\">我答： " + esc(f.a) + "</span></div>";
+        }).join("") + "</div>" : '<p class="drill-wait">教练正在想下一个追问…</p>'}
+        <div class="drill-qbox">
+          <div class="drill-pending"><b>教练追问：</b><span>${esc(pendingQ || "（请点「🤔 继续追问」让教练开口）")}</span></div>
+          <textarea id="drillFuAns" rows="3" placeholder="用英文回答这个追问（或点 🎤 语音输入）。"></textarea>
+          <div class="drill-ans-row">
+            <button class="mic-btn" data-action="drill-mic" title="语音输入">🎤 语音输入</button>
+            <span style="flex:1"></span>
+            <button class="btn btn-outline btn-sm" data-action="drill-morefu" title="不答，直接让教练换下一个追问">⏭ 跳过</button>
+            <button class="btn btn-primary btn-sm" data-action="drill-answerfu">✔ 提交回答，继续追问</button>
+          </div>
+        </div>
+        <div class="drill-actions" style="margin-top:8px">
+          <button class="btn btn-primary btn-sm" data-action="drill-review">✨ 够了，给我复盘 + 范文 + 三语</button>
+          <button class="btn btn-outline btn-sm" data-action="drill-new">🔄 换话题</button>
+        </div>
+      </div>`;
+    }
+    /* ------ 步骤 4 及之后：复盘 / 范文 / 三语 / 存档（成果区） ------ */
+    return `
+      <div class="drill-steplabel">④～⑥ 三层复盘 · PREP 范文 · 英/中/日对照</div>
+      <div class="drill-topic-got"><b>话题：</b>${esc(d.topic)}</div>
+      <div class="drill-answer"><div class="drill-myans"><b>我即兴说的：</b><span>${esc(d.answer)}</span>
+        ${d.followUps.length ? '<div class="drill-fu" style="margin-top:6px"><span class="drill-q">被追问后我补的：</span><span class="drill-a">' + d.followUps.map(function (f) { return esc(f.a); }).join("；") + "</span></div>" : ""}
+      </div></div>
+      ${d.review ? '<div class="drill-block"><div class="drill-h">🧠 三层复盘</div><div class="drill-body">' + textHtml(d.review) + "</div></div>" : ""}
+      ${d.essay ? '<div class="drill-block"><div class="drill-h">📄 PREP 范文</div><div class="drill-body en">' + textHtml(d.essay) + "</div><div class=\"drill-actions\"><button class=\"btn btn-soft btn-sm\" data-action=\"drill-essay-speak\">🔊 朗读范文</button></div></div>" : ""}
+      ${d.en ? '<div class="drill-block"><div class="drill-h">🌍 三语对照（成段 · 一段英文 → 一段中文 → 一段日文）</div>' +
+        '<div class="drill-tri"><div class="drill-trio"><div class="trilang">English</div><div class="drill-body en">' + textHtml(d.en) + "</div></div>" +
+        '<div class="drill-trio"><div class="trilang">中文</div><div class="drill-body">' + textHtml(d.cn) + "</div></div>" +
+        '<div class="drill-trio"><div class="trilang">日本語</div><div class="drill-body jp">' + textHtml(d.jp) + "</div></div></div></div>" : ""}
+      <div class="drill-actions">
+        ${d.review ? "" : '<button class="btn btn-primary btn-sm" data-action="drill-review">✨ 生成复盘 + 范文 + 三语</button>'}
+        ${d.essay && d.en ? '<button class="btn btn-soft btn-sm" data-action="drill-save">💾 存档到练习记录</button>' : ""}
+        <button class="btn btn-outline btn-sm" data-action="drill-new">🔄 再来一个话题</button>
+      </div>`;
+  }
+
+  function drillRecordsHtml(recs) {
+    return `
+    <div class="drill-records">
+      <div class="chat-head" style="margin-top:14px"><span>📁 深度操练记录（${recs.length}）</span>
+        <button class="btn btn-outline btn-sm" data-action="drill-rec-clear">清空</button></div>
+      ${recs.map(function (r, i) {
+        return '<div class="drill-rec"><span class="drill-rec-t">' + esc(r.topic) + '</span><span class="drill-rec-m">' + new Date(r.time).toLocaleString() + '</span>' +
+          '<span class="drill-rec-ops"><button class="btn btn-soft btn-sm" data-action="drill-rec-open" data-i="' + i + '">打开</button>' +
+          '<button class="btn btn-outline btn-sm" data-action="drill-rec-play" data-i="' + i + '">🔊 朗读范文</button>' +
+          '<button class="btn btn-outline btn-sm" data-action="drill-rec-del" data-i="' + i + '">删除</button></span></div>';
+      }).join("")}
+    </div>`;
+  }
+
+  /* 把 AI 返回文本转成安全 HTML（保留换行，不解析标签） */
+  function textHtml(t) {
+    return esc(t).replace(/\n/g, "<br>");
+  }
+
+  /* ---------------- 深度操练：交互状态流转 ---------------- */
+  function drillPick(i) {
+    const t = DRILL_TOPICS[i];
+    if (!t) return;
+    const d = getDrill();
+    d.topic = t.en; d.topicCn = t.cn;
+    render();
+  }
+  function drillRand() {
+    const d = getDrill();
+    const i = Math.floor(Math.random() * DRILL_TOPICS.length);
+    const t = DRILL_TOPICS[i];
+    d.topic = t.en; d.topicCn = t.cn;
+    render();
+  }
+  function drillStart() {
+    const d = getDrill();
+    d.steps = "impromptu";
+    d.answer = ""; d.followUps = []; d.fuCount = 0;
+    d.review = ""; d.essay = ""; d.en = ""; d.cn = ""; d.jp = "";
+    render();
+    d.seconds = DRILL_SECONDS;
+    stopDrillTimer();
+    drillTimerId = setInterval(function () {
+      d.seconds -= 1;
+      const el = document.getElementById("drillSec");
+      if (el) el.textContent = d.seconds < 0 ? 0 : d.seconds;
+      if (d.seconds <= 0) { stopDrillTimer(); toast("⏱ 90 秒到！把你刚说的写/录下来再提交吧"); }
+    }, 1000);
+    const inp = document.getElementById("drillAns");
+    if (inp) inp.focus();
+  }
+  function drillSubmit() {
+    const ta = document.getElementById("drillAns");
+    const text = ta ? ta.value.trim() : "";
+    if (!text) { toast("先把你刚说的内容写下来（或用语音输入填入）再提交"); return; }
+    const d = getDrill();
+    d.answer = text;
+    d.steps = "question";
+    stopDrillTimer();
+    render();
+    /* 自动问第一个追问 */
+    drillMoreFu();
+  }
+  function drillMoreFu() {
+    const d = getDrill();
+    if (d.fuCount + d._pendingFu >= 5) { toast("已经追问 4 轮了，可以直接点「✨ 够了」进入复盘"); return; }
+    toast("🤔 教练正在想下一问…");
+    const transcript = [
+      "Topic: " + d.topic,
+      "My impromptu answer: " + d.answer
+    ];
+    if (d.followUps.length) transcript.push("Follow-ups I already answered:\n" + d.followUps.map(function (f) { return "Q: " + f.q + "\nA: " + f.a; }).join("\n"));
+    const msgs = [
+      { role: "system", content: "You are a probing speaking coach. Ask the student ONE penetrating follow-up question that pushes them deeper: ask for a reason, a personal example, a counter-argument, the practical reality, or a boundary (\"where would you draw the line\"). Keep it to 1-2 sentences, conversational, and only pose the question (no answers, no praise). If they have already answered the obvious angle, go to a harder or different angle. Output ONLY the question." },
+      { role: "user", content: transcript.join("\n") }
+    ];
+    callChat(msgs).then(function (reply) {
+      const q = String(reply).replace(/^["']|["']$/g, "").trim();
+      if (!q) { toast("教练暂时想不出新问题，可直接进入复盘"); return; }
+      const d2 = getDrill();
+      d2._lastFu = q;
+      d2._pendingFu += 1;   /* 待作答的追问计数（fuCount 只在真正作答后 +1） */
+      render();
+      toast("🤔 追问：" + q.slice(0, 60));
+    }).catch(function (err) { toast("追问失败：" + (err && err.message ? err.message : "请检查网络/Key")); });
+  }
+
+  /* 深度操练的追问作答：存下回答，然后自动追问下一个 */
+  function drillAnswerFu() {
+    const d = getDrill();
+    const ta = document.getElementById("drillFuAns");
+    const a = ta ? ta.value.trim() : "";
+    if (!a) { toast("先用英文回答这个追问，再确认（或点「⏭ 跳过」）"); return; }
+    d.followUps.push({ q: d._lastFu || ("追问 " + (d.fuCount + 1)), a: a });
+    d.fuCount += 1;
+    d._lastFu = "";
+    d._pendingFu = 0;
+    render();
+    drillMoreFu();
+  }
+
+  /* 生成「三层复盘 + PREP 范文 + 英/中/日三语」一整套成果 */
+  function drillReview() {
+    const d = getDrill();
+    if (!d.answer) { toast("还没提交你的即兴回答"); return; }
+    toast("✨ 教练正在整理…（观点结构 / 语言 / 表达 / 范文 / 三语）");
+    const answers = [d.answer].concat(d.followUps.map(function (f) { return f.a; })).filter(Boolean);
+    const transcript = "Topic: " + d.topic + "\nStudent's answer(s):\n" + answers.map(function (a, i) { return (i + 1) + ". " + a; }).join("\n");
+    const system = [
+      "You are an expert speaking coach and a strong English writer. Analyze the student's Chinese-foreign-trade English answer(s) to the topic below, then produce a polished, native-sounding model answer.",
+      "Return EXACTLY this format, nothing else, using these markers on their own lines:",
+      "<<<REVIEW>>>",
+      "Layered review, in Chinese, three short sections with bold labels: 观点结构 / 语言结构 / 表达方式. Point out what worked and the 2-3 most important things to improve. Be precise, not a wall of text.",
+      "<<<PREP>>>",
+      "One polished English model answer in PREP structure (a natural Point -> Reason -> Example -> Point). Keep the student's OWN viewpoint and style where possible; elevate the language but do not invent facts the student did not say. 6-10 sentences, natural and fluent, correct and idiomatic. This is the 'encore' the student wants to read aloud and memorize.",
+      "<<<TRI>>>",
+      "Then the SAME model answer in three paragraphs, each on its own set of lines: paragraph 1 = the English (same as the PREP answer), a blank line, paragraph 2 = a natural Chinese translation (成段, not line-by-line), a blank line, paragraph 3 = a natural Japanese translation (成段)."
+    ].join("\n");
+    const msgs = [{ role: "system", content: system }, { role: "user", content: transcript }];
+    callChat(msgs).then(function (reply) {
+      parseDrillOutput(reply);
+      const d2 = getDrill();
+      d2.steps = "done";
+      render();
+      toast("✅ 已生成三层复盘 + PREP 范文 + 三语，点「💾 存档」保存");
+    }).catch(function (err) { toast("生成失败：" + (err && err.message ? err.message : "请检查网络/Key")); });
+  }
+
+  function parseDrillOutput(reply) {
+    const d = getDrill();
+    const t = String(reply || "");
+    const gi = function (marker) {
+      const idx = t.indexOf(marker);
+      if (idx < 0) return "";
+      return t.slice(idx + marker.length);
+    };
+    d.review = gi("<<<REVIEW>>>").split("<<<PREP>>>")[0].trim();
+    const prepPart = gi("<<<PREP>>>").split("<<<TRI>>>")[0].trim();
+    d.essay = prepPart;
+    const triPart = gi("<<<TRI>>>").trim();
+    /* 三语：按空行拆成至多 3 段；若不足就按换行兜底 */
+    const paras = triPart.split(/\n\s*\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    d.en = paras[0] || ""; d.cn = paras[1] || ""; d.jp = paras[2] || "";
+    if (!d.en && d.essay) d.en = d.essay;
+    if (!d.cn && paras.length >= 2) d.cn = paras[1];
+  }
+
+  function drillSave() {
+    const d = getDrill();
+    if (!d.essay || !d.en) { toast("先生成复盘/范文/三语，再存档"); return; }
+    const recs = getDrillRecords();
+    recs.unshift({ topic: d.topic, answer: d.answer, review: d.review, essay: d.essay, en: d.en, cn: d.cn, jp: d.jp, time: Date.now() });
+    if (recs.length > 50) recs.pop();
+    E().saveProgress();
+    toast("💾 已存档到练习记录（共 " + recs.length + " 条）");
+    render();
+  }
+  function drillRecOpen(i) {
+    const recs = getDrillRecords();
+    const r = recs[i];
+    if (!r) return;
+    const d = getDrill();
+    d.topic = r.topic; d.topicCn = ""; d.steps = "done";
+    d.answer = r.answer; d.followUps = [];
+    d.review = r.review || ""; d.essay = r.essay || ""; d.en = r.en || ""; d.cn = r.cn || ""; d.jp = r.jp || "";
+    d._lastFu = ""; d._pendingFu = 0;
+    stopDrillTimer();
+    render();
+  }
+
+  /* 语音输入：填到当前步骤的输入框（即兴答 或 追问答） */
+  let drillMicRec = null;
+  function drillMic() {
+    const input = document.getElementById("drillFuAns") || document.getElementById("drillAns");
+    if (!input) return;
+    if (drillMicRec) { try { drillMicRec.stop(); } catch (e) {} drillMicRec = null; return; }
+    if (!E().Player.recognitionSupported()) { toast("此浏览器不支持在线语音识别，请用系统听写（Win+H）或直接打字"); return; }
+    E().Player.micRequest().then(function () {
+      const btn = document.querySelector('[data-action="drill-mic"]');
+      if (btn) btn.classList.add("listening");
+      drillMicRec = E().Player.recognize({
+        lang: "en-US",
+        onResult: function (text, isFinal) {
+          if (isFinal) {
+            const inp = document.getElementById("drillFuAns") || document.getElementById("drillAns");
+            if (inp) inp.value = text;
+            const b = document.querySelector('[data-action="drill-mic"]');
+            if (b) b.classList.remove("listening");
+            toast("🎙 已识别，可修改后确认");
+          }
+        },
+        onError: function (err) {
+          const b = document.querySelector('[data-action="drill-mic"]');
+          if (b) b.classList.remove("listening");
+          try { if (drillMicRec) drillMicRec.stop(); } catch (e) {}
+          drillMicRec = null;
+          toast(E().Player.recErrorText(err) || "识别已停止");
+        },
+        onEnd: function () {
+          const b = document.querySelector('[data-action="drill-mic"]');
+          if (b) b.classList.remove("listening");
+          drillMicRec = null;
+        }
+      });
+      if (!drillMicRec) { const b = document.querySelector('[data-action="drill-mic"]'); if (b) b.classList.remove("listening"); toast("识别启动失败，可用系统听写（Win+H）"); }
+    }).catch(function (err) { toast(E().Player.recErrorText(err)); });
+  }
+
   /* ---------------- 事件 ---------------- */
   function saveSettings() {
     const base = document.getElementById("tBase");
@@ -803,7 +1165,7 @@
     const el = e.target.closest("[data-action]");
     if (!el) return;
     const act = el.getAttribute("data-action");
-    if (act.indexOf("tutor-") !== 0 && act.indexOf("wb-") !== 0) return;
+    if (act.indexOf("tutor-") !== 0 && act.indexOf("wb-") !== 0 && act.indexOf("drill-") !== 0) return;
 
     switch (act) {
       case "tutor-save": saveSettings(); break;
@@ -911,6 +1273,47 @@
         }
         break;
       }
+      /* ---- 🎙 深度口语操练 ---- */
+      case "drill-pick": { drillPick(parseInt(el.getAttribute("data-i"), 10)); break; }
+      case "drill-rand": { drillRand(); break; }
+      case "drill-start": { drillStart(); break; }
+      case "drill-back": {
+        const d = getDrill(); d.steps = "topic"; stopDrillTimer(); render();
+        break;
+      }
+      case "drill-submit": { drillSubmit(); break; }
+      case "drill-mic": { drillMic(); break; }
+      case "drill-morefu": { drillMoreFu(); break; }
+      case "drill-answerfu": { drillAnswerFu(); break; }
+      case "drill-review": { drillReview(); break; }
+      case "drill-save": { drillSave(); break; }
+      case "drill-new": {
+        const d = getDrill(); d.steps = "topic"; stopDrillTimer(); render(); toast("🔄 换个话题，再来一轮");
+        break;
+      }
+      case "drill-essay-speak": {
+        const d = getDrill();
+        if (d.essay) E().Player.speak(String(d.essay).replace(/【[^】]*】/g, " ").replace(/[#*_`>]/g, " "), { rate: 0.95 });
+        break;
+      }
+      case "drill-rec-open": { drillRecOpen(parseInt(el.getAttribute("data-i"), 10)); break; }
+      case "drill-rec-play": {
+        const r = getDrillRecords()[parseInt(el.getAttribute("data-i"), 10)];
+        if (r && r.essay) E().Player.speak(String(r.essay).replace(/【[^】]*】/g, " ").replace(/[#*_`>]/g, " "), { rate: 0.95 });
+        break;
+      }
+      case "drill-rec-del": {
+        const recs = getDrillRecords();
+        recs.splice(parseInt(el.getAttribute("data-i"), 10), 1);
+        E().saveProgress(); render();
+        break;
+      }
+      case "drill-rec-clear": {
+        if (confirm("确定清空所有深度操练记录吗？")) {
+          const p = E().getProgress(); p.drillRecords = []; E().saveProgress(); render();
+        }
+        break;
+      }
     }
   });
 
@@ -996,5 +1399,5 @@
     return await callChat(msgs);
   }
 
-  window.Tutor = { render: render, weeklyReport: weeklyReport, hasConfig: function () { return !!cfg.apiKey.trim(); } };
+  window.Tutor = { render: render, weeklyReport: weeklyReport, callChat: callChat, hasConfig: function () { return !!cfg.apiKey.trim(); } };
 })();

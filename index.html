@@ -5,13 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>软包装外贸英语 · Soft Packaging Foreign Trade English</title>
 <meta name="description" content="一站式软包装外贸英语学习网站：核心术语、商务邮件、询盘报价、谈判、付款物流、展会口语、跨境电商，另含外贸实操 SOP（订单内部流转、PI/CI/PL/BL/CO 单证规范、报关报检、海运空运快递、T/T 与 L/C 风控、Incoterms 2020），支持朗读、跟读、听写、单词卡与测验。">
+<!-- SEO / 分享（Open Graph·Twitter·canonical）：
+     ⚠️ 发布后把 href 中的域名换成你的正式域名，便于搜索引擎与微信/朋友圈分享识别。 -->
+<link rel="canonical" href="https://<你的域名>.github.io/softpackaging-english/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="软包装外贸英语">
+<meta property="og:title" content="软包装外贸英语 · Soft Packaging Foreign Trade English">
+<meta property="og:description" content="专为软包装外贸人打造的一站式行业英语学习站：行业术语、商务邮件、询盘报价、跟读评测、AI 陪练与外贸实操 SOP，静态离线均可使用。">
+<meta property="og:image" content="./icon.svg">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="软包装外贸英语 · Soft Packaging Foreign Trade English">
+<meta name="twitter:description" content="软包装外贸英语学习与外贸实操 SOP：词汇、对话、跟读听写、AI 陪练，离线可用。">
+<meta name="twitter:image" content="./icon.svg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "软包装外贸英语",
+  "alternateName": "Soft Packaging Foreign Trade English",
+  "inLanguage": "zh-CN",
+  "description": "专为软包装外贸人打造的行业英语学习网站，含术语、对话、跟读评测、AI 陪练与外贸实操 SOP。"
+}
+</script>
 <link rel="stylesheet" href="css/style.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <meta name="theme-color" content="#2563eb">
+<!-- PWA / iOS 自适应：让「添加到主屏」获得独立窗口与状态栏配色。IOS 对 SVG apple-touch-icon 支持有限，正式发布后建议补一张 180×180 PNG。 -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="外贸英语">
 </head>
 <body>
+
+<noscript>
+  <div class="noscript-warn" role="alert">
+    本站是一个交互式外语学习站点，需要开启 JavaScript 才能使用朗读、跟读评测、单词卡、测验与 AI 陪练等功能。请在你的浏览器设置中启用 JavaScript 后刷新本页。
+  </div>
+</noscript>
 
 <header class="site-header" id="siteHeader">
   <div class="header-inner">
@@ -21,10 +55,12 @@
     </a>
     <nav class="main-nav" id="mainNav">
       <a class="nav-home-link" href="#/home" data-nav="home">🏠 首页</a>
-      <details class="nav-group" data-group="learn">
-        <summary>📚<span class="ng-name">学习</span></summary>
+      <details class="nav-group" data-group="start" open>
+        <summary>🚀<span class="ng-name">开始学习</span></summary>
         <div class="nav-sub">
-          <a href="#/units" data-nav="units">课程 · 16 单元</a>
+          <a href="#/placement" data-nav="placement">🎯 测起点 · 该从哪学</a>
+          <a href="#/units" data-nav="units">📚 按路径学 · 19 单元</a>
+          <a href="#/board" data-nav="board">🗂 本周学习看板</a>
         </div>
       </details>
       <details class="nav-group" data-group="speak">
@@ -33,6 +69,10 @@
           <a href="#/speak" data-nav="speak">听说训练（跟读/听写）</a>
           <a href="#/listen" data-nav="listen">辨音 · 最小音对</a>
           <a href="#/eval4" data-nav="eval4">四维口语实战</a>
+          <a href="#/sources" data-nav="sources">🎧 真实商务听音源</a>
+          <a href="#/subtitle" data-nav="subtitle">📺 字幕逐句点读</a>
+          <a href="#/speech" data-nav="speech">🎙️ 自由表达分析（说一段·看词汇/流利/语法）</a>
+          <a href="#/speaking" data-nav="speaking">📡 口语水平概览（雷达·段位·导出图）</a>
         </div>
       </details>
       <details class="nav-group" data-group="sop">
@@ -53,19 +93,24 @@
         <div class="nav-sub">
           <a href="#/flash" data-nav="flash">记忆单词卡</a>
           <a href="#/quiz" data-nav="quiz">智能测验</a>
+          <a href="#/write" data-nav="write">✍️ 写作专区（邮件场景）</a>
+          <a href="#/patterns" data-nav="patterns">🧩 句型克隆库</a>
           <a href="#/mistakes" data-nav="mistakes">⚠️ 高频易错点</a>
         </div>
       </details>
     </nav>
     <div class="header-right">
       <div class="searchbox">
+        <label class="visually-hidden" for="searchInput">搜索单词 / 短语 / 对话</label>
         <input id="searchInput" type="search" placeholder="搜索单词 / 短语 / 对话…" autocomplete="off">
-        <button id="searchBtn" title="搜索">🔍</button>
+        <button id="searchBtn" title="搜索" aria-label="搜索">🔍</button>
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
-      <button class="icon-btn" id="settingsBtn" title="发音设置">⚙️</button>
-      <span class="stat-pill" id="headerStat" title="已掌握单词">🎯 0</span>
-      <button class="icon-btn" id="navToggle" title="菜单" hidden>☰</button>
+      <button class="icon-btn" id="settingsBtn" title="发音设置" aria-label="发音设置" aria-haspopup="dialog">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      <span class="stat-pill" id="headerStat" title="已掌握单词" aria-label="已掌握单词">🎯 0</span>
+      <button class="icon-btn" id="navToggle" title="菜单" aria-label="展开导航菜单" aria-expanded="false" hidden>☰</button>
     </div>
   </div>
 </header>
@@ -76,11 +121,13 @@
   <div class="container footer-inner">
     <div>
       <strong>软包装外贸英语</strong>
-      <p>纯静态站点 · 无需服务器 · 数据保存在本地浏览器（localStorage）</p>
+      <span class="footer-ver">v1.7 · 纯静态站点 · 无需服务器</span>
+      <p>你的学习数据只保存在本浏览器（localStorage），不会上传到本站任何服务器。使用第三方发音 / 语音识别 / AI 陪练接口时，相关语音与文本会发送到对应服务商（详见设置页各接口说明）。</p>
     </div>
     <div class="footer-tips">
       <span>💡 快捷键：单词卡界面按 <kbd>Space</kbd> 翻面</span>
       <span>🔊 发音使用浏览器自带的语音合成（需联网获取音色时可能首次无声）</span>
+      <span class="footer-fine">本站外语学习与「外贸实操 SOP」内容仅作学习参考，不构成法律/合规/报关专业意见；涉及单据、合规与风险事项请以官方原文与实际业务为准。</span>
     </div>
   </div>
 </footer>
@@ -89,7 +136,7 @@
   <div class="modal">
     <div class="modal-head">
       <b>⚙️ 发音设置</b>
-      <button class="icon-btn" data-action="settings-close" title="关闭">✕</button>
+      <button class="icon-btn" data-action="settings-close" title="关闭" aria-label="关闭">✕</button>
     </div>
     <div class="field">
       <label>发音引擎</label>
@@ -160,16 +207,30 @@
 <script src="js/data-settle.js"></script>
 <script src="js/data-mistakes.js"></script>
 <script src="js/data-risk.js"></script>
+<script src="js/data-deep.js"></script>
+<script src="js/data-meeting.js"></script>
+<script src="js/data-mnemonic.js"></script>
 <script src="js/lvl-map.js"></script>
+<script src="js/difficulty-map.js"></script>
+<script src="js/schema.js"></script>
 <script src="js/player.js"></script>
+<script src="js/parser.js"></script>
 <script src="js/flashcards.js"></script>
 <script src="js/quiz.js"></script>
 <script src="js/tutor.js"></script>
 <script src="js/eval4.js"></script>
 <script src="js/listen.js"></script>
 <script src="js/sop.js"></script>
+<script src="js/data-ports.js"></script>
 <script src="js/export.js"></script>
 <script src="js/asr-local.js"></script>
+<script src="js/sources.js"></script>
+<script src="js/subtitle.js"></script>
+<script src="js/write.js"></script>
+<script src="js/patterns.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/board.js"></script>
+<script src="js/radar.js"></script>
 <script src="js/app.js"></script>
 
 <script>

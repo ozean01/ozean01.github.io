@@ -76,12 +76,24 @@
     BOX_DAYS: [0, 1, 2, 4, 7, 15],
     PARAMS: W.slice(),
 
-    /* 用 FSRS 计算下一次复习。known=true → 回忆(Good/3)，false → 遗忘(Again/1)。
+    /* 用 FSRS 计算下一次复习。rating=1..4 → AGAIN/HARD/GOOD/EASY。
+       旧调用可用布尔（true→Good/3，false→Again/1）。
        legacy 卡（无 stability 字段）先按 interval/ef 估出状态，再进 FSRS。 */
-    grade: function (progress, id, known) {
+    /* grade(progress, id, rating)：接收四档评分。
+       1=忘了(AGAIN) 2=模糊(HARD) 3=认识(GOOD) 4=秒答(EASY)。
+       兼容旧二档布尔调用（true→GOOD, false→AGAIN）。 */
+    grade: function (progress, id, rating) {
       var now = Date.now();
       var cur = migrate(progress.flash[id]);
-      var g = known ? RATING.GOOD : RATING.AGAIN;
+      /* 评分归一化 */
+      var g;
+      if (typeof rating === "boolean") g = rating ? RATING.GOOD : RATING.AGAIN;
+      else if (rating === 2) g = RATING.HARD;
+      else if (rating === 4) g = RATING.EASY;
+      else if (rating === 1) g = RATING.AGAIN;
+      else g = RATING.GOOD;
+      /* 兼容旧派生字段 quality：认识(3/4)→5，遗忘/模糊(1/2)→2 */
+      var known = g >= RATING.GOOD;
       var state = migrateState(cur);
       var isNew = !cur || !cur.interval;   // 未复习过：用初始状态
       var t, r;

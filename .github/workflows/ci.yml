@@ -1,0 +1,33 @@
+name: Test & Audit
+
+# 每次 push / PR 及手动触发时，跑数据与算法的门禁测试 + 单一数据源漂移检查。
+# 本站零构建、无运行时依赖，直接 node 运行脚本即可，无需 npm install。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: ""
+
+      - name: Run tests (audit + assertions)
+        run: node tools/test-all.js
+
+      - name: Single-source drift check
+        run: node tools/check-single-source.js
+
+      - name: Build data reports (fresh count/IPA)
+        run: node tools/audit-count.js && node tools/audit-ipa.js

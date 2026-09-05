@@ -50,8 +50,8 @@
       _tag: FILE_TAG,
       _version: 1,
       exportedAt: new Date().toISOString(),
-      site: (window.FTE_DATA && FTE_DATA.site && FTE_DATA.site.name) || "软包装外贸英语",
-      units: window.FTE_DATA ? FTE_DATA.units.length : 0,
+      site: (FTE_DATA && FTE_DATA.site && FTE_DATA.site.name) || "软包装外贸英语",
+      units: FTE_DATA ? FTE_DATA.units.length : 0,
       data: {}
     };
     pack.data[PROG_KEY] = readJSON(PROG_KEY);
@@ -162,7 +162,7 @@
   }
   function allVocab() {
     var out = [];
-    if (!window.FTE_DATA) return out;
+    if (!FTE_DATA) return out;
     FTE_DATA.units.forEach(function (u) {
       u.vocab.forEach(function (v, i) {
         out.push({ id: u.id + "-" + i, u: u, v: v });
@@ -171,14 +171,18 @@
     return out;
   }
   function levelLabel(v) {
-    if (v.lvl === "high") return "高频";
-    if (v.lvl === "common") return "常用";
-    if (v.lvl === "tech") return "专业";
+    var w = String(v.w || "").toLowerCase();
+    var d = (window.FTE_DIFF && window.FTE_DIFF.words && window.FTE_DIFF.words[w]) || null;
+    if (d) return d.dif === "easy" ? "易" : (d.dif === "mid" ? "中" : "难");
+    var lvl = (window.FTE_LVL || {})[w];
+    if (lvl === "high") return "高频";
+    if (lvl === "common") return "常用";
+    if (lvl === "tech") return "专业";
     return "";
   }
 
   function exportVocabCsv() {
-    var rows = [["Word", "IPA", "POS", "Chinese", "Example", "ExampleCN", "Unit", "Level"]];
+    var rows = [["Word", "IPA", "POS", "Chinese", "Example", "ExampleCN", "Unit", "Difficulty"]];
     allVocab().forEach(function (x) {
       rows.push([x.v.w, x.v.ipa, x.v.pos, x.v.cn, x.v.ex, x.v.exCn, x.u.id + " " + x.u.title, levelLabel(x.v)]);
     });

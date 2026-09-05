@@ -1,0 +1,15 @@
+{
+  "name": "softpackaging-english",
+  "version": "1.7.0",
+  "private": true,
+  "description": "软包装外贸英语学习网站（纯静态 PWA，零构建，无运行时依赖）。",
+  "scripts": {
+    "test": "node tools/test-all.js",
+    "audit": "node tools/audit-count.js && node tools/audit-ipa.js",
+    "check:singlesource": "node tools/check-single-source.js",
+    "sync:miniprogram": "node tools/sync-miniprogram-data.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

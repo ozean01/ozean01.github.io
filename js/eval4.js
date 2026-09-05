@@ -76,6 +76,16 @@
       follow: "A buyer asks: \"The inspector found the total migration is above the food-contact limit, and there is a breach-of-contract clause. What are you going to do?\"",
       followCn: "买家追问：验货发现总迁移量超过食品接触限量，而且合同里有违约条款。你们打算怎么办？",
       terms: ["food contact", "declaration of conformity", "migration test", "certificate of analysis", "breach of contract"]
+    },
+    {
+      id: "meeting",
+      icon: "📊",
+      title: "客户会议与产品汇报",
+      ref: "Thank you for joining today's meeting. Our new solventless adhesive is food-contact compliant and delivers higher bonding strength with lower residual solvent, which will improve the shelf life of your packaging.",
+      refCn: "感谢参加今天的会议。我们的新型无溶剂复合胶符合食品接触要求，粘结强度更高、残留溶剂更低，有助于提升您包装的货架期。",
+      follow: "A buyer asks: \"Why should we switch from your current adhesive to this new one? What is the biggest benefit, and what is the catch?\"",
+      followCn: "买家追问：我们凭什么从现有胶换成你们这款新品？最大的好处是什么，又有什么代价？",
+      terms: ["solventless adhesive", "food contact", "bonding strength", "residual solvent", "shelf life"]
     }
   ];
 
@@ -266,17 +276,27 @@
           <div class="en">${esc(scene.ref)}</div>
           <div class="cn">${esc(scene.refCn)}</div>
           ${ph ? '<div class="eval-phonetic">' + ph + '</div>' : '<div class="field-note" style="margin-top:4px">（按提示先留意句中的术语词读音）</div>'}
+          ${stressHintHtml(scene.ref)}
         </div>
         <button class="play-btn" data-action="e4-speak-ref" title="播放标准句">🔊</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-        <button class="btn btn-soft btn-sm" data-action="e4-eval-ref" ${U().Player.recognitionSupported() ? "" : "disabled"}>🎯 跟读评测（发音/流利）</button>
-        ${hasAzurePA() ? '<button class="btn btn-ok btn-sm" data-action="e4-azure-pa" title="用发音设置里的 Azure Key，逐词逐音素打分，跨浏览器可用">🔎 Azure 音素级评测</button>' : ""}
+        ${hasAzurePA() ? '<button class="btn btn-ok btn-sm" data-action="e4-azure-pa" title="用发音设置里的 Azure Key，逐词逐音素打分，跨浏览器可用；对行业术语最准">🔎 Azure 音素级评测（官方·推荐）</button>' : ""}
+        <button class="btn btn-soft btn-sm" data-action="e4-eval-ref" ${U().Player.recognitionSupported() ? "" : "disabled"} title="浏览器语音识别转文字比对：识别≠发音，仅供练习参考">🎯 跟读评测（识别·参考）</button>
+        <details class="dx-menu">
+          <summary class="btn btn-outline btn-sm dx-summary" style="list-style:none">🔬 音素诊断 <span class="dx-caret" aria-hidden="true">▾</span></summary>
+          <div class="dx-menu-body">
+            <button class="btn btn-soft btn-sm" style="width:100%" data-action="e4-deep-dx" title="下载 wav2vec2 音素模型（首次需联网、较慢），逐音素比对「你读成了哪个音」">⚡ 高精度（wav2vec2 · 联网）</button>
+            <button class="btn btn-outline btn-sm" style="width:100%" data-action="e4-deep-dx-offline" title="本地 vosk 词级 + phonemizer，无需下载模型、可离网">🧩 离线近似（无需模型）</button>
+          </div>
+        </details>
         ${ev ? '<button class="btn btn-outline btn-sm" data-action="e4-clear-ref">重置</button>' : ""}
       </div>
+      <div id="deepDxOut" class="sop-out" hidden></div>
+      ${hasAzurePA() ? '<p class="field-note" style="margin-top:6px">已配置 Azure，建议用「🔎 Azure 音素级评测」拿逐词逐音素官方分；下方「🎯 跟读评测」是浏览器识别转写的<b>参考分</b>（识别受口音与术语影响，仅供参考）。</p>' : ""}
       <div class="sentence-ipa" id="sentenceIpa" hidden></div>
       <div id="azurePAOut" class="sop-out az-pa" hidden></div>
-      ${ev ? refEvalHtml(ev, scene) : '<p class="field-note" style="margin-top:8px">点击上方按钮，对着麦克风朗读整句（说完自动停止）。逐词命中越高，发音越准。</p>'}
+      ${ev ? refEvalHtml(ev, scene) : '<p class="field-note" style="margin-top:8px">点击上方按钮，对着麦克风朗读整句（说完自动停止）。此为识别比对分，仅作练习参考；逐词命中越高，读得越准。</p>'}
     </div>`;
   }
 
@@ -346,9 +366,51 @@
       '<span class="ph-note">待打分术语（术语发音计 40%）· 音标来自课程词汇表，点 ▶ 对照朗读</span>';
   }
 
+  /* ---------- 语调/重音/节奏提示（模块 F）：把参考句按「实义词重读 / 虚词轻读」标出来，
+     并给出意群断句与节奏建议 —— 让"节奏"练得跟"发音"一样具体。纯启发式，诚实标注。 ---------- */
+  var FUNC_WORDS = { the:1,a:1,an:1,and:1,or:1,of:1,to:1,for:1,with:1,by:1,at:1,on:1,in:1,from:1,is:1,are:1,was:1,were:1,be:1,been:1,being:1,it:1,this:1,that:1,these:1,those:1,we:1,you:1,they:1,i:1,he:1,she:1,as:1,but:1,so:1,if:1,than:1,there:1,today:0,if:1,will:1,would:1,can:1,could:1,may:1,might:1,should:1,shall:1,not:1,no:1,do:1,does:1,did:1,has:1,have:1,had:1,our:1,your:1,their:1,my:1,his:1,her:1,its:1,all:1,both:1,some:1,any:1,each:1,every:1,many:1,much:1,more:1,most:1,only:1,also:1};
+  function stressHintHtml(ref) {
+    var punctuation = /[.,;:!?]/g;
+    var raw = String(ref || "").trim();
+    var parts = raw.split(/(\s+)/);  // 保留空白，便于原样还原
+    var out = [];
+    parts.forEach(function (tok) {
+      if (/^\s+$/.test(tok)) { out.push(tok); return; }
+      // 去掉句尾标点再判断词性
+      var m = tok.match(/^([^.,;:!?]+)([.,;:!?]*)$/);
+      var w = (m ? m[1] : tok).toLowerCase();
+      var tail = (m ? m[2] : "");
+      var isFunc = FUNC_WORDS[w] === 1 || /^\d+$/.test(w);
+      if (isFunc) out.push('<span class="st-func">' + esc(m ? m[1] : tok) + '</span>' + esc(tail));
+      else out.push('<span class="st-stress">' + esc(m ? m[1] : tok) + '</span>' + esc(tail));
+    });
+    return `
+    <details class="st-hint" open>
+      <summary>🗣 语调 / 重音 / 节奏</summary>
+      <div class="st-body">
+        <div class="st-line">${out.join("")}</div>
+        <div class="st-legend"><b class="st-stress">重读</b>（实义词：名词/动词/形容词/副词，更实、更长、更清晰） · <span class="st-func">轻读</span>（虚词：the/and/to/of/can/will…，更短、更模糊）</div>
+        <div class="st-tip">节奏：把<b>重读词</b>说得清楚，轻读词一带而过；在逗号 / 句号 / "and, but" 等停顿点微停。可选「🔊 播放标准句」对照。<em class="st-note">（词级重音为启发式标注，仅作参考；重音本质以真实母语发音为准）</em></div>
+      </div>
+    </details>`;
+  }
+
+  /* 术语护航：ASR 对长难行业术语（laminating / polyurethane 等）易误判为「近似/漏读」，
+     此时发音分可能失真。若有术语词被判非 ok，给一句「仅参考 + 建议音素级/人工核对」的提示。 */
+  function termGuardHtml(ev, scene) {
+    const terms = scene.terms || [];
+    if (!terms.length) return "";
+    const termMiss = ev.matched.filter(function (m) { return terms.indexOf(m.w) !== -1 && m.errType !== "ok"; });
+    if (!termMiss.length) return "";
+    return '<div class="eval-check" style="margin-top:6px">⚠️ <b>' + termMiss.length + '</b> 个行业术语被判为「近似/漏读」。ASR 对长难术语（laminating / polyurethane 等）易误判，本发音分仅供练习参考——建议改用右上角「🔎 Azure 音素级评测」或对照音标人工核对。</div>';
+  }
+
   function refEvalHtml(ev, scene) {
     const cls = ev.term >= 80 ? "sc" : ev.term >= 50 ? "sm" : "sb";
     const cls2 = ev.fluency >= 80 ? "sc" : ev.fluency >= 50 ? "sm" : "sb";
+    const azNote = hasAzurePA()
+      ? "要更权威的发音分，请用上方「🔎 Azure 音素级评测」（逐词逐音素）。"
+      : "要更权威的发音分，可在发音设置里配置 Azure Key 后改走「🔎 Azure 音素级评测」。";
     const targetHtml = ev.matched.map(function (m) {
       const isTerm = scene.terms.indexOf(m.w) !== -1;
       if (m.errType === "ok") return '<span class="wm ' + (isTerm ? "term" : "ok") + '">' + esc(m.w) + "</span>";
@@ -359,13 +421,15 @@
       return '<span class="wm no' + (isTerm ? " term" : "") + '">' + esc(m.w) + "</span>";
     }).join(" ");
     return `
+    <div class="eval-check" style="margin-top:12px;margin-bottom:4px">📌 <b>参考分</b>：此分来自<b>浏览器语音识别</b>（把你读出的词转成文本再比对），<b>识别≠发音</b>——口音、噪音或长难行业术语（laminating / polyurethane 等）都可能让它偏低或偏高，请把它当"练习参考"而非绝对标准。${azNote}</div>
     <div style="margin-top:12px;display:flex;gap:18px;flex-wrap:wrap">
       <div class="e4-dim"><span class="e4-label">术语发音</span><span class="${cls} e4-num">${ev.term}%</span><span class="e4-weight">×40%</span></div>
       <div class="e4-dim"><span class="e4-label">语调流利度</span><span class="${cls2} e4-num">${ev.fluency}%</span><span class="e4-weight">×30%</span></div>
     </div>
     <div class="eval-target" style="margin-top:10px">${targetHtml}</div>
     <div class="eval-transcript" style="margin-top:6px">识别到：${esc(ev.transcript) || "（未识别到语音）"}</div>
-    <div class="eval-hint">💡 ${ev.hint}</div>`;
+    <div class="eval-hint">💡 ${ev.hint}</div>
+    ${termGuardHtml(ev, scene)}`;
   }
 
   function answerStepHtml(scene, s, hasLLM) {
@@ -734,6 +798,190 @@
     render();
   }
 
+  /* ================= 音素级深度诊断（transformers.js + wav2vec2 CTC → 音素编辑距离） =================
+     按需下载模型（显式体积提示 + 进度）；未联网/未下载 → 明确提示并回退到「🎯 跟读评测」，不崩。
+     流程：录音(16k) → wav2vec2 CTC 转写 → phonemizer 目标音标 → 音素编辑距离 → 报告「读成了哪个音」。 */
+  var CTC_MODEL_ID = "Xenova/wav2vec2-base-960h";
+  var CTC_LIB = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js";
+  var CTC_SIZE = "约 100–360MB（视模型量化）";
+  var ctAsr = null, ctPromise = null;
+  function ctProgress(ev) {
+    if (!ev) return;
+    if (ev.status === "progress" && ev.file) {
+      var p = Math.round((ev.loaded || 0) / (ev.total || 1) * 100);
+      if (p % 10 === 0 || p >= 100) { try { toast("下载音素模型 " + p + "%（首次需联网、较慢）"); } catch (e) {} }
+    }
+  }
+  function ensureCtAsr() {
+    if (ctAsr) return Promise.resolve(ctAsr);
+    if (ctPromise) return ctPromise;
+    ctPromise = loadScript(CTC_LIB).then(function () {
+      var T = window.transformers;
+      if (!T) throw new Error("transformers.js 未加载");
+      T.env.allowLocalModels = false;
+      return T.pipeline("automatic-speech-recognition", CTC_MODEL_ID, { progress_callback: ctProgress });
+    }).then(function (p) { ctAsr = p; ctPromise = null; return p; })
+      .catch(function (e) { ctPromise = null; throw e; });
+    return ctPromise;
+  }
+  function resampleTo16k(x, sr) {
+    if (!x || !x.length) return x;
+    if (sr === 16000) return x;
+    var ratio = sr / 16000, n = Math.round(x.length / ratio), out = new Float32Array(n), i;
+    for (i = 0; i < n; i++) { var pos = i * ratio, i0 = Math.floor(pos), i1 = Math.min(i0 + 1, x.length - 1), f = pos - i0; out[i] = x[i0] * (1 - f) + x[i1] * f; }
+    return out;
+  }
+  function deepRecord(onDone) {
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = ctx.createMediaStreamSource(stream);
+      var chunks = [];
+      var node = ctx.createScriptProcessor(4096, 1, 1);
+      node.onaudioprocess = function (e) { chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+      src.connect(node); node.connect(ctx.destination);
+      var sr = ctx.sampleRate;
+      function stop() {
+        try { node.disconnect(); src.disconnect(); stream.getTracks().forEach(function (t) { t.stop(); }); ctx.close(); } catch (e) {}
+        var total = 0, i; for (i = 0; i < chunks.length; i++) total += chunks[i].length;
+        var all = new Float32Array(total), o = 0;
+        for (i = 0; i < chunks.length; i++) { all.set(chunks[i], o); o += chunks[i].length; }
+        onDone(all, sr);
+      }
+      return { stop: stop };
+    });
+  }
+  var IPA_2 = ["tʃ","dʒ","ts","dz","tr","dr","aɪ","eɪ","ɔɪ","aʊ","oʊ","əʊ","ɪə","eə","ʊə","iː","uː","ɑː","ɔː","ɜː"];
+  var IPA_1 = ["p","b","t","d","k","ɡ","g","m","n","ŋ","f","v","s","z","ʃ","ʒ","h","l","r","w","j","θ","ð","æ","e","ɪ","ʊ","ʌ","ɒ","ə","ɚ","ɔ","a","u","i","ɑ"];
+  function phonemeTokens(ipa) {
+    var out = [], s = String(ipa || "").replace(/[ˈˌː.()]/g, ""), i = 0;
+    while (i < s.length) {
+      var two = s.substr(i, 2);
+      if (IPA_2.indexOf(two) !== -1) { out.push(two); i += 2; }
+      else if (IPA_1.indexOf(s[i]) !== -1) { out.push(s[i]); i += 1; }
+      else { i += 1; }
+    }
+    return out;
+  }
+  function phonemeDiff(refIpa, recIpa) {
+    var a = phonemeTokens(refIpa), b = phonemeTokens(recIpa), n = a.length, m = b.length, i, j;
+    var dp = [];
+    for (i = 0; i <= n; i++) { dp[i] = []; dp[i][0] = i; }
+    for (j = 0; j <= m; j++) { dp[0][j] = j; }
+    for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) {
+      var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+    var dist = dp[n][m], ops = [], x = n, y = m;
+    while (x > 0 || y > 0) {
+      var cur = dp[x][y];
+      if (x > 0 && y > 0 && dp[x - 1][y - 1] === cur && a[x - 1] === b[y - 1]) { ops.unshift({ t: "eq", p: a[x - 1] }); x--; y--; }
+      else if (x > 0 && y > 0 && dp[x - 1][y - 1] + 1 === cur) { ops.unshift({ t: "sub", exp: a[x - 1], got: b[y - 1] }); x--; y--; }
+      else if (x > 0 && dp[x - 1][y] + 1 === cur) { ops.unshift({ t: "del", p: a[x - 1] }); x--; }
+      else { ops.unshift({ t: "ins", p: b[y - 1] }); y--; }
+    }
+    return { dist: dist, total: Math.max(n, m) || 1, ops: ops,
+      subs: ops.filter(function (o) { return o.t === "sub"; }),
+      del: ops.filter(function (o) { return o.t === "del"; }),
+      ins: ops.filter(function (o) { return o.t === "ins"; }) };
+  }
+  function renderDeepDx(out, scene, r) {
+    var d = phonemeDiff(r.refIpa, r.recIpa);
+    var pct = Math.round((1 - d.dist / d.total) * 100);
+    var ok = d.dist === 0;
+    var subHtml = d.subs.slice(0, 6).map(function (s) { return "<li>应为 <b>/" + esc(s.exp) + "/</b>，你读成了 <b>/" + esc(s.got) + "/</b></li>"; }).join("");
+    var missHtml = d.del.slice(0, 6).map(function (s) { return "<li>漏掉了 <b>/" + esc(s.p) + "/</b></li>"; }).join("");
+    var insHtml = d.ins.slice(0, 6).map(function (s) { return "<li>多读了 <b>/" + esc(s.p) + "/</b></li>"; }).join("");
+    var errHtml = "";
+    if (subHtml) errHtml += "<div style='margin-top:8px;font-size:12.5px;font-weight:800;color:var(--muted)'>读音替换</div><ul class='tip-list'>" + subHtml + "</ul>";
+    if (missHtml) errHtml += "<div style='margin-top:8px;font-size:12.5px;font-weight:800;color:var(--muted)'>漏读</div><ul class='tip-list'>" + missHtml + "</ul>";
+    if (insHtml) errHtml += "<div style='margin-top:8px;font-size:12.5px;font-weight:800;color:var(--muted)'>多读</div><ul class='tip-list'>" + insHtml + "</ul>";
+    var head = ok
+      ? '<div class="sop-ok">✅ 整句音素 <b>完全匹配</b>（音素一致率 100%）</div>'
+      : '<div class="sop-bad">⚠️ 音素一致率 <b>' + pct + '%</b>，音素差异 ' + d.dist + ' 处，逐项修正：</div>';
+    var tokens = d.ops.map(function (o) {
+      if (o.t === "eq") return '<span style="color:var(--ok);font-weight:700">' + esc(o.p) + '</span>';
+      if (o.t === "sub") return '<span style="color:var(--bad);font-weight:700">' + esc(o.exp) + '→' + esc(o.got) + '</span>';
+      return '<span style="color:var(--muted);text-decoration:line-through">' + esc(o.p) + '</span>';
+    }).join(" ");
+    out.innerHTML =
+      '<div class="chat-head"><span>🔬 音素级深度诊断（wav2vec2 CTC）</span></div>' + head + errHtml +
+      '<div style="margin-top:10px"><b style="font-size:13px;color:var(--muted)">音素比对：</b><span style="font-size:13.5px;line-height:2">' + tokens + '</span></div>' +
+      '<p class="field-note" style="margin-top:6px">绿=读对，红=读成另一个音，删除线=漏读。识别为 wav2vec2 转写再比对，长词 / 术语或口音较重时仅供参考（拿不准可用「🔎 Azure 音素级评测」官方逐词分）。</p>';
+    toast("🔬 音素诊断完成：一致率 " + pct + "%");
+  }
+  /* 关闭音素诊断下拉（选中某项后收起） */
+  function closeDxMenu(el) {
+    var dd = el && el.closest && el.closest("details.dx-menu");
+    if (dd) dd.removeAttribute("open");
+  }
+  /* 公共：拿到识别文本后 → phonemizer 打目标/识别音标 → 音素编辑距离 → 渲染 */
+  function finishDiagnose(out, scene, text) {
+    return Promise.all([
+      ensurePhonemizer().then(function (mod) { return callPhonemize(mod, scene.ref); }),
+      ensurePhonemizer().then(function (mod) { return callPhonemize(mod, text || scene.ref); })
+    ]).then(function (ips) { renderDeepDx(out, scene, { text: text || "", refIpa: ips[0], recIpa: ips[1] }); });
+  }
+  /* 离线近似识别：优先本地 vosk（离线），否则浏览器在线识别。返回识别文本。 */
+  function offlineTranscribe() {
+    if (window.LocalASR) {
+      return new Promise(function (resolve) {
+        var rec = window.LocalASR.record(function (mono) {
+          window.LocalASR.transcribe(mono).then(resolve).catch(function () { resolve(""); });
+        });
+        setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
+      });
+    }
+    return new Promise(function (resolve) {
+      var rec = U().Player.recognize({ lang: "en-US", onError: function () { resolve(""); }, onEnd: function (t) { resolve(t || ""); } });
+      if (!rec) return resolve("");
+      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
+    });
+  }
+  /* 离线近似版音素诊断：无需大模型，vosk 词级 + phonemizer 简化比对 */
+  function deepDiagnoseOffline() {
+    var scene = SCENES[state.sceneIdx];
+    var out = document.getElementById("deepDxOut");
+    if (!scene || !out) return;
+    if (!window.confirm("离线近似诊断：用本地 vosk 词级识别 + phonemizer 音标比对，无需下载模型、可离网。继续？")) return;
+    out.hidden = false;
+    out.innerHTML = '<p class="sop-hint">离线近似诊断：本地识别 + 音标比对（无需下载大模型）。请朗读整句…</p>';
+    U().Player.micRequest().then(function () {
+      return offlineTranscribe();
+    }).then(function (text) {
+      out.innerHTML = '<p class="sop-hint">正在比对音素…</p>';
+      return finishDiagnose(out, scene, text);
+    }).catch(function (e) {
+      if (out) out.innerHTML = '<p class="sop-warn">离线近似诊断失败：' + esc((e && e.message) || e) + '。请检查麦克风，或改用「🔬 音素级深度诊断」。</p>';
+      toast("离线近似诊断失败，请重试");
+    });
+  }
+
+  function deepDiagnose() {
+    var scene = SCENES[state.sceneIdx];
+    var out = document.getElementById("deepDxOut");
+    if (!scene || !out) return;
+    if (!window.confirm("将按需下载音素模型（" + CTC_SIZE + "，首次较慢、需联网）；离线会回退到普通评测。继续？")) return;
+    out.hidden = false;
+    out.innerHTML = '<p class="sop-hint">正在加载音素模型…（首次需联网下载 ' + CTC_SIZE + '，较慢，请稍候）</p>';
+    U().Player.micRequest().then(function () {
+      var rec = deepRecord(function (mono, sr) {
+        var mono16 = resampleTo16k(mono, sr);
+        out.innerHTML = '<p class="sop-hint">正在识别并比对音素…</p>';
+        ensureCtAsr().then(function (asr) {
+          return asr(mono16, { chunk_length_s: 30, stride_length_s: 5 });
+        }).then(function (res) {
+          return finishDiagnose(out, scene, (res && res.text) || "");
+        }).catch(function (e) {
+          out.innerHTML = '<p class="sop-warn">深度诊断不可用：' + esc((e && e.message) || e) + '。已回退——请用「🎯 跟读评测」做参考比对。</p>';
+          toast("音素深度诊断失败，已回退参考评测");
+        });
+      });
+      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 3000);
+    }).catch(function (e) {
+      if (out) out.innerHTML = '<p class="sop-warn">麦克风不可用：' + esc((e && e.message) || e) + '</p>';
+    });
+  }
+
   document.addEventListener("click", function (e) {
     const el = e.target.closest("[data-action]");
     if (!el) return;
@@ -744,6 +992,8 @@
       case "e4-speak-ref": speakRef(); break;
       case "e4-speak-follow": speakFollow(); break;
       case "e4-eval-ref": evalRef(); break;
+      case "e4-deep-dx": closeDxMenu(el); deepDiagnose(); break;
+      case "e4-deep-dx-offline": closeDxMenu(el); deepDiagnoseOffline(); break;
       case "e4-azure-pa": azurePronounce(); break;
       case "e4-save-azure": saveAzure(); break;
       case "e4-clear-ref": state.refEval = null; render(); break;

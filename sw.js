@@ -5,7 +5,7 @@
      - 跨域（TTS / LLM / 汇率等外部 API）：一律不拦截，交给浏览器直连
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v20";
+const CACHE = "fte-v45";
 
 /* 需要离线可用的全部静态资源（本站文件数量固定，手写清单比引运行时更划算） */
 const PRECACHE = [
@@ -21,7 +21,11 @@ const PRECACHE = [
   "./js/data-settle.js",
   "./js/data-mistakes.js",
   "./js/data-risk.js",
+  "./js/data-deep.js",
+  "./js/data-meeting.js",
   "./js/lvl-map.js",
+  "./js/difficulty-map.js",
+  "./js/schema.js",
   "./js/player.js",
   "./js/flashcards.js",
   "./js/quiz.js",
@@ -31,6 +35,13 @@ const PRECACHE = [
   "./js/sop.js",
   "./js/export.js",
   "./js/asr-local.js",
+  "./js/sources.js",
+  "./js/subtitle.js",
+  "./js/write.js",
+  "./js/patterns.js",
+  "./js/speech.js",
+  "./js/board.js",
+  "./js/radar.js",
   "./js/app.js"
 ];
 
