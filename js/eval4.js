@@ -1046,6 +1046,30 @@
         location.hash = "#/eval4" + (TAG_INDEX[tag] != null ? "/" + tag : "");
       } catch (e) { location.hash = "#/eval4"; }
     },
-    hasConfig: function () { return !!loadLLMCfg(); }
+    hasConfig: function () { return !!loadLLMCfg(); },
+    /* 供「素材投料口」等注册自定义实战场景（导入的句子当参考句）。会话内生效，不持久化。
+       list: [{id, title, ref, refCn, follow, followCn, terms, icon}] —— 注册后跳到第一个。 */
+    registerScenes: function (list) {
+      try {
+        if (!Array.isArray(list) || !list.length) { toast("未获得可评分的句子"); return; }
+        var start = null;
+        list.forEach(function (sc, i) {
+          if (!sc || !sc.id || !sc.ref) return;
+          if (TAG_INDEX[sc.id] == null) {
+            TAG_INDEX[sc.id] = SCENES.length;
+            SCENES.push({
+              id: sc.id, icon: sc.icon || "📥", title: sc.title || ("导入素材 " + (i + 1)),
+              ref: sc.ref, refCn: sc.refCn || "",
+              follow: sc.follow || "Now restate the key point of this sentence in your own words, as if explaining it to a buyer in English.",
+              followCn: sc.followCn || "用你自己的话，把这句话的要点用英文重述一遍，像向客户解释一样。",
+              terms: Array.isArray(sc.terms) ? sc.terms : []
+            });
+            if (start === null) start = sc.id;
+          }
+        });
+        if (start) window.Eval4.entryPoint(start, "");
+        else toast("已注册，但从当前场景开始（可点上方场景标签切换）");
+      } catch (e) { toast("四维注册失败：" + (e && e.message || "")); }
+    }
   };
 })();

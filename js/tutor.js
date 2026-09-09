@@ -128,11 +128,64 @@
     return L.join("\n");
   }
 
+  /* 聚合「常错词 + FSRS 低保持率词」为结构化列表（纯本地，无网络） */
+  function collectWeakItems() {
+    const p = E().getProgress();
+    if (!p) return [];
+    const units = (typeof FTE_DATA !== "undefined" && FTE_DATA.units) ? FTE_DATA.units : [];
+    const byId = {};
+    units.forEach(function (u) {
+      u.vocab.forEach(function (v, i) { byId[u.id + "-" + i] = { w: v.w, ex: v.ex, cn: v.cn, u: u.title }; });
+    });
+    const now = Date.now();
+    const found = {};
+    const weak = [];
+    const push = function (key, rec, tag, sort) { if (rec && !found[key]) { found[key] = true; weak.push({ rec: rec, tag: tag, sort: sort }); } };
+    Object.keys(p.wrong || {}).forEach(function (id) {
+      const rec = byId[id];
+      if (rec) push(id, rec, "经常答错（错 " + p.wrong[id] + " 次）", -(p.wrong[id] || 0));
+    });
+    const F = window.Flashcards;
+    Object.keys(p.flash || {}).forEach(function (id) {
+      const rec = byId[id];
+      if (!rec) return;
+      const f = p.flash[id];
+      const ret = F ? F.retentionOf(f, now) : 1;
+      if (ret != null && ret < 0.7) push(id, rec, "最易忘（保持率约 " + Math.round(ret * 100) + "%）", ret * 10);
+    });
+    weak.sort(function (a, b) { return a.sort - b.sort; });
+    return weak.slice(0, 6);
+  }
+
+  /* 依据学习者自己的「常错词 + FSRS 低保持率词」生成给 AI 的动态出题依据。
+     这是把「个性化学习路径」落地成一次会话里的真实动作：AI 在接下来的对话里围绕这些薄弱项出题。
+     只在用户打开「薄弱项动态出题」开关、且确有薄弱项时注入；数量封顶，避免刷屏。 */
+  function weakFocusLines() {
+    const picked = collectWeakItems();
+    if (!picked.length) return "";
+    return "The student's own weak / most-forgotten vocabulary (from their own practice and review records) is listed below. " +
+      "Over the NEXT few exchanges, weave 1–2 of these into the conversation or role-play so the student actually uses them: ask them to make a sentence, gently correct a misused term, and confirm they understand the meaning. " +
+      "Do not quiz them all at once — pick ONE or TWO at most per reply and keep the conversation natural.\nWEAK ITEMS (english | hint):\n" +
+      picked.map(function (x, i) { return (i + 1) + ". " + x.rec.w + " （" + x.tag + "；" + x.rec.cn + "） 例：" + x.rec.ex; }).join("\n");
+  }
+
+  /* 「🔍 查看本周薄弱词」：把编译给 AI 的清单原样展示（不入系统提示，仅预览） */
+  function weakView() {
+    const items = collectWeakItems();
+    if (!items.length) {
+      toast("📭 暂无薄弱词：先把词练错几次（单词卡/测验），或用单词卡复习几轮后，FSRS 会标出「易忘词」。");
+      return;
+    }
+    toast("🎯 本周薄弱词（会喂给教练出题）：\n" + items.map(function (x, i) { return (i + 1) + ". " + x.rec.w + " · " + x.tag; }).join("\n") +
+      "\n\n在「教练规则」勾选「薄弱项动态出题」后，教练会在对话中围绕这些词让你说出来。");
+  }
+
   function effectiveSystem(cfg) {
     const base = (cfg.systemPrompt || "").trim() || COACH_PROMPT;
     const prof = profileLines(cfg.profile);
     const extra = coachLines(cfg.coach);
-    return [prof, base, extra].filter(function (s) { return s; }).join("\n");
+    const weak = (cfg.coach && cfg.coach.weakFocus) ? weakFocusLines() : "";
+    return [prof, base, extra, weak].filter(function (s) { return s; }).join("\n");
   }
 
   function defaultCfg() {
@@ -145,7 +198,7 @@
       systemPrompt: COACH_PROMPT,
       saved: [],   // 已保存的 Provider 列表 [{label, baseUrl, model, apiKey}]，切换模型不必重填 Key
       profile: { level: "", goal: "", scene: "", useCn: false },
-      coach: { correctMode: "round3", pace: "normal", waitDone: false, score: true, iPlus: true, correctFormat: true, termCheck: false, concise: true }
+      coach: { correctMode: "round3", pace: "normal", waitDone: false, score: true, iPlus: true, correctFormat: true, termCheck: false, concise: true, weakFocus: false }
     };
   }
   function loadCfg() {
@@ -289,6 +342,8 @@
             <label class="step-toggle" title="集中复盘时按「我的原句 / 正确版 / 更自然版 / 原因」四段式输出，解决中式英语"><input type="checkbox" id="coachFormat"${cfg.coach && cfg.coach.correctFormat ? " checked" : ""}> 四段式纠错</label>
             <label class="step-toggle" title="AI 对拿不准的行业术语会标注「请人工核对」，降低术语出错风险"><input type="checkbox" id="coachTermCheck"${cfg.coach && cfg.coach.termCheck ? " checked" : ""}> 行业术语人工核对提示</label>
             <label class="step-toggle" title="反馈要「点到为止」：每轮只讲透 1 个点、最多复盘 2 个错误、给 1 个更自然表达 + 1 句值得复述就停，避免 AI 讲太多让你学晕"><input type="checkbox" id="coachConcise"${(cfg.coach && cfg.coach.concise) || !cfg.coach ? " checked" : ""}> 点到为止（反馈给得刚好）</label>
+            <label class="step-toggle" title="把你自己「常答错」和「最易忘（FSRS 保持率低）」的词喂给教练，让它在接下来的对话里围绕这些薄弱项出题、逼你用出来（个性化学习路径）"><input type="checkbox" id="coachWeak"${cfg.coach && cfg.coach.weakFocus ? " checked" : ""}> 薄弱项动态出题（围绕我常错/易忘的词练）</label>
+            <button class="btn btn-outline btn-sm" data-action="tutor-weakview" title="先看看当前会喂给教练的薄弱词有哪些">🔍 查看本周薄弱词</button>
             <button class="btn btn-soft btn-sm" data-action="tutor-preset" title="把系统提示词与规则一键重置为推荐的教练式预设">⤵ 一键教练预设</button>
           </div>
         </details>
@@ -1067,6 +1122,8 @@
     if (cterm) cc.termCheck = cterm.checked;
     const cconc = document.getElementById("coachConcise");
     if (cconc) cc.concise = cconc.checked;
+    const cweak = document.getElementById("coachWeak");
+    if (cweak) cc.weakFocus = cweak.checked;
     /* 我的档案 */
     const pf = cfg.profile || (cfg.profile = {});
     const pfLevel = document.getElementById("pfLevel");
@@ -1174,6 +1231,7 @@
       case "tutor-del-saved": delSaved(parseInt(el.getAttribute("data-i"), 10)); break;
       case "tutor-test": testConn(); break;
       case "tutor-preset": applyPreset(); break;
+      case "tutor-weakview": weakView(); break;
       case "tutor-send": send(); break;
       case "tutor-mic": micToggle(); break;
       case "tutor-diag": {
