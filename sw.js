@@ -5,7 +5,7 @@
      - 跨域（TTS / LLM / 汇率等外部 API）：一律不拦截，交给浏览器直连
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v47";
+const CACHE = "fte-v51";
 
 /* 需要离线可用的全部静态资源（本站文件数量固定，手写清单比引运行时更划算） */
 const PRECACHE = [
@@ -13,6 +13,11 @@ const PRECACHE = [
   "./index.html",
   "./css/style.css",
   "./icon.svg",
+  "./apple-touch-icon.png",
+  "./og-image.png",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-maskable-512.png",
   "./manifest.webmanifest",
   "./js/data.js",
   "./js/data-ops.js",
@@ -23,10 +28,13 @@ const PRECACHE = [
   "./js/data-risk.js",
   "./js/data-deep.js",
   "./js/data-meeting.js",
+  "./js/data-mnemonic.js",
+  "./js/data-ports.js",
   "./js/lvl-map.js",
   "./js/difficulty-map.js",
   "./js/schema.js",
   "./js/player.js",
+  "./js/parser.js",
   "./js/flashcards.js",
   "./js/quiz.js",
   "./js/tutor.js",
@@ -38,6 +46,8 @@ const PRECACHE = [
   "./js/sources.js",
   "./js/subtitle.js",
   "./js/material.js",
+  "./js/mysay.js",
+  "./js/phonemes.js",
   "./js/write.js",
   "./js/patterns.js",
   "./js/speech.js",

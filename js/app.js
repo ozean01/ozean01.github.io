@@ -61,6 +61,8 @@
   _need("听音源 sources.js", !!window.Sources);
   _need("字幕 subtitle.js", !!window.Subtitle);
   _need("素材投料口 material.js", !!window.MaterialImport);
+  _need("说我想说 mysay.js", !!window.MySay);
+  _need("音素课 phonemes.js", !!window.Phonemes);
   _need("写作专区 write.js", !!window.WriteStudio);
   _need("句型库 patterns.js", !!window.Patterns);
   _need("自由表达 speech.js", !!window.SpeechAnalyzer);
@@ -345,7 +347,7 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -392,6 +394,8 @@
       else if (route.view === "sources") window.Sources.render();
       else if (route.view === "subtitle") window.Subtitle.render();
       else if (route.view === "material") window.MaterialImport.render();
+      else if (route.view === "mysay") window.MySay.render();
+      else if (route.view === "phonemes") window.Phonemes.render();
       else if (route.view === "write") window.WriteStudio.render();
       else if (route.view === "patterns") window.Patterns.render();
       else if (route.view === "speech") window.SpeechAnalyzer.render();

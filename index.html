@@ -6,24 +6,35 @@
 <title>软包装外贸英语 · Soft Packaging Foreign Trade English</title>
 <meta name="description" content="一站式软包装外贸英语学习网站：核心术语、商务邮件、询盘报价、谈判、付款物流、展会口语、跨境电商，另含外贸实操 SOP（订单内部流转、PI/CI/PL/BL/CO 单证规范、报关报检、海运空运快递、T/T 与 L/C 风控、Incoterms 2020），支持朗读、跟读、听写、单词卡与测验。">
 <!-- SEO / 分享（Open Graph·Twitter·canonical）：
-     ⚠️ 发布后把 href 中的域名换成你的正式域名，便于搜索引擎与微信/朋友圈分享识别。 -->
-<link rel="canonical" href="https://<你的域名>.github.io/softpackaging-english/">
+     线上站点：https://ozean01.github.io/ （账号根页面，无子路径）
+     ⚠️ 若将来绑定自定义域名，下面 5 处 URL 要一起改：canonical / og:url / og:image / twitter:image，
+        以及下方 ld+json 的 url。
+     ⚠️ og:image 必须是【绝对 URL 的位图】：微信/朋友圈、Facebook、X、LinkedIn 都不接受 SVG，
+        相对路径也常常抓不到。改图后记得同步 og:image:width / height。
+        图由 tools/build-assets.ps1 从 icon.svg 生成，勿手工替换。 -->
+<link rel="canonical" href="https://ozean01.github.io/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="软包装外贸英语">
+<meta property="og:url" content="https://ozean01.github.io/">
 <meta property="og:title" content="软包装外贸英语 · Soft Packaging Foreign Trade English">
 <meta property="og:description" content="专为软包装外贸人打造的一站式行业英语学习站：行业术语、商务邮件、询盘报价、跟读评测、AI 陪练与外贸实操 SOP，静态离线均可使用。">
-<meta property="og:image" content="./icon.svg">
+<meta property="og:image" content="https://ozean01.github.io/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="软包装外贸英语 · Soft Packaging Foreign Trade English">
 <meta property="og:locale" content="zh_CN">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="软包装外贸英语 · Soft Packaging Foreign Trade English">
 <meta name="twitter:description" content="软包装外贸英语学习与外贸实操 SOP：词汇、对话、跟读听写、AI 陪练，离线可用。">
-<meta name="twitter:image" content="./icon.svg">
+<meta name="twitter:image" content="https://ozean01.github.io/og-image.png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "软包装外贸英语",
   "alternateName": "Soft Packaging Foreign Trade English",
+  "url": "https://ozean01.github.io/",
   "inLanguage": "zh-CN",
   "description": "专为软包装外贸人打造的行业英语学习网站，含术语、对话、跟读评测、AI 陪练与外贸实操 SOP。"
 }
@@ -31,9 +42,11 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="theme-color" content="#2563eb">
-<!-- PWA / iOS 自适应：让「添加到主屏」获得独立窗口与状态栏配色。IOS 对 SVG apple-touch-icon 支持有限，正式发布后建议补一张 180×180 PNG。 -->
+<!-- PWA / iOS 自适应：让「添加到主屏」获得独立窗口与状态栏配色。
+     apple-touch-icon 必须是 PNG——iOS 不支持 SVG，用 SVG 时「添加到主屏」会退化成网页截图。
+     该 PNG 由 tools/build-assets.ps1 从 icon.svg 渲染生成。 -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -68,10 +81,12 @@
         <div class="nav-sub">
           <a href="#/speak" data-nav="speak">听说训练（跟读/听写）</a>
           <a href="#/listen" data-nav="listen">辨音 · 最小音对</a>
+          <a href="#/phonemes" data-nav="phonemes">🔤 音素课（41 音素·口型·行业例词）</a>
           <a href="#/eval4" data-nav="eval4">四维口语实战</a>
           <a href="#/sources" data-nav="sources">🎧 真实商务听音源</a>
           <a href="#/subtitle" data-nav="subtitle">📺 字幕逐句点读</a>
           <a href="#/material" data-nav="material">📥 素材投料口（导入任意文章/字幕）</a>
+          <a href="#/mysay" data-nav="mysay">🗣 说我想说（写你想说的话→地道英文）</a>
           <a href="#/speech" data-nav="speech">🎙️ 自由表达分析（说一段·看词汇/流利/语法）</a>
           <a href="#/speaking" data-nav="speaking">📡 口语水平概览（雷达·段位·导出图）</a>
         </div>
@@ -228,6 +243,8 @@
 <script src="js/sources.js"></script>
 <script src="js/subtitle.js"></script>
 <script src="js/material.js"></script>
+<script src="js/mysay.js"></script>
+<script src="js/phonemes.js"></script>
 <script src="js/write.js"></script>
 <script src="js/patterns.js"></script>
 <script src="js/speech.js"></script>

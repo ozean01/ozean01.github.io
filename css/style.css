@@ -889,6 +889,7 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .scen-grid{display:flex;flex-wrap:wrap;gap:10px}
 .scen-chip{padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer;font-size:14px;transition:.15s}
 .scen-chip:hover{border-color:var(--primary);color:var(--primary)}
+.scen-chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
 .ws-feed{margin-top:12px;background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13.5px}
 .kw-hit{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:8px;background:var(--ok-soft);color:#047857;font-size:12.5px}
 .kw-miss{display:inline-block;margin:2px 6px 2px 0;color:var(--muted);font-size:12.5px}
@@ -1410,3 +1411,24 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .st-tip{font-size:12.5px;color:var(--ink);background:var(--primary-soft);border:1px solid #dbeafe;border-radius:8px;padding:7px 10px;margin-top:8px}
 .st-tip em{color:var(--muted);font-style:normal;font-size:11.5px}
 .st-note{color:var(--muted)!important}
+
+/* ============ 🔤 音素课（js/phonemes.js） ============ */
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.ph-card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:13px 15px;transition:.15s}
+.ph-card.open{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
+.ph-top{display:flex;align-items:center;gap:11px}
+.ph-sym{font-size:26px;font-weight:800;line-height:1;color:var(--primary-2);min-width:52px;letter-spacing:.5px}
+.ph-meta{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ph-meta b{font-size:13.5px}
+.ph-type{font-size:11px;color:var(--muted)}
+.ph-count{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.ph-tip{font-size:12.5px;line-height:1.65;color:var(--ink);margin-top:8px}
+.ph-vsrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ph-vs{padding:2px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;font-size:12px;color:var(--muted);transition:.15s}
+.ph-vs:hover{border-color:var(--primary);color:var(--primary)}
+.ph-words{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.ph-word{position:relative;padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer;font-size:12.5px;color:var(--ink);transition:.15s}
+.ph-word:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+.ph-dom{font-size:9px;color:#7c3aed;margin-left:3px;vertical-align:super}
+.ph-ops{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+@media (max-width:520px){.ph-grid{grid-template-columns:1fr}}

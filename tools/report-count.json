@@ -1,10 +1,10 @@
 {
-  "units": 18,
-  "vocab": 748,
-  "ipa": 748,
-  "phrases": 166,
-  "dialogs": 27,
-  "lines": 267,
+  "units": 19,
+  "vocab": 768,
+  "ipa": 768,
+  "phrases": 174,
+  "dialogs": 28,
+  "lines": 278,
   "unitVocab": [
     {
       "id": 1,
@@ -113,6 +113,12 @@
       "title": "合规、客诉与持续改进",
       "vocab": 27,
       "ipa": 27
+    },
+    {
+      "id": 19,
+      "title": "客户会议与产品汇报",
+      "vocab": 20,
+      "ipa": 20
     }
   ]
 }
