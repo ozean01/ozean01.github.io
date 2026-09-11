@@ -187,7 +187,8 @@ check("全新用户错题为「还没有错题」", /还没有错题/.test(s0[4]
 /* ---------------- ⑤ 深链交叉校验：每个 href 都必须是 app.js 里真实注册的路由 ---------------- */
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
 const routeBlob = (appjs.match(/if \(\[([\s\S]*?)\]\.indexOf\(parts\[0\]\)/) || [])[1] || "";
-const ROUTES = (routeBlob.match(/"([a-z]+)"/g) || []).map(function (s) { return s.replace(/"/g, ""); });
+/* [a-z0-9]+：路由含 eval4 这类带数字的标识，用 [a-z]+ 会静默漏掉 */
+const ROUTES = (routeBlob.match(/"([a-z0-9]+)"/g) || []).map(function (s) { return s.replace(/"/g, ""); });
 /* 另有一批路由走单独分支（parts[0] === "unit" / "search"），不在数组里，必须一并收集，
    否则会把合法的 #/unit/N 误判成坏链。 */
 (appjs.match(/parts\[0\] === "([a-z]+)"/g) || []).forEach(function (s) {

@@ -24,7 +24,7 @@ const groups = [];
 const reGroup = /<details class="nav-group" data-group="([a-z]+)">([\s\S]*?)<\/details>/g;
 let g;
 while ((g = reGroup.exec(navBlock)) !== null) {
-  groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z]+"/g) || []).length });
+  groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z0-9]+"/g) || []).length });
 }
 check("导航为 5 个功能分组", groups.length === 5, groups.map(function (x) { return x.id; }).join(", "));
 check("分组为任务维度 course/practice/memory/tools/progress",
@@ -37,7 +37,9 @@ check("「今日」是一级入口（不在任何分组里）", /<a class="nav-h
 
 /* ---------------- ② 导航 ↔ 路由 双向对账 ---------------- */
 const blob = (appjs.match(/if \(\[([\s\S]*?)\]\.indexOf\(parts\[0\]\)/) || [])[1] || "";
-const ROUTES = (blob.match(/"([a-z]+)"/g) || []).map(function (s) { return s.replace(/"/g, ""); });
+/* 用 [a-z0-9]+ 而不是 [a-z]+：路由里存在带数字的标识（eval4）。旧正则会把 eval4
+   在导航与路由【两侧同时漏掉】，双向对账于是"通过"却少算一项——盲点必须堵上。 */
+const ROUTES = (blob.match(/"([a-z0-9]+)"/g) || []).map(function (s) { return s.replace(/"/g, ""); });
 /* 参数化路由（#/unit/N、#/search/x）走单独分支，不在数组里 */
 const PARAM_ROUTES = [];
 (appjs.match(/parts\[0\] === "([a-z]+)"/g) || []).forEach(function (s) {
@@ -49,10 +51,15 @@ check("提取到路由表", ROUTES.length >= 20, "n=" + ROUTES.length);
 
 const NAV = [];
 /* 注意：一级入口是 <a class="nav-home-link" href="#/today">，href 前还有 class，
-   所以正则必须允许 href 前面出现其它属性——只写 <a href= 会漏掉今日与首页。 */
-const reNav = /<a [^>]*href="#\/([a-z]+)"/g;
+   所以正则必须允许 href 前面出现其它属性——只写 <a href= 会漏掉今日与首页。
+   同理字符集要含数字，否则会漏掉 eval4。 */
+const reNav = /<a [^>]*href="#\/([a-z0-9]+)"/g;
 let n;
 while ((n = reNav.exec(navBlock)) !== null) if (NAV.indexOf(n[1]) === -1) NAV.push(n[1]);
+
+/* 盲点回归断言：含数字的路由必须被提取到，否则"没有孤儿"可能只是两边同时漏看 */
+check("提取正则覆盖含数字的路由（eval4）", ROUTES.indexOf("eval4") !== -1 && NAV.indexOf("eval4") !== -1,
+  "routes=" + (ROUTES.indexOf("eval4") !== -1) + " nav=" + (NAV.indexOf("eval4") !== -1));
 
 const noRoute = NAV.filter(function (v) { return ROUTES.indexOf(v) === -1; });
 check("每个导航入口都有对应路由（无孤儿入口）", noRoute.length === 0, noRoute.join(", "));
