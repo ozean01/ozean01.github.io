@@ -270,7 +270,7 @@
     mistFlow: "all",
     mistGrammar: "all",
     mistReveal: false,
-    homeTab: ""            /* 首页用户旅程 Tab：new / study / ops */
+    homeTab: ""            /* 已废弃：首页旅程 Tab 在 P1 移除，字段保留仅为兼容旧进度数据 */
   };
 
   /* ---------------- 搜索索引 ---------------- */
@@ -418,7 +418,7 @@
   var HOME_FAV_KEY = "fte-home-favs";
   var HOME_GOAL_KEY = "fte-home-goal";
   const HOME_ZONES = [
-    { id: "today",    icon: "🎯", title: "今天怎么走", desc: "测起点 · 选目标 · 拿到今天该练什么", href: "#/home", act: "home-tab", tab: "new" },
+    { id: "today",    icon: "🎯", title: "今天怎么走", desc: "打开就知道今天练什么（全站唯一入口）", href: "#/today", act: "", tab: "" },
     { id: "speak",    icon: "🎤", title: "开口说",     desc: "自由表达 · 跟读 · 四维 · AI 陪练 · 辨音", href: "#/speech", act: "" },
     { id: "learn",    icon: "📖", title: "学 · 记",     desc: "19 单元 · 单词卡 · 易错点 · 测验", href: "#/units", act: "" },
     { id: "write",    icon: "✍️", title: "写",          desc: "邮件场景写作 · 句型克隆", href: "#/write", act: "" },
@@ -441,16 +441,8 @@
     const g = HOME_GOALS.find(function (x) { return x.id === homeGoalLoad(); });
     return (g && g.zones) ? g.zones : [];
   }
-  /* 首页「一页式锚点导航」：在页内各区域之间平滑滚动（避免改 hash 触发路由重渲染）。
-     只给出 .hero 之前的顶部条 + 几个主要区域的 id。 */
-  function homeAnchorBarHtml() {
-    return `
-    <div class="home-anchor" role="navigation" aria-label="首页分区锚点">
-      <button data-action="home-anchor" data-target="home-start">🚀 我的第一步</button>
-      <button data-action="home-anchor" data-target="home-map">🗺 全站地图</button>
-      <button data-action="home-anchor" data-target="home-body">📚 学习 / 进度</button>
-    </div>`;
-  }
+  /* 首页「一页式锚点导航」：P1 已移除——首页缩短后不再需要页内锚点条，
+     且它本身就是「多套导航竞争」的一员。 */
   function homeFavsLoad() {
     try { const a = JSON.parse(localStorage.getItem(HOME_FAV_KEY) || "[]"); return Array.isArray(a) ? a : []; }
     catch (e) { return []; }
@@ -469,7 +461,7 @@
     const goalZones = homeGoalZones();
     const goal = HOME_GOALS.find(function (x) { return x.id === goalId; });
     return `
-    <div class="home-zones" id="home-map">
+    <div class="home-zones">
       <div class="home-zones-head"><b>🗺 从这里开始</b><span>全站 6 大区，点任意一块进入；右上角 ⭐ 收藏到常用</span></div>
       <div class="home-goal-filter">
         <span class="hgf-label">按你的目标筛选</span>
@@ -485,7 +477,7 @@
           const hot = goalZones.indexOf(z.id) !== -1;
           const inner = '<div class="z-ic">' + z.icon + '</div><div class="z-body"><b>' + esc(z.title) + '</b><small>' + esc(z.desc) + '</small></div>';
           return '<div class="zone-card' + (hot ? " goal-hot" : "") + '">' +
-            '<a class="zone-link" href="' + z.href + '"' + (z.act ? ' data-action="home-tab" data-tab="' + z.tab + '"' : "") + '>' + inner + '</a>' +
+            '<a class="zone-link" href="' + z.href + '">' + inner + '</a>' +
             '<button class="zone-star' + (isFav ? " on" : "") + '" data-action="home-fav" data-id="' + z.id + '" title="收藏到常用">' + (isFav ? "★" : "☆") + '</button>' +
             '</div>';
         }).join("")}
@@ -504,24 +496,14 @@
         ${favs.map(function (id) {
           const z = HOME_ZONES.find(function (x) { return x.id === id; });
           if (!z) return "";
-          return '<a class="hf-chip" href="' + z.href + '"' + (z.act ? ' data-action="home-tab" data-tab="' + z.tab + '"' : "") + '>' + z.icon + " " + esc(z.title) + '</a>';
+          return '<a class="hf-chip" href="' + z.href + '">' + z.icon + " " + esc(z.title) + '</a>';
         }).join("")}
       </div>
     </div>`;
   }
-  /* 🎯 三步上手向导：把「测水平 → 选目标 → 生成本周看板」串成一条明确起点（新用户/无进度时显示）。
-     步骤即有：测起点(placement) · 选目标(本页目标筛选) · 生成本周看板(board，自动按目标+水平生成)。 */
-  function homeGoalPathHtml() {
-    return `
-    <div class="home-goal-path">
-      <b>🎯 三步上手</b>
-      <ol>
-        <li><a href="#/placement"><b>测水平</b><em>30 秒定位</em></a></li>
-        <li><a href="#/home" data-action="home-anchor" data-target="home-map"><b>选目标</b><em>本页「按目标筛选」选一个</em></a></li>
-        <li><a href="#/board"><b>生成本周看板</b><em>自动按目标+水平排</em></a></li>
-      </ol>
-    </div>`;
-  }
+  /* 🎯 三步上手向导：P1 已移除——「该从哪开始」现在由「🎯 今日」独家回答，
+     保留第二套起点向导正是原设计「九套机制互相竞争」的核心病灶。
+     目标筛选本身仍在：它已收进「🗺 全站地图」折叠区，作为浏览时的辅助，不再抢占起点。 */
   /* ---- 三阶段学习路径：把 16 个单元按能力递进分组，替代纯平铺目录 ---- */
   function pathStagesHtml() {
     const stages = pathStagesData();
@@ -929,30 +911,22 @@
       '<circle cx="23" cy="23" r="' + r + '" fill="none" stroke="var(--primary)" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 23 23)"></circle>' +
       '<text x="23" y="27" text-anchor="middle" font-size="11" font-weight="800" fill="var(--primary)">' + Math.round(pct) + '%</text></svg>';
   }
-  /* 首页「我的第一步」：给首次进入者一个清晰的行动序列（非阻塞、可跳过） */
-  function firstStepHtml(nextUnit) {
-    const id = nextUnit ? nextUnit.id : 1;
-    const title = esc(nextUnit ? nextUnit.title : "第 1 单元");
-    return `
-    <section class="mfs-card" id="home-start" aria-label="我的第一步">
-      <div class="mfs-head"><b>🚀 我的第一步</b><span class="hc-sub">三小步，今天就动起来（随时可跳过，不影响浏览）</span></div>
-      <div class="mfs-steps">
-        <a class="mfs-step" href="#/placement"><span class="mfs-n">1</span><span class="mfs-t"><b>测测起点</b><em>30 秒定位该从哪学</em></span></a>
-        <span class="mfs-arrow" aria-hidden="true">→</span>
-        <a class="mfs-step" href="#/unit/${id}"><span class="mfs-n">2</span><span class="mfs-t"><b>学第 ${id} 单元</b><em>从「${title}」开始</em></span></a>
-        <span class="mfs-arrow" aria-hidden="true">→</span>
-        <a class="mfs-step" href="#/coach"><span class="mfs-n">3</span><span class="mfs-t"><b>今日任务</b><em>10 句句型 + 写 1 篇</em></span></a>
-      </div>
-    </section>`;
-  }
+  /* 首页「我的第一步」：P1 已移除——它的三步（测起点 → 学第 N 单元 → 今日任务）
+     正是「🎯 今日」现在自动生成的内容，且带真实依据。留着就是第二套起点。 */
 
-  function renderHome() {    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });    const nextUnit = firstTodo || DATA.units[0];
+  /* ================= 首页 =================
+     P1 重构：首页从「导航中枢」降级为「全站地图」，不再与「🎯 今日」竞争权威。
+     首屏只让用户做一个决定（去今日）；其余入口收进一个「🗺 全站地图」折叠区。
+     被合并掉的旧机制：锚点条 / 三步上手 / 我的第一步 / 6 大区平铺 + 目标筛选 + 收藏
+     → 全部收进地图折叠；3 个旅程 Tab（新手/学习中/实操）→ 删除，由「今日」按进度自动分流。
+     三阶段学习路径上移为骨架（它本来就对，只是此前被埋在一堆并列机制里）。 */
+  function renderHome() {
+    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });
+    const nextUnit = firstTodo || DATA.units[0];
     const nextPct = unitPct(nextUnit);
     const doneCount = DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
     const donePct = Math.round(doneCount / DATA.units.length * 100);
-    const hasProgress = totalLearned() > 0 || doneCount > 0 ||
-      (progress.flash && Object.keys(progress.flash).length > 0);
-    const active = State.homeTab || (hasProgress ? "study" : "new");   /* 默认按是否有进度分流 */
+    const cs = coachStats();
 
     app.innerHTML = `
     <section class="hero">
@@ -964,90 +938,59 @@
         <span>${icon("bot",16)} AI 口语陪练</span><span>${icon("layers",16)} ${totals.words} 个核心词汇</span><span>${icon("dlg",16)} ${totals.dlg} 段实战对话</span>
       </div>
       <div class="hero-cta">
-        <a class="btn btn-primary" href="#/placement">🎯 测测起点 · 告诉我该从哪学 →</a>
-        <a class="btn btn-ghost" href="#/unit/${nextUnit.id}">${doneCount === DATA.units.length ? "复习课程" : "直接开始：第 " + nextUnit.id + " 单元"} →</a>
+        <a class="btn btn-primary" href="#/today">▶ 开始今天的学习 →</a>
       </div>
+      <p class="hero-sub">不知道练什么就直接点上面——「今日」已经替你排好今天的五步。想自己挑，展开下面的 <button class="linklike" data-action="home-open-map">🗺 全站地图</button>。</p>
     </section>
 
-    <section class="stats-row">
-      <div class="stat-card"><div class="stat-ic">${icon("words")}</div><div class="num">${totals.words}</div><div class="lbl">核心词汇</div></div>
-      <div class="stat-card"><div class="stat-ic">${icon("phrases")}</div><div class="num">${totals.phrases}</div><div class="lbl">常用短语</div></div>
-      <div class="stat-card"><div class="stat-ic">${icon("dlg")}</div><div class="num">${totals.dlg}</div><div class="lbl">场景对话</div></div>
-      <div class="stat-card"><div class="stat-ic">${icon("lines")}</div><div class="num">${totals.lines}</div><div class="lbl">对话语句</div></div>
-      <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${coachStats().streak}</div><div class="lbl">连续打卡(天) · 今天 ${coachStats().today} 分 <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
+    <section class="stats-row stats-row-3">
+      <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${cs.streak}</div><div class="lbl">连续打卡(天) · 今天 ${cs.today} 分 <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
       <div class="stat-card stat-p"><div class="stat-ic">${ringHtml(donePct)}</div><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
       <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
     </section>
 
-    ${homeAnchorBarHtml()}
-
-    ${hasProgress ? "" : homeGoalPathHtml()}
-
-    ${homeFavsRowHtml()}
-    ${homeZonesHtml()}
-
-    ${firstStepHtml(nextUnit)}
-
-    <div id="home-body">
-    ${homeTabBarHtml(active)}
-
-    ${active === "new" ? homeTabNewHtml() : ""}
-    ${active === "study" ? homeTabStudyHtml(nextUnit, nextPct, doneCount) : ""}
-    ${active === "ops" ? homeTabOpsHtml() : ""}
-    </div>
-    `;
-  }
-
-  /* 首页用户旅程 Tab 栏：把 13 块内容按「你是谁/在哪一步」分流，首屏只露当前所需 */
-  function homeTabBarHtml(active) {
-    return `
-    <div class="tabs home-tabs" role="tablist">
-      <button class="tab ${active === "new" ? "active" : ""}" data-action="home-tab" data-tab="new" role="tab">🆕 新手 · 从零学起</button>
-      <button class="tab ${active === "study" ? "active" : ""}" data-action="home-tab" data-tab="study" role="tab">📚 学习中 · 我的进度</button>
-      <button class="tab ${active === "ops" ? "active" : ""}" data-action="home-tab" data-tab="ops" role="tab">🧭 实操 · 外贸流程</button>
-    </div>
-    <div class="home-tabpanel" role="tabpanel">
-      ${active === "new" ? '<p class="home-tab-hint">已按从易到难排好。先用上面「🎯 测起点」定位，或直接顺着下方路径学。</p>' : ""}
-      ${active === "study" ? '<p class="home-tab-hint">这里聚焦你的进度与需要复习的内容，远离无关选项。</p>' : ""}
-      ${active === "ops" ? '<p class="home-tab-hint">订单确认后怎么走？用下方清单自查，并补齐配套的英文表达。</p>' : ""}
-    </div>`;
-  }
-
-  /* Tab ① 新手 · 从零学起：学习路径 + 开首几课 + 会用到的工具 */
-  function homeTabNewHtml() {
-    return `
-    <h3 class="section-title">📚 学习路径 <span class="sub">按顺序学习 · 分三阶段递进 · 每单元标注相对难度 · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
+    <h3 class="section-title" id="home-body">📚 学习路径 <span class="sub">按顺序学 · 三阶段递进 · 每单元标注相对难度 · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
     ${pathStagesHtml()}
-    <h3 class="section-title">🚀 从第 1 单元开始 <span class="sub">先学这几课，再<strong> <a href="#/units" style="color:var(--primary)">查看全部 ${DATA.units.length} 单元 →</a></strong></span></h3>
-    ${unitCardsByIdsHtml([1, 2, 3, 4])}
-    <details class="home-collapse">
-      <summary><b>✨ 你可能会用到</b><span class="hc-sub">AI 陪练 · 听说 · 单词卡 · SOP · 测验（点开查看工具）</span></summary>
-      <div class="hc-body">${featureCardsHtml()}</div>
+
+    ${coachBannerHtml()}
+    ${currentProgressCardHtml(nextUnit, nextPct, doneCount)}
+    ${homeDataCollapseHtml()}
+
+    ${sopBannerHtml()}
+
+    <details class="home-collapse home-map-box" id="home-map">
+      <summary><b>🗺 全站地图</b><span class="hc-sub">6 大区 · 按工作目标筛选 · ⭐收藏常用 · 功能亮点（点开查看）</span></summary>
+      <div class="hc-body">
+        ${homeFavsRowHtml()}
+        ${homeZonesHtml()}
+        <h3 class="section-title" style="margin-top:20px">✨ 功能亮点 <span class="sub">有哪些工具可以上手</span></h3>
+        ${featureCardsHtml()}
+      </div>
     </details>
     `;
   }
 
-  /* Tab ② 学习中 · 我的进度：当前进度 + 需要复习的内容 + 全部单元 */
-  function homeTabStudyHtml(nextUnit, nextPct, doneCount) {
+  /* 首页用户旅程 Tab 栏 + 三个 Tab 面板：P1 已整体移除。
+     它们存在的意义是「按你是谁分流」，而这件事现在由「🎯 今日」自动完成
+     （按真实进度生成当天清单），再让用户手选一次身份就是第三套分类法。
+     三个面板的内容去向：
+       · 新手面板的三阶段路径 → 上移为首页骨架（renderHome 直接调用 pathStagesHtml）
+       · 学习中面板的趋势/周回顾/数据折叠 → 并入 homeDataCollapseHtml()
+       · 实操面板的 SOP 横幅 → renderHome 直接调用 sopBannerHtml()
+     另：「从第 1 单元开始」的四张卡与「全部单元」网格都已删除——三阶段路径的
+     ps-chip 已完整列出全部 19 个单元，重复列表既是冗余也是「菜单多」的来源。 */
+
+  /* 「我的进度数据」可折叠面板：把趋势 / 本周回顾 / 掌握度 / 保持率 / 高频词 / 四维口语
+     这几个数据仪表盘收纳起来，默认折叠，要看数据的人再展开——减少无关认知负荷。
+     （P1：原「学习中」Tab 的内容并入此处，Tab 本身已删除。） */
+  function homeDataCollapseHtml() {
     const trend = renderTrendHtml();
     return `
-    ${coachBannerHtml()}
-    ${currentProgressCardHtml(nextUnit, nextPct, doneCount)}
-    ${trend ? '<h3 class="section-title">📈 学习趋势 <span class="sub">保持率 · 最近走势</span></h3>' + trend : ""}
-    ${weekReviewHtml()}
-    ${homeDataCollapseHtml()}
-    <h3 class="section-title">📚 全部单元</h3>
-    <div class="grid grid-3">${DATA.units.map(unitCardHtml).join("")}</div>
-    `;
-  }
-
-  /* 「学习数据」可折叠面板：把掌握度 / 保持率 / 高频词这几个数据仪表盘收纳起来，
-     默认折叠，需要看数据的人再展开 —— 减少无关认知负荷、避免长长一面墙。 */
-  function homeDataCollapseHtml() {
-    return `
     <details class="home-collapse">
-      <summary><b>📊 学习数据</b><span class="hc-sub">单元掌握度 · 记忆保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
+      <summary><b>📊 我的进度数据</b><span class="hc-sub">学习趋势 · 本周回顾 · 单元掌握度 · 记忆保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
       <div class="hc-body">
+        ${trend ? '<h3 class="section-title">📈 学习趋势 <span class="sub">保持率 · 最近走势</span></h3>' + trend : ""}
+        ${weekReviewHtml()}
         ${masteryBlockHtml()}
         ${freqRepeatHtml()}
         ${atRiskWordsHtml()}
@@ -1057,24 +1000,11 @@
     </details>`;
   }
 
-  /* Tab ③ 实操 · 外贸流程：SOP 清单 + 实操/单证衔接单元 */
-  function homeTabOpsHtml() {
-    return `
-    ${sopBannerHtml()}
-    <h3 class="section-title">🧭 实操衔接单元 <span class="sub">走完 SOP 后，把单证 / 海运 / 报价 / 合规的英文也吃透 · <a href="#/sop" style="color:var(--primary);font-weight:700">进入 SOP →</a></span></h3>
-    ${unitCardsByIdsHtml([11, 12, 13, 14, 15, 16])}
-    `;
-  }
+  /* Tab ③ 实操面板 + 按 id 渲染单元卡的辅助函数：P1 已移除。
+     实操入口保留为首页的 sopBannerHtml()（一屏一决策，不必再并排一张单元子集网格）；
+     「实操衔接单元 U11–U16」的引导已包含在三阶段路径的第三阶段里。 */
 
-  /* 按 id 列表渲染单元卡（首页不同 Tab 只展示相关子集，避免全平铺） */
-  function unitCardsByIdsHtml(ids) {
-    return `<div class="grid grid-3">${ids.map(function (id) {
-      const u = DATA.units.find(function (x) { return x.id === id; });
-      return u ? unitCardHtml(u) : "";
-    }).join("")}</div>`;
-  }
-
-  /* 当前进度卡（学习中 Tab 主行动） */
+  /* 当前进度卡（首页主行动：接着学 / 复习） */
   function currentProgressCardHtml(nextUnit, nextPct, doneCount) {
     return `
     <div class="card" style="margin-top:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -2899,10 +2829,15 @@
         State.unitTab = el.getAttribute("data-tab");
         renderRoute();
         break;
-      case "home-tab":
-        State.homeTab = el.getAttribute("data-tab");
-        renderRoute();
+      case "home-open-map": {
+        /* hero 里的「🗺 全站地图」按钮：展开折叠区并滚过去（折叠状态下直接锚点跳转看不到内容） */
+        const box = document.getElementById("home-map");
+        if (box) {
+          if (box.tagName === "DETAILS") box.open = true;
+          box.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
         break;
+      }
       case "home-fav":
         homeFavToggle(el.getAttribute("data-id"));
         break;

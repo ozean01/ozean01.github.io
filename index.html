@@ -66,53 +66,57 @@
       <span class="brand-badge">🌐</span>
       <span class="brand-text">软包装外贸英语<span class="brand-sub">Soft Packaging Foreign Trade English</span></span>
     </a>
+    <!-- 导航按【同一个维度】分组：学课程（输入）/ 练口语（输出）/ 记与测（记忆与产出）/
+         工具箱（辅助页面）/ 我的进步（数据与打卡）。
+         此前混用了四个维度（技能·业务·技术手段·学习阶段），用户建立不起统一心智模型，
+         故「开始学习」里的看板归入工具箱、「AI 陪练」这个技术手段分组解散并入练口语。 -->
     <nav class="main-nav" id="mainNav">
       <a class="nav-home-link" href="#/today" data-nav="today">🎯 今日</a>
       <a class="nav-home-link" href="#/home" data-nav="home">🏠 首页</a>
-      <details class="nav-group" data-group="start" open>
-        <summary>🚀<span class="ng-name">开始学习</span></summary>
+      <details class="nav-group" data-group="course">
+        <summary>📚<span class="ng-name">学课程</span></summary>
         <div class="nav-sub">
           <a href="#/placement" data-nav="placement">🎯 测起点 · 该从哪学</a>
           <a href="#/units" data-nav="units">📚 按路径学 · 19 单元</a>
-          <a href="#/board" data-nav="board">🗂 本周学习看板</a>
         </div>
       </details>
-      <details class="nav-group" data-group="speak">
-        <summary>🎤<span class="ng-name">口语听说</span></summary>
+      <details class="nav-group" data-group="practice">
+        <summary>🎤<span class="ng-name">练口语</span></summary>
         <div class="nav-sub">
           <a href="#/speak" data-nav="speak">听说训练（跟读/听写）</a>
-          <a href="#/listen" data-nav="listen">辨音 · 最小音对</a>
-          <a href="#/phonemes" data-nav="phonemes">🔤 音素课（41 音素·口型·行业例词）</a>
           <a href="#/eval4" data-nav="eval4">四维口语实战</a>
-          <a href="#/sources" data-nav="sources">🎧 真实商务听音源</a>
-          <a href="#/subtitle" data-nav="subtitle">📺 字幕逐句点读</a>
-          <a href="#/material" data-nav="material">📥 素材投料口（导入任意文章/字幕）</a>
-          <a href="#/mysay" data-nav="mysay">🗣 说我想说（写你想说的话→地道英文）</a>
           <a href="#/speech" data-nav="speech">🎙️ 自由表达分析（说一段·看词汇/流利/语法）</a>
-          <a href="#/speaking" data-nav="speaking">📡 口语水平概览（雷达·段位·导出图）</a>
+          <a href="#/tutor" data-nav="tutor">🤖 AI 对练</a>
+          <a href="#/phonemes" data-nav="phonemes">🔤 音素课（41 音素·口型·行业例词）</a>
+          <a href="#/listen" data-nav="listen">辨音 · 最小音对</a>
         </div>
       </details>
-      <details class="nav-group" data-group="sop">
-        <summary>🧭<span class="ng-name">外贸实操</span></summary>
+      <details class="nav-group" data-group="memory">
+        <summary>🃏<span class="ng-name">记与测</span></summary>
         <div class="nav-sub">
-          <a href="#/sop" data-nav="sop">实操 SOP 与工具</a>
-        </div>
-      </details>
-      <details class="nav-group" data-group="tutor">
-        <summary>🤖<span class="ng-name">AI 陪练</span></summary>
-        <div class="nav-sub">
-          <a href="#/tutor" data-nav="tutor">AI 对练</a>
-          <a href="#/coach" data-nav="coach">⚙️ 计划 · 打卡 · 手册</a>
-        </div>
-      </details>
-      <details class="nav-group" data-group="mem">
-        <summary>🃏<span class="ng-name">记忆与测验</span></summary>
-        <div class="nav-sub">
-          <a href="#/flash" data-nav="flash">记忆单词卡</a>
+          <a href="#/flash" data-nav="flash">记忆单词卡（FSRS）</a>
           <a href="#/quiz" data-nav="quiz">智能测验</a>
           <a href="#/write" data-nav="write">✍️ 写作专区（邮件场景）</a>
           <a href="#/patterns" data-nav="patterns">🧩 句型克隆库</a>
           <a href="#/mistakes" data-nav="mistakes">⚠️ 高频易错点</a>
+        </div>
+      </details>
+      <details class="nav-group" data-group="tools">
+        <summary>🧰<span class="ng-name">工具箱</span></summary>
+        <div class="nav-sub">
+          <a href="#/sop" data-nav="sop">🧭 外贸实操 SOP 与工具</a>
+          <a href="#/board" data-nav="board">🗂 本周学习看板</a>
+          <a href="#/mysay" data-nav="mysay">🗣 说我想说（写你想说的话→地道英文）</a>
+          <a href="#/material" data-nav="material">📥 素材投料口（导入任意文章/字幕）</a>
+          <a href="#/subtitle" data-nav="subtitle">📺 字幕逐句点读</a>
+          <a href="#/sources" data-nav="sources">🎧 真实商务听音源</a>
+        </div>
+      </details>
+      <details class="nav-group" data-group="progress">
+        <summary>📈<span class="ng-name">我的进步</span></summary>
+        <div class="nav-sub">
+          <a href="#/speaking" data-nav="speaking">📡 口语水平概览（雷达·段位·导出图）</a>
+          <a href="#/coach" data-nav="coach">⚙️ 计划 · 打卡 · 手册</a>
         </div>
       </details>
     </nav>
@@ -138,7 +142,7 @@
   <div class="container footer-inner">
     <div>
       <strong>软包装外贸英语</strong>
-      <span class="footer-ver">v1.9 · 纯静态站点 · 无需服务器</span>
+      <span class="footer-ver">v2.0 · 纯静态站点 · 无需服务器</span>
       <p>你的学习数据只保存在本浏览器（localStorage），不会上传到本站任何服务器。使用第三方发音 / 语音识别 / AI 陪练接口时，相关语音与文本会发送到对应服务商（详见设置页各接口说明）。</p>
     </div>
     <div class="footer-tips">
