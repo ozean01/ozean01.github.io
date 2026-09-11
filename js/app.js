@@ -63,6 +63,7 @@
   _need("素材投料口 material.js", !!window.MaterialImport);
   _need("说我想说 mysay.js", !!window.MySay);
   _need("今日 today.js", !!window.Today);
+  _need("场景急救 urgent.js", !!window.Urgent);
   _need("音素课 phonemes.js", !!window.Phonemes);
   _need("写作专区 write.js", !!window.WriteStudio);
   _need("句型库 patterns.js", !!window.Patterns);

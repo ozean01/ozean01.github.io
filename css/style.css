@@ -1529,3 +1529,47 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .wk-mk{flex:0 0 auto}
 .wk-t{flex:1;min-width:0}
 .wk-min{font-size:11.5px;color:var(--muted);white-space:nowrap}
+
+/* ============ 🚨 场景急救（js/urgent.js，挂在「今日」页内） ============ */
+.urg{margin:16px 0 4px;border:1px solid #fecaca;border-radius:12px;background:#fff7f7;padding:12px 16px}
+.urg[open]{background:var(--card)}
+.urg summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.urg summary::-webkit-details-marker{display:none}
+.urg summary b{font-size:14.5px;color:#b91c1c}
+.urg-sub{font-size:12px;color:var(--muted)}
+.urg-body{margin-top:12px}
+.urg-sec{font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 7px}
+.urg-sec:first-child{margin-top:0}
+.urg-chips,.urg-recent{display:flex;flex-wrap:wrap;gap:8px}
+.urg-chip{padding:7px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);
+          cursor:pointer;font-size:13px;transition:.15s}
+.urg-chip:hover{border-color:#b91c1c;color:#b91c1c}
+.urg-chip.on{background:#b91c1c;border-color:#b91c1c;color:#fff}
+.urg-chip.mini{font-size:12px;padding:5px 10px}
+.urg-input{display:flex;gap:8px;flex-wrap:wrap}
+.urg-input input{flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;outline:none}
+.urg-res{margin-top:14px;border:1px solid var(--line);border-radius:11px;background:var(--card);padding:13px 15px}
+.urg-res-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:9px;border-bottom:1px dashed var(--line)}
+.urg-res-head b{font-size:14.5px}
+.urg-hint{font-size:12px;color:var(--muted)}
+.urg-line{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.urg-line:last-of-type{border-bottom:none}
+.urg-n{width:22px;height:22px;flex:0 0 auto;border-radius:50%;background:#fee2e2;color:#b91c1c;
+       display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.urg-l-main{flex:1;min-width:0}
+.urg-en{font-size:14.5px;font-weight:600;line-height:1.5}
+.urg-cn{font-size:12.5px;color:var(--muted);margin-top:3px}
+.urg-copy{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 4px}
+.urg-copy:hover{color:var(--primary)}
+.urg-terms{display:flex;flex-wrap:wrap;gap:6px}
+.urg-term{padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);
+          cursor:pointer;font-size:12.5px;transition:.15s}
+.urg-term:hover{border-color:var(--primary);color:var(--primary)}
+.urg-dom{font-size:9px;color:#7c3aed;margin-left:3px;vertical-align:super}
+.urg-next-row{display:flex;gap:9px;flex-wrap:wrap}
+.urg-next{padding:7px 13px;border:1px solid var(--primary);border-radius:9px;background:var(--primary-soft);
+          color:var(--primary);font-size:13px;font-weight:600;text-decoration:none}
+.urg-next:hover{background:var(--primary);color:#fff}
+.urg-next.ghost{border-color:var(--line);background:var(--card);color:var(--muted);font-weight:400}
+.urg-ai-wrap{margin-top:12px}
+.urg-ai{margin-top:8px;background:var(--surface-2);border-radius:9px;padding:10px 12px;font-size:13.5px;line-height:1.7;white-space:pre-wrap}
