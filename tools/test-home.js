@@ -106,5 +106,39 @@ check("新增样式已定义",
   /\.hero-sub\{/.test(style) && /\.linklike\{/.test(style) &&
   /\.stats-row-3\{/.test(style) && /\.home-map-box\{/.test(style));
 
+/* ---------------- ⑥ P2：完成度口径 + 个人化接线 ---------------- */
+check("定义了 UNIT_DONE_PCT = 80", /const UNIT_DONE_PCT = 80;/.test(appjs));
+check("完成判定收敛到 unitDone()", /function unitDone\(u\) \{/.test(appjs));
+check("unitDone 同时接受手动标记", /progress\.done\[u\.id\] \|\| unitPct\(u\) >= UNIT_DONE_PCT/.test(appjs));
+
+/* 旧的「词汇 100% 才算完成」不应再出现在完成判定里。
+   注意排除 sopBannerHtml：那是「实操清单完成度」，用 100% 是对的，与单元完成无关。 */
+const staleUnitDone = appjs.match(/unitPct\([a-z]+\) === 100/g) || [];
+check("完成判定里不再残留「词汇 100%」口径", staleUnitDone.length === 0, staleUnitDone.join(", "));
+
+const sopFn = (appjs.match(/function sopBannerHtml\(\)[\s\S]*?\n  \}/) || [])[0] || "";
+const pctFullAll = (appjs.match(/pct === 100 \? "full"/g) || []).length;
+const pctFullSop = (sopFn.match(/pct === 100 \? "full"/g) || []).length;
+check("进度条 full 判定只剩 SOP 清单那一处（其余已改用 done 判定）",
+  pctFullAll === pctFullSop && pctFullSop >= 1,
+  "全文 " + pctFullAll + " 处 / SOP 内 " + pctFullSop + " 处");
+
+/* STAGE_DONE_N 必须与 STAGE_DEFS 条数一致：markStage 存的是 idx+1，两处一旦脱钩，
+   「五阶段走完」的判定就会整体偏移一个阶段（这正是原先 >= 4 的错） */
+const stageDefs = (appjs.match(/const STAGE_DEFS = \[([\s\S]*?)\];/) || [])[1] || "";
+const stageCount = (stageDefs.match(/\{ k: "/g) || []).length;
+const stageDoneN = parseInt((appjs.match(/const STAGE_DONE_N = (\d+);/) || [])[1], 10);
+check("STAGE_DONE_N 与 STAGE_DEFS 条数一致", stageCount > 0 && stageDoneN === stageCount,
+  "STAGE_DEFS=" + stageCount + "  STAGE_DONE_N=" + stageDoneN);
+check("阶段完成判定已改用 STAGE_DONE_N（不再硬编码 4）", /stageDone >= STAGE_DONE_N/.test(appjs));
+
+check("FTE_BOOT 暴露 unitDone", /unitDone: unitDone/.test(appjs));
+check("FTE_BOOT 暴露 unitStageDone", /unitStageDone: unitStageDone/.test(appjs));
+check("FTE_BOOT 暴露 placementUnit（水平自测起点）", /placementUnit: function \(\)/.test(appjs));
+check("FTE_BOOT 暴露 homeGoalLoad（工作目标）", /homeGoalLoad: homeGoalLoad/.test(appjs));
+check("单元卡显示跟读维度", /class="uc-stage/.test(appjs));
+check("unitDone 用于路径/首页/单元页/目录", (appjs.match(/unitDone\(/g) || []).length >= 5,
+  (appjs.match(/unitDone\(/g) || []).length + " 处");
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

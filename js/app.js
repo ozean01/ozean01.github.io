@@ -179,7 +179,7 @@
     return n ? sum / n : null;
   }
   function doneUnitCount() {
-    return DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
+    return DATA.units.filter(unitDone).length;
   }
   function recordSnapshot() {
     const now = Date.now();
@@ -244,6 +244,30 @@
   }
   function unitLearned(u) { return unitWords(u).filter(function (w) { return progress.learned[w.id]; }).length; }
   function unitPct(u) { return Math.round(unitLearned(u) / Math.max(1, u.vocab.length) * 100); }
+
+  /* ---- 单元「完成」的定义（P2）----
+     旧口径是「词汇 100%」——U11 有 201 个专业词，实际几乎不可能达成，于是「完成度」
+     这个指标形同虚设：认真学完一个单元，进度条仍显示未完成，看板/路径/首页全部不推进。
+     新口径：掌握达 UNIT_DONE_PCT 即算完成（或手动标记完成）。
+     跟读进度不设为硬门槛（否则从不走「五阶段闯关」的用户永远无法完成），
+     只作为并列显示的补充指标 + 提示。 */
+  const UNIT_DONE_PCT = 80;
+  /* 五阶段闯关「全部走完」的阈值：markStage 存的是 idx+1，最后一个阶段（完成）落在 5。
+     必须与下方 STAGE_DEFS 的条数一致（test-home.js 里有断言守住这个耦合）。 */
+  const STAGE_DONE_N = 5;
+  function unitDone(u) {
+    return !!progress.done[u.id] || unitPct(u) >= UNIT_DONE_PCT;
+  }
+  /* 该单元已有几段对话把五阶段闯关走完（progress.stage 的 key 是「单元id-对话序号」） */
+  function stageCleared(u, dlgIdx) {
+    return ((progress.stage || {})[u.id + "-" + dlgIdx] || 0) >= STAGE_DONE_N;
+  }
+  function unitStageDone(u) {
+    const d = u.dialogues || [];
+    let n = 0;
+    for (let i = 0; i < d.length; i++) if (stageCleared(u, i)) n++;
+    return n;
+  }
   function getUnit(id) { return DATA.units.find(function (u) { return u.id === id; }) || DATA.units[0]; }
   function totalLearned() { return Object.keys(progress.learned).length; }
 
@@ -509,7 +533,7 @@
     const stages = pathStagesData();
     const html = stages.map(function (s) {
       const units = DATA.units.filter(function (u) { return s.ids.indexOf(u.id) !== -1; });
-      const done = units.filter(function (u) { return unitPct(u) >= 100; }).length;
+      const done = units.filter(unitDone).length;
       const pct = units.length ? Math.round(done / units.length * 100) : 0;
       return `<div class="path-stage">
         <div class="ps-head"><span class="ps-emo">${s.emoji}</span><b>${s.name}</b>
@@ -520,7 +544,7 @@
           return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) +
             (du ? '<em class="ps-d">' + esc(du.band) + '</em>' : "") + '</a>';
         }).join("")}</div>
-        <div class="progressbar" style="max-width:240px;margin-top:8px"><i class="${pct === 100 ? "full" : ""}" style="width:${pct}%"></i></div>
+        <div class="progressbar" style="max-width:240px;margin-top:8px"><i class="${done === units.length ? "full" : ""}" style="width:${pct}%"></i></div>
       </div>`;
     }).join("");
     return `<div class="path-stages">${html}</div>`;
@@ -539,7 +563,7 @@
       </div>`;
     }).join("");
     return `
-    <h3 class="section-title">📊 单元掌握度 <span class="sub">每单元已掌握词汇占比 ● 100% 即完成</span></h3>
+    <h3 class="section-title">📊 单元掌握度 <span class="sub">每单元已掌握词汇占比 ● 掌握 ${UNIT_DONE_PCT}% 即算完成</span></h3>
     <div class="card mastery-wrap">
       ${rows}
     </div>`;
@@ -921,10 +945,10 @@
      → 全部收进地图折叠；3 个旅程 Tab（新手/学习中/实操）→ 删除，由「今日」按进度自动分流。
      三阶段学习路径上移为骨架（它本来就对，只是此前被埋在一堆并列机制里）。 */
   function renderHome() {
-    const firstTodo = DATA.units.find(function (u) { return unitPct(u) < 100; });
+    const firstTodo = DATA.units.find(function (u) { return !unitDone(u); });
     const nextUnit = firstTodo || DATA.units[0];
     const nextPct = unitPct(nextUnit);
-    const doneCount = DATA.units.filter(function (u) { return progress.done[u.id] || unitPct(u) === 100; }).length;
+    const doneCount = DATA.units.filter(unitDone).length;
     const donePct = Math.round(doneCount / DATA.units.length * 100);
     const cs = coachStats();
 
@@ -1094,8 +1118,10 @@
 
   function unitCardHtml(u) {
     const pct = unitPct(u);
-    const done = progress.done[u.id] || pct === 100;
+    const done = unitDone(u);
     const du = unitDifficulty(u);
+    const dlgN = (u.dialogues || []).length;
+    const stageN = unitStageDone(u);
     const diffHtml = du
       ? '<span class="badge uc-diff" title="难度（可由水平自测校准）。平均 CEFR ' + cefrLabel(du.avgCefr) +
         ' · 平均每句 ' + du.wordsPerSentence + ' 词 · 可读性 Flesch ' + du.flesch +
@@ -1114,10 +1140,12 @@
       ${du ? '<div class="uc-diffline">' + diffHtml +
         '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
       <div class="uc-meta">
-        <div class="progressbar"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
+        <div class="progressbar" title="已掌握词汇占比。掌握 ${UNIT_DONE_PCT}% 即算本单元完成"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
         ${done ? '<span class="badge badge-ok">✓ 已完成</span>' : (pct === 0 ? '<span class="badge badge-muted">从这里开始</span>' : '<span class="badge badge-muted">继续学习</span>')}
       </div>
+      ${dlgN ? '<div class="uc-stage' + (stageN ? " on" : "") + '">🎤 跟读：' + stageN + " / " + dlgN + " 段对话走完五阶段" +
+        (!done && stageN === 0 ? "（建议至少练 1 段再算学完）" : "") + "</div>" : ""}
     </a>`;
   }
 
@@ -1244,7 +1272,7 @@
     const u = getUnit(route.id);
     const tab = State.unitTab;
     const pct = unitPct(u);
-    const done = progress.done[u.id] || pct === 100;
+    const done = unitDone(u);
     const hl = State.pendingHl;
     const words = unitWords(u);
     const learnedN = unitLearned(u);
@@ -1304,8 +1332,7 @@
       <aside class="sidebar">
         <h4>课程目录</h4>
         ${DATA.units.map(function (x) {
-          const xp = unitPct(x);
-          const xdone = progress.done[x.id] || xp === 100;
+          const xdone = unitDone(x);
           return '<a href="#/unit/' + x.id + '" class="' + (x.id === u.id ? "active" : "") + '">' +
             '<span class="num">' + String(x.id).padStart(2, "0") + '</span> ' + esc(x.title) +
             (xdone ? '<span class="done">✅</span>' : "") + '</a>';
@@ -2240,7 +2267,9 @@
     /* 可选的阶段提示词 + 进度 */
     const KEY = s.unit.id + "-" + s.dlgIdx;
     const stageDone = (progress.stage || {})[KEY] || 0;
-    if (stageDone >= 4) out += '<div class="stage-note">✅ 本段对话五阶段已全部完成过。</div>';
+    /* 修正：原先写 >= 4，但 markStage 存的是 idx+1（最后一个阶段落在 5），
+       所以「走到复述」就会被判成「五阶段全部完成」。改用 STAGE_DONE_N。 */
+    if (stageDone >= STAGE_DONE_N) out += '<div class="stage-note">✅ 本段对话五阶段已全部完成过。</div>';
     return out;
   }
 
@@ -3916,12 +3945,24 @@
        （词汇掌握度 / 打卡统计 / 阶段划分都在这里，绕开它们会出现两套不一致的数字）。 */
     coachStats: coachStats,
     unitPct: unitPct,
+    unitDone: unitDone,
+    unitStageDone: unitStageDone,
     unitLearned: unitLearned,
     unitWords: unitWords,
     totalLearned: totalLearned,
     getUnit: getUnit,
     pathStagesData: pathStagesData,
-    coachToday: coachToday
+    coachToday: coachToday,
+    /* 「今日」用它把用户选的「工作目标」纳入当天清单生成（原先只有首页的目标筛选在用） */
+    homeGoalLoad: homeGoalLoad,
+    homeGoals: function () { return HOME_GOALS; },
+    /* 水平自测推荐的起点单元（#/placement 写入）。键名知识留在本文件，
+       外部模块不直接碰 localStorage 的具体 key。 */
+    placementUnit: function () {
+      try { const v = parseInt(localStorage.getItem("fte-placement"), 10); return v >= 1 ? v : null; }
+      catch (e) { return null; }
+    },
+    UNIT_DONE_PCT: UNIT_DONE_PCT
   };
 
   window.addEventListener("hashchange", renderRoute);

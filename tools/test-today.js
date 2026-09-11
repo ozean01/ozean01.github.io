@@ -57,7 +57,10 @@ global.localStorage = {
 
 let PROGRESS = freshProgress();
 let GOAL = { patterns: { done: 0, target: 10 }, write: { done: 0, target: 1 } };
+let PLACEMENT = null;          /* 水平自测推荐的起点单元 */
+let GOAL_ID = "all";           /* 工作目标 id */
 const CREDITED = [];
+const pctOf = function (u) { return u.id === 1 ? 40 : 0; };
 
 global.window = {
   scrollTo: function () { },
@@ -73,7 +76,14 @@ global.window = {
     },
     unitWords: function (u) { return u.vocab || []; },
     unitLearned: function () { return 2; },
-    unitPct: function (u) { return u.id === 1 ? 40 : 0; },
+    unitPct: pctOf,
+    /* P2：完成判定改为「掌握 ≥80% 或手动标记」，不再要求 100% */
+    unitDone: function (u) { return !!((PROGRESS.done || {})[u.id]) || pctOf(u) >= 80; },
+    unitStageDone: function () { return 0; },
+    UNIT_DONE_PCT: 80,
+    /* P2 个人化：工作目标 + 水平自测起点 */
+    homeGoalLoad: function () { return GOAL_ID; },
+    placementUnit: function () { return PLACEMENT; },
     totalLearned: function () { return Object.keys(PROGRESS.learned).length; },
     getUnit: function (id) { return UNITS.filter(function (u) { return u.id === id; })[0]; },
     pathStagesData: function () {
@@ -110,7 +120,46 @@ check("时长合计 20 分钟（复用站内 20 分钟模板）",
   steps.reduce(function (a, s) { return a + s.min; }, 0) === 20,
   steps.reduce(function (a, s) { return a + s.min; }, 0) + " 分钟");
 check("第 2 步指向当前（未完成）单元 U1", steps[1].href === "#/unit/1", steps[1].href);
-check("第 2 步依据里带掌握度", /40%/.test(steps[1].why), steps[1].why);
+check("第 2 步依据里带掌握度与完成阈值", /40%/.test(steps[1].why) && /80%/.test(steps[1].why), steps[1].why);
+
+/* ---------------- ③′ P2 个人化：工作目标 + 水平自测起点 ---------------- */
+check("未设目标时第 3 步依据用单元对话数", /段对话可以跟/.test(steps[2].why), steps[2].why);
+check("未设目标时第 4 步依据为自动记账", /自动记账/.test(steps[3].why), steps[3].why);
+
+GOAL_ID = "claim";
+const sg = H.buildSteps();
+check("设了「客诉索赔」目标后第 3 步指向对应场景",
+  /客诉索赔/.test(sg[2].why) && /售后客诉处理/.test(sg[2].why), sg[2].why);
+check("设了目标后第 4 步推荐对应写作场景",
+  /售后客诉 · 复合膜脱层/.test(sg[3].why), sg[3].why);
+check("goalPlan 对未知目标返回 null", (function () { GOAL_ID = "nope"; return H.goalPlan(); })() === null);
+GOAL_ID = "all";
+check("goals 为 all 时不做场景改写", H.goalPlan() === null);
+check("GOAL_PLAN 覆盖首页全部 6 个工作目标",
+  Object.keys(H.GOAL_PLAN).length === 6, Object.keys(H.GOAL_PLAN).join(","));
+
+/* 起点：全新用户 + 做过水平自测 → 不默认从 U1 开始 */
+PROGRESS = { learned: {}, wrong: {}, flash: {}, coach: { streak: 0, today: 0, total: 0 } };
+PLACEMENT = 3;
+const sp = H.buildSteps();
+check("全新用户 + 自测推荐 U3 → 第 2 步指向 U3", sp[1].href === "#/unit/3", sp[1].href);
+check("第 2 步依据说明来自水平自测", /水平自测/.test(sp[1].why), sp[1].why);
+PLACEMENT = null;
+const sp2 = H.buildSteps();
+check("没有自测结果时回落到 U1", sp2[1].href === "#/unit/1", sp2[1].href);
+/* 已有进度的用户不受自测结果影响（进度优先） */
+PROGRESS = progressWithCards();
+PLACEMENT = 3;
+const sp3 = H.buildSteps();
+check("已有进度时忽略自测起点（进度优先）", sp3[1].href === "#/unit/1", sp3[1].href);
+PLACEMENT = null;
+PROGRESS = freshProgress();
+
+/* isNewbie 判定 */
+check("isNewbie 全空为 true", H.isNewbie({ learned: {}, flash: {}, done: {} }) === true);
+check("isNewbie 有词即 false", H.isNewbie({ learned: { "1-0": 1 } }) === false);
+check("isNewbie 有卡即 false", H.isNewbie({ flash: { a: {} } }) === false);
+check("isNewbie 容忍 null", H.isNewbie(null) === true);
 
 /* ---------------- ③ 依据随数据变化 ---------------- */
 PROGRESS = progressWithCards();

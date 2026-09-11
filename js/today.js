@@ -74,6 +74,47 @@
     return null;
   }
 
+  /* ---------------- 工作目标 → 今天的练法（P2 个人化） ----------------
+     用户在首页或看板选过「工作目标」（localStorage fte-home-goal）之前只影响首页高亮，
+     「今日」完全不知道——于是无论目标是什么，当天清单都长一个样。这里把目标接进来：
+     第 3 步（开口）按目标指向对应的实战场景，第 4 步（写作）按目标提示对应场景。 */
+  const GOAL_PLAN = {
+    prospect: { label: "开客户", unit: 2, scene: "展会接待 / 开发新客户", write: "开发信" },
+    quote: { label: "报价议价", unit: 3, scene: "询盘报价", write: "回复询盘 · 报价" },
+    negot: { label: "谈判签约", unit: 5, scene: "商务谈判", write: "商务谈判" },
+    doc: { label: "跟单单证", unit: 12, scene: "物流与货运", write: "装运通知" },
+    claim: { label: "客诉索赔", unit: 9, scene: "售后客诉处理", write: "售后客诉 · 复合膜脱层" },
+    fair: { label: "展会接待", unit: 2, scene: "展会接待", write: "开发信" }
+  };
+  function goalPlan() {
+    const load = E().homeGoalLoad;
+    if (!load) return null;
+    const id = load();
+    return (id && id !== "all" && GOAL_PLAN[id]) ? GOAL_PLAN[id] : null;
+  }
+
+  /* 是否完全没开始过：决定「起点」是沿用进度，还是采用水平自测的推荐单元 */
+  function isNewbie(prog) {
+    return Object.keys((prog && prog.learned) || {}).length === 0 &&
+      Object.keys((prog && prog.flash) || {}).length === 0 &&
+      Object.keys((prog && prog.done) || {}).length === 0;
+  }
+  function startUnit(units, prog) {
+    const boot = E();
+    const doneOf = boot.unitDone || function (u) { return (boot.unitPct ? boot.unitPct(u) : 0) >= 100; };
+    const pending = units.filter(function (u) { return !doneOf(u); });
+    let u = pending[0] || units[units.length - 1] || null;
+    /* 全新用户不默认从 U1 起步：若做过水平自测（#/placement），按它推荐的位置开始 */
+    if (isNewbie(prog) && boot.placementUnit) {
+      const placed = boot.placementUnit();
+      if (placed) {
+        const p = units.filter(function (x) { return x.id === placed; })[0];
+        if (p && !doneOf(p)) u = p;
+      }
+    }
+    return u || { id: 1, title: "第 1 单元", icon: "📘", dialogues: [] };
+  }
+
   /* ---------------- 今天的五个步骤（有序） ----------------
      每步给：序号 / 图标 / 标题 / 预计分钟 / 依据（为什么是它）/ 深链 / 是否可自动判定。 */
   function buildSteps() {
@@ -82,10 +123,12 @@
     const prog = boot.progress || {};
     const pctOf = boot.unitPct || function () { return 0; };
 
-    const nextUnit = units.filter(function (u) { return pctOf(u) < 100; })[0] || units[units.length - 1] ||
-      { id: 1, title: "第 1 单元", icon: "📘", dialogues: [] };
+    const nextUnit = startUnit(units, prog);
     const unitPctVal = pctOf(nextUnit);
     const dlgN = (nextUnit.dialogues || []).length;
+    const fresh = isNewbie(prog);
+    const placed = fresh && boot.placementUnit ? boot.placementUnit() : null;
+    const plan = goalPlan();
 
     const d = countDue(prog);
     const wrongN = Object.keys(prog.wrong || {}).length;
@@ -93,6 +136,8 @@
       ? window.CoachBridge.goal()
       : { write: { done: 0, target: 1 }, patterns: { done: 0, target: 10 } };
     const writeDone = goal.write.done >= goal.write.target;
+    const stageN = boot.unitStageDone ? boot.unitStageDone(nextUnit) : 0;
+    const threshold = boot.UNIT_DONE_PCT || 80;
 
     return [
       {
@@ -103,17 +148,22 @@
       {
         key: "unit", icon: "📖", title: "学第 " + nextUnit.id + " 单元",
         sub: nextUnit.title, min: 5, href: "#/unit/" + nextUnit.id,
-        why: "当前进度停在 U" + nextUnit.id + "（已掌握 " + unitPctVal + "%）",
+        why: (fresh && placed && nextUnit.id === placed)
+          ? ("按你的水平自测结果，从这里开始（U" + placed + "）")
+          : ("当前进度停在 U" + nextUnit.id + "（已掌握 " + unitPctVal + "%，达 " + threshold + "% 即算完成）"),
         auto: false
       },
       {
         key: "speak", icon: "🎤", title: "开口跟读", min: 5, href: "#/speak",
-        why: dlgN > 0 ? ("U" + nextUnit.id + " 有 " + dlgN + " 段对话可以跟") : "用五阶段闯关练一段",
+        why: plan
+          ? ("你的目标「" + plan.label + "」→ 建议练「" + plan.scene + "」场景")
+          : (dlgN > 0 ? ("U" + nextUnit.id + " 有 " + dlgN + " 段对话可以跟" + (stageN > 0 ? "（已闯关 " + stageN + " 段）" : "")) : "用五阶段闯关练一段"),
         auto: false
       },
       {
         key: "write", icon: "✍️", title: "写 1 篇", min: 4, href: "#/write",
-        why: "今日写作 " + goal.write.done + "/" + goal.write.target + "（保存即自动记账）",
+        why: "今日写作 " + goal.write.done + "/" + goal.write.target +
+          (plan ? " · 推荐场景「" + plan.write + "」" : "（保存即自动记账）"),
         auto: true, done: writeDone
       },
       {
@@ -151,11 +201,13 @@
     const doneN = steps.filter(isDone).length;
     const allDone = doneN === steps.length;
 
-    const stageBar = stage
+    const plan = goalPlan();
+    const stageBar = (stage || plan)
       ? '<div class="td-stage">' +
-        '<span class="td-stage-n">' + stage.emoji + " 第 " + stage.idx + " / " + stage.total + " 阶段</span>" +
-        '<b>' + esc(stage.name.replace(/^第[一二三]阶段\s*·\s*/, "")) + "</b>" +
-        '<span class="td-stage-d">' + esc(stage.desc) + "</span>" +
+        (stage ? '<span class="td-stage-n">' + stage.emoji + " 第 " + stage.idx + " / " + stage.total + " 阶段</span>" +
+          '<b>' + esc(stage.name.replace(/^第[一二三]阶段\s*·\s*/, "")) + "</b>" : "") +
+        (plan ? '<span class="td-goal" title="在首页「🗺 全站地图 → 按你的目标筛选」里修改">🎯 目标：' + esc(plan.label) + "</span>" : "") +
+        '<span class="td-stage-d">' + esc(stage ? stage.desc : "") + "</span>" +
         "</div>"
       : "";
 
@@ -244,5 +296,8 @@
   });
 
   /* 供自动化测试/诊断使用（不影响运行时）。放在文件末尾：避免 const 的 TDZ。 */
-  window.Today._t = { buildSteps: buildSteps, countDue: countDue, stageOf: stageOf, todayStr: todayStr, totalMin: totalMin };
+  window.Today._t = {
+    buildSteps: buildSteps, countDue: countDue, stageOf: stageOf, todayStr: todayStr, totalMin: totalMin,
+    goalPlan: goalPlan, startUnit: startUnit, isNewbie: isNewbie, GOAL_PLAN: GOAL_PLAN
+  };
 })();

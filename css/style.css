@@ -1439,6 +1439,8 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .td-stage-n{font-size:12px;font-weight:800;color:var(--primary-2);white-space:nowrap}
 .td-stage b{font-size:14px}
 .td-stage-d{font-size:12px;color:var(--muted);flex:1;min-width:180px}
+.td-goal{font-size:12px;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;
+         border-radius:999px;padding:3px 10px;white-space:nowrap;cursor:help}
 .td-where-row{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .td-where-row b{color:var(--ink);font-size:15px}
 
@@ -1497,3 +1499,7 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .stats-row-3{grid-template-columns:repeat(3,1fr)}
 @media (max-width:720px){.stats-row-3{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}}
 .home-map-box{margin-top:22px}
+
+/* 单元卡上的「跟读」维度（与词汇掌握度并列显示，不设为完成硬门槛） */
+.uc-stage{margin-top:6px;font-size:12px;color:var(--muted)}
+.uc-stage.on{color:var(--ok);font-weight:600}
