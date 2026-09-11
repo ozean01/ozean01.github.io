@@ -402,14 +402,43 @@
         { k: "material", label: "📥 导入素材", render: function () { window.MaterialImport.render(); } },
         { k: "subtitle", label: "📺 逐句点读", render: function () { window.Subtitle.render(); } }
       ]
+    },
+    /* 口语测评：按【练 / 评】分族，而不是按「口语」分族。
+       培训师论证：五阶段闯关（盲听→听写→复述）是需要整块时间的深水区，四维是评分，
+       硬凑一个入口两个都死；真正同族的是三个**评分类**——四维、自由表达、水平概览。
+       信息架构专家补：概览必须仍是默认首屏，否则用户丢掉「我现在几级」的锚点。
+       培训师补：自由表达是最易被弃用的功能（要即兴开口、无真人反馈时分数两周不动就再不碰），
+       而概览是天天打开看进度的页面——故自由表达降为页内 tab，不得反客为主。 */
+    speaking: {
+      tabs: [
+        { k: "speaking", label: "📡 口语水平概览", render: function () { window.SpeakingRadar.render(); } },
+        { k: "eval4", label: "🎯 四维口语实战", render: function () { window.Eval4.render(); } },
+        { k: "speech", label: "🎙️ 自由表达分析", render: function () { window.SpeechAnalyzer.render(); } }
+      ]
+    },
+    /* 写作：写作专区是语篇级产出，句型库是句子级热身，属同一技能的脚手架两端。
+       专家意见：句型库的「挖空克隆」玩法被两位专家质疑（一线「没人玩」；
+       SLA「sentence-combining 的迁移证据搬不到挖空克隆」），故降为写作页内的第二 tab，
+       并改称「句式库」——它是可查、可朗读的句子骨架库，不再要求用户玩挖空。 */
+    write: {
+      tabs: [
+        { k: "write", label: "✍️ 邮件场景写作", render: function () { window.WriteStudio.render(); } },
+        { k: "patterns", label: "🧩 句式库（128 句骨架）", render: function () { window.Patterns.render(); } }
+      ]
     }
   };
   /* 旧路由 → 合并页 + 对应 tab（保留为别名，避免深链失效） */
   const MERGED_ALIAS = {
     placement: { page: "units", tab: "placement" },
     listen: { page: "phonemes", tab: "listen" },
-    subtitle: { page: "material", tab: "subtitle" }
+    subtitle: { page: "material", tab: "subtitle" },
+    eval4: { page: "speaking", tab: "eval4" },
+    speech: { page: "speaking", tab: "speech" },
+    patterns: { page: "write", tab: "patterns" }
   };
+  /* 整页重定向（不是 tab）：看板并入「今日」的只读本周区，
+     全站计划源因此收敛为一处。旧地址仍可用，不会 404。 */
+  const REDIRECT_ROUTES = { board: "today" };
 
   function mergedTabBarHtml(key, idx) {
     const page = MERGED_PAGES[key];
@@ -439,8 +468,10 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
-    /* 合并页的别名路由（#/listen、#/subtitle、#/placement）先于普通路由处理，
-       解析成「合并页 + 对应 tab」，页面表现与 #/phonemes/listen 完全一致 */
+    /* 整页重定向（如 #/board → #/today）先于别名与普通路由处理 */
+    if (REDIRECT_ROUTES[parts[0]]) return { view: REDIRECT_ROUTES[parts[0]] };
+    /* 合并页的别名路由（#/listen、#/subtitle、#/placement、#/eval4、#/speech、#/patterns）
+       先于普通路由处理，解析成「合并页 + 对应 tab」，表现与 #/<页>/<tab> 完全一致 */
     if (MERGED_ALIAS[parts[0]]) return { view: MERGED_ALIAS[parts[0]].page, tab: MERGED_ALIAS[parts[0]].tab };
     if (MERGED_PAGES[parts[0]]) return { view: parts[0], tab: parts[1] || MERGED_PAGES[parts[0]].tabs[0].k };
     if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today"].indexOf(parts[0]) !== -1) return { view: parts[0] };

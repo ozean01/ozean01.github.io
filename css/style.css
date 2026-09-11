@@ -1509,3 +1509,23 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
    一条分隔线 + 收一点上边距，避免与模块标题挤在一起。 */
 .merged-tabs{margin:0 0 4px;padding-bottom:2px;border-bottom:1px solid var(--line)}
 .merged-tabs .tab{text-decoration:none}
+
+/* ============ 「今日」内的只读「本周」区（P3：看板并入） ============ */
+.td-week{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px 16px}
+.td-week summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.td-week summary::-webkit-details-marker{display:none}
+.td-week summary b{font-size:14.5px}
+.td-week-sub{font-size:12px;color:var(--muted)}
+.td-week-body{margin-top:10px}
+.wk-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px dashed var(--line);margin-bottom:8px}
+.wk-head b{font-size:13.5px}
+.wk-head span{font-size:12px;color:var(--muted)}
+.wk-list{display:flex;flex-direction:column;gap:6px}
+.wk-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);
+        border-radius:9px;background:var(--surface-2);color:inherit;text-decoration:none;font-size:13px;transition:.15s}
+.wk-row:hover{border-color:var(--primary);background:var(--primary-soft)}
+.wk-row.done{opacity:.62}
+.wk-row.done .wk-t{text-decoration:line-through;text-decoration-color:var(--muted)}
+.wk-mk{flex:0 0 auto}
+.wk-t{flex:1;min-width:0}
+.wk-min{font-size:11.5px;color:var(--muted);white-space:nowrap}

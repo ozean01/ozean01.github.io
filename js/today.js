@@ -201,6 +201,13 @@
     const doneN = steps.filter(isDone).length;
     const allDone = doneN === steps.length;
 
+    /* 只读「本周」区：看板并入今日后，全站计划源收敛为一处。
+       默认展开（专家要求「本周入口常驻可见」），但可折叠以免挤压当天清单。 */
+    let weekHtml = "";
+    try {
+      if (window.TaskBoard && window.TaskBoard.weekSummaryHtml) weekHtml = window.TaskBoard.weekSummaryHtml() || "";
+    } catch (e) { weekHtml = ""; }
+
     const plan = goalPlan();
     const stageBar = (stage || plan)
       ? '<div class="td-stage">' +
@@ -253,6 +260,12 @@
     </section>
 
     <section class="td-list">${rows}</section>
+
+    ${weekHtml
+      ? '<details class="td-week" open><summary><b>📅 本周</b>' +
+        '<span class="td-week-sub">只读视图 · 计划源已统一到「今日」，不再另设看板</span></summary>' +
+        '<div class="td-week-body">' + weekHtml + "</div></details>"
+      : ""}
 
     ${allDone
       ? '<div class="td-finish"><b>🎉 今天这五步做完了</b><span>连续 ' + st.streak + " 天 · 今天 " + st.today + " 分。明天回来接着走，进度会自动往前推。</span>" +

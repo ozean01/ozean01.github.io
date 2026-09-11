@@ -68,26 +68,33 @@ let n;
 while ((n = reNav.exec(navBlock)) !== null) if (NAV.indexOf(n[1]) === -1) NAV.push(n[1]);
 
 /* 盲点回归断言：含数字的路由必须被提取到，否则"没有孤儿"可能只是两边同时漏看 */
-check("提取正则覆盖含数字的路由（eval4）", ROUTES.indexOf("eval4") !== -1 && NAV.indexOf("eval4") !== -1,
-  "routes=" + (ROUTES.indexOf("eval4") !== -1) + " nav=" + (NAV.indexOf("eval4") !== -1));
+check("路由提取正则覆盖含数字的路由（eval4）", ROUTES.indexOf("eval4") !== -1);
 
 /* 合并页的【别名路由】：已被并入其它页的功能，其旧路由仍可访问（作 tab），
    因此不需要独立的一级导航入口。对账时必须把它们算作"可达"。 */
 const ALIAS = (appjs.match(/const MERGED_ALIAS = \{([\s\S]*?)\};/) || [])[1] || "";
 const ALIAS_ROUTES = (ALIAS.match(/^\s*([a-z0-9]+):/gm) || []).map(function (s) { return s.trim().replace(":", ""); });
-check("提取到合并页别名路由", ALIAS_ROUTES.length >= 3, ALIAS_ROUTES.join(", "));
-check("被合并的路由已从导航移除（降为页内 tab）",
-  ALIAS_ROUTES.every(function (r) { return NAV.indexOf(r) === -1; }), ALIAS_ROUTES.join(", "));
+/* 整页重定向（#/board → #/today）：同样不需要独立导航入口 */
+const REDIR = (appjs.match(/const REDIRECT_ROUTES = \{([\s\S]*?)\};/) || [])[1] || "";
+const REDIR_ROUTES = (REDIR.match(/([a-z0-9]+)\s*:/g) || []).map(function (s) { return s.replace(/\s*:/, ""); });
+check("提取到合并页别名路由", ALIAS_ROUTES.length >= 6, ALIAS_ROUTES.join(", "));
+check("别名提取正则同样覆盖含数字的路由（eval4）", ALIAS_ROUTES.indexOf("eval4") !== -1, ALIAS_ROUTES.join(", "));
+check("提取到整页重定向路由", REDIR_ROUTES.length >= 1, REDIR_ROUTES.join(", "));
+check("被合并的路由已从导航移除（降为页内 tab 或重定向）",
+  ALIAS_ROUTES.concat(REDIR_ROUTES).every(function (r) { return NAV.indexOf(r) === -1; }),
+  ALIAS_ROUTES.concat(REDIR_ROUTES).join(", "));
+check("看板已并入今日（无独立导航入口）", NAV.indexOf("board") === -1 && REDIR_ROUTES.indexOf("board") !== -1);
 
 const noRoute = NAV.filter(function (v) { return ROUTES.indexOf(v) === -1; });
 check("每个导航入口都有对应路由（无孤儿入口）", noRoute.length === 0, noRoute.join(", "));
 
+const REACHABLE = ALIAS_ROUTES.concat(REDIR_ROUTES);
 const noEntry = ROUTES.filter(function (v) {
-  return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1 && ALIAS_ROUTES.indexOf(v) === -1;
+  return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1 && REACHABLE.indexOf(v) === -1;
 });
 check("每个路由都有导航入口或已并入合并页（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
 console.log("  导航 " + NAV.length + " 项 / 路由 " + ROUTES.length + " 条（参数化：" + PARAM_ROUTES.join(", ") +
-  "；别名：" + ALIAS_ROUTES.join(", ") + "）");
+  "；别名：" + ALIAS_ROUTES.join(", ") + "；重定向：" + REDIR_ROUTES.join(", ") + "）");
 
 /* ---------------- ③ 旧机制不许回来 ---------------- */
 const DEAD_FUNCS = ["homeAnchorBarHtml", "homeGoalPathHtml", "firstStepHtml", "homeTabBarHtml",

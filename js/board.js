@@ -236,5 +236,29 @@
     persist(); render();
   }
 
-  window.TaskBoard = { render: render };
+  /* ---------------- 只读「本周」摘要（P3：看板并入「今日」） ----------------
+     专家评审结论：看板的**拖拽形态**是「赋权」（我决定优先级），而「今日」是「减负」
+     （系统替我排好序）。把赋权型设计塞进减负型页面会稀释今日的权威性，用户会开始犹豫
+     「到底照清单做还是照看板拖」；且一线反馈「没人拖拽」。故并入今日时只保留**只读视图**，
+     以保证全站只有**一个计划源**。
+     拖拽版渲染函数仍完整保留在本文件中（未被路由调用），如需恢复只需改路由。 */
+  function weekSummaryHtml() {
+    loadTasks();
+    const tasks = st.tasks || [];
+    if (!tasks.length) return '<div class="field-note">本周还没有任务。</div>';
+    const done = tasks.filter(function (t) { return t.status === "done"; }).length;
+    const doing = tasks.filter(function (t) { return t.status === "doing"; }).length;
+    const rows = tasks.map(function (t) {
+      const mk = t.status === "done" ? "✅" : (t.status === "doing" ? "🔄" : "⬜");
+      return '<a class="wk-row' + (t.status === "done" ? " done" : "") + '" href="' + t.href + '">' +
+        '<span class="wk-mk">' + mk + "</span>" +
+        '<span class="wk-t">' + esc(t.title) + "</span>" +
+        '<span class="wk-min">' + (t.min || DEFAULT_MIN) + " 分</span></a>";
+    }).join("");
+    return '<div class="wk-head"><b>本周任务（' + done + " / " + tasks.length + " 完成）</b>" +
+      '<span>进行中 ' + doing + " · 待办 " + (tasks.length - done - doing) + "</span></div>" +
+      '<div class="wk-list">' + rows + "</div>";
+  }
+
+  window.TaskBoard = { render: render, weekSummaryHtml: weekSummaryHtml };
 })();
