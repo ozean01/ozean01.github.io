@@ -62,6 +62,7 @@
   _need("字幕 subtitle.js", !!window.Subtitle);
   _need("素材投料口 material.js", !!window.MaterialImport);
   _need("说我想说 mysay.js", !!window.MySay);
+  _need("今日 today.js", !!window.Today);
   _need("音素课 phonemes.js", !!window.Phonemes);
   _need("写作专区 write.js", !!window.WriteStudio);
   _need("句型库 patterns.js", !!window.Patterns);
@@ -347,7 +348,7 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -379,6 +380,7 @@
     updateHeaderStat();
     try {
       if (route.view === "home") renderHome();
+      else if (route.view === "today") window.Today.render();
       else if (route.view === "units") renderUnits();
       else if (route.view === "mistakes") renderMistakes();
       else if (route.view === "unit") renderUnit(route);
@@ -3974,7 +3976,17 @@
     get progress() { return progress; },
     saveProgress: saveProgress,
     esc: esc,
-    toast: toast
+    toast: toast,
+    /* 供「🎯 今日」等模块复用 app.js 的既有计算——口径只有一处，避免在别处重写一套
+       （词汇掌握度 / 打卡统计 / 阶段划分都在这里，绕开它们会出现两套不一致的数字）。 */
+    coachStats: coachStats,
+    unitPct: unitPct,
+    unitLearned: unitLearned,
+    unitWords: unitWords,
+    totalLearned: totalLearned,
+    getUnit: getUnit,
+    pathStagesData: pathStagesData,
+    coachToday: coachToday
   };
 
   window.addEventListener("hashchange", renderRoute);
@@ -3988,7 +4000,9 @@
     (app.parentNode).removeChild(app);
     document.body.appendChild(app);
   }
-  if (!location.hash) location.hash = "#/home";
+  /* 默认落地页 = 「🎯 今日」：全站唯一权威入口，打开就知道今天练什么。
+     直接开 index.html（无 hash）时走这里；PWA 的 start_url 也指向同一个地方。 */
+  if (!location.hash) location.hash = "#/today";
   recordSnapshot();          // 启动时补记今天的效果快照（老用户回归也能进走势）
   renderRoute();
   showOnboarding();

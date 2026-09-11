@@ -23,6 +23,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-patterns.js"], gate: true,  label: "句型克隆库 frame 生成" },
   { cmd: "node", args: ["tools/test-mysay.js"],   gate: true,  label: "说我想说：拆句/实词/接线" },
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
+  { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
   { cmd: "node", args: ["tools/test-assets.js"],  gate: true,  label: "静态资源接线：引用存在 + 预缓存完整" },
   { cmd: "node", args: ["tools/audit-count.js"],  gate: false, label: "全站数字统计（重算 report-count.json）" },
   { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, label: "IPA / 难度审计（重算 report-ipa.csv）" },

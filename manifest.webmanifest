@@ -3,7 +3,7 @@
   "short_name": "外贸英语",
   "description": "软包装外贸英语学习与外贸实操 SOP：词汇、对话、跟读听写、AI 陪练、单证与报关清单，离线可用。",
   "lang": "zh-CN",
-  "start_url": "./index.html#/home",
+  "start_url": "./index.html#/today",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
