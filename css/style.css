@@ -1503,3 +1503,9 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 /* 单元卡上的「跟读」维度（与词汇掌握度并列显示，不设为完成硬门槛） */
 .uc-stage{margin-top:6px;font-size:12px;color:var(--muted)}
 .uc-stage.on{color:var(--ok);font-weight:600}
+
+/* ============ 合并页容器（P3：js/app.js renderMerged）============ */
+/* 合并页的 tab 栏插在被合并模块自己的内容之上；模块自带的面包头仍在其下，故只需
+   一条分隔线 + 收一点上边距，避免与模块标题挤在一起。 */
+.merged-tabs{margin:0 0 4px;padding-bottom:2px;border-bottom:1px solid var(--line)}
+.merged-tabs .tab{text-decoration:none}

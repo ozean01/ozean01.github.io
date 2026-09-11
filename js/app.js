@@ -365,6 +365,73 @@
     if (el) el.textContent = "🎯 " + totalLearned() + "/" + totals.words;
   }
 
+  /* ---------------- 合并页容器（P3）----------------
+     把原本各自独立、却属于同一条学习链或同一个认知对象的页面收进一个有层次的页。
+     设计要点：
+       · 被合并的**旧路由保留为别名**（见 MERGED_ALIAS），外部深链与书签不会失效；
+       · 合并页自身路由形如 #/<页>/<tab>，缺省落到第一个 tab；
+       · 各 tab 仍调用原模块自己的 render()，**不改动任何被合并模块的内部实现**——
+         容器只负责在外层套一个 tab 栏（模块 render 会整体替换 #app，故 tab 栏在其后插回）。
+     为何不直接删掉被合并的路由：静态站没有服务端重定向，#/listen 这类地址可能已被
+     分享出去或写进了别处的链接，删掉即 404。 */
+  const MERGED_PAGES = {
+    /* 课程：19 单元是内容，测起点是「该从哪学」的诊断。
+       专家意见：自测产出就是「从第几单元开始」，保留一级会让「从哪开始」再次分叉，
+       正是 P0 治过的病；但它只用一次，故不做首个 tab。 */
+    units: {
+      tabs: [
+        { k: "path", label: "📚 按路径学 · 19 单元", render: function () { renderUnits(); } },
+        { k: "placement", label: "🎯 测起点 · 该从哪学", render: function () { renderPlacement(); } }
+      ]
+    },
+    /* 音素与辨音：SLA 专家指出「语音塑造是一条链」这个理由不成立——
+       感知（听辨）与产出在理论上可分离，感知训练只部分迁移到产出、反向迁移弱。
+       故二者**是平等 tab**，听辨不得降为知识页附录。 */
+    phonemes: {
+      tabs: [
+        { k: "phonemes", label: "🔤 音素课", render: function () { window.Phonemes.render(); } },
+        { k: "listen", label: "👂 辨音 · 最小音对", render: function () { window.Listen.render(); } }
+      ]
+    },
+    /* 素材：投料口（导入/拆句）与字幕点读（逐句精听）是工序的上下游。
+       专家意见：以「从一段材料到听懂」为一个任务流，而非并排两个功能；
+       投料口实际使用率低，降为页内入口。命名用「素材」不窄化为「素材精听」——
+       它的出口还包括五阶段闯关与泛听。 */
+    material: {
+      tabs: [
+        { k: "material", label: "📥 导入素材", render: function () { window.MaterialImport.render(); } },
+        { k: "subtitle", label: "📺 逐句点读", render: function () { window.Subtitle.render(); } }
+      ]
+    }
+  };
+  /* 旧路由 → 合并页 + 对应 tab（保留为别名，避免深链失效） */
+  const MERGED_ALIAS = {
+    placement: { page: "units", tab: "placement" },
+    listen: { page: "phonemes", tab: "listen" },
+    subtitle: { page: "material", tab: "subtitle" }
+  };
+
+  function mergedTabBarHtml(key, idx) {
+    const page = MERGED_PAGES[key];
+    return '<div class="tabs merged-tabs" role="tablist">' +
+      page.tabs.map(function (t, i) {
+        return '<a class="tab' + (i === idx ? " active" : "") + '" role="tab" href="#/' + key +
+          (i === 0 ? "" : "/" + t.k) + '">' + t.label + "</a>";
+      }).join("") + "</div>";
+  }
+
+  function renderMerged(key, tab) {
+    const page = MERGED_PAGES[key];
+    if (!page) return;
+    let idx = 0;
+    page.tabs.forEach(function (t, i) { if (t.k === tab) idx = i; });
+    page.tabs[idx].render();          /* 模块 render 会整体替换 #app 内容 */
+    const el = document.getElementById("app");
+    if (!el) return;
+    /* tab 栏插回顶部；同时把模块自己的面包屑/标题下沉，避免与 tab 重复 */
+    el.insertAdjacentHTML("afterbegin", mergedTabBarHtml(key, idx));
+  }
+
   /* ---------------- 路由 ---------------- */
   function parseHash() {
     const h = location.hash.replace(/^#\/?/, "");
@@ -372,6 +439,10 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
+    /* 合并页的别名路由（#/listen、#/subtitle、#/placement）先于普通路由处理，
+       解析成「合并页 + 对应 tab」，页面表现与 #/phonemes/listen 完全一致 */
+    if (MERGED_ALIAS[parts[0]]) return { view: MERGED_ALIAS[parts[0]].page, tab: MERGED_ALIAS[parts[0]].tab };
+    if (MERGED_PAGES[parts[0]]) return { view: parts[0], tab: parts[1] || MERGED_PAGES[parts[0]].tabs[0].k };
     if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
@@ -405,23 +476,20 @@
     try {
       if (route.view === "home") renderHome();
       else if (route.view === "today") window.Today.render();
-      else if (route.view === "units") renderUnits();
+      /* 合并页统一走 renderMerged（必须在各独立分支之前）：
+         #/units、#/phonemes、#/material 现在都是有 tab 的容器页 */
+      else if (MERGED_PAGES[route.view]) renderMerged(route.view, route.tab);
       else if (route.view === "mistakes") renderMistakes();
       else if (route.view === "unit") renderUnit(route);
-      else if (route.view === "placement") renderPlacement();
       else if (route.view === "flash") renderFlash();
       else if (route.view === "quiz") renderQuiz();
       else if (route.view === "speak") renderSpeak();
       else if (route.view === "eval4") window.Eval4.render();
-      else if (route.view === "listen") window.Listen.render();
       else if (route.view === "tutor") window.Tutor.render();
       else if (route.view === "coach") renderCoach();
       else if (route.view === "sop") window.SOP.render();
       else if (route.view === "sources") window.Sources.render();
-      else if (route.view === "subtitle") window.Subtitle.render();
-      else if (route.view === "material") window.MaterialImport.render();
       else if (route.view === "mysay") window.MySay.render();
-      else if (route.view === "phonemes") window.Phonemes.render();
       else if (route.view === "write") window.WriteStudio.render();
       else if (route.view === "patterns") window.Patterns.render();
       else if (route.view === "speech") window.SpeechAnalyzer.render();

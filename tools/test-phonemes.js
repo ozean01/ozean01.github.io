@@ -161,7 +161,12 @@ check("index.html 已引入 js/phonemes.js", /<script src="js\/phonemes\.js"><\/
 check("phonemes.js 在 app.js 之前加载", htmlSrc.indexOf("js/phonemes.js") < htmlSrc.indexOf("js/app.js"));
 check("index.html 导航含 #/phonemes 入口", /href="#\/phonemes"/.test(htmlSrc));
 check("app.js 路由表含 phonemes", /"mysay",\s*"phonemes"/.test(appjs));
-check("app.js renderRoute 分派 Phonemes.render", /route\.view === "phonemes"\)\s*window\.Phonemes\.render\(\)/.test(appjs));
+/* P3 起 #/phonemes 是【合并页容器】（音素课 + 辨音两个平等 tab），
+   分派由 renderRoute 的统一分支 MERGED_PAGES 完成，不再是 route.view === "phonemes" 直调。 */
+check("app.js 把 phonemes 注册为合并页容器", /MERGED_PAGES\[route\.view\]\)\s*renderMerged/.test(appjs));
+check("合并页的 phonemes tab 调用 Phonemes.render", /k: "phonemes"[^}]*window\.Phonemes\.render\(\)/.test(appjs));
+check("音素课与辨音是平等 tab（辨音未降为附录）",
+  /k: "listen"[^}]*window\.Listen\.render\(\)/.test(appjs));
 check("app.js 启动校验注册了 Phonemes", /_need\("音素课 phonemes\.js", !!window\.Phonemes\)/.test(appjs));
 check("sw.js 预缓存含 ./js/phonemes.js", /"\.\/js\/phonemes\.js"/.test(sw));
 check("音素课样式已定义", /\.ph-card\{/.test(style) && /\.ph-word\{/.test(style) && /\.ph-grid\{/.test(style));

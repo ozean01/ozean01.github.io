@@ -66,50 +66,58 @@
       <span class="brand-badge">🌐</span>
       <span class="brand-text">软包装外贸英语<span class="brand-sub">Soft Packaging Foreign Trade English</span></span>
     </a>
-    <!-- 导航按【同一个维度】分组：学课程（输入）/ 练口语（输出）/ 记与测（记忆与产出）/
-         工具箱（辅助页面）/ 我的进步（数据与打卡）。
-         此前混用了四个维度（技能·业务·技术手段·学习阶段），用户建立不起统一心智模型，
-         故「开始学习」里的看板归入工具箱、「AI 陪练」这个技术手段分组解散并入练口语。 -->
+    <!-- 导航按【同一个维度】分组：课程 / 口语 / 背与测 / 写作 / 工具箱 / 我的进步。
+         P3 依专家评审调整：
+           · 「测起点」并入课程页第二 tab（它产出就是「从第几单元开始」，独立一级会让
+             「该从哪学」再次分叉，正是 P0 治过的病；但它只用一次，故不做首个 tab）
+           · 「辨音·最小音对」并入音素页，作为【平等 tab】（SLA 专家：感知与产出可分离，
+             听辨有独立训练量，不得降为知识页附录）
+           · 「字幕逐句点读」并入素材页（与投料口是工序上下游），命名用「素材」不窄化
+           · 「记与测」改名「背与测」并固定顺序（先输入→后检验→再纠偏）
+           · 「外贸实操 SOP」提为独立一级（三位专家一致：它是工作辅助，不是技能训练）
+           · 「写作」独立成组（写作是产出，此前误放在「记与测」里） -->
     <nav class="main-nav" id="mainNav">
       <a class="nav-home-link" href="#/today" data-nav="today">🎯 今日</a>
       <a class="nav-home-link" href="#/home" data-nav="home">🏠 首页</a>
+      <a class="nav-home-link" href="#/sop" data-nav="sop">🧭 实操 SOP</a>
       <details class="nav-group" data-group="course">
-        <summary>📚<span class="ng-name">学课程</span></summary>
+        <summary>📚<span class="ng-name">课程</span></summary>
         <div class="nav-sub">
-          <a href="#/placement" data-nav="placement">🎯 测起点 · 该从哪学</a>
-          <a href="#/units" data-nav="units">📚 按路径学 · 19 单元</a>
+          <a href="#/units" data-nav="units">📚 19 单元 · 按路径学</a>
         </div>
       </details>
       <details class="nav-group" data-group="practice">
-        <summary>🎤<span class="ng-name">练口语</span></summary>
+        <summary>🎤<span class="ng-name">口语</span></summary>
         <div class="nav-sub">
-          <a href="#/speak" data-nav="speak">听说训练（跟读/听写）</a>
-          <a href="#/eval4" data-nav="eval4">四维口语实战</a>
-          <a href="#/speech" data-nav="speech">🎙️ 自由表达分析（说一段·看词汇/流利/语法）</a>
+          <a href="#/speak" data-nav="speak">听说训练（五阶段闯关）</a>
+          <a href="#/eval4" data-nav="eval4">四维口语实战（评分）</a>
+          <a href="#/speech" data-nav="speech">🎙️ 自由表达分析</a>
           <a href="#/tutor" data-nav="tutor">🤖 AI 对练</a>
-          <a href="#/phonemes" data-nav="phonemes">🔤 音素课（41 音素·口型·行业例词）</a>
-          <a href="#/listen" data-nav="listen">辨音 · 最小音对</a>
+          <a href="#/phonemes" data-nav="phonemes">🔤 音素与辨音</a>
         </div>
       </details>
       <details class="nav-group" data-group="memory">
-        <summary>🃏<span class="ng-name">记与测</span></summary>
+        <summary>🃏<span class="ng-name">背与测</span></summary>
         <div class="nav-sub">
           <a href="#/flash" data-nav="flash">记忆单词卡（FSRS）</a>
           <a href="#/quiz" data-nav="quiz">智能测验</a>
-          <a href="#/write" data-nav="write">✍️ 写作专区（邮件场景）</a>
-          <a href="#/patterns" data-nav="patterns">🧩 句型克隆库</a>
           <a href="#/mistakes" data-nav="mistakes">⚠️ 高频易错点</a>
+        </div>
+      </details>
+      <details class="nav-group" data-group="writing">
+        <summary>✍️<span class="ng-name">写作</span></summary>
+        <div class="nav-sub">
+          <a href="#/write" data-nav="write">✍️ 写作专区（邮件场景）</a>
+          <a href="#/patterns" data-nav="patterns">🧩 句型克隆库（句式热身）</a>
         </div>
       </details>
       <details class="nav-group" data-group="tools">
         <summary>🧰<span class="ng-name">工具箱</span></summary>
         <div class="nav-sub">
-          <a href="#/sop" data-nav="sop">🧭 外贸实操 SOP 与工具</a>
           <a href="#/board" data-nav="board">🗂 本周学习看板</a>
           <a href="#/mysay" data-nav="mysay">🗣 说我想说（写你想说的话→地道英文）</a>
-          <a href="#/material" data-nav="material">📥 素材投料口（导入任意文章/字幕）</a>
-          <a href="#/subtitle" data-nav="subtitle">📺 字幕逐句点读</a>
-          <a href="#/sources" data-nav="sources">🎧 真实商务听音源</a>
+          <a href="#/material" data-nav="material">📥 素材（导入 · 逐句精听）</a>
+          <a href="#/sources" data-nav="sources">🎧 真实商务听音源（泛听）</a>
         </div>
       </details>
       <details class="nav-group" data-group="progress">

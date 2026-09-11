@@ -26,14 +26,24 @@ let g;
 while ((g = reGroup.exec(navBlock)) !== null) {
   groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z0-9]+"/g) || []).length });
 }
-check("导航为 5 个功能分组", groups.length === 5, groups.map(function (x) { return x.id; }).join(", "));
-check("分组为任务维度 course/practice/memory/tools/progress",
-  groups.map(function (x) { return x.id; }).join(",") === "course,practice,memory,tools,progress",
+check("导航为 6 个功能分组", groups.length === 6, groups.map(function (x) { return x.id; }).join(", "));
+check("分组为任务维度 course/practice/memory/writing/tools/progress",
+  groups.map(function (x) { return x.id; }).join(",") === "course,practice,memory,writing,tools,progress",
   groups.map(function (x) { return x.id; }).join(","));
 check("每组都有入口", groups.every(function (x) { return x.links > 0; }));
 console.log("  分组入口数：" + groups.map(function (x) { return x.id + "=" + x.links; }).join(" · "));
 
-check("「今日」是一级入口（不在任何分组里）", /<a class="nav-home-link" href="#\/today"/.test(navBlock));
+["today", "home", "sop"].forEach(function (k) {
+  check("「" + k + "」是一级入口（不在任何分组里）",
+    new RegExp('<a class="nav-home-link" href="#/' + k + '"').test(navBlock));
+});
+check("写作已从「背与测」拆出，独立成组", /data-group="writing"/.test(navBlock));
+check("「记与测」已改名为任务导向的「背与测」", /ng-name">背与测</.test(navBlock) && !/ng-name">记与测</.test(navBlock));
+/* 「背与测」组内顺序：先输入（背）→ 后检验（测）→ 再纠偏（易错点） */
+const memBlk = (navBlock.match(/data-group="memory">([\s\S]*?)<\/details>/) || [])[1] || "";
+const memOrder = (memBlk.match(/href="#\/([a-z0-9]+)"/g) || [])
+  .map(function (s) { return s.replace(/.*"#\//, "").replace(/"/, ""); });
+check("背与测组内顺序为 单词卡 → 测验证 → 易错点", memOrder.join(",") === "flash,quiz,mistakes", memOrder.join(","));
 
 /* ---------------- ② 导航 ↔ 路由 双向对账 ---------------- */
 const blob = (appjs.match(/if \(\[([\s\S]*?)\]\.indexOf\(parts\[0\]\)/) || [])[1] || "";
@@ -61,12 +71,23 @@ while ((n = reNav.exec(navBlock)) !== null) if (NAV.indexOf(n[1]) === -1) NAV.pu
 check("提取正则覆盖含数字的路由（eval4）", ROUTES.indexOf("eval4") !== -1 && NAV.indexOf("eval4") !== -1,
   "routes=" + (ROUTES.indexOf("eval4") !== -1) + " nav=" + (NAV.indexOf("eval4") !== -1));
 
+/* 合并页的【别名路由】：已被并入其它页的功能，其旧路由仍可访问（作 tab），
+   因此不需要独立的一级导航入口。对账时必须把它们算作"可达"。 */
+const ALIAS = (appjs.match(/const MERGED_ALIAS = \{([\s\S]*?)\};/) || [])[1] || "";
+const ALIAS_ROUTES = (ALIAS.match(/^\s*([a-z0-9]+):/gm) || []).map(function (s) { return s.trim().replace(":", ""); });
+check("提取到合并页别名路由", ALIAS_ROUTES.length >= 3, ALIAS_ROUTES.join(", "));
+check("被合并的路由已从导航移除（降为页内 tab）",
+  ALIAS_ROUTES.every(function (r) { return NAV.indexOf(r) === -1; }), ALIAS_ROUTES.join(", "));
+
 const noRoute = NAV.filter(function (v) { return ROUTES.indexOf(v) === -1; });
 check("每个导航入口都有对应路由（无孤儿入口）", noRoute.length === 0, noRoute.join(", "));
 
-const noEntry = ROUTES.filter(function (v) { return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1; });
-check("每个路由都有导航入口（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
-console.log("  导航 " + NAV.length + " 项 / 路由 " + ROUTES.length + " 条（参数化：" + PARAM_ROUTES.join(", ") + "）");
+const noEntry = ROUTES.filter(function (v) {
+  return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1 && ALIAS_ROUTES.indexOf(v) === -1;
+});
+check("每个路由都有导航入口或已并入合并页（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
+console.log("  导航 " + NAV.length + " 项 / 路由 " + ROUTES.length + " 条（参数化：" + PARAM_ROUTES.join(", ") +
+  "；别名：" + ALIAS_ROUTES.join(", ") + "）");
 
 /* ---------------- ③ 旧机制不许回来 ---------------- */
 const DEAD_FUNCS = ["homeAnchorBarHtml", "homeGoalPathHtml", "firstStepHtml", "homeTabBarHtml",
