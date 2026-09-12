@@ -82,9 +82,10 @@
     /* grade(progress, id, rating)：接收四档评分。
        1=忘了(AGAIN) 2=模糊(HARD) 3=认识(GOOD) 4=秒答(EASY)。
        兼容旧二档布尔调用（true→GOOD, false→AGAIN）。 */
-    grade: function (progress, id, rating) {
+    grade: function (progress, id, rating, storeKey) {
+      var store = Flashcards.storeOf(progress, storeKey);
       var now = Date.now();
-      var cur = migrate(progress.flash[id]);
+      var cur = migrate(store[id]);
       /* 评分归一化 */
       var g;
       if (typeof rating === "boolean") g = rating ? RATING.GOOD : RATING.AGAIN;
@@ -111,7 +112,7 @@
       var interval = nextInterval(state.stability);
       var reps = (cur.reps || 0) + 1;
       var ef = clamp(2.5 - (state.difficulty - 3) * 0.25, 1.3, 3.0);   // 派生，供旧标签用
-      progress.flash[id] = {
+      store[id] = {
         stability: round(state.stability),
         difficulty: round(state.difficulty),
         reps: reps,
@@ -123,7 +124,7 @@
         retv: r == null ? null : round(r),
         quality: known ? 5 : 2
       };
-      return progress.flash[id];
+      return store[id];
     },
 
     /* 当前某卡的遗忘曲线可回忆度 R（0~1）；未学返回 null */
@@ -135,20 +136,35 @@
       return curve(t, st);
     },
 
+    /* ---------------- 存储位置参数化：一条调度 vs 两条调度 ----------------
+       storeKey 决定记忆状态存在 progress 的哪个字段：
+         "flash"     （默认）接受性：看到英文 → 想起中文
+         "flashProd"        产出性：看到中文 → 说出英文
+       SLA 专家评审指出：「FSRS 只调度**接受性**词汇，无**产出性**调度」——
+       于是出现「认得 film 但说不出 film」的典型状态。两层知识必须分开排期：
+       一个词可以在接受线上已牢固，在产出线上仍是新词，复习间隔自然不同。
+       这里只把「存在哪」参数化，**调度算法本身完全共用**（同一套 FSRS-6）。 */
+    storeOf: function (progress, storeKey) {
+      var k = storeKey || "flash";
+      if (!progress[k]) progress[k] = {};
+      return progress[k];
+    },
+
     /* 全部到期卡 + 新词排序（保持原语义）。maxNew 控制一次最多引入的新卡数，默认 15 */
-    buildQueue: function (cards, progress, limit, maxNew) {
+    buildQueue: function (cards, progress, limit, maxNew, storeKey) {
+      var store = Flashcards.storeOf(progress, storeKey);
       limit = limit || 30;
       maxNew = maxNew == null ? 15 : maxNew;
       var now = Date.now();
       var wrong = progress.wrong || {};
       var fresh = [], due = [];
       cards.forEach(function (c) {
-        var f = migrate(progress.flash[c.id]);
+        var f = migrate(store[c.id]);
         if (!f || f.reps === 0) fresh.push(c);
         else if (f.due <= now) due.push(c);
       });
       due.sort(function (a, b) {
-        var fa = migrate(progress.flash[a.id]), fb = migrate(progress.flash[b.id]);
+        var fa = migrate(store[a.id]), fb = migrate(store[b.id]);
         var oa = now - (fa.due || 0), ob = now - (fb.due || 0);
         if (oa !== ob) return ob - oa;
         var wa = wrong[a.id] || 0, wb = wrong[b.id] || 0;
@@ -161,7 +177,7 @@
       if (queue.length < limit) {
         var weak = cards
           .map(function (c) {
-            var f = migrate(progress.flash[c.id]);
+            var f = migrate(store[c.id]);
             return { c: c, w: wrong[c.id] || 0, reps: f.reps || 0, r: Flashcards.retentionOf(f, now) };
           })
           .filter(function (x) { return x.reps > 0 && x.w > 0; })
@@ -173,13 +189,13 @@
       return { queue: queue, freshLeft: Math.max(0, fresh.length - maxNew), dueLeft: Math.max(0, due.length - limit) };
     },
 
-    isLearned: function (progress, id) {
-      var f = migrate(progress.flash[id]);
+    isLearned: function (progress, id, storeKey) {
+      var f = migrate(Flashcards.storeOf(progress, storeKey)[id]);
       return !!(f && f.reps > 0);
     },
 
-    stateOf: function (progress, id) {
-      var f = migrate(progress.flash[id]);
+    stateOf: function (progress, id, storeKey) {
+      var f = migrate(Flashcards.storeOf(progress, storeKey)[id]);
       if (!f || f.reps === 0) return { label: "新词", cls: "new" };
       var now = Date.now();
       if (f.due <= now) return { label: (f.interval || 0) + "天后到期", cls: "due" };

@@ -18,6 +18,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-boot.js"],    gate: true,  label: "启动完整性：38 脚本按序执行 / 26 模块就绪" },
   { cmd: "node", args: ["tools/test-score.js"],   gate: true,  label: "跟读评分全站唯一实现（算法等价 / 无重复实现）" },
   { cmd: "node", args: ["tools/test-fsrs.js"],    gate: true,  label: "FSRS 四档评分行为" },
+  { cmd: "node", args: ["tools/test-flashprod.js"],gate: true, label: "产出性调度：接受/产出两条线互不影响" },
   { cmd: "node", args: ["tools/test-parser.js"],  gate: true,  label: "句块切分器" },
   { cmd: "node", args: ["tools/test-subtitle.js"],gate: true,  label: "字幕解析 + 分级着色" },
   { cmd: "node", args: ["tools/test-schema.js"],  gate: true,  label: "进度 schema 迁移框架" },

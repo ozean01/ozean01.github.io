@@ -910,6 +910,11 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .ws-feed{margin-top:12px;background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13.5px}
 .kw-hit{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:8px;background:var(--ok-soft);color:#047857;font-size:12.5px}
 .kw-miss{display:inline-block;margin:2px 6px 2px 0;color:var(--muted);font-size:12.5px}
+/* 单词卡「产出档」开关（中→英，与英→中各排各的期） */
+.fp-toggle{margin-left:auto;padding:4px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);
+           cursor:pointer;font-size:12px;color:var(--muted);transition:.15s}
+.fp-toggle:hover{border-color:var(--primary);color:var(--primary)}
+.fp-toggle.on{background:var(--primary);border-color:var(--primary);color:#fff}
 /* ============ ✍️ 反馈二稿闭环（js/write.js） ============ */
 .ws-d2{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:15px 17px}
 .ws-d2-head{margin-bottom:10px}

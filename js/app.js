@@ -134,7 +134,7 @@
     /* 默认使用浏览器内置语音（离线可用、最可靠）。在线高音质（Google 音源）端点已被 Google
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
-    return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, done: {}, rate: 1, voice: "",
+    return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, done: {}, rate: 1, voice: "",
       engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, localASR: false };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
@@ -1884,31 +1884,39 @@
     }
     const card = s.queue[s.idx];
     const wron = Flashcards.wrongCount(progress, card.id);
-    const state = Flashcards.stateOf(progress, card.id);
+    const state = Flashcards.stateOf(progress, card.id, flashStoreKey(s));
+    /* 产出档：正面给中文、背面给英文——考的是「说得出」，不是「认得出」 */
+    const prod = !!s.prod;
     app.innerHTML = `
     <div class="page-head"><h2>🃏 单词卡 · ${esc(s.unit.title)}</h2>
-      <div class="en">点击卡片翻面 · 空格键翻面 · 想不起来就点“不认识”</div>
+      <div class="en">${prod
+        ? "🔄 产出档：看中文说英文 · 点击翻面 · 空格键翻面"
+        : "点击卡片翻面 · 空格键翻面 · 想不起来就点“不认识”"}</div>
     </div>
     <div class="flash-wrap">
-      <div class="flash-progress">第 <b>${s.idx + 1}</b> / ${s.queue.length} 张 · 已认识 <b style="color:var(--ok)">${s.stats.known}</b> · 未掌握 <b style="color:var(--bad)">${s.stats.unknown}</b></div>
+      <div class="flash-progress">第 <b>${s.idx + 1}</b> / ${s.queue.length} 张 · 已认识 <b style="color:var(--ok)">${s.stats.known}</b> · 未掌握 <b style="color:var(--bad)">${s.stats.unknown}</b>
+        <button class="fp-toggle${prod ? " on" : ""}" data-action="flash-prod" title="在「看英文想中文」与「看中文说英文」之间切换——两条线各自按 FSRS 排期">${prod ? "🔄 产出档（中→英）" : "↔ 切到产出档"}</button>
+      </div>
       <div class="flash-card" id="flashCard" data-action="flash-flip">
         <div class="flash-inner">
           <div class="flash-face flash-front">
-            <div class="big">${esc(card.w)}</div>
-            <div class="ipa">${esc(card.ipa || "")}</div>
+            <div class="big">${esc(prod && card.kind !== "mistake" ? (card.cn || card.w) : card.w)}</div>
+            <div class="ipa">${prod ? (card.kind === "mistake" ? "" : "（说出它的英文）") : esc(card.ipa || "")}</div>
             <span class="flash-meta">
               <span class="fs-badge fs-${state.cls}">${esc(state.label)}</span>
               ${wron > 0 ? '<span class="fs-badge fs-wrong">常错 ' + wron + ' 次</span>' : ""}
               ${card.kind === "mistake" ? '<span class="fs-badge fs-wrong">⚠️ 错句 · 怎么改？</span>' : ""}
             </span>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="flash-say" title="朗读">🔊</button>
-            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : "点击卡片查看释义"}</div>
+            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : (prod ? "先说出英文，再翻面核对" : "点击卡片查看释义")}</div>
           </div>
           <div class="flash-face flash-back">
             ${card.kind === "mistake"
               ? '<div class="cn" style="color:var(--ok);font-weight:800">✓ 正确：' + esc(card.cn) + '</div>' +
                 '<div class="cn" style="margin-top:6px;color:var(--accent);font-weight:600">💡 ' + esc(card.why || "") + '</div>'
-              : '<div class="cn">' + esc(card.cn) + '</div>'}
+              : (prod
+                ? '<div class="big" style="font-size:30px">' + esc(card.w) + '</div><div class="ipa">' + esc(card.ipa || "") + "</div>"
+                : '<div class="cn">' + esc(card.cn) + '</div>')}
             ${window.FTE_MEMO && card.kind !== "mistake" && window.FTE_MEMO[String(card.w).toLowerCase()]
               ? '<div class="cn memo">💡 助记：' + esc(window.FTE_MEMO[String(card.w).toLowerCase()]) + '</div>' : ""}
             <div class="ex">${esc(card.ex)}</div>
@@ -2033,23 +2041,43 @@
       }
       cards = mixed;
     }
-    const built = Flashcards.buildQueue(cards, progress, 30, includeMk ? 26 : 15);
+    const built = Flashcards.buildQueue(cards, progress, 30, includeMk ? 26 : 15, flashStoreKey({ prod: flashProdMode }));
     State.flash = {
       unit: includeMk ? { id: u.id, title: u.title + " + ⚠️易错点" } : u,
       queue: built.queue,
       idx: 0,
       stats: { known: 0, unknown: 0 },
       freshLeft: built.freshLeft,
-      dueLeft: built.dueLeft
+      dueLeft: built.dueLeft,
+      prod: flashProdMode
     };
     renderFlash();
+  }
+
+  /* 记忆状态存在哪条线上：接受性（英→中）还是产出性（中→英）。
+     SLA 专家评审指出「FSRS 只调度接受性词汇，无产出性调度」——于是出现
+     「认得 film 但说不出 film」的典型状态。两层知识**分开排期**：
+     一个词可以在接受线上已牢固，在产出线上仍是新词。调度算法完全共用。 */
+  function flashStoreKey(s) { return (s && s.prod) ? "flashProd" : "flash"; }
+
+  /* 产出档开关（会话级偏好，不写进 progress） */
+  let flashProdMode = false;
+
+  function toggleFlashProd() {
+    flashProdMode = !flashProdMode;
+    const s = State.flash;
+    const pref = (s && s.unit && s.unit.id !== "atrisk" && s.unit.id !== "weak") ? s.unit.id : undefined;
+    startFlashSession(pref);   /* 内部会按 flashProdMode 重新排队并写回 s.prod */
+    toast(flashProdMode
+      ? "🔄 已切到「产出档」：看中文说英文——与「英→中」各排各的期，互不影响。"
+      : "🔄 已切回「接受档」：看英文想中文。");
   }
 
   function gradeFlash(rating) {
     const s = State.flash;
     if (!s || s.idx >= s.queue.length) return;
     const card = s.queue[s.idx];
-    Flashcards.grade(progress, card.id, rating);
+    Flashcards.grade(progress, card.id, rating, flashStoreKey(s));
     /* 3=认识 4=秒答 记掌握；1=忘了 2=模糊 记未掌握 */
     const known = rating >= 3;
     if (known) s.stats.known++; else s.stats.unknown++;
@@ -2061,7 +2089,7 @@
     /* 加急易忘词会话：复习后把到期压在 3 天内（a/b 功能），防刚忘的词又沉下去。
        只改该卡的 due（下次暴露时间），不改 FSRS 的 stability/difficulty 状态，故不影响算法与审计。 */
     if (s.reinforce) {
-      const f = progress.flash[card.id];
+      const f = Flashcards.storeOf(progress, flashStoreKey(s))[card.id];
       if (f) {
         const cap = Date.now() + 3 * 86400000;
         if (f.due == null || f.due > cap) f.due = cap;
@@ -3027,6 +3055,9 @@
       case "flash-flip":
         document.getElementById("flashCard").classList.toggle("flipped");
         break;
+      case "flash-prod":
+        toggleFlashProd();
+        break;
       case "flash-say": {
         const s = State.flash;
         if (!s) break;
@@ -3051,9 +3082,14 @@
       case "flash-reset": {
         const sel = document.getElementById("flashUnit");
         const u = getUnit(parseInt(sel.value, 10));
-        unitWords(u).forEach(function (w) { delete progress.flash[w.id]; });
+        /* 两条调度线都要清：只清接受档会留下「产出档」的孤儿状态，
+           用户重置后仍看到卡片显示「已牢固」，是典型的半清理 bug。 */
+        unitWords(u).forEach(function (w) {
+          delete progress.flash[w.id];
+          delete progress.flashProd[w.id];
+        });
         saveProgress();
-        toast("已重置「" + u.title + "」的记忆数据");
+        toast("已重置「" + u.title + "」的记忆数据（接受档 + 产出档）");
         break;
       }
 
