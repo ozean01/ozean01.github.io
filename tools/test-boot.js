@@ -175,6 +175,38 @@ const renderErrors = [];
 });
 check("主要页面都能真实渲染且不报错", renderErrors.length === 0, renderErrors.join("；"));
 
+/* ---------------- SOP 英文 → 五阶段闯关：端到端闭环 ----------------
+   这是「接入练习引擎」这条需求的真正验收点：光把句子塞进 State 不算数，
+   要**渲染出来的 #/speak 页面里真的有那句话**。两个模块都在本沙箱里，所以能整条链验证。 */
+const sopT = ctx.window.SOP && ctx.window.SOP._t;
+check("沙箱里可用 SOP 的练习钩子", !!sopT && typeof sopT.sendToStage === "function");
+if (sopT) {
+  const SENT = "Please confirm the film structure before we start printing.";
+  sopT.sendToStage("端到端测试", [{ en: SENT, cn: "开印前请确认膜结构。" }]);
+  const speakHtml = renderPage("#/speak");
+  /* ⚠️ 闯关的【第一阶段是盲听】，设计上【故意不显示文字】——所以不能断言句子此刻出现，
+     只能断言 SOP 送来的单元确实被载入了（标题落在面包屑「闯关 · XXX」里）。 */
+  check("#/speak 载入了 SOP 送来的单元", /端到端测试/.test(speakHtml) && /五阶段闯关/.test(speakHtml));
+  check("盲听阶段不泄露原文（符合教学设计，不是 bug）", speakHtml.indexOf(SENT) === -1);
+
+  /* 进入「② 精听跟读」后，原文才应出现 */
+  ctx.window.FTE_BOOT.State.speak.stage = "shadow";
+  const shadowHtml = renderPage("#/speak");
+  check("进入精听跟读后，SOP 那句话出现在页面上", shadowHtml.indexOf(SENT) !== -1);
+
+  /* 整阶段批量送练同样走通 */
+  sopT.sendToStage("整阶段", sopT.STAGES[3].steps);
+  ctx.window.FTE_BOOT.State.speak.stage = "shadow";
+  const speakHtml2 = renderPage("#/speak");
+  check("整阶段的句子也渲染进了 #/speak",
+    speakHtml2.indexOf(sopT.STAGES[3].steps[0].en.slice(0, 40)) !== -1);
+
+  /* 实词 → 单词卡同样走一遍 */
+  sopT.sendToFlash("端到端测试", sopT.CHASE_LINES);
+  const flashHtml = renderPage("#/flash");
+  check("SOP 实词送卡后 #/flash 能渲染", flashHtml.length > 200 && flashHtml.indexOf("页面渲染出错") === -1);
+}
+
 /* ---------------- P4：「坚持」与「能力」必须分栏呈现 ----------------
    SLA 专家指出：两者混在一处会诱导用户拿"打卡 30 天"当"口语变好了"。
    故这里对**真实渲染出来的页面**做断言，而不只是检查源码字符串。 */

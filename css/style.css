@@ -994,6 +994,12 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .sop-en-t{flex:1;min-width:200px;font-size:13.5px;font-weight:600;color:#1e3a8a;line-height:1.7}
 .sop-en-cn{width:100%;font-size:12.5px;color:var(--muted);line-height:1.7}
 .sop-en-btns{display:flex;gap:5px;flex-shrink:0}
+/* 「🎤 练」：把这句 SOP 英文送进五阶段闯关（P5：SOP 英文接入练习引擎） */
+.sop-practice{padding:3px 9px;border:1px solid var(--primary);border-radius:7px;background:var(--card);
+              color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s}
+.sop-practice:hover{background:var(--primary);color:#fff}
+/* 整阶段/整节一起练的按钮行 */
+.sop-practice-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:10px}
 
 /* 完成度总览 */
 .sop-overall{margin-top:18px}

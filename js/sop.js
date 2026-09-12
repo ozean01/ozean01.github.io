@@ -686,7 +686,79 @@
       '<span class="sop-en-btns">' +
       '<button class="play-btn" data-action="play-text" data-text="' + esc(en) + '" title="朗读">▶</button>' +
       '<button class="play-btn" data-action="sop-copy" data-text="' + esc(en) + '" title="复制">📋</button>' +
+      '<button class="sop-practice" data-action="sop-practice" data-en="' + esc(en) + '" data-cn="' + esc(cn || "") + '" ' +
+      'title="把这句送进「五阶段闯关」：盲听 → 跟读 → 听写 → 复述">🎤 练</button>' +
       '</span></div>';
+  }
+
+  /* ---------------- 把 SOP 的英文接进练习引擎（P5）----------------
+     由来（SLA 专家评审）：SOP 里的英文句子此前**只能看和复制，点不进任何练习引擎**；
+     而一线教师反馈 SOP 是「唯一明天就能用的」功能。故此处把它接上站内已有引擎：
+       · 🎤 五阶段闯关（盲听 → 精听跟读 → 听写 → 复述）——练「说」
+       · 🃏 单词卡 FSRS——把整节的实词建成卡
+     不新增引擎、不新增路由，复用 material.js / mysay.js 已经验证过的 State.speak / State.flash 形状。 */
+
+  /* 实词提取（去停用词、去重、保留首次出现原句作例句） */
+  var SOP_STOP = {};
+  ("a an the and or but if of in on at to for with by from as is are was were be been being do does did done have has had having i you he she it we they my your his her our their me him us them this that these those there here what which who whom whose when where why how not no nor so than then too very just can could will would shall should may might must also").split(" ")
+    .forEach(function (w) { SOP_STOP[w] = true; });
+  function extractWords(lines) {
+    var out = [], seen = {};
+    (lines || []).forEach(function (l) {
+      String(l.en || "").toLowerCase().replace(/[^a-z'-]/g, " ").split(/\s+/).forEach(function (tok) {
+        var c = tok.replace(/'-/g, "'").replace(/[^a-z']/g, "");
+        if (c.length < 3 || SOP_STOP[c] || !/^[a-z][a-z-]*$/.test(c) || seen[c]) return;
+        seen[c] = 1;
+        var env = window.TutorEnv || {};
+        var info = env.lookupWord ? env.lookupWord(c) : null;
+        out.push({ id: "sop-" + c, w: c, ipa: info ? info.ipa : "", cn: info ? info.cn : "",
+          ex: l.en, exCn: info ? (info.exCn || "") : "", why: "" });
+      });
+    });
+    return out;
+  }
+  function toLines(list) {
+    return (list || []).filter(function (x) { return x && x.en; })
+      .map(function (x) { return { en: x.en, cn: x.cn || x.enCn || "" }; });
+  }
+  function sendToStage(title, lines) {
+    var boot = window.FTE_BOOT, env = window.TutorEnv || {};
+    var L = toLines(lines);
+    if (!L.length) { if (env.toast) env.toast("这里还没有可练的英文句子"); return; }
+    if (!boot || !boot.State) { if (env.toast) env.toast("⚠️ 主应用未就绪"); return; }
+    var unit = {
+      id: "SOP" + Date.now(),
+      title: "🧭 " + String(title).slice(0, 30),
+      desc: "（实操 SOP 英文 · 非站内 19 单元）",
+      vocab: [], phrases: [],
+      dialogues: [{ title: title, lines: L.map(function (l) { return { sp: "A", en: l.en, cn: l.cn }; }) }]
+    };
+    boot.State.speak = {
+      unit: unit, dlgIdx: 0, dlg: unit.dialogues[0], mode: "stage", role: "",
+      rate: (boot.progress && boot.progress.rate) || 1,
+      stepMode: false, stepIdx: 0, stage: "listen", dictResults: {}, recordings: {}
+    };
+    location.hash = "#/speak";
+    if (env.toast) env.toast("🏁 已送进「五阶段闯关」：" + L.length + " 句（盲听 → 跟读 → 听写 → 复述）");
+  }
+  function sendToFlash(title, lines) {
+    var boot = window.FTE_BOOT, env = window.TutorEnv || {};
+    var cards = extractWords(lines);
+    if (!cards.length) { if (env.toast) env.toast("没从这些英文里提取到可用实词"); return; }
+    if (!boot || !boot.State) { if (env.toast) env.toast("⚠️ 主应用未就绪"); return; }
+    var cap = cards.slice(0, 40);
+    boot.State.flash = {
+      unit: { id: "SOP", title: "🧭 " + String(title).slice(0, 20), vocab: [] },
+      queue: cap, idx: 0, stats: { known: 0, unknown: 0 },
+      freshLeft: Math.max(0, cards.length - cap.length), dueLeft: 0
+    };
+    location.hash = "#/flash";
+    if (env.toast) env.toast("🃏 已把 " + cap.length + " 个实词送进单词卡（FSRS）");
+  }
+  function allStepLines() {
+    var out = [];
+    STAGES.forEach(function (s) { out = out.concat(s.steps); });
+    return out;
   }
 
   function rulesHtml() {
@@ -723,6 +795,11 @@
         '</div>' +
         '<div class="progressbar" style="margin:6px 0 10px"><i class="' + (sp === 100 ? "full" : "") + '" style="width:' + sp + '%"></i></div>' +
         '<p class="sop-stage-lead">' + esc(s.lead) + '</p>' +
+        /* 整阶段的英文一起练：单句「🎤 练」适合临时练一句，这个适合把一段流程的英文一次过完 */
+        '<div class="sop-practice-row">' +
+        '<button class="btn btn-soft btn-sm" data-action="sop-practice-stage" data-id="' + s.id + '">🎤 本阶段 ' + s.steps.length + ' 句送进闯关</button>' +
+        '<button class="btn btn-outline btn-sm" data-action="sop-flash-stage" data-id="' + s.id + '">🃏 实词进单词卡</button>' +
+        '</div>' +
         steps +
         '</div>';
     }).join("");
@@ -736,8 +813,10 @@
       '<div class="sop-overall-h"><b>📋 实操清单完成度</b><span>' + doneCount(all) + " / " + all.length + '（' + pct + '%）</span></div>' +
       '<div class="progressbar"><i class="' + (pct === 100 ? "full" : "") + '" style="width:' + pct + '%"></i></div>' +
       '<div class="sop-overall-a">' +
+      '<button class="btn btn-primary btn-sm" data-action="sop-practice-all">🎤 全部 ' + all.length + ' 句英文送进闯关</button>' +
+      '<button class="btn btn-soft btn-sm" data-action="sop-flash-all">🃏 实词进单词卡</button>' +
       '<button class="btn btn-outline btn-sm" data-action="sop-reset">↺ 清空勾选</button>' +
-      '<span class="sop-hint">勾选状态保存在本浏览器，下次打开继续。每接一单可以清空重走一遍。</span>' +
+      '<span class="sop-hint">勾选状态保存在本浏览器，下次打开继续。每接一单可以清空重走一遍。上面这些英文都能直接拿去练——不只看和复制。</span>' +
       '</div></div>' +
       stages +
       '<div class="card"><div class="chat-head"><span>🚧 红线自查 10 问 · 你做对了吗？</span><span class="sop-hint">点开看答案</span></div>' + self + '</div>';
@@ -866,7 +945,11 @@
       '<p class="sop-tipline">尽调三条纪律：每个结论都要有来源链接；查不到就写「未查到」，不要推测；命中制裁或出口管制名单立即停止交易并上报。</p></div>' +
       '<div class="card"><div class="chat-head"><span>🚩 高风险客户红旗信号</span></div>' +
       '<ul class="tip-list">' + DD_FLAGS.map(function (f) { return "<li>" + esc(f) + "</li>"; }).join("") + '</ul></div>' +
-      '<div class="card"><div class="chat-head"><span>🗣 催款英文话术（由软到硬）</span><span class="sop-hint">可朗读、可复制</span></div>' +
+      '<div class="card"><div class="chat-head"><span>🗣 催款英文话术（由软到硬）</span><span class="sop-hint">可朗读、可复制、<b>可直接拿去练</b></span></div>' +
+      '<div class="sop-practice-row">' +
+      '<button class="btn btn-soft btn-sm" data-action="sop-practice-chase">🎤 这 ' + CHASE_LINES.length + ' 句送进闯关</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="sop-flash-chase">🃏 实词进单词卡</button>' +
+      '</div>' +
       CHASE_LINES.map(function (l) { return enLineHtml(l.en, l.cn); }).join("") + '</div>';
   }
 
@@ -1678,6 +1761,24 @@
       toast("↺ 已清空勾选，可以按新订单重走一遍");
     } else if (act === "sop-copy") {
       copyText(el.getAttribute("data-text"));
+    } else if (act === "sop-practice") {
+      /* 单句 → 五阶段闯关 */
+      sendToStage(el.getAttribute("data-en") || "", [{ en: el.getAttribute("data-en") || "", cn: el.getAttribute("data-cn") || "" }]);
+    } else if (act === "sop-practice-stage") {
+      /* 整阶段/整节 → 五阶段闯关 */
+      var stg = STAGES.filter(function (x) { return x.id === el.getAttribute("data-id"); })[0];
+      if (stg) sendToStage(stg.t, stg.steps);
+    } else if (act === "sop-practice-all") {
+      sendToStage("实操 SOP 全流程 27 步", allStepLines());
+    } else if (act === "sop-flash-stage") {
+      var stg2 = STAGES.filter(function (x) { return x.id === el.getAttribute("data-id"); })[0];
+      if (stg2) sendToFlash(stg2.t, stg2.steps);
+    } else if (act === "sop-flash-all") {
+      sendToFlash("实操 SOP 全流程", allStepLines());
+    } else if (act === "sop-flash-chase") {
+      sendToFlash("催款话术", CHASE_LINES);
+    } else if (act === "sop-practice-chase") {
+      sendToStage("催款英文话术", CHASE_LINES);
     } else if (act === "sop-cbm") {
       doCbm();
     } else if (act === "sop-cif") {
@@ -1722,6 +1823,12 @@
       load();
       var all = allSteps();
       return { done: doneCount(all), total: all.length };
+    },
+    /* 供测试与其它模块使用（P5：把 SOP 英文接进练习引擎） */
+    _t: {
+      allStepLines: allStepLines, extractWords: extractWords, toLines: toLines,
+      sendToStage: sendToStage, sendToFlash: sendToFlash,
+      STAGES: STAGES, CHASE_LINES: CHASE_LINES
     }
   };
 })();
