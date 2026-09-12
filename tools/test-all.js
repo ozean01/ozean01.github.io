@@ -15,6 +15,7 @@ const ROOT = path.join(__dirname, "..");
 /* gate: true → 必须 exit 0；false → 仅重算报告，失败不阻塞（打印即可） */
 const JOBS = [
   { cmd: "node", args: ["tools/audit-fsrs.js"],   gate: true,  label: "FSRS 参数/公式对齐官方 ts-fsrs" },
+  { cmd: "node", args: ["tools/test-boot.js"],    gate: true,  label: "启动完整性：37 脚本按序执行 / 25 模块就绪" },
   { cmd: "node", args: ["tools/test-fsrs.js"],    gate: true,  label: "FSRS 四档评分行为" },
   { cmd: "node", args: ["tools/test-parser.js"],  gate: true,  label: "句块切分器" },
   { cmd: "node", args: ["tools/test-subtitle.js"],gate: true,  label: "字幕解析 + 分级着色" },

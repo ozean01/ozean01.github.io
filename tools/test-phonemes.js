@@ -151,7 +151,54 @@ P.render();
 check("切到「单元音」只渲染 12 张", (appEl.innerHTML.match(/class="ph-card/g) || []).length === 12);
 P._state.group = "all";
 
-/* ---------------- ⑤ 接线门禁 ---------------- */
+/* ---------------- ⑤ 高危音（一线教师评审后新增，置于 41 音素表之前） ---------------- */
+const HR = T.HIGH_RISK || [];
+check("高危音分组不少于 10 组", HR.length >= 10, "n=" + HR.length);
+check("每组都有 音标/名称/危险说明/口型要点/行业词",
+  HR.every(function (g) { return g.sym && g.name && g.risk && g.tip && g.pick && g.pick.length; }));
+check("危险说明写清了「会出什么事故」而不只是描述口型",
+  HR.every(function (g) { return g.risk.length > 24; }));
+check("高危音分组 key 唯一", new Set(HR.map(function (g) { return g.key; })).size === HR.length);
+
+/* 核心断言：pick 里的词必须真在站内词库中。
+   若被删/改名，那组会静默少词甚至空掉——而「绑行业词」正是这个功能的全部意义。 */
+const allWords = {};
+UNITS.forEach(function (u) { (u.vocab || []).forEach(function (v) { allWords[String(v.w).toLowerCase()] = 1; }); });
+const missing = [];
+HR.forEach(function (g) {
+  g.pick.forEach(function (w) { if (!allWords[String(w).toLowerCase()]) missing.push(g.key + ":" + w); });
+});
+check("每个高危音组的行业词都能在站内词库找到", missing.length === 0, missing.join(", "));
+
+const thinHR = HR.filter(function (g) { return g.pick.map(T.findWord).filter(Boolean).length < 2; });
+check("每组至少能解析出 2 个词（否则该组形同虚设）", thinHR.length === 0,
+  thinHR.map(function (g) { return g.key; }).join(", "));
+
+check("findWord 能取到词义与音标", (function () {
+  const x = T.findWord("thickness");
+  return x && x.ipa === "/ˈθɪknəs/" && x.cn && x.unitId === 11;
+})());
+check("findWord 忽略大小写且查不到返回 null",
+  !!T.findWord("THICKNESS") && T.findWord("no-such-word-xyz") === null);
+
+let hrErr = null, hrHtml = "";
+try { hrHtml = T.highRiskHtml(); } catch (e) { hrErr = e; }
+check("highRiskHtml() 不抛错", !hrErr, hrErr && hrErr.message);
+check("高危音区块渲染出全部组", (hrHtml.match(/class="hr-card"/g) || []).length === HR.length,
+  (hrHtml.match(/class="hr-card"/g) || []).length + " / " + HR.length);
+check("高危音词条可点击朗读", (hrHtml.match(/data-action="ph-say"/g) || []).length >= HR.length * 2);
+check("高危音区块默认展开", /class="hr-box" open/.test(hrHtml));
+
+/* 渲染顺序：高危音必须在 41 音素全量表【之前】——这是本次修改的核心诉求 */
+P._state.group = "all"; P._state.open = null;
+P.render();
+const ph = appEl.innerHTML;
+const iHR = ph.indexOf('class="hr-box"');
+const iGrid = ph.indexOf('class="ph-grid"');
+check("高危音区块排在 41 音素全量表之前", iHR !== -1 && iGrid !== -1 && iHR < iGrid,
+  "hr@ " + iHR + " grid@ " + iGrid);
+
+/* ---------------- ⑥ 接线门禁 ---------------- */
 const htmlSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");

@@ -390,7 +390,7 @@
        故二者**是平等 tab**，听辨不得降为知识页附录。 */
     phonemes: {
       tabs: [
-        { k: "phonemes", label: "🔤 音素课", render: function () { window.Phonemes.render(); } },
+        { k: "phonemes", label: "🔤 音素与高危音", render: function () { window.Phonemes.render(); } },
         { k: "listen", label: "👂 辨音 · 最小音对", render: function () { window.Listen.render(); } }
       ]
     },

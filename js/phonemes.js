@@ -154,6 +154,102 @@
   let _cache = null;
   function index() { if (!_cache) _cache = buildIndex(); return _cache; }
 
+  /* ---------------- 精确查词（用于「高危音」——只认站内词库，保证 IPA 口径一致） ---------------- */
+  function findWord(w) {
+    const key = String(w).toLowerCase();
+    const list = units();
+    for (let i = 0; i < list.length; i++) {
+      const vs = list[i].vocab || [];
+      for (let j = 0; j < vs.length; j++) {
+        if (String(vs[j].w).toLowerCase() === key) {
+          return { w: vs[j].w, ipa: vs[j].ipa, cn: vs[j].cn, unitId: list[i].id, ex: vs[j].ex };
+        }
+      }
+    }
+    return null;
+  }
+
+  /* ---------------- 🚨 高危音（优先于 41 音素全量表） ----------------
+     来自一线外贸英语培训师的评审，原话：
+       「41 个音素对四级荒废多年的业务员是负担；他们分不清 /θ/ /s/ 不是不懂口型而是不练。
+         真正出事故的只有十来个（th/s、v/w、l/r、词尾辅音、-ed），且必须绑行业词
+         （coating weight → 客户直接听错），比口型图有用十倍。」
+
+     故本区块置于 41 音素表【之前】，每组只给「会出什么事故 + 一句口型要点 + 你的行业词」。
+     词与 IPA 全部取自站内词库（findWord），保证与全站口径一致，也不引入未核对内容。
+     pick 里的词若被从词库删掉，只会少显示一个词，不会报错。 */
+  const HIGH_RISK = [
+    { key: "th", sym: "θ", name: "/θ/ 舌尖齿间音", unit: 11,
+      risk: "中文没有这个音。发成 /s/ 会把「厚度」说成「疾病」（thickness → sickness），" +
+        "把「剥离强度」说成 s-trength——客户会以为你在说别的指标。",
+      tip: "舌尖轻轻伸进上下齿之间，气流从缝隙挤出，声带不振动。",
+      pick: ["thickness", "peel strength", "bonding strength", "thinner", "ethyl acetate", "web width"] },
+    { key: "dh", sym: "ð", name: "/ð/ 浊齿间音", unit: 4,
+      risk: "常被说成 /z/ 或 /d/。comply with 说成 comply wiz，客户要顿一下才反应过来。",
+      tip: "与 /θ/ 同一个口型，但声带要振动（摸着喉咙能感到震颤）。",
+      pick: ["comply with", "With Particular Average"] },
+    { key: "v", sym: "v", name: "/v/ 唇齿摩擦音", unit: 3,
+      risk: "常被说成 /w/。valid 说成 walid、adhesive 说成 adheziw——「有效期」和「胶」都是天天用的词。",
+      tip: "上齿轻咬下唇，气流从缝隙挤出；不是把双唇收圆。",
+      pick: ["valid", "validity", "value proposition", "laminating adhesive", "solvent-based adhesive", "leverage"] },
+    { key: "r", sym: "r", name: "词尾 /r/ —— 必须发出来", unit: 1,
+      risk: "中文没有词尾 r。supplier 说成 supplia、buyer 说成 baia，客户听不出你在说谁。",
+      tip: "舌尖卷起但不碰上腭。词尾的 r 是美音的标志，不能吞。",
+      pick: ["supplier", "buyer", "manufacturer", "exporter", "importer", "seller"] },
+    { key: "l", sym: "l", name: "词尾暗 /l/ —— 别吞掉", unit: 11,
+      risk: "film 说成 fim、sample 说成 sampo。「薄膜」和「样品」是每天都要说的词。",
+      tip: "舌尖抵上齿龈，同时舌后部抬起，气流从舌两侧出。",
+      pick: ["film", "sample", "flexible packaging", "polyol", "scale-up"] },
+    { key: "ie", sym: "iː", name: "/iː/ 长音 —— 别与 /ɪ/ 混", unit: 3,
+      risk: "lead time 的 lead /liːd/ 说成 /lɪd/ 就成了 lid（盖子）；specification sheet 的 sheet 说错会变成很不礼貌的词。",
+      tip: "嘴角向两侧展开，肌肉紧张、拉长；不是把 /ɪ/ 读长。",
+      pick: ["lead time", "specification sheet", "lead", "attendee"] },
+    { key: "ae", sym: "æ", name: "/æ/ 大开口 —— 中文没有", unit: 3,
+      risk: "sample、tariff、contract、valid 都是高频词，口型开不够会影响辨识。",
+      tip: "下颌明显下降，口型扁而大，介于「啊」与「诶」之间。",
+      pick: ["sample", "tariff", "contract", "valid", "stand"] },
+    { key: "ng", sym: "ŋ", name: "/ŋ/ 鼻音（-ing）—— 别拖出 g", unit: 3,
+      risk: "coating 说成 coatin 或 coatingk。上胶量、复合、包装、运输全是 -ing 结尾。",
+      tip: "舌后部抵软腭，气流从鼻腔出；词尾不要多一个 /ɡ/。",
+      pick: ["coating weight", "laminating adhesive", "flexible packaging", "shipping", "tunneling"] },
+    { key: "z", sym: "z", name: "词尾浊 /z/ —— 复数别读成 /s/", unit: 1,
+      risk: "customs /ˈkʌstəmz/、terms /tɜːrmz/、Incoterms 读成 /s/ 会听起来像另一个词。",
+      tip: "声带要振动。名词复数的 s 在浊音后读 /z/。",
+      pick: ["customs", "Incoterms", "terms", "bank charges"] },
+    { key: "cl", sym: "ks/kt/st", name: "词尾辅音丛 —— 别吞音也别加元音", unit: 1,
+      risk: "contract 说成 contrac、defect 说成 defec、price list 说成 price lis。中文习惯开音节，天然想吞尾音或补一个元音。",
+      tip: "词尾两个辅音都要发出来，中间不加元音（不是 contrac-to）。",
+      pick: ["contract", "prospect", "price list", "catalyst", "food contact", "defect", "logistics", "packing list"] }
+  ];
+
+  function highRiskHtml() {
+    const rows = HIGH_RISK.map(function (g) {
+      const ws = g.pick.map(findWord).filter(Boolean);
+      const chips = ws.map(function (x) {
+        return '<button class="hr-word" data-action="ph-say" data-w="' + esc(x.w) + '" title="' +
+          esc(x.ipa + "  " + x.cn) + '">' + esc(x.w) + '<span class="hr-ipa">' + esc(x.ipa) + "</span></button>";
+      }).join("");
+      return `
+      <div class="hr-card">
+        <div class="hr-head"><span class="hr-sym">${esc(g.sym)}</span><b>${esc(g.name)}</b>
+          <span class="hr-n">${ws.length} 个你的行业词</span></div>
+        <div class="hr-risk">⚠️ ${esc(g.risk)}</div>
+        <div class="hr-tip">👄 ${esc(g.tip)}</div>
+        <div class="hr-words">${chips || '<span class="field-note">（词库中未找到这些词）</span>'}</div>
+      </div>`;
+    }).join("");
+
+    return `
+    <details class="hr-box" open>
+      <summary><b>🚨 先练这 ${HIGH_RISK.length} 组（真会出事故的）</b>
+        <span class="hr-sub">业务员分不清 /θ/ /s/ 通常不是不懂口型，而是没练——所以每组都配了你自己的行业词，点词即朗读</span></summary>
+      <div class="hr-body">
+        <div class="hr-grid">${rows}</div>
+        <div class="field-note" style="margin-top:10px">下面 ${PHONEMES.length} 个音素是<b>全量参考</b>，想系统过一遍再看；日常先按上面这 ${HIGH_RISK.length} 组练。</div>
+      </div>
+    </details>`;
+  }
+
   /* ---------------- 朗读 / 送进单词卡 ---------------- */
   function speakWord(w) {
     if (!window.Player || !window.Player.speak) return;
@@ -240,10 +336,12 @@
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs"><a href="#/home">首页</a> / 音素课</div>
-      <h2>🔤 音素课 <span class="en">41 个音素 · 口型舌位要点 · 站内行业例词</span></h2>
+      <h2>🔤 音素与辨音 <span class="en">先练会出事故的十组，再看全量音素表</span></h2>
       <p style="margin-top:8px;max-width:820px;color:var(--muted)">先「知道舌头往哪放」，再拿你自己业务里的词开口。下面每个音素的例词都<b>不是教材里的 apple / banana</b>，而是从本站 ${totalWords} 条行业词里自动索引出来的——复合膜、上胶量、剥离强度、订舱、信用证。你练的就是真要发的那些音。</p>
       <div class="field-note" style="margin-top:8px">口径：<b>美式通用口音（General American）</b>，与站内音标规范一致（用 <code>e</code> 不用 <code>ɛ</code>、用 <code>ɡ</code>、不用 <code>ɝ/ɚ</code>）。下方的口型描述是<b>教学近似</b>，帮你找到发音位置，不等于声学定义；以真实母语发音为准。</div>
     </div>
+
+    ${highRiskHtml()}
 
     <div class="card" style="margin-top:12px;padding:14px 16px">
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${chips}
@@ -287,6 +385,7 @@
      PHONEMES / INVENTORY / SKIP 均为 const，声明前引用会触发 TDZ。 */
   window.Phonemes._t = {
     tokenize: tokenize, INVENTORY: INVENTORY, SKIP: SKIP,
-    PHONEMES: PHONEMES, buildIndex: buildIndex, NAMES: NAMES
+    PHONEMES: PHONEMES, buildIndex: buildIndex, NAMES: NAMES,
+    HIGH_RISK: HIGH_RISK, findWord: findWord, highRiskHtml: highRiskHtml
   };
 })();
