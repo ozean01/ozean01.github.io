@@ -18,7 +18,7 @@
   /* 注：测试钩子 _t 在文件末尾赋值——INVENTORY / SKIP / PHONEMES 都是 const，
      在声明前引用会触发 TDZ 直接抛错（曾在加载期整模块失败）。 */
 
-  const S = window.Phonemes._state = { group: "all", open: null };
+  const S = window.Phonemes._state = { group: "all", open: null, fullOpen: false };
 
   /* ---------------- 音素表 ----------------
      口径：美式通用口音（General American），与站内 IPA 规范一致（e 而非 ɛ、ɡ U+0261、无 ɝ/ɚ）。
@@ -245,7 +245,7 @@
         <span class="hr-sub">业务员分不清 /θ/ /s/ 通常不是不懂口型，而是没练——所以每组都配了你自己的行业词，点词即朗读</span></summary>
       <div class="hr-body">
         <div class="hr-grid">${rows}</div>
-        <div class="field-note" style="margin-top:10px">下面 ${PHONEMES.length} 个音素是<b>全量参考</b>，想系统过一遍再看；日常先按上面这 ${HIGH_RISK.length} 组练。</div>
+        <div class="field-note" style="margin-top:10px">下面还有一个 <b>${PHONEMES.length} 个音素的完整表</b>（默认折叠）——那是<b>参考/查询</b>用的，从头背没有意义。日常先把上面这 ${HIGH_RISK.length} 组练顺。</div>
       </div>
     </details>`;
   }
@@ -336,20 +336,30 @@
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs"><a href="#/home">首页</a> / 音素课</div>
-      <h2>🔤 音素与辨音 <span class="en">先练会出事故的十组，再看全量音素表</span></h2>
-      <p style="margin-top:8px;max-width:820px;color:var(--muted)">先「知道舌头往哪放」，再拿你自己业务里的词开口。下面每个音素的例词都<b>不是教材里的 apple / banana</b>，而是从本站 ${totalWords} 条行业词里自动索引出来的——复合膜、上胶量、剥离强度、订舱、信用证。你练的就是真要发的那些音。</p>
+      <h2>🔤 音素与辨音 <span class="en">只练会出事故的那几组，其余当参考</span></h2>
+      <p style="margin-top:8px;max-width:820px;color:var(--muted)"><b>发音不是练完 41 个音素才算过关。</b>对四级荒废多年的在职业务员，真正会让你在客户面前出事的只有十来个——所以这一页的主次很明确：<b>上面那十组先练</b>，下面的完整音素表只作<b>查阅</b>（想知道某个音出现在哪些行业词里时再展开）。</p>
+      <p style="margin-top:6px;max-width:820px;color:var(--muted)">每组配的例词都<b>不是教材里的 apple / banana</b>，而是从本站 ${totalWords} 条行业词里自动索引出来的——复合膜、上胶量、剥离强度、订舱、信用证。你练的就是真要发的那些音。</p>
       <div class="field-note" style="margin-top:8px">口径：<b>美式通用口音（General American）</b>，与站内音标规范一致（用 <code>e</code> 不用 <code>ɛ</code>、用 <code>ɡ</code>、不用 <code>ɝ/ɚ</code>）。下方的口型描述是<b>教学近似</b>，帮你找到发音位置，不等于声学定义；以真实母语发音为准。</div>
     </div>
 
     ${highRiskHtml()}
 
-    <div class="card" style="margin-top:12px;padding:14px 16px">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${chips}
-        <span class="field-note" style="margin:0 0 0 auto">听音对比请用「🎤 口语听说 → <a href="#/listen">辨音 · 最小音对</a>」</span>
+    <!-- 完整音素表默认【折叠】：一线教师评审指出「41 个音素对四级荒废多年的业务员是负担」。
+         它真正的用途是**查**（某个音出现在哪些行业词里），不是从头学——故降为参考附录，
+         与上面「先练这 10 组」形成明确主次。折叠状态记在 S.fullOpen，
+         否则点筛选 chip 触发重渲染时会自动收起。 -->
+    <details class="ph-full"${S.fullOpen ? " open" : ""}>
+      <summary><b>📖 完整音素表（${PHONEMES.length} 个 · 参考用）</b>
+        <span class="ph-full-sub">平时不用展开——先练上面那 ${HIGH_RISK.length} 组就够。这里适合<b>查</b>：想知道某个音出现在哪些行业词里，按类型筛选，或用浏览器 Ctrl+F 搜音标。</span></summary>
+      <div class="ph-full-body">
+        <div class="card" style="padding:14px 16px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${chips}
+            <span class="field-note" style="margin:0 0 0 auto">听音对比请用「🎤 口语听说 → <a href="#/listen">辨音 · 最小音对</a>」</span>
+          </div>
+        </div>
+        <div class="ph-grid" style="margin-top:12px">${cards}</div>
       </div>
-    </div>
-
-    <div class="ph-grid" style="margin-top:12px">${cards}</div>
+    </details>
     `;
     window.scrollTo(0, 0);
   }
@@ -361,7 +371,7 @@
     const act = el.getAttribute("data-action");
     if (!act || act.indexOf("ph-") !== 0) return;
     const id = el.getAttribute("data-id");
-    if (act === "ph-group") { S.group = id || "all"; S.open = null; render(); return; }
+    if (act === "ph-group") { S.group = id || "all"; S.open = null; S.fullOpen = true; render(); return; }
     if (act === "ph-more") { S.open = (S.open === id) ? null : id; render(); return; }
     if (act === "ph-say") { speakWord(el.getAttribute("data-w") || ""); return; }
     if (act === "ph-play") {

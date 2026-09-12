@@ -1476,6 +1476,14 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 /* ============ 🚨 高危音（js/phonemes.js highRiskHtml） ============ */
 /* 置于 41 音素全量表之前：业务员该先练的「真会出事故」的那十组 */
 .hr-box{margin-top:14px;border:1px solid #fecaca;border-radius:12px;background:#fff7f7;padding:12px 16px}
+/* 完整音素表：默认折叠的参考附录（与上面的「高危音」形成主次） */
+.ph-full{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.ph-full summary{cursor:pointer;list-style:none;padding:13px 16px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ph-full summary::-webkit-details-marker{display:none}
+.ph-full summary b{font-size:14.5px;color:var(--muted)}
+.ph-full-sub{font-size:12px;color:var(--muted);flex:1;min-width:220px;line-height:1.6}
+.ph-full[open] summary{border-bottom:1px solid var(--line)}
+.ph-full-body{padding:14px 16px}
 .hr-box[open]{background:var(--card)}
 .hr-box summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .hr-box summary::-webkit-details-marker{display:none}

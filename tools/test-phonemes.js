@@ -190,13 +190,35 @@ check("高危音词条可点击朗读", (hrHtml.match(/data-action="ph-say"/g) |
 check("高危音区块默认展开", /class="hr-box" open/.test(hrHtml));
 
 /* 渲染顺序：高危音必须在 41 音素全量表【之前】——这是本次修改的核心诉求 */
-P._state.group = "all"; P._state.open = null;
+P._state.group = "all"; P._state.open = null; P._state.fullOpen = false;
 P.render();
 const ph = appEl.innerHTML;
 const iHR = ph.indexOf('class="hr-box"');
 const iGrid = ph.indexOf('class="ph-grid"');
 check("高危音区块排在 41 音素全量表之前", iHR !== -1 && iGrid !== -1 && iHR < iGrid,
   "hr@ " + iHR + " grid@ " + iGrid);
+
+/* ---------------- ⑤′ 完整音素表降为「参考附录」（一线教师：41 个音素是负担） ----------------
+   目标：页面主体只剩「该练的那十组」；41 音素仍在，但默认折叠、且被明确标注为查阅用。
+   注意不能只靠「源码里有 details」——要验证它**当前确实是收起状态**。 */
+const iFull = ph.indexOf('class="ph-full"');
+check("完整音素表被包进折叠区", iFull !== -1 && iFull < iGrid, "full@ " + iFull);
+const fullTag = (ph.match(/<details class="ph-full"[^>]*>/) || [])[0] || "";
+check("完整音素表【默认折叠】（不带 open）", !!fullTag && fullTag.indexOf("open") === -1, fullTag);
+const hrTag = (ph.match(/<details class="hr-box"[^>]*>/) || [])[0] || "";
+check("高危音区块【默认展开】", !!hrTag && /\bopen\b/.test(hrTag), hrTag);
+check("折叠区标题标明了它是参考用", /完整音素表（\d+ 个 · 参考用）/.test(ph));
+check("折叠区说明了它适合「查」而不是「学」", /适合.*查|Ctrl\+F/.test(ph));
+check("页面头部点明了主次（只练会出事故的那几组）", /只练会出事故的那几组/.test(ph));
+check("页面头部明确「不是练完 41 个才算过关」", /不是练完 41 个音素才算过关/.test(ph));
+
+/* 展开状态必须能跨重渲染保留：点筛选 chip 会整页重渲染，若不记录就会自动收起 */
+P._state.fullOpen = true;
+P.render();
+const ph2 = appEl.innerHTML;
+check("S.fullOpen=true 时折叠区渲染为展开",
+  /<details class="ph-full"[^>]*\bopen\b/.test(ph2));
+P._state.fullOpen = false;
 
 /* ---------------- ⑥ 接线门禁 ---------------- */
 const htmlSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
