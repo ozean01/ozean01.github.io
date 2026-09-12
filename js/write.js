@@ -37,6 +37,59 @@
     return (DATA().units || []).filter(function (u) { return unitIds.indexOf(u.id) !== -1; });
   }
 
+  /* ---------------- 真实业务语料（js/data-mail.js）----------------
+     与上面的 SCENARIOS 互补，两者不是一回事：
+       SCENARIOS        = 「给你一个中文情境，你来写英文」——纯产出任务
+       FTE_MAIL.threads = 「给你一封真实来信，你来读懂并回信」——输入 + 产出
+     后者的价值在于**输入不是为教学编的**：缩写满天飞、时态乱、信息全塞在一段、
+     re: 线程里关键信息还不在最新一封。这些恰恰是学员每天真正面对、而站内
+     768 词 / 28 段对话（全是教科书英文）训练不到的东西。
+     刻意**不新增导航、不新增路由**：整个语料挂在写作专区里，
+     因为真实工作流本来就是「读到一封 → 回一封」。 */
+  function MAIL() { return (window.FTE_MAIL && window.FTE_MAIL.threads) || []; }
+  function findThread(id) {
+    const a = MAIL();
+    for (let i = 0; i < a.length; i++) { if (a[i].id === id) return a[i]; }
+    return null;
+  }
+
+  /* 当前任务的「关键表达」：
+       场景写作 → 取关联单元的词汇与短语（原有行为）
+       真实来信 → 取这封信**明确要求你回答的那几件事**（points） */
+  function currentKw(s) {
+    if (s && s.mail) { const th = findThread(s.mail); return (th && th.points) || []; }
+    const sc = SCENARIOS.find(function (x) { return x.id === (s && s.scen); }) || SCENARIOS[0];
+    return keyPhrases(sc.unitIds);
+  }
+  function currentTitle(s) {
+    if (s && s.mail) { const th = findThread(s.mail); return th ? th.title : ""; }
+    const sc = SCENARIOS.find(function (x) { return x.id === (s && s.scen); }) || SCENARIOS[0];
+    return sc.title;
+  }
+  function currentCtx(s) {
+    if (s && s.mail) {
+      const th = findThread(s.mail);
+      return th ? (th.task + "\n\n（原始来信主题：" + th.subject + "）") : "";
+    }
+    const sc = SCENARIOS.find(function (x) { return x.id === (s && s.scen); }) || SCENARIOS[0];
+    return sc.ctx;
+  }
+
+  /* write.js 既有的 esc 是**恒等函数**（只做 String 转换，不转义字符）——历史遗留。
+     真实来信里有 > 引用层级与 & 等字符，这里单独给一份**真转义**版本，
+     不去改既有的 esc，以免影响已上线页面的渲染结果。 */
+  function escM(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/\n/g, "<br>");
+  }
+  /* 同上的转义，但**保留换行**——<textarea> 的预填值不能出现 <br>，
+     否则用户回来看见的就是字面的「&lt;br&gt;」而不是换行。 */
+  function escTA(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
   function savedWorks() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
   function saveWorks(a) { try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 100))); } catch (e) { /* ignore */ } }
 
@@ -138,6 +191,12 @@
     const app = document.getElementById("app");
     if (!app) return;
     const state = readState();
+    /* 真实来信优先：s.mail 与 s.scen 互斥（切换时互相清空） */
+    if (state.mail) {
+      const th = findThread(state.mail);
+      if (th) { app.innerHTML = mailReaderHtml(state, th); writeState(state); return; }
+      state.mail = null;   /* 语料被删掉/改 id 时不致于白屏，退回列表 */
+    }
     if (!state.scen) {
       app.innerHTML = scenListHtml();
       return;
@@ -152,19 +211,112 @@
   function writeState(s) { try { sessionStorage.setItem("fte-write-state", JSON.stringify(s)); } catch (e) { /* ignore */ } }
   function clearState() { try { sessionStorage.removeItem("fte-write-state"); } catch (e) { /* ignore */ } }
 
+  /* ---------------- 📨 真实来信：入口与阅读页 ---------------- */
+  function mailListHtml() {
+    const th = MAIL();
+    if (!th.length) return "";
+    const chips = th.map(function (t) {
+      return '<button class="scen-chip mail-chip" data-action="ws-mail" data-id="' + t.id + '">' +
+        t.icon + " " + escM(t.title) + "</button>";
+    }).join("");
+    return `
+    <div class="card" style="margin-top:16px">
+      <div class="chat-head"><span>📨 真实来信（读懂真客户怎么写 → 回一封）</span></div>
+      <div class="field-note" style="margin-top:8px">
+        上面 6 个场景是「给你中文，你来写英文」；这里是反过来——<b>给你一封真的会收到的信</b>。
+        站内的例句和对话都是为教学写的：语法正确、句子完整、信息清楚。真实客户的信不长这样。
+        这 ${th.length} 封来自真实业务场景的信，练的是<b>读懂 + 回得像人话</b>：每封都有<b>逐句注释</b>、
+        <b>「这封信的坑」</b>（会因此报错价、答非所问的地方）和一组<b>开口练的模板句</b>。
+      </div>
+      <div class="scen-grid" style="margin-top:10px">${chips}</div>
+    </div>`;
+  }
+
+  function mailReaderHtml(s, th) {
+    const kw = currentKw(s);
+    const bodyHtml = (th.body || []).map(function (b) {
+      if (b.k === "h") return '<div class="mail-h">' + escM(b.s) + "</div>";
+      if (b.k === "q") return '<blockquote class="mail-q">' + escM(b.s) + "</blockquote>";
+      return '<p class="mail-p">' + escM(b.s) + "</p>";
+    }).join("");
+    const glossHtml = (th.gloss || []).map(function (g) {
+      return '<div class="mail-gloss"><div class="mail-gloss-t">' + escM(g.t) + "</div>" +
+        '<div class="mail-gloss-cn">' + escM(g.cn) + "</div>" +
+        (g.fix ? '<div class="mail-gloss-fix">✍️ 更地道：' + escM(g.fix) + "</div>" : "") +
+        "</div>";
+    }).join("");
+    const trapsHtml = (th.traps || []).map(function (t, i) {
+      return '<div class="mail-trap"><b>⚠️ ' + (i + 1) + " · " + escM(t.t) + "</b><p>" + escM(t.cn) + "</p></div>";
+    }).join("");
+    const drillHtml = (th.drill || []).map(function (d, i) {
+      return '<div class="mail-drill"><div class="md-en">' + escM(d.en) + "</div>" +
+        '<div class="md-cn">' + escM(d.cn) + "</div>" +
+        '<button class="play-btn" data-action="ws-mail-say" data-i="' + i + '" title="朗读这句">🔊</button></div>';
+    }).join("");
+    const unitLinks = findUnit(th.unitIds || []).map(function (u) {
+      return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + " " + esc(u.title) + "</a>";
+    }).join("");
+    return `
+    <div class="page-head"><h2>📨 ${th.icon} ${escM(th.title)}</h2>
+      <div class="en"><button class="btn btn-outline btn-sm" data-action="ws-back">← 换一封</button></div></div>
+    ${goalBanner()}
+    <div class="card mail-card" style="margin-top:16px">
+      <div class="mail-meta">
+        <span class="mail-tag">${escM(th.tag)}</span>
+        <span class="mail-who">${escM(th.who)}</span>
+      </div>
+      <div class="mail-subject">Subject: ${escM(th.subject)}</div>
+      <div class="mail-body">${bodyHtml}</div>
+      <div class="field-note" style="margin-top:10px">
+        配套单元：${unitLinks || "—"}
+        <button class="btn btn-soft btn-sm" data-action="ws-mail-flash" style="margin-left:8px">🃏 这封信里的实词进单词卡</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="chat-head"><span>🔍 逐句注释（${(th.gloss || []).length} 条）</span></div>
+      <div class="mail-glosses">${glossHtml}</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="chat-head"><span>⚠️ 这封信的坑（${(th.traps || []).length} 条）</span></div>
+      <div class="mail-traps">${trapsHtml}</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="chat-head"><span>🎤 先开口：这几个句子可以直接用</span>
+        <button class="btn btn-outline btn-sm" data-action="ws-mail-drill">🏁 全部送进五阶段闯关</button></div>
+      <div class="mail-drills">${drillHtml}</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="chat-head"><span>✍️ 现在回这封信</span></div>
+      <div class="dlg-line" style="margin-top:8px"><div class="cn">${escM(th.task)}</div></div>
+      <textarea id="wsText" class="write-input" rows="8" placeholder="用英文回这封信…">${escTA(s.text || "")}</textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" data-action="ws-submit">✅ 要点自查</button>
+        <button class="btn btn-soft btn-sm" data-action="ws-save">💾 保存作品</button>
+        <span class="sop-hint" id="wsWc">${wc(s.text || "")} 词</span>
+      </div>
+      ${feedbackHtml(s, kw)}
+    </div>
+    ${s.checked ? draft2Html(s, kw) : ""}`;
+  }
+
   function scenListHtml() {
     const works = savedWorks();
     const chips = SCENARIOS.map(function (s) {
       return '<button class="scen-chip" data-action="ws-pick" data-id="' + s.id + '">' + s.icon + ' ' + esc(s.title) + '</button>';
     }).join("");
     return `
-    <div class="page-head"><h2>✍️ 写作专区 <span class="en">选场景 → 写英文 → 要点自查 / AI 批改 → 保存作品</span></h2></div>
+    <div class="page-head"><h2>✍️ 写作专区 <span class="en">选场景写英文 / 读真实来信并回信 → 要点自查 → 二稿对比</span></h2></div>
     ${goalBanner()}
     <div class="card" style="margin-top:18px">
       <b style="font-size:13px;color:var(--muted)">选择一个业务场景（每个场景都已给出中文情境）</b>
       <div class="scen-grid" style="margin-top:10px">${chips}</div>
       <div class="field-note" style="margin-top:10px">离线也能写：提交后自动按该单元的关键表达做「要点自查」（你用了哪些、漏了哪些）；配了 AI 陪练模型后还可一键 AI 批改、给出更地道版本。</div>
     </div>
+    ${mailListHtml()}
     ${works.length ? `
     <div class="card" style="margin-top:16px">
       <div class="chat-head"><span>📂 我的作品（${works.length}）</span></div>
@@ -177,26 +329,28 @@
     </div>` : ""}`;
   }
 
+  /* 要点自查 + AI 批改入口：场景写作与真实来信**共用同一套反馈管线**，
+     所以从下面抽成独立函数，不复制第二份实现（复制出来的第二份必然漂移）。 */
+  function feedbackHtml(s, kw) {
+    if (!s.checked) return "";
+    const res = checkKeywords(s.text, kw);
+    const used = res.filter(function (r) { return r.hit; });
+    const miss = res.filter(function (r) { return !r.hit; });
+    const rate = res.length ? Math.round(used.length / res.length * 100) : 0;
+    const usedHtml = used.map(function (r) { return '<span class="kw-hit">✓ ' + escM(r.t) + '（' + escM(r.cn) + '）</span>'; }).join("");
+    const missHtml = miss.slice(0, 12).map(function (r) { return '<span class="kw-miss">· ' + escM(r.t) + '（' + escM(r.cn) + '）</span>'; }).join(" ");
+    return '<div class="ws-feed"><div style="font-weight:700;color:' + (rate >= 60 ? "var(--ok)" : "var(--bad)") + '">要点自查：覆盖 ' + rate + '%（' + used.length + '/' + res.length + '）</div>' +
+      (usedHtml ? '<div style="margin-top:6px">' + usedHtml + '</div>' : "") +
+      (miss.length ? '<div style="margin-top:6px;color:var(--muted)">可再点到的表达：' + missHtml + '</div>' : "") +
+      '<div id="wsAi" class="qa-ai" hidden></div>' +
+      (window.Tutor && window.Tutor.hasConfig() ? '<button class="btn btn-outline btn-sm" data-action="ws-ai" style="margin-top:10px">🤖 AI 批改（更地道）+</button>' : "") +
+      '</div>';
+  }
+
   function scenEditorHtml(s) {
     const sc = SCENARIOS.find(function (x) { return x.id === s.scen; }) || SCENARIOS[0];
     const kw = keyPhrases(sc.unitIds);
-    let feed = "";
-    if (s.checked) {
-      const res = checkKeywords(s.text, kw);
-      const used = res.filter(function (r) { return r.hit; });
-      const miss = res.filter(function (r) { return !r.hit; });
-      const good = used.filter(function (r) { return r.hit; }).length;
-      const rate = res.length ? Math.round(used.length / res.length * 100) : 0;
-      const usedHtml = used.map(function (r) { return '<span class="kw-hit">✓ ' + esc(r.t) + '（' + esc(r.cn) + '）</span>'; }).join("");
-      const missHtml = miss.slice(0, 12).map(function (r) { return '<span class="kw-miss">· ' + esc(r.t) + '（' + esc(r.cn) + '）</span>'; }).join(" ");
-      feed =
-        '<div class="ws-feed"><div style="font-weight:700;color:' + (rate >= 60 ? "var(--ok)" : "var(--bad)") + '">要点自查：覆盖 ' + rate + '%（' + used.length + '/' + res.length + '）</div>' +
-        (usedHtml ? '<div style="margin-top:6px">' + usedHtml + '</div>' : "") +
-        (miss.length ? '<div style="margin-top:6px;color:var(--muted)">可再点到的表达：' + missHtml + '</div>' : "") +
-        '<div id="wsAi" class="qa-ai" hidden></div>' +
-        (window.Tutor && window.Tutor.hasConfig() ? '<button class="btn btn-outline btn-sm" data-action="ws-ai" style="margin-top:10px">🤖 AI 批改（更地道）+</button>' : "") +
-        '</div>';
-    }
+    const feed = feedbackHtml(s, kw);
     const unitLinks = findUnit(sc.unitIds).map(function (u) { return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) + '</a>'; }).join("");
     return `
     <div class="page-head"><h2>✍️ ${sc.icon} ${esc(sc.title)}</h2>
@@ -224,7 +378,28 @@
     const act = el.getAttribute("data-action");
     if (act.indexOf("ws-") !== 0) return;
     const s = readState();
-    if (act === "ws-pick") { s.scen = el.getAttribute("data-id"); s.text = ""; s.checked = false; s.draft2 = null; s.d2done = false; writeState(s); render(); return; }
+    if (act === "ws-pick") { s.scen = el.getAttribute("data-id"); s.mail = null; s.text = ""; s.checked = false; s.draft2 = null; s.d2done = false; writeState(s); render(); return; }
+    /* 📨 真实来信：与场景写作互斥，进入时把上一轮的草稿状态清干净 */
+    if (act === "ws-mail") { s.mail = el.getAttribute("data-id"); s.scen = null; s.text = ""; s.checked = false; s.draft2 = null; s.d2done = false; writeState(s); render(); return; }
+    if (act === "ws-mail-say") {
+      const th = findThread(s.mail);
+      const d = th && th.drill ? th.drill[parseInt(el.getAttribute("data-i"), 10)] : null;
+      if (d && E().Player && E().Player.speak) E().Player.speak(d.en, {});
+      return;
+    }
+    /* 复用 SOP 已暴露的两个既有出口：五阶段闯关 / FSRS 单词卡 */
+    if (act === "ws-mail-drill" || act === "ws-mail-flash") {
+      const th = findThread(s.mail);
+      if (!th) return;
+      const sop = window.SOP && window.SOP._t;
+      if (!sop) { toast("⚠️ 练习入口未就绪"); return; }
+      if (act === "ws-mail-drill") {
+        sop.sendToStage(th.title, th.drill || []);
+      } else {
+        sop.sendToFlash(th.title, (th.body || []).map(function (b) { return { en: b.s, cn: "" }; }));
+      }
+      return;
+    }
     if (act === "ws-back") { clearState(); render(); return; }
     if (act === "ws-submit") {
       const t = document.getElementById("wsText");
@@ -239,12 +414,11 @@
       if (t2) s.draft2 = t2.value;
       if (!s.text.trim()) { toast("先写一点内容再保存"); return; }
       const a = savedWorks();
-      const sc = SCENARIOS.find(function (x) { return x.id === s.scen; }) || SCENARIOS[0];
-      const kw = keyPhrases(sc.unitIds);
+      const kw = currentKw(s);
       const has2 = s.d2done && String(s.draft2 || "").trim();
       const c = has2 ? compareDrafts(s.text, s.draft2, kw) : null;
       a.unshift({
-        t: Date.now(), scen: s.scen, title: sc.title, text: s.text, wc: wc(s.text),
+        t: Date.now(), scen: s.mail || s.scen, title: currentTitle(s), text: s.text, wc: wc(s.text),
         draft2: has2 ? s.draft2 : "", wc2: has2 ? wc(s.draft2) : null,
         rate1: c ? c.rate1 : null, rate2: c ? c.rate2 : null
       });
@@ -269,20 +443,30 @@
       s.draft2 = s.text || ""; s.d2done = false; writeState(s); render();
       return;
     }
-    if (act === "ws-load") { const w = savedWorks()[parseInt(el.getAttribute("data-i"), 10)]; if (w) { s.scen = w.scen; s.text = w.text; s.draft2 = w.draft2 || null; s.d2done = !!w.draft2; s.checked = false; writeState(s); render(); } return; }
+    if (act === "ws-load") {
+      const w = savedWorks()[parseInt(el.getAttribute("data-i"), 10)];
+      if (w) {
+        /* 作品可能来自「场景写作」也可能来自「真实来信」，靠 id 反查归属 */
+        if (findThread(w.scen)) { s.mail = w.scen; s.scen = null; }
+        else { s.scen = w.scen; s.mail = null; }
+        s.text = w.text; s.draft2 = w.draft2 || null; s.d2done = !!w.draft2; s.checked = false;
+        writeState(s); render();
+      }
+      return;
+    }
     if (act === "ws-del") { const a = savedWorks(); a.splice(parseInt(el.getAttribute("data-i"), 10), 1); saveWorks(a); render(); return; }
     if (act === "ws-ai") writeAi(s);
   });
 
   function writeAi(s) {
-    const sc = SCENARIOS.find(function (x) { return x.id === s.scen; }) || SCENARIOS[0];
     const out = document.getElementById("wsAi");
     if (!out) return;
     if (!(window.Tutor && window.Tutor.hasConfig())) { toast("请先到「AI 陪练」填好模型 Key。"); return; }
-    const kw = keyPhrases(sc.unitIds).map(function (r) { return r.t; }).slice(0, 20);
+    const title = currentTitle(s);
+    const kw = currentKw(s).map(function (r) { return r.t; }).slice(0, 20);
     out.hidden = false; out.innerHTML = '<p class="field-note">🤖 正在请 AI 批改…（需联网）</p>';
-    const sys = "你是资深软包装外贸英语教练。请用中文给出：1) 内容是否贴合「" + sc.title + "」场景、语气是否专业；2) 语法/用词哪里不对或不够地道；3) 一封更专业自然的英文版本；4) 一句总结建议。目标词参考：" + kw.join(" / ") + "。请简洁、专业。";
-    const user = "场景：\n" + sc.ctx + "\n\n用户写的英文：\n" + (s.text || "") + "\n\n请批改。";
+    const sys = "你是资深软包装外贸英语教练。请用中文给出：1) 内容是否贴合「" + title + "」场景、语气是否专业；2) 语法/用词哪里不对或不够地道；3) 一封更专业自然的英文版本；4) 一句总结建议。目标词参考：" + kw.join(" / ") + "。请简洁、专业。";
+    const user = "场景：\n" + currentCtx(s) + "\n\n用户写的英文：\n" + (s.text || "") + "\n\n请批改。";
     window.Tutor.callChat([{ role: "system", content: sys }, { role: "user", content: user }]).then(function (txt) {
       out.innerHTML = '<div class="qa-ai-in">🤖 <b>AI 批改</b><div style="margin-top:6px">' + nl2br(txt) + '</div></div>';
     }).catch(function (e) { out.innerHTML = '<p class="sop-warn">AI 批改失败：' + esc(e && e.message ? e.message : "检查 Key / 网络") + '</p>'; });
@@ -297,6 +481,10 @@
      也避免后人把带 const 的钩子提前——js/phonemes.js 与 js/urgent.js 都因此触发过 TDZ。 */
   window.WriteStudio._t = {
     compareDrafts: compareDrafts, draft2Html: draft2Html, compareHtml: compareHtml,
-    checkKeywords: checkKeywords, normKw: normKw, wc: wc, keyPhrases: keyPhrases, SCENARIOS: SCENARIOS
+    checkKeywords: checkKeywords, normKw: normKw, wc: wc, keyPhrases: keyPhrases, SCENARIOS: SCENARIOS,
+    /* 📨 真实来信（js/data-mail.js） */
+    MAIL: MAIL, findThread: findThread, currentKw: currentKw, currentTitle: currentTitle,
+    currentCtx: currentCtx, escM: escM, escTA: escTA,
+    mailListHtml: mailListHtml, mailReaderHtml: mailReaderHtml, feedbackHtml: feedbackHtml
   };
 })();

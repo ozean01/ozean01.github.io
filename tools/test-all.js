@@ -15,7 +15,7 @@ const ROOT = path.join(__dirname, "..");
 /* gate: true → 必须 exit 0；false → 仅重算报告，失败不阻塞（打印即可） */
 const JOBS = [
   { cmd: "node", args: ["tools/audit-fsrs.js"],   gate: true,  label: "FSRS 参数/公式对齐官方 ts-fsrs" },
-  { cmd: "node", args: ["tools/test-boot.js"],    gate: true,  label: "启动完整性：38 脚本按序执行 / 26 模块就绪" },
+  { cmd: "node", args: ["tools/test-boot.js"],    gate: true,  label: "启动完整性：全部脚本按序执行 / 模块全局就绪" },
   { cmd: "node", args: ["tools/test-score.js"],   gate: true,  label: "跟读评分全站唯一实现（算法等价 / 无重复实现）" },
   { cmd: "node", args: ["tools/test-fsrs.js"],    gate: true,  label: "FSRS 四档评分行为" },
   { cmd: "node", args: ["tools/test-flashprod.js"],gate: true, label: "产出性调度：接受/产出两条线互不影响" },
@@ -25,6 +25,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-quiz-write.js"],gate: true,  label: "测验写作产出（write）题型" },
   { cmd: "node", args: ["tools/test-patterns.js"], gate: true,  label: "句型克隆库 frame 生成" },
   { cmd: "node", args: ["tools/test-write.js"],   gate: true,  label: "写作二稿闭环：对比算法 / 教学守卫 / 渲染时机" },
+  { cmd: "node", args: ["tools/test-mail.js"],    gate: true,  label: "真实业务语料：结构 / 真实性守卫 / 转义与接线" },
   { cmd: "node", args: ["tools/test-mysay.js"],   gate: true,  label: "说我想说：拆句/实词/接线" },
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
   { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
@@ -32,6 +33,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-urgent.js"],  gate: true,  label: "场景急救：每个场景都能给出话 / 架构冻结守卫" },
   { cmd: "node", args: ["tools/test-sop.js"],     gate: true,  label: "SOP 英文接入练习引擎：每句都有练习路径" },
   { cmd: "node", args: ["tools/test-assets.js"],  gate: true,  label: "静态资源接线：引用存在 + 预缓存完整" },
+  { cmd: "node", args: ["tools/check-single-source.js"], gate: true, label: "单一数据源：小程序数据可由网页版重生成" },
   { cmd: "node", args: ["tools/audit-count.js"],  gate: false, label: "全站数字统计（重算 report-count.json）" },
   { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, label: "IPA / 难度审计（重算 report-ipa.csv）" },
 ];

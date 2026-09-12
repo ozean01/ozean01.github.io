@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* 验收测试：启动完整性（boot smoke test）。
-   零构建站点没有模块系统兜底——37 个 <script> 靠加载顺序共享全局。任何一处
+   零构建站点没有模块系统兜底——全部 <script> 靠加载顺序共享全局（数量直接从
+   index.html 读取，不写死，避免新增文件后文档与断言一起悄悄过期）。任何一处
    **加载期抛错**（TDZ、引用了尚未声明的 const、缺依赖、顺序错）都会让某个功能静默坏掉，
    而浏览器里只有打开对应页面才看得见。
 
@@ -174,6 +175,23 @@ const renderErrors = [];
   } catch (e) { renderErrors.push(h + " → " + (e && e.message ? e.message : e)); }
 });
 check("主要页面都能真实渲染且不报错", renderErrors.length === 0, renderErrors.join("；"));
+
+/* ---------------- 📨 真实业务语料在**真实启动顺序**下确实挂上去了 ----------------
+   单元测试（tools/test-mail.js）用的是自建的最小环境；这里用真实的 39 个脚本加载顺序
+   渲染真实的 #/write，确认语料真的出现在了页面上——数据文件漏加 <script>、
+   sw.js 漏预缓存、脚本顺序颠倒这三类问题只有在这里才暴露。 */
+const writeHtml = renderPage("#/write");
+const MAIL_THREADS = (ctx.window.FTE_MAIL && ctx.window.FTE_MAIL.threads) || [];
+check("启动后 FTE_MAIL 已就绪", MAIL_THREADS.length >= 6, MAIL_THREADS.length + " 封");
+check("#/write 页面出现「真实来信」区", writeHtml.indexOf("真实来信") !== -1);
+let mailMissing = null;
+MAIL_THREADS.forEach(function (t) { if (writeHtml.indexOf(t.title) === -1) mailMissing = t.title; });
+check("#/write 页面列出了每一封真实来信", !mailMissing, mailMissing || "");
+check("#/write 每封信都是可点入口",
+  (writeHtml.match(/data-action="ws-mail"/g) || []).length === MAIL_THREADS.length,
+  (writeHtml.match(/data-action="ws-mail"/g) || []).length + " / " + MAIL_THREADS.length);
+/* 正文里的 > 引用层级必须已被转义——这条只有真渲染才测得出来 */
+check("#/write 列表页没有未转义的英文正文残留", writeHtml.indexOf(">>>") === -1);
 
 /* ---------------- 跟读评分：全站必须走同一条口径 ----------------
    SLA 专家指出评分曾有重复实现，且两份在大小写处理上不同。这里在**真实启动的环境**里

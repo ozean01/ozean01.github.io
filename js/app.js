@@ -48,6 +48,7 @@
   _need("易错点 data-mistakes.js", !!window.FTE_MISTAKES);
   _need("助记 data-mnemonic.js", !!window.FTE_MEMO);
   _need("难度标定 difficulty-map.js", !!window.FTE_DIFF);
+  _need("真实业务语料 data-mail.js", !!window.FTE_MAIL);
   _need("语音引擎 player.js", !!window.Player);
   _need("单词卡 flashcards.js", !!window.Flashcards);
   _need("测验 quiz.js", !!window.Quiz);
