@@ -52,6 +52,7 @@
   _need("单词卡 flashcards.js", !!window.Flashcards);
   _need("测验 quiz.js", !!window.Quiz);
   _need("句块 parser.js", !!window.SentenceParser);
+  _need("跟读评分 score.js", !!window.SpeechScore);
   _need("辨音 listen.js", !!window.Listen);
   _need("四维口语 eval4.js", !!window.Eval4);
   _need("AI 陪练 tutor.js", !!window.Tutor);
@@ -101,8 +102,13 @@
     return out.join("");
   }
 
+  /* ---------------- 全站统一：文本归一化 / 词相似度 / 跟读评分 ----------------
+     都取自 js/score.js（见该文件头部说明）。score.js 在本文件之前加载，故直接引用——
+     本文件不再保留第二份实现。此前 patterns.js 因为加载顺序而抄了一份，两份还产生了
+     大小写处理上的行为差异，同一个词在两处可能得到不同判定。 */
+  const SCORE = window.SpeechScore;
   function norm(s) {
-    return String(s).toLowerCase().replace(/[^a-z0-9'\s]/g, " ").replace(/\s+/g, " ").trim();
+    return SCORE.norm(s);
   }
   function wordOverlap(a, b) {
     const wa = norm(a).split(" "), wb = norm(b).split(" ");
@@ -2681,68 +2687,14 @@
   /* ---------------- 智能语音评测：逐词打分 ---------------- */
   /* 词近似度：编辑距离归一化，返回 0-1（1=完全相同） */
   function wordSimilar(a, b) {
-    if (a === b) return 1;
-    const A = a, B = b;
-    const m = A.length, n = B.length;
-    if (m === 0 || n === 0) return 0;
-    const dp = [];
-    for (let i = 0; i <= m; i++) dp.push(new Array(n + 1).fill(0));
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,
-          dp[i][j - 1] + 1,
-          dp[i - 1][j - 1] + (A[i - 1] === B[j - 1] ? 0 : 1)
-        );
-      }
-    }
-    return 1 - dp[m][n] / Math.max(m, n);
+    return SCORE.wordSimilar(a, b);
   }
 
   /* 评测：逐词对比（含近似判定、错误类型标注）
-     返回 { acc, precise, matched:[{w, ok, near, errType}], transcript, missed, extra } */
+     返回 { acc, precise, matched:[{w, ok, near, errType}], transcript, missed, extra }
+     实现已收敛到 js/score.js —— 全站唯一口径。 */
   function evaluateSpeech(target, transcript) {
-    const tWords = norm(target).split(" ").filter(Boolean);
-    const sWords = norm(transcript || "").split(" ").filter(Boolean);
-    const matched = [];
-    const used = new Array(sWords.length).fill(false);
-    let missCount = 0, extraCount = 0;
-
-    tWords.forEach(function (tw) {
-      let best = -1, bestSim = 0;
-      for (let k = 0; k < sWords.length; k++) {
-        if (used[k]) continue;
-        const sim = wordSimilar(tw, sWords[k]);
-        if (sim > bestSim) { bestSim = sim; best = k; }
-      }
-      if (best >= 0 && bestSim >= 0.99) {
-        used[best] = true; matched.push({ w: tw, ok: true, near: false, errType: "ok" });
-      } else if (best >= 0 && bestSim >= 0.45) {
-        used[best] = true; matched.push({ w: tw, ok: true, near: true, errType: "near", said: sWords[best] });
-      } else {
-        matched.push({ w: tw, ok: false, near: false, errType: "miss" }); missCount++;
-      }
-    });
-    extraCount = sWords.filter(function (_, i) { return !used[i]; }).length;
-
-    /* 原始命中（精确匹配）用于精确率 */
-    const precise = tWords.length
-      ? Math.round(matched.filter(function (m) { return m.errType === "ok"; }).length / tWords.length * 100)
-      : 0;
-    /* 加权分：精确=1，接近=0.5 */
-    const weighted = tWords.length
-      ? Math.round(matched.reduce(function (a, m) { return a + (m.errType === "ok" ? 1 : m.errType === "near" ? 0.5 : 0); }, 0) / tWords.length * 100)
-      : 0;
-    return {
-      acc: weighted,
-      precise: precise,
-      matched: matched,
-      transcript: transcript || "",
-      missed: missCount,
-      extra: extraCount
-    };
+    return SCORE.evaluateSpeech(target, transcript);
   }
 
   function evalResultHtml(target, transcript) {

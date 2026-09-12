@@ -11,20 +11,11 @@
   const esc = function (s) { return String(s == null ? "" : s); };
   const toast = function (m) { if (E().toast) E().toast(m); };
 
-  function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9'\s]/g, " ").replace(/\s+/g, " ").trim(); }
-  function wordSimilar(a, b) {
-    a = a.toLowerCase(); b = b.toLowerCase();
-    if (a === b) return 1;
-    const m = a.length, n = b.length;
-    if (!m || !n) return 0;
-    const dp = [];
-    for (let i = 0; i <= m; i++) dp.push(new Array(n + 1).fill(0));
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    return 1 - dp[m][n] / Math.max(m, n);
-  }
+  /* 原先这里自己抄了一份 norm / wordSimilar（因为 patterns.js 加载早于 app.js）。
+     现全站统一到 js/score.js —— 它前置加载，此处直接引用，不再保留第二份实现。 */
+  const SCORE = function () { return window.SpeechScore; };
+  function norm(s) { const S = SCORE(); return S ? S.norm(s) : String(s == null ? "" : s).toLowerCase(); }
+  function wordSimilar(a, b) { const S = SCORE(); return S ? S.wordSimilar(a, b) : (a === b ? 1 : 0); }
 
   /* ---- 功能分组 ---- */
   const TAGS = [

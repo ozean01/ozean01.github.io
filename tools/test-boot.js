@@ -175,6 +175,37 @@ const renderErrors = [];
 });
 check("主要页面都能真实渲染且不报错", renderErrors.length === 0, renderErrors.join("；"));
 
+/* ---------------- 跟读评分：全站必须走同一条口径 ----------------
+   SLA 专家指出评分曾有重复实现，且两份在大小写处理上不同。这里在**真实启动的环境**里
+   验证：app.js 导出的 ASRUtil.evaluateSpeech 与 score.js 的 SpeechScore.evaluateSpeech
+   对同一输入给出**逐字段相同**的结果——只要有人再塞一份实现进去，这条就会失败。 */
+const SS = ctx.window.SpeechScore, AU = ctx.window.ASRUtil;
+check("启动后 SpeechScore 与 ASRUtil 都在", !!SS && !!AU);
+if (SS && AU) {
+  const cases = [
+    ["The film is 12 micron thick.", "The film is 12 micron thick."],
+    ["The film is 12 micron thick.", "the film is 12 micron tick"],
+    ["curing", "curring"],
+    ["Please confirm the coating weight.", "please confirm coating wait"],
+    ["", "anything"],
+    ["hello world", ""]
+  ];
+  const diffs = cases.filter(function (c) {
+    const a = SS.evaluateSpeech(c[0], c[1]), b = AU.evaluateSpeech(c[0], c[1]);
+    return JSON.stringify(a) !== JSON.stringify(b);
+  });
+  check("ASRUtil 与 SpeechScore 的评分结果逐字段一致（" + cases.length + " 组）",
+    diffs.length === 0, diffs.map(function (c) { return JSON.stringify(c); }).join("；"));
+
+  /* 大小写/标点差异当年正是两份实现的分歧点，这里单独钉死 */
+  const cv = SS.evaluateSpeech("CURING WEIGHT", "curing weight");
+  check("大小写与标点不影响评分（当年两处实现的分歧点）", cv.acc === 100, "acc=" + cv.acc);
+
+  check("ASRUtil.wordSimilar 也走同一实现",
+    AU.wordSimilar("Curing", "curing") === SS.wordSimilar("Curing", "curing") &&
+    AU.wordSimilar("curring", "curing") === SS.wordSimilar("curring", "curing"));
+}
+
 /* ---------------- SOP 英文 → 五阶段闯关：端到端闭环 ----------------
    这是「接入练习引擎」这条需求的真正验收点：光把句子塞进 State 不算数，
    要**渲染出来的 #/speak 页面里真的有那句话**。两个模块都在本沙箱里，所以能整条链验证。 */
