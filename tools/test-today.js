@@ -14,9 +14,14 @@ function check(name, cond, info) { console.log((cond ? "✅ " : "❌ ") + name +
 
 /* ---------------- 合成一个可控的 FTE_BOOT ---------------- */
 const UNITS = [
-  { id: 1, title: "外贸基础术语与贸易流程", icon: "🌐", dialogues: [{ lines: [] }, { lines: [] }] },
-  { id: 2, title: "开发新客户与展会英语", icon: "🏢", dialogues: [{ lines: [] }] },
-  { id: 3, title: "询盘与报价", icon: "💰", dialogues: [] }
+  { id: 1, title: "外贸基础术语与贸易流程", icon: "🌐", dialogues: [{ lines: [] }, { lines: [] }], vocab: [
+    /* 两个含 /θ/ 的词 + 一个不含高危音的词，供「发音提醒」的推导使用 */
+    { w: "thickness", ipa: "/ˈθɪknəs/", cn: "厚度" },
+    { w: "strength", ipa: "/streŋθ/", cn: "强度" },
+    { w: "film", ipa: "/fɪlm/", cn: "薄膜" }
+  ] },
+  { id: 2, title: "开发新客户与展会英语", icon: "🏢", dialogues: [{ lines: [] }], vocab: [] },
+  { id: 3, title: "询盘与报价", icon: "💰", dialogues: [], vocab: [] }
 ];
 const TODAY = (function () { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()); })();
 const DAY = 86400000;
@@ -100,9 +105,45 @@ global.window = {
   }
 };
 
+/* 发音提醒要从「错过的词」反查高危音，需要 phonemes.js 提供分词器与高危音表 */
+require(path.join(ROOT, "js", "phonemes.js"));
 require(path.join(ROOT, "js", "today.js"));
 const T = global.window.Today;
 const H = T._t;
+
+/* ---------------- ⓪ 发音提醒（行为设计） ----------------
+   一线教师：「学员分不清 /θ/ /s/ 不是不懂口型，而是不练」——所以要让它在日常里出现。
+   这里验证推导逻辑与「无证据就不打扰」两条。 */
+check("导出 pronFocus", typeof H.pronFocus === "function");
+PROGRESS = { learned: {}, wrong: {}, flash: {}, coach: { streak: 0, today: 0, total: 0 } };
+check("没有错词时返回 null（不打扰）", H.pronFocus() === null);
+
+PROGRESS.wrong = { "1-0": 3 };          /* 只错 1 个含 /θ/ 的词 */
+check("只错一个词时不提示（不足以说明问题）", H.pronFocus() === null);
+
+PROGRESS.wrong = { "1-0": 3, "1-1": 2 }; /* thickness + strength 都含 /θ/ */
+const pf = H.pronFocus();
+check("错词里出现 2 个含 /θ/ 的词即提示", !!pf && pf.key === "th", pf ? pf.key : "null");
+check("提示带音标与组名", !!pf && pf.sym === "θ" && /齿间/.test(pf.name), pf ? pf.sym + " " + pf.name : "");
+check("提示给出证据数量", !!pf && pf.n === 2 && pf.scanned === 2, pf ? pf.n + "/" + pf.scanned : "");
+
+PROGRESS.wrong = { "1-2": 5 };  /* 只有 film（/fɪlm/，含词尾暗 /l/）——1 个不够 2 个 */
+check("含高危音但只错 1 个词时仍不提示", H.pronFocus() === null);
+
+PROGRESS.wrong = { "bad-id": 1, "9-99": 2 };
+check("非法/越界词 id 不抛错", (function () { try { return H.pronFocus() === null; } catch (e) { return false; } })());
+
+/* 提示必须真的渲染到「今日」页上，并带能点进去的链接 */
+PROGRESS.wrong = { "1-0": 3, "1-1": 2 };
+T.render();
+const phtml = appEl.innerHTML;
+check("「今日」页渲染出发音提醒", phtml.indexOf('class="td-pron"') !== -1);
+check("提醒里给出证据数字", /你错过 <b>2<\/b> 个词/.test(phtml) && /其中 <b>2<\/b> 个含/.test(phtml));
+check("提醒链到音素与辨音", /class="td-pron"[\s\S]{0,400}href="#\/phonemes"/.test(phtml));
+
+PROGRESS.wrong = {};
+T.render();
+check("无证据时不渲染发音提醒（不是永远挂着的装饰）", appEl.innerHTML.indexOf('class="td-pron"') === -1);
 
 /* ---------------- ① 模块形态 ---------------- */
 check("导出 Today.render", T && typeof T.render === "function");

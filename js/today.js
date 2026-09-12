@@ -115,6 +115,47 @@
     return u || { id: 1, title: "第 1 单元", icon: "📘", dialogues: [] };
   }
 
+  /* ---------------- 发音提醒（行为设计） ----------------
+     一线教师评审的判断：「学员分不清 /θ/ /s/ **不是不懂口型，而是不练**」。
+     所以光把高危音讲清楚没用——**得让它在日常动作里出现**。
+     做法：从用户**自己错过的词**（progress.wrong）反查它们含哪些高危音，
+     在「今日」上给一条**有证据、可点进去**的提示。
+     没有证据（还没错过词 / 只错一两个）就不显示，避免变成永远挂着的装饰。
+     高危音组与分词器都取自 js/phonemes.js，不另建一套数据。 */
+  function pronFocus() {
+    const boot = E();
+    const prog = boot.progress || {};
+    const ids = Object.keys(prog.wrong || {});
+    if (!ids.length) return null;
+    const P = window.Phonemes && window.Phonemes._t;
+    if (!P || !P.HIGH_RISK || !P.tokenize || !P.INVENTORY) return null;
+    const units = (boot.DATA && boot.DATA.units) || [];
+    const count = {};
+    let scanned = 0;
+    ids.forEach(function (id) {
+      const m = /^(\d+)-(\d+)$/.exec(String(id));
+      if (!m) return;
+      const u = units.filter(function (x) { return x.id === parseInt(m[1], 10); })[0];
+      if (!u || !u.vocab) return;
+      const v = u.vocab[parseInt(m[2], 10)];
+      if (!v || !v.ipa) return;
+      scanned++;
+      const toks = P.tokenize(v.ipa);
+      P.HIGH_RISK.forEach(function (g) {
+        /* 一组可能有多个可匹配符号（如 "ks/kt/st"）；只取真正是音素 token 的 */
+        const syms = String(g.sym).split("/").filter(function (s) { return P.INVENTORY.indexOf(s) !== -1; });
+        if (syms.some(function (s) { return toks.indexOf(s) !== -1; })) {
+          count[g.key] = (count[g.key] || 0) + 1;
+        }
+      });
+    });
+    if (!scanned) return null;
+    const best = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; })[0];
+    if (!best || count[best] < 2) return null;   /* 只错 1 个词不足以说明问题，不打扰 */
+    const g = P.HIGH_RISK.filter(function (x) { return x.key === best; })[0];
+    return g ? { key: g.key, sym: g.sym, name: g.name, n: count[best], scanned: scanned } : null;
+  }
+
   /* ---------------- 今天的五个步骤（有序） ----------------
      每步给：序号 / 图标 / 标题 / 预计分钟 / 依据（为什么是它）/ 深链 / 是否可自动判定。 */
   function buildSteps() {
@@ -253,6 +294,14 @@
       </div>
     </section>
 
+    ${(function () {
+      const pf = pronFocus();
+      if (!pf) return "";
+      return '<div class="td-pron">🔤 <b>发音提醒</b>：你错过 <b>' + pf.scanned + "</b> 个词，其中 <b>" + pf.n +
+        "</b> 个含 <b>" + esc(pf.sym) + "</b>（" + esc(pf.name) + "）。" +
+        "这类音错了客户会直接听成别的词——先到 <a href=\"#/phonemes\">音素与辨音</a> 把那组过一遍，再回来跟读。</div>";
+    })()}
+
     ${(window.Urgent && window.Urgent.html) ? window.Urgent.html() : ""}
 
     <section class="td-list-head">
@@ -313,6 +362,7 @@
   /* 供自动化测试/诊断使用（不影响运行时）。放在文件末尾：避免 const 的 TDZ。 */
   window.Today._t = {
     buildSteps: buildSteps, countDue: countDue, stageOf: stageOf, todayStr: todayStr, totalMin: totalMin,
-    goalPlan: goalPlan, startUnit: startUnit, isNewbie: isNewbie, GOAL_PLAN: GOAL_PLAN
+    goalPlan: goalPlan, startUnit: startUnit, isNewbie: isNewbie, GOAL_PLAN: GOAL_PLAN,
+    pronFocus: pronFocus
   };
 })();
