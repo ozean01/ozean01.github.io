@@ -220,6 +220,23 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
 
 /* ---------- 统计条 ---------- */
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:30px}
+
+/* ============ 「坚持」vs「能力」呈现约定（P4）============
+   SLA 专家评审指出：能力证据（雷达/四维分）与行为坚持（天数/热力图/徽章）混在一处，
+   会**诱导用户拿"我连续打卡 30 天"当"我口语变好了"**。
+   故全站凡两者并列处，一律分栏并明确标注：
+     🔥 坚持 = 过程指标（练了多少）  📈 能力 = 结果指标（说得怎么样）
+   并且都附一句「坚持 ≠ 能力」，避免用户自我误判。 */
+.prog-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:30px}
+@media (max-width:760px){.prog-split{grid-template-columns:1fr}}
+.prog-col{min-width:0}
+.prog-h{font-size:13px;font-weight:800;margin-bottom:9px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.prog-h small{font-size:11.5px;font-weight:400;color:var(--muted)}
+.prog-h-ability{color:var(--primary)}
+.prog-h-behavior{color:var(--accent)}
+.prog-note{margin-top:14px;font-size:12.5px;line-height:1.75;color:var(--muted);
+           background:var(--surface-2);border-radius:10px;padding:10px 14px}
+.prog-note b{color:var(--ink)}
 .stat-card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   padding:16px;text-align:center;box-shadow:var(--shadow-sm);

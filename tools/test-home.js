@@ -119,12 +119,13 @@ check("hero 只有一个 CTA（一屏一决策）", (heroCta.match(/class="btn/g
 check("该 CTA 指向今日", /href="#\/today"/.test(heroCta));
 
 check("三阶段路径上移为首页骨架（renderHome 直接调用）", /pathStagesHtml\(\)/.test(homeFn));
-check("首页只保留 3 张进度卡", /stats-row stats-row-3/.test(homeFn));
+/* P4：统计卡从「3 张并列」改为「能力 / 坚持 两组各 2 张」——见 test-boot.js 里的渲染级断言 */
+check("首页统计卡分为「能力」与「坚持」两组", /prog-h-ability/.test(homeFn) && /prog-h-behavior/.test(homeFn));
 check("首页含「全站地图」折叠区", /id="home-map"/.test(homeFn) && /home-map-box/.test(homeFn));
 check("全站地图内含 6 大区与收藏", /homeZonesHtml\(\)/.test(homeFn) && /homeFavsRowHtml\(\)/.test(homeFn));
 check("SOP 入口保留在首页", /sopBannerHtml\(\)/.test(homeFn));
 check("首页不再渲染 19 单元网格（与路径 chip 重复）", homeFn.indexOf("unitCardHtml") === -1);
-check("首页统计区只保留 3 张卡", (homeFn.match(/class="stat-card/g) || []).length === 3,
+check("首页统计区为 4 张卡（能力 2 + 坚持 2）", (homeFn.match(/class="stat-card/g) || []).length === 4,
   (homeFn.match(/class="stat-card/g) || []).length + " 张");
 /* 内容规模（768 词 / 28 对话）保留在 hero-tags 里，不应再有独立的 4 张内容统计卡 */
 check("首页不再有内容规模统计卡（核心词汇/常用短语/场景对话/对话语句）",

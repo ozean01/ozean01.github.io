@@ -85,6 +85,9 @@
       <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--muted)">
         基于最近 ${n} 次成绩（四维 ${data.nEval} · 自由表达 ${data.nSpeech}）。<b>站内相对水平，非官方量表</b>；练得越多越准。
       </div>
+      <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--primary)">
+        这一页是<b>能力证据</b>（说得怎么样），与「计划·打卡·手册」记的<b>坚持</b>（练了多少）是两回事——打卡天数不能代替它。
+      </div>
     </div>`;
   }
 

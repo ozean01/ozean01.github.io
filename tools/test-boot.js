@@ -49,8 +49,14 @@ function fakeEl() {
   };
   return el;
 }
+const elCache = {};
+function getEl(id) { if (!elCache[id]) elCache[id] = fakeEl(id); return elCache[id]; }
+/* 捕获 window 级监听器，供启动后手动触发 hashchange 以渲染任意页面 */
+const winListeners = {};
 const documentStub = {
-  getElementById: function () { return fakeEl(); },
+  /* 元素按 id 记忆化：各页都往 #app 里写 innerHTML，若每次 getElementById 都返回新对象，
+     就抓不到渲染结果，也就无法对「真实渲染出的页面」做断言。 */
+  getElementById: getEl,
   createElement: function () { return fakeEl(); },
   createElementNS: function () { return fakeEl(); },
   createDocumentFragment: function () { return fakeEl(); },
@@ -74,8 +80,12 @@ const sandbox = {
   console: console,
   /* 模块会直接调 window.addEventListener（如 eval4.js / app.js 绑定 hashchange），
      假 DOM 必须提供，否则会把"stub 缺方法"误报成"模块加载失败" */
-  addEventListener: function () { }, removeEventListener: function () { },
-  dispatchEvent: function () { return true; },
+  addEventListener: function (t, fn) { (winListeners[t] = winListeners[t] || []).push(fn); },
+  removeEventListener: function () { },
+  dispatchEvent: function (type) {
+    (winListeners[type] = winListeners[type] || []).forEach(function (fn) { fn({ type: type }); });
+    return true;
+  },
   scrollTo: function () { }, scrollBy: function () { }, scroll: function () { },
   getComputedStyle: function () { return {}; },
   matchMedia: function () { return { matches: false, addEventListener: function () { } }; },
@@ -145,6 +155,56 @@ check("启动校验清单里的每个模块全局都已就绪",
 
 console.log("\n  已就绪模块（" + (needList.length - missingGlobals.length) + "/" + needList.length + "）：" +
   needList.map(function (x) { return x.global; }).join(", "));
+
+/* ---------------- 多页渲染：切换 hash 触发真实渲染，再对渲染结果做断言 ----------------
+   app.js 把 renderRoute 绑在 window 的 hashchange 上（上面的 dispatchEvent 会转发），
+   所以改 location.hash 再派发事件，就能让任意页面在沙箱里真实渲染一遍。 */
+function renderPage(hash) {
+  ctx.location.hash = hash;
+  ctx.dispatchEvent("hashchange");
+  return getEl("app").innerHTML || "";
+}
+
+const renderErrors = [];
+["#/home", "#/coach", "#/speaking", "#/today", "#/units", "#/write", "#/speak"].forEach(function (h) {
+  try {
+    const html = renderPage(h);
+    if (!html) renderErrors.push(h + "（渲染为空）");
+    else if (html.indexOf("页面渲染出错") !== -1) renderErrors.push(h + "（抛错）");
+  } catch (e) { renderErrors.push(h + " → " + (e && e.message ? e.message : e)); }
+});
+check("主要页面都能真实渲染且不报错", renderErrors.length === 0, renderErrors.join("；"));
+
+/* ---------------- P4：「坚持」与「能力」必须分栏呈现 ----------------
+   SLA 专家指出：两者混在一处会诱导用户拿"打卡 30 天"当"口语变好了"。
+   故这里对**真实渲染出来的页面**做断言，而不只是检查源码字符串。 */
+const homeHtml = renderPage("#/home");
+check("首页统计区分「能力」与「坚持」两组",
+  /prog-h-ability/.test(homeHtml) && /prog-h-behavior/.test(homeHtml));
+check("首页两组各有明确标注",
+  /能力/.test(homeHtml) && /说得怎么样/.test(homeHtml) && /坚持/.test(homeHtml) && /练了多少/.test(homeHtml));
+check("首页解释了「练得多不等于说得好」并链到能力证据",
+  /练得多不等于说得好/.test(homeHtml) && /href="#\/speaking"/.test(homeHtml));
+
+const coachHtml = renderPage("#/coach");
+check("教练手册页顶部声明本页记录的是「坚持」而非「能力」",
+  /它记的是.*坚持/.test(coachHtml) && /它不代表能力/.test(coachHtml));
+check("教练手册页给出能力证据的入口", /href="#\/speaking"/.test(coachHtml));
+check("教练手册页的打卡统计带「坚持（练了多少）」前缀", /坚持<\/b>（练了多少）/.test(coachHtml));
+check("成就徽章处注明「徽章证明你来了，不证明你说得好」",
+  /徽章证明你来了，不证明你说得好/.test(coachHtml));
+check("本周自测已拆成两栏", /prog-h-behavior/.test(coachHtml) && /prog-h-ability/.test(coachHtml));
+check("本周自测附「过程 vs 结果」提示", /左边是<b>过程<\/b>，右边才是<b>结果<\/b>/.test(coachHtml));
+
+const speakHtml = renderPage("#/speaking");
+check("口语测评页声明自己是「能力证据」", /能力证据/.test(speakHtml));
+
+/* 复制的自测文本同样分栏（纯文本，供粘贴到周报/聊天） */
+const repText = (ctx.window.FTE_BOOT && ctx.window.FTE_BOOT.localReportText)
+  ? ctx.window.FTE_BOOT.localReportText() : "";
+check("自测文本含「坚持」与「能力」两个小节",
+  /▍坚持/.test(repText) && /▍能力/.test(repText), repText.split("\n")[0] || "(空)");
+check("自测文本明确提示坚持≠能力", /坚持是过程、能力是结果/.test(repText));
 
 /* ---------------- 为什么不另做「_t 位置」静态检查 ----------------
    曾试过一条静态断言：要求 `window.X._t = ...` 出现在本文件最后一个顶层 const/let 之后。

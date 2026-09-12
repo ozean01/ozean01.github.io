@@ -1067,11 +1067,27 @@
       <p class="hero-sub">不知道练什么就直接点上面——「今日」已经替你排好今天的五步。想自己挑，展开下面的 <button class="linklike" data-action="home-open-map">🗺 全站地图</button>。</p>
     </section>
 
-    <section class="stats-row stats-row-3">
-      <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${cs.streak}</div><div class="lbl">连续打卡(天) · 今天 ${cs.today} 分 <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
-      <div class="stat-card stat-p"><div class="stat-ic">${ringHtml(donePct)}</div><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
-      <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
+    <section class="prog-split">
+      <div class="prog-col">
+        <div class="prog-h prog-h-ability">📈 能力 <small>说得怎么样（结果）</small></div>
+        <div class="stats-row" style="margin-bottom:0;grid-template-columns:repeat(2,1fr)">
+          <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
+          <div class="stat-card stat-p"><div class="stat-ic">${ringHtml(donePct)}</div><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
+        </div>
+      </div>
+      <div class="prog-col">
+        <div class="prog-h prog-h-behavior">🔥 坚持 <small>练了多少（过程）</small></div>
+        <div class="stats-row" style="margin-bottom:0;grid-template-columns:repeat(2,1fr)">
+          <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${cs.streak}</div><div class="lbl">连续打卡（天）</div></div>
+          <div class="stat-card stat-p"><div class="stat-ic">⏱</div><div class="num">${cs.today}</div><div class="lbl">今天练习（分钟） <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
+        </div>
+      </div>
     </section>
+
+    <div class="prog-note" style="margin-top:-16px;margin-bottom:24px">
+      左边是<b>结果</b>，右边是<b>过程</b>——练得多不等于说得好。想知道口语到底有没有长进，看
+      <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a> 的四维分与雷达。
+    </div>
 
     <h3 class="section-title" id="home-body">📚 学习路径 <span class="sub">按顺序学 · 三阶段递进 · 每单元标注相对难度 · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
     ${pathStagesHtml()}
@@ -3447,28 +3463,47 @@
     const r = localWeekReport();
     const ret = r.retNow != null ? r.retNow + "%" : "—";
     const retChg = r.trend != null ? (r.trend >= 0 ? "+" : "") + r.trend + "%" : "—";
+    /* 复制的文本同样分栏：过程与结果不能混成一段，否则「练了几天」会被读成「进步了多少」 */
     return "【软包装外贸英语 · 本周本地自测】\n" +
+      "\n▍坚持（练了多少 · 过程）\n" +
       "本周练习天数：" + r.practicedDays + " 天\n" +
       "本周完成：句型 " + r.patterns + " 句 · 写作 " + r.write + " 篇\n" +
+      "\n▍能力（说得怎么样 · 结果）\n" +
       "已掌握词汇：" + r.learned + (r.delta != null ? "（本周 +" + r.delta + "）" : "") + "\n" +
       "整体保持率：" + ret + "（较上周 " + retChg + "）\n" +
-      "结论：" + r.conclusion;
+      "\n▍结论\n" + r.conclusion + "\n" +
+      "\n（提示：坚持是过程、能力是结果，两者不等价——练了多少天不等于说得更好。）";
   }
   function localReportHtml() {
     const r = localWeekReport();
     const retCls = r.retNow == null ? "badge-muted" : r.retNow >= 85 ? "badge-ok" : r.retNow >= 70 ? "badge-warn" : "badge-bad";
     const trendGlyph = r.trend == null ? "" : r.trend >= 5 ? "▲" : r.trend >= 1 ? "↗" : r.trend <= -3 ? "▼" : "→";
+    /* 分栏呈现：左「坚持」（过程）、右「能力」（结果）。
+       评审指出原先两者混在一行 badge 里，会诱导用户拿打卡天数冒充能力。 */
     return `
     <div class="card" style="margin-top:14px">
-      <div class="chat-head"><span>📊 本周进步 · 本地自测</span>
+      <div class="chat-head"><span>📊 本周 · 本地自测</span>
         <span style="font-size:12px;color:var(--muted);font-weight:400">用你的本地记录算出来，无需 AI</span></div>
-      <div class="sop-overall-a" style="margin-top:8px">
-        <span class="badge badge-ok">本周练习 <b>${r.practicedDays}</b> 天</span>
-        <span class="badge badge-muted">🧩 句型 <b>${r.patterns}</b></span>
-        <span class="badge badge-muted">✍️ 写作 <b>${r.write}</b></span>
-        <span class="badge badge-muted">词汇 <b>${r.learned}</b>${r.delta != null ? '（本周 +' + r.delta + '）' : ""}</span>
-        <span class="badge ${retCls}">保持率 <b>${r.retNow != null ? r.retNow + "%" : "—"}</b> ${trendGlyph}</span>
+      <div class="prog-split" style="margin:10px 0 0">
+        <div class="prog-col">
+          <div class="prog-h prog-h-behavior">🔥 坚持 <small>练了多少（过程）</small></div>
+          <div class="sop-overall-a">
+            <span class="badge badge-ok">本周练习 <b>${r.practicedDays}</b> 天</span>
+            <span class="badge badge-muted">🧩 句型 <b>${r.patterns}</b></span>
+            <span class="badge badge-muted">✍️ 写作 <b>${r.write}</b></span>
+          </div>
+        </div>
+        <div class="prog-col">
+          <div class="prog-h prog-h-ability">📈 能力 <small>说得怎么样（结果）</small></div>
+          <div class="sop-overall-a">
+            <span class="badge badge-muted">词汇 <b>${r.learned}</b>${r.delta != null ? '（本周 +' + r.delta + '）' : ""}</span>
+            <span class="badge ${retCls}">保持率 <b>${r.retNow != null ? r.retNow + "%" : "—"}</b> ${trendGlyph}</span>
+          </div>
+        </div>
       </div>
+      <div class="prog-note">⚠️ 左边是<b>过程</b>，右边才是<b>结果</b>——练了很多天不等于说得更好，某周练得少也不代表退步。
+        判断有没有长进请看右边；想看口语的<b>直接证据</b>（四维分 / 五维雷达 / 段位）请到
+        <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a>。</div>
       <div class="ws-feed" style="margin-top:10px"><b>结论：</b>${esc(r.conclusion)}</div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" data-action="coach-copy-local">📋 复制自测</button>
@@ -3481,7 +3516,7 @@
   }
   function coachStatsHtml() {
     const s = coachStats();
-    return "🔥 连续 <b>" + s.streak + "</b> 天 &nbsp;·&nbsp; 今天 <b>" + s.today + "</b> 分 &nbsp;·&nbsp; 累计 <b>" + s.totalMin + "</b> 分";
+    return "🔥 <b>坚持</b>（练了多少）&nbsp;·&nbsp; 连续 <b>" + s.streak + "</b> 天 &nbsp;·&nbsp; 今天 <b>" + s.today + "</b> 分 &nbsp;·&nbsp; 累计 <b>" + s.totalMin + "</b> 分";
   }
   function coachRefreshStats() {
     const e = document.getElementById("ctStats");
@@ -3813,6 +3848,14 @@
       <div class="en">把 GPT Live 的口练心得变成你的日常动作 · 每天 20 分钟最容易坚持</div>
     </div>
 
+    <div class="prog-note" style="margin-top:12px;margin-bottom:0">
+      📌 <b>先说清楚这一页是什么</b>：它记的是<b>坚持</b>——练了多少天、累计多少分钟、热力图与徽章。
+      <b>它不代表能力</b>：连续打卡 100 天不等于说得更好，徽章也只证明你来了。
+      想看<b>能力证据</b>（四维分 / 五维雷达 / 段位）请到
+      <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a>；
+      想证明自己进步了，那里才是该看的数字。
+    </div>
+
     <div class="card coach-ratio">
       <div style="font-size:30px">🤖</div>
       <div>
@@ -3872,7 +3915,7 @@
 
     <div class="card" style="margin-top:14px">
       <div class="chat-head"><span>🏅 成就徽章</span>
-        <span style="font-size:12px;color:var(--muted);font-weight:400">达成自动解锁 · ${(progress.coachBadges || []).length} / ${COACH_BADGES.length}</span></div>
+        <span style="font-size:12px;color:var(--muted);font-weight:400">达成自动解锁 · ${(progress.coachBadges || []).length} / ${COACH_BADGES.length} · <b>徽章证明你来了，不证明你说得好</b></span></div>
       <div id="coachBadges">${coachBadgesHtml()}</div>
     </div>
 
@@ -4062,7 +4105,10 @@
       try { const v = parseInt(localStorage.getItem("fte-placement"), 10); return v >= 1 ? v : null; }
       catch (e) { return null; }
     },
-    UNIT_DONE_PCT: UNIT_DONE_PCT
+    UNIT_DONE_PCT: UNIT_DONE_PCT,
+    /* 供测试与外部模块读取「本周自测」文本（P4：该文本已分「坚持 / 能力」两栏） */
+    localReportText: localReportText,
+    localWeekReport: localWeekReport
   };
 
   window.addEventListener("hashchange", renderRoute);
