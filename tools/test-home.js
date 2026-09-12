@@ -176,5 +176,31 @@ check("单元卡显示跟读维度", /class="uc-stage/.test(appjs));
 check("unitDone 用于路径/首页/单元页/目录", (appjs.match(/unitDone\(/g) || []).length >= 5,
   (appjs.match(/unitDone\(/g) || []).length + " 处");
 
+/* ---------------- ⑤ 导航中文标签不得被拆成孤行字 ----------------
+   实际发生过的排版事故：.main-nav 是 flex 且子项可收缩，中文没有空格可断行，
+   浏览器就按**字**断行——「今日」渲染成竖排的「今/日」、「工具箱」断成「工具/箱」，
+   整个标题栏是一列孤字。肉眼一看就知道丑，但**没有任何测试会发现它**，
+   因为它不是逻辑错误，而是 flex 收缩 + 中文断行的组合后果。
+
+   这里守的是成因而不是外观（无浏览器无法测量行高）：
+   标签必须 nowrap（禁止词内断行），子项不得被压扁，容器要允许整块换行。
+   只要有人删掉其中一条，这套组合就会重新退化成孤行字。 */
+const css = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
+function cssRule(sel) {
+  const i = css.indexOf(sel + "{");
+  if (i === -1) return "";
+  const j = css.indexOf("}", i);
+  return j === -1 ? "" : css.slice(i, j + 1);
+}
+const navA = cssRule(".main-nav a");
+const navSummary = cssRule(".nav-group summary");
+const navBox = cssRule(".main-nav");
+check("导航链接禁止词内断行（white-space:nowrap）", /white-space:nowrap/.test(navA), navA.slice(0, 80));
+check("导航分组标签同样禁止词内断行", /white-space:nowrap/.test(navSummary), navSummary.slice(0, 90));
+check("导航子项不被 flex 压扁（flex:0 0 auto）", /flex:0 0 auto/.test(navA));
+check("导航容器允许整块换行（flex-wrap:wrap）", /flex-wrap:wrap/.test(navBox), navBox.slice(0, 70));
+check("桌面端导航独占一行（否则 9 个中文项挤不进 1120px）",
+  /@media \(min-width:721px\)\{[\s\S]{0,200}?\.main-nav\{order:3;flex:1 0 100%/.test(css));
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

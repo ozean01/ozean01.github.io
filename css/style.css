@@ -112,19 +112,25 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
 }
 .brand-text{font-size:17px;font-weight:800;letter-spacing:.2px;display:flex;flex-direction:column;line-height:1.15}
 .brand-sub{font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.4px}
-.main-nav{display:flex;gap:4px;flex:1}
+/* 中文导航标签必须**整体**换行。
+   坑：flex 在空间不足时会压缩每个子项，而中文没有空格可断，浏览器就按**字**断行——
+   「今日」被拆成「今/日」、「工具箱」拆成「工具/箱」，标题栏竖着一列孤字，非常难看。
+   故：标签一律 nowrap（不许在词内断行），子项 flex:0 0 auto（不许被压扁），
+   放不下时由 .main-nav 的 flex-wrap 把**整块**挪到下一行。 */
+.main-nav{display:flex;gap:4px;flex:1;flex-wrap:wrap;row-gap:2px}
 .main-nav a{
   padding:7px 13px;border-radius:9px;color:var(--muted);
-  font-weight:600;font-size:14.5px;
+  font-weight:600;font-size:14.5px;white-space:nowrap;flex:0 0 auto;
 }
 .main-nav a:hover{background:var(--primary-soft);color:var(--primary);text-decoration:none}
 .main-nav a.active{background:var(--primary);color:#fff}
 /* ---------- 分组式导航（dropdown · 服务端无需 JS） ---------- */
-.nav-group{position:relative}
+.nav-group{position:relative;flex:0 0 auto}
 .nav-group summary{
   list-style:none;display:inline-flex;align-items:center;gap:6px;
   padding:7px 13px;border-radius:9px;color:var(--muted);
   font-weight:600;font-size:14.5px;cursor:pointer;user-select:none;
+  white-space:nowrap;
 }
 .nav-group summary::-webkit-details-marker{display:none}
 .nav-group summary:hover{background:var(--primary-soft);color:var(--primary)}
@@ -143,6 +149,15 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
 .nav-sub a{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);font-weight:600;font-size:13.5px;white-space:nowrap}
 .nav-sub a:hover,.nav-sub a.active{background:var(--primary-soft);color:var(--primary)}
 .nav-sub a.active{background:var(--primary);color:#fff}
+
+/* 桌面端：导航独占第二行（第一行 = 品牌 ←→ 搜索/设置/进度）。
+   算过账才这么定的：1120px 内容区里，品牌 + 搜索框 + 设置 + 进度约占 620px，
+   只剩约 460px；而 9 个中文导航项本身要约 790px——中文的最小宽度就是字宽，压不下去。
+   硬挤的结果就是「今/日」「工具/箱」竖排孤字。整行下移是唯一既能放下、又不拆字的解。 */
+@media (min-width:721px){
+  .header-inner{flex-wrap:wrap;row-gap:6px}
+  .main-nav{order:3;flex:1 0 100%;padding-bottom:2px}
+}
 .header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
 .searchbox{position:relative}
 .searchbox input{
