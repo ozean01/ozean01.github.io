@@ -893,6 +893,23 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .ws-feed{margin-top:12px;background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13.5px}
 .kw-hit{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:8px;background:var(--ok-soft);color:#047857;font-size:12.5px}
 .kw-miss{display:inline-block;margin:2px 6px 2px 0;color:var(--muted);font-size:12.5px}
+/* ============ ✍️ 反馈二稿闭环（js/write.js） ============ */
+.ws-d2{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:15px 17px}
+.ws-d2-head{margin-bottom:10px}
+.ws-d2-head b{font-size:14.5px}
+.ws-d2-head span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.65}
+.ws-d2-ops{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.ws-cmp{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.ws-cmp-head{font-size:13.5px;font-weight:800;margin-bottom:8px}
+.ws-cmp-row{display:flex;align-items:baseline;gap:10px;font-size:13px;padding:4px 0}
+.ws-cmp-row span{color:var(--muted);min-width:72px}
+.ws-cmp-row b{font-size:14px}
+.ws-cmp-row em{font-style:normal;font-size:12.5px;font-weight:700}
+.ws-cmp-row em.ok{color:var(--ok)}
+.ws-cmp-row em.warn{color:var(--bad)}
+.ws-cmp-sec{margin-top:9px;font-size:12.5px}
+.ws-cmp-sec b{display:block;margin-bottom:5px}
+.ws-cmp-note{margin-top:11px;font-size:13px;background:var(--surface-2);border-radius:9px;padding:9px 12px;line-height:1.65}
 /* 今日目标 / 句型功能筛选 */
 .goal-banner{margin:4px 0 12px;padding:10px 14px;border-radius:10px;background:var(--surface-2);color:var(--muted);font-size:13.5px}
 .pt-tag{padding:7px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);cursor:pointer;font-size:13px;transition:.15s}

@@ -40,17 +40,93 @@
   function savedWorks() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
   function saveWorks(a) { try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 100))); } catch (e) { /* ignore */ } }
 
-  /* 离线要点自查：看用户的英文里用到了哪些关键表达 */
+  /* 离线要点自查：看用户的英文里用到了哪些关键表达。
+     ⚠️ 修一处既有缺陷：原先对原文与短语都不去标点，导致**带标点的短语永远匹配不上**——
+        例如 U4 的 "Please find attached..."，按 \s+ 切分后末尾那个词是 "attached..."，
+        用它在原文里做子串查找必然失败。于是「要点覆盖」长期偏低、失真，
+        而二稿闭环的对比正是建立在这个覆盖度上，所以必须先把度量修正。
+     改法：两侧统一去掉标点后再比。仍保留子串匹配语义（允许 clients/client 这类形态差异）。 */
+  function normKw(s) {
+    return String(s == null ? "" : s).toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  }
   function checkKeywords(text, kw) {
-    const low = String(text).toLowerCase();
+    const low = normKw(text);
     return kw.map(function (k) {
-      const t = String(k.t).toLowerCase();
-      const hit = t.split(/\s+/).every(function (w) { return low.indexOf(w) !== -1; });
+      const t = normKw(k.t);
+      const hit = t.split(" ").filter(Boolean).every(function (w) { return low.indexOf(w) !== -1; });
       return { t: k.t, cn: k.cn, hit: hit };
     });
   }
 
   function wc(text) { return String(text).trim().split(/\s+/).filter(Boolean).length; }
+
+  /* ---------------- 反馈二稿闭环（uptake）----------------
+     由来（SLA 专家评审，称其为「全站最大学理缺口」）：
+       站内 AI 批改完就结束了，**没有强制二稿**。而反馈必须经过
+       「注意（noticing）+ 修改性输出（modified output）」才真正产生习得——
+       只读一遍批改意见，学不到东西。
+     故在要点自查 / AI 批改之后，把「写第二稿」作为默认的下一步，并给出前后对比。
+     对比不评价文采，只看两件可验证的事：**要点覆盖有没有提升**、**词数怎么变**。 */
+  function compareDrafts(d1, d2, kw) {
+    const r1 = checkKeywords(d1 || "", kw || []);
+    const r2 = checkKeywords(d2 || "", kw || []);
+    const h1 = r1.filter(function (x) { return x.hit; }).map(function (x) { return x.t; });
+    const h2 = r2.filter(function (x) { return x.hit; }).map(function (x) { return x.t; });
+    return {
+      wc1: wc(d1 || ""), wc2: wc(d2 || ""),
+      rate1: r1.length ? Math.round(h1.length / r1.length * 100) : 0,
+      rate2: r2.length ? Math.round(h2.length / r2.length * 100) : 0,
+      added: h2.filter(function (t) { return h1.indexOf(t) === -1; }),
+      lost: h1.filter(function (t) { return h2.indexOf(t) === -1; }),
+      stillMissing: r2.filter(function (x) { return !x.hit; }).map(function (x) { return x.t; }),
+      total: r1.length
+    };
+  }
+
+  function compareHtml(c) {
+    const dRate = c.rate2 - c.rate1, dWc = c.wc2 - c.wc1;
+    const chips = function (arr, cls) {
+      return arr.map(function (t) { return '<span class="' + cls + '">' + esc(t) + "</span>"; }).join("");
+    };
+    const verdict = c.rate2 > c.rate1
+      ? (c.added.length ? "✅ 覆盖提升了，新用上 " + c.added.length + " 个关键表达。" : "✅ 要点更完整了。")
+      : (c.rate2 === c.rate1
+        ? "覆盖持平——重点看有没有把 AI 指出的语法/用词问题真正改掉。"
+        : "覆盖下降了，检查是不是删掉了本来必要的表达。");
+    return `
+    <div class="ws-cmp">
+      <div class="ws-cmp-head">📊 一稿 → 二稿</div>
+      <div class="ws-cmp-row"><span>词数</span><b>${c.wc1} → ${c.wc2}</b>
+        <em class="${dWc >= 0 ? "ok" : "warn"}">${dWc >= 0 ? "+" : ""}${dWc}</em></div>
+      <div class="ws-cmp-row"><span>要点覆盖</span><b>${c.rate1}% → ${c.rate2}%</b>
+        <em class="${dRate >= 0 ? "ok" : "warn"}">${dRate >= 0 ? "+" : ""}${dRate}</em></div>
+      ${c.added.length ? '<div class="ws-cmp-sec"><b>✅ 二稿新用上的</b><div>' + chips(c.added, "kw-hit") + "</div></div>" : ""}
+      ${c.lost.length ? '<div class="ws-cmp-sec"><b>⚠️ 二稿里没保留</b><div>' + chips(c.lost, "kw-miss") + "</div></div>" : ""}
+      ${c.stillMissing.length ? '<div class="ws-cmp-sec"><b>仍未用到</b><div>' + chips(c.stillMissing.slice(0, 8), "kw-miss") + "</div></div>" : ""}
+      <div class="ws-cmp-note">${verdict}</div>
+    </div>`;
+  }
+
+  /* 第二稿区块：默认用一稿预填——让用户「改」而不是从空白「重写」，
+     这才是修改性输出（modified output），也是习得真正发生的地方。 */
+  function draft2Html(s, kw) {
+    const d2 = (s.draft2 != null) ? s.draft2 : (s.text || "");
+    const cmp = s.d2done ? compareDrafts(s.text, d2, kw) : null;
+    return `
+    <div class="ws-d2">
+      <div class="ws-d2-head">
+        <b>✍️ 第二步：写第二稿</b>
+        <span>反馈只有转化成自己的修改才算学会。照着上面提出的问题改一遍，再看前后对比。</span>
+      </div>
+      <textarea id="wsDraft2" class="write-input" rows="7" placeholder="照着反馈改一遍…">${esc(d2)}</textarea>
+      <div class="ws-d2-ops">
+        <button class="btn btn-primary btn-sm" data-action="ws-d2-done">✓ 完成二稿 · 看对比</button>
+        <button class="btn btn-soft btn-sm" data-action="ws-d2-reset">↺ 从一稿重新改</button>
+        <span class="sop-hint" id="wsD2Wc">${wc(d2)} 词</span>
+      </div>
+      ${cmp ? compareHtml(cmp) : ""}
+    </div>`;
+  }
 
   function goalBanner() {
     if (!(window.CoachBridge && window.CoachBridge.text)) return "";
@@ -93,7 +169,8 @@
     <div class="card" style="margin-top:16px">
       <div class="chat-head"><span>📂 我的作品（${works.length}）</span></div>
       ${works.map(function (w, i) {
-        return '<div class="wb-item"><span class="wb-e" style="flex:1">' + esc((w.title || "")) + ' · ' + w.wc + " 词 · " + esc(String(new Date(w.t).toLocaleDateString())) + '</span>' +
+        return '<div class="wb-item"><span class="wb-e" style="flex:1">' + esc((w.title || "")) + ' · ' + w.wc + " 词 · " + esc(String(new Date(w.t).toLocaleDateString())) +
+          (w.rate2 != null ? ' <span class="badge badge-ok">已改二稿 ' + w.rate1 + "%→" + w.rate2 + "%</span>" : "") + '</span>' +
           '<button class="play-btn" data-action="ws-load" data-i="' + i + '" title="回顾">📖</button>' +
           '<button class="learn-toggle" data-action="ws-del" data-i="' + i + '" title="删除">✕</button></div>';
       }).join("")}
@@ -136,7 +213,8 @@
         <span class="sop-hint" id="wsWc">${wc(s.text || "")} 词</span>
       </div>
       ${feed}
-    </div>`;
+    </div>
+    ${s.checked ? draft2Html(s, kw) : ""}`;
   }
 
   /* ---------------- 交互 ---------------- */
@@ -146,28 +224,52 @@
     const act = el.getAttribute("data-action");
     if (act.indexOf("ws-") !== 0) return;
     const s = readState();
-    if (act === "ws-pick") { s.scen = el.getAttribute("data-id"); s.text = ""; s.checked = false; writeState(s); render(); return; }
+    if (act === "ws-pick") { s.scen = el.getAttribute("data-id"); s.text = ""; s.checked = false; s.draft2 = null; s.d2done = false; writeState(s); render(); return; }
     if (act === "ws-back") { clearState(); render(); return; }
     if (act === "ws-submit") {
       const t = document.getElementById("wsText");
       if (t) s.text = t.value;
       if (!s.text.trim()) { toast("请先写一段英文再自查"); return; }
-      s.checked = true; writeState(s); render(); return;
+      s.checked = true; s.d2done = false; writeState(s); render(); return;
     }
     if (act === "ws-save") {
       const t = document.getElementById("wsText");
       if (t) s.text = t.value;
+      const t2 = document.getElementById("wsDraft2");
+      if (t2) s.draft2 = t2.value;
       if (!s.text.trim()) { toast("先写一点内容再保存"); return; }
       const a = savedWorks();
       const sc = SCENARIOS.find(function (x) { return x.id === s.scen; }) || SCENARIOS[0];
-      a.unshift({ t: Date.now(), scen: s.scen, title: sc.title, text: s.text, wc: wc(s.text) });
+      const kw = keyPhrases(sc.unitIds);
+      const has2 = s.d2done && String(s.draft2 || "").trim();
+      const c = has2 ? compareDrafts(s.text, s.draft2, kw) : null;
+      a.unshift({
+        t: Date.now(), scen: s.scen, title: sc.title, text: s.text, wc: wc(s.text),
+        draft2: has2 ? s.draft2 : "", wc2: has2 ? wc(s.draft2) : null,
+        rate1: c ? c.rate1 : null, rate2: c ? c.rate2 : null
+      });
       saveWorks(a);
-      toast("💾 已保存到作品集");
+      toast(has2 ? "💾 已保存（含一稿与二稿）" : "💾 已保存到作品集");
       if (window.CoachBridge && window.CoachBridge.done) window.CoachBridge.done("write");   // 计入今日任务 + 连续打卡
       render();
       return;
     }
-    if (act === "ws-load") { const w = savedWorks()[parseInt(el.getAttribute("data-i"), 10)]; if (w) { s.scen = w.scen; s.text = w.text; s.checked = false; writeState(s); render(); } return; }
+    if (act === "ws-d2-done") {
+      const t2 = document.getElementById("wsDraft2");
+      if (t2) s.draft2 = t2.value;
+      if (!String(s.draft2 || "").trim()) { toast("第二稿还是空的——照着反馈改一点就算数"); return; }
+      if (String(s.draft2).trim() === String(s.text || "").trim()) {
+        toast("二稿和一稿一模一样——至少改一处再对比，才算把反馈用起来");
+        return;
+      }
+      s.d2done = true; writeState(s); render();
+      return;
+    }
+    if (act === "ws-d2-reset") {
+      s.draft2 = s.text || ""; s.d2done = false; writeState(s); render();
+      return;
+    }
+    if (act === "ws-load") { const w = savedWorks()[parseInt(el.getAttribute("data-i"), 10)]; if (w) { s.scen = w.scen; s.text = w.text; s.draft2 = w.draft2 || null; s.d2done = !!w.draft2; s.checked = false; writeState(s); render(); } return; }
     if (act === "ws-del") { const a = savedWorks(); a.splice(parseInt(el.getAttribute("data-i"), 10), 1); saveWorks(a); render(); return; }
     if (act === "ws-ai") writeAi(s);
   });
@@ -189,4 +291,12 @@
   function nl2br(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
 
   window.WriteStudio = { render: render };
+
+  /* 供自动化测试/诊断使用（不影响运行时）。
+     放在文件末尾：compareDrafts / draft2Html 等为函数声明会提升，但保持与站内一致的约定，
+     也避免后人把带 const 的钩子提前——js/phonemes.js 与 js/urgent.js 都因此触发过 TDZ。 */
+  window.WriteStudio._t = {
+    compareDrafts: compareDrafts, draft2Html: draft2Html, compareHtml: compareHtml,
+    checkKeywords: checkKeywords, normKw: normKw, wc: wc, keyPhrases: keyPhrases, SCENARIOS: SCENARIOS
+  };
 })();

@@ -22,6 +22,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-schema.js"],  gate: true,  label: "进度 schema 迁移框架" },
   { cmd: "node", args: ["tools/test-quiz-write.js"],gate: true,  label: "测验写作产出（write）题型" },
   { cmd: "node", args: ["tools/test-patterns.js"], gate: true,  label: "句型克隆库 frame 生成" },
+  { cmd: "node", args: ["tools/test-write.js"],   gate: true,  label: "写作二稿闭环：对比算法 / 教学守卫 / 渲染时机" },
   { cmd: "node", args: ["tools/test-mysay.js"],   gate: true,  label: "说我想说：拆句/实词/接线" },
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
   { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
