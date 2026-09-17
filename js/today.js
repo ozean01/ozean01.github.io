@@ -156,6 +156,45 @@
     return g ? { key: g.key, sym: g.sym, name: g.name, n: count[best], scanned: scanned } : null;
   }
 
+  /* ---------------- 🧭 复测到期提醒（诊断层） ----------------
+     由来：「水平自测」原先答完只写一个起点单元号——没有日期、没有分项、没有历史，
+     于是站点结构上无法回答「我比 30 天前好了吗」。js/placement.js 补上了带日期的分项定级
+     与第 7/30/90 天复测排期；这里负责**到日子了把人叫回来**——排期不提醒等于没有排期。
+     不在日子上就完全不显示，避免变成永远挂着的装饰。 */
+  function retestDue() {
+    const boot = E();
+    if (!boot.placementRetest) return null;
+    const st = boot.placementRetest();
+    if (!st || st.future) return null;           /* 还没到日子：不打扰 */
+    return st;
+  }
+
+  /* ---------------- 🔄 中断回归协议 ----------------
+     由来（节律账本 / 90 天计划）：站点有连续打卡与热力图，但**中断之后怎么办**完全没有设计——
+     而「停了两周」恰恰是最常见的真实情况。最容易毁掉习惯的两种做法是**补作业**和**熬夜还债**，
+     所以这里要做的不是催，而是给一条**小到不可能失败**的回归路径，并明确写清「这次不补什么」。
+     三行事实 + 一条最小动作，不做人格判断。 */
+  function comeback() {
+    const boot = E();
+    if (!boot.coachLastDate || !boot.coachToday) return null;
+    const last = boot.coachLastDate();
+    if (!last) return null;                       /* 从没练过：不算中断，走正常清单 */
+    const today = boot.coachToday();
+    const gap = dayGap(last, today);
+    if (gap == null || gap < 2) return null;      /* 昨天练过 → 不算中断 */
+    return { lastDate: last, gapDays: gap };
+  }
+  /* 两个 YYYY-MM-DD 之间的整天数（本地时区，不用 Date.parse 以免被当 UTC） */
+  function dayGap(from, to) {
+    const a = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(from || ""));
+    const b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(to || ""));
+    if (!a || !b) return null;
+    const d1 = new Date(+a[1], +a[2] - 1, +a[3]);
+    const d2 = new Date(+b[1], +b[2] - 1, +b[3]);
+    return Math.round((d2 - d1) / 86400000);
+  }
+
+
   /* ---------------- 今天的五个步骤（有序） ----------------
      每步给：序号 / 图标 / 标题 / 预计分钟 / 依据（为什么是它）/ 深链 / 是否可自动判定。 */
   function buildSteps() {
@@ -302,6 +341,36 @@
         "这类音错了客户会直接听成别的词——先到 <a href=\"#/phonemes\">音素与辨音</a> 把那组过一遍，再回来跟读。</div>";
     })()}
 
+    ${(function () {
+      const cb = comeback();
+      if (!cb) return "";
+      return '<div class="td-comeback">' +
+        '<div class="td-cb-head">🔄 <b>欢迎回来</b><span>距上次练习 ' + cb.gapDays + ' 天</span></div>' +
+        '<div class="td-cb-row"><i>①</i><span><b>只记事实</b>：你上次练到 <b>' + esc(cb.lastDate) +
+          '</b>，中间停了 <b>' + cb.gapDays + ' 天</b>。这只是记录，不作人格判断。</span></div>' +
+        '<div class="td-cb-row"><i>②</i><span><b>24 小时内只做这一件</b>：' +
+          '<button class="btn btn-primary btn-sm" data-action="td-comeback-min">⏱ 只做前两步（约 9 分钟）</button>' +
+          '<em>不需要补完，做完这两步就算今天回来了。</em></span></div>' +
+        '<div class="td-cb-row"><i>③</i><span><b>这次明确不补做</b>：不补那 ' + cb.gapDays +
+          ' 天的作业，也不熬夜还债。连续打卡会从今天重新算（回到 1 天），' +
+          '但<b>已掌握的词与 FSRS 排期不会清零</b>——进度不会倒退。</span></div>' +
+        '<div class="td-cb-row"><i>④</i><span><b>如果同一个阻力已经连续出现三次</b>：改条件——' +
+          '换时间盒、把任务缩小、换环境或换时段，而不是再逼自己一次。</span></div>' +
+        '</div>';
+    })()}
+
+    ${(function () {
+      const rt = retestDue();
+      if (!rt) return "";
+      const when = rt.overdue
+        ? "第 " + rt.day + " 天复测已逾期 <b>" + rt.overdueDays + "</b> 天"
+        : "今天是<b>第 " + rt.day + " 天复测日</b>";
+      return '<div class="td-retest">🧭 <b>复测到期</b>：' + when + '（原定 ' + esc(rt.dueAt) + '）。' +
+        '照<b>同样的四项任务</b>再测一次，但<b>换主题、换听众、换材料</b>——这才测的是能力，' +
+        '把同一篇改一遍只测到记忆。到 <a href="#/placement">🧭 水平自测</a> 更新分项定级，' +
+        '系统会跟上次逐项对比。</div>';
+    })()}
+
     ${(window.Urgent && window.Urgent.html) ? window.Urgent.html() : ""}
 
     <section class="td-list-head">
@@ -318,10 +387,14 @@
         '<div class="td-week-body">' + weekHtml + "</div></details>"
       : ""}
 
+    /* 完成庆祝块：不指向旧看板路由。此处原有一个「🗂 本周看板」按钮指向旧看板路由
+       （已不再是独立页面，见 app.js 的 REDIRECT_ROUTES 与下方周区说明）——那条路由会被
+       整页重定向回本页，点击等于原地刷新（自环空操作，R5）。本周内容就在上方那一块
+       只读「本周」区里，故直接删掉该按钮，改为只留「口语水平 / 说我想说」两个真实出口
+       ——不新增入口是本页既有原则。 */
     ${allDone
       ? '<div class="td-finish"><b>🎉 今天这五步做完了</b><span>连续 ' + st.streak + " 天 · 今天 " + st.today + " 分。明天回来接着走，进度会自动往前推。</span>" +
         '<div class="td-finish-ops"><a class="btn btn-outline btn-sm" href="#/speaking">📡 看看口语水平</a>' +
-        '<a class="btn btn-outline btn-sm" href="#/board">🗂 本周看板</a>' +
         '<a class="btn btn-soft btn-sm" href="#/mysay">🗣 再多说一段也行</a></div></div>'
       : ""}
 
@@ -346,6 +419,10 @@
 
     if (act === "td-short") { S.short = !S.short; render(); return; }
 
+    /* 中断回归的「最小动作」：直接切到精简模式（只做前两步），
+       不新增任何机制——它就是把站内已有的「今天只有 5 分钟」按一次。 */
+    if (act === "td-comeback-min") { S.short = true; render(); return; }
+
     if (act === "td-tick") {
       const key = el.getAttribute("data-key");
       const step = buildSteps().filter(function (s) { return s.key === key; })[0];
@@ -363,6 +440,9 @@
   window.Today._t = {
     buildSteps: buildSteps, countDue: countDue, stageOf: stageOf, todayStr: todayStr, totalMin: totalMin,
     goalPlan: goalPlan, startUnit: startUnit, isNewbie: isNewbie, GOAL_PLAN: GOAL_PLAN,
-    pronFocus: pronFocus
+    pronFocus: pronFocus,
+    /* 中断回归 + 复测到期：AI 无法自动判定的部分是「态度」，但这两者都是**可算的**
+       （日期差 / 排期锚点），所以必须有测试盯着，见 tools/test-today.js。 */
+    comeback: comeback, retestDue: retestDue, dayGap: dayGap
   };
 })();

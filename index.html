@@ -237,6 +237,10 @@
 <script src="js/data-mnemonic.js"></script>
 <script src="js/lvl-map.js"></script>
 <script src="js/difficulty-map.js"></script>
+<!-- 单元用途句（「什么时候用」）。必须放在最后一个外部脚本之前加载：
+     app.js 执行时就要读 window.FTE_GUIDE，标签若排在它后面则取到 undefined、
+     单元卡上那行用途句会静默消失（app.js 启动校验也会报此项缺失）。 -->
+<script src="js/unit-guide.js"></script>
 <script src="js/schema.js"></script>
 <script src="js/player.js"></script>
 <script src="js/parser.js"></script>
@@ -265,6 +269,7 @@
 <script src="js/speech.js"></script>
 <script src="js/board.js"></script>
 <script src="js/radar.js"></script>
+<script src="js/placement.js"></script>
 <script src="js/app.js"></script>
 
 <script>

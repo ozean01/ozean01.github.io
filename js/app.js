@@ -48,6 +48,7 @@
   _need("易错点 data-mistakes.js", !!window.FTE_MISTAKES);
   _need("助记 data-mnemonic.js", !!window.FTE_MEMO);
   _need("难度标定 difficulty-map.js", !!window.FTE_DIFF);
+  _need("单元用途句 unit-guide.js", !!(window.FTE_GUIDE && window.FTE_GUIDE.units));
   _need("真实业务语料 data-mail.js", !!window.FTE_MAIL);
   _need("语音引擎 player.js", !!window.Player);
   _need("单词卡 flashcards.js", !!window.Flashcards);
@@ -648,8 +649,10 @@
         <div class="ps-desc">${esc(s.desc)}</div>
         <div class="ps-units">${units.map(function (u) {
           const du = unitDifficulty(u);
+          /* 角标内嵌「语言·」前缀（不是 title 提示）：触屏端不显示 title，而这枚角标
+             与单元卡上那枚同源——只写裸档位会被读成「业务难度」（R7 / T13-1）。 */
           return '<a class="ps-chip" href="#/unit/' + u.id + '">' + esc(u.icon) + ' ' + esc(u.title) +
-            (du ? '<em class="ps-d">' + esc(du.band) + '</em>' : "") + '</a>';
+            (du ? '<em class="ps-d" title="难度＝语言复杂度（相对本站语料），不是业务内容难度">语言·' + esc(du.band) + '</em>' : "") + '</a>';
         }).join("")}</div>
         <div class="progressbar" style="max-width:240px;margin-top:8px"><i class="${done === units.length ? "full" : ""}" style="width:${pct}%"></i></div>
       </div>`;
@@ -1096,7 +1099,7 @@
       <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a> 的四维分与雷达。
     </div>
 
-    <h3 class="section-title" id="home-body">📚 学习路径 <span class="sub">按顺序学 · 三阶段递进 · 每单元标注相对难度 · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
+    <h3 class="section-title" id="home-body">📚 学习路径 <span class="sub">按顺序学 · 三阶段递进 · 每单元标注<b>语言</b>难度（相对本站语料，不是业务难度） · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
     ${pathStagesHtml()}
 
     ${coachBannerHtml()}
@@ -1245,10 +1248,12 @@
     const du = unitDifficulty(u);
     const dlgN = (u.dialogues || []).length;
     const stageN = unitStageDone(u);
+    const whenText = unitWhenText(u);
     const diffHtml = du
-      ? '<span class="badge uc-diff" title="难度（可由水平自测校准）。平均 CEFR ' + cefrLabel(du.avgCefr) +
+      ? '<span class="badge uc-diff" title="难度：本站全部课程语料内的语言复杂度相对档（词级取 CEFR 画像，' +
+        '未收录的行业/复合术语按词长+音节兜底）。平均 CEFR ' + cefrLabel(du.avgCefr) +
         ' · 平均每句 ' + du.wordsPerSentence + ' 词 · 可读性 Flesch ' + du.flesch +
-        '。词级为真实 CEFR 分级（CEFR-J），单元指标站内相对排序。">难度：' + esc(du.band) + '</span>'
+        '。它反映的是措辞本身好不好读，不是业务内容好不好做——标签口径见「全部课程」页顶部说明与各单元页的难度块。">难度（语言）：' + esc(du.band) + '</span>'
       : "";
     return `
     <a class="unit-card" href="#/unit/${u.id}" style="color:inherit">
@@ -1260,6 +1265,7 @@
         </div>
       </div>
       <div class="uc-sum">${esc(u.summary)}</div>
+      ${whenText ? '<div class="uc-when" style="font-size:13px;color:var(--ink);background:var(--primary-soft);border-radius:8px;padding:6px 9px;line-height:1.5">📍 ' + esc(whenText) + '</div>' : ""}
       ${du ? '<div class="uc-diffline">' + diffHtml +
         '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
       <div class="uc-meta">
@@ -1278,8 +1284,19 @@
     <div class="page-head">
       <h2>📚 全部课程</h2>
       <div class="en">${DATA.units.length} 个单元 · 覆盖外贸全流程</div>
+      ${diffLegendHtml()}
     </div>
     <div class="grid grid-2" style="margin-top:18px">${DATA.units.map(unitCardHtml).join("")}</div>`;
+  }
+
+  /* 课程列表页顶部的难度口径说明（R6/R7：标签只谈语言复杂度，不谈业务内容难度）。
+     与单元页难度块的 uc-diff-note 共用同一套措辞，避免两处口径再次分叉。 */
+  function diffLegendHtml() {
+    return '<p class="uc-diff-note" style="margin-top:10px;max-width:760px">卡上的<b>难度（语言）</b>是' +
+      '<b>语言复杂度</b>：把本站 ' + DATA.units.length + ' 个单元放在一起比<b>措辞本身好不好读</b>，' +
+      '不是<b>业务内容好不好做</b>——物流、海运这类术语密集的单元读起来不难，业务上手却难，两者不是一回事。' +
+      '口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐；' +
+      '点任意单元可看该单元各项指标与算法分量。</p>';
   }
 
   /* ================= 中国外贸人高频易错点 ================= */
@@ -1481,8 +1498,10 @@
 
   /* ---- 词级难度标注 ----
      唯一来源：构建期生成的 js/difficulty-map.js（window.FTE_DIFF，词 -> {dif:易/中/难, dom:是否行业术语}）。
-     这是一个基于「音节数+词长」的客观代理量（加工难度近似），并非 COCA/BNC/CEFR 官方频表；
-     dom 为行业术语性标注，与加工难度正交。缺失时（如未生成地图）回退到旧启发式正则。 */
+     词级 dif/cefr 取自开放 CEFR 词汇画像（CEFR-J A1-B2 + Octanove C1-C2；A1/A2=易、B1=中、B2/C1/C2=难），
+     未收录的长词/复合词（多为行业术语）按词长+音节启发式兜底（cefr=null）；
+     dom 为行业术语性标注，与语言难度正交。缺失时（如未生成地图）回退到旧启发式正则。
+     口径的机器可读权威表述见 FTE_DIFF.difficultyBasis（含命中率与"不对齐外部量表"的声明）。 */
   const FREQ_HIGH = /^(trade|export|import|buyer|seller|supplier|sample|contract|shipment|customs|tariff|offer|price|order|payment|goods|market|customer|company|business|product|quality|service|shipping|delivery|invoice|receipt|goods|email|phone|meeting|visit|factory|agent|discount|total|amount|money|address|name|date|time|week|month|year|office|trip|thank|welcome|please|confirm|ask|question|answer|problem|work|need|make|send|receive|pay|sign|check|call|show|come|buy|sell|pack|load|ship|start|finish|ready|free|clear|team|sales|quote|deal)$/i;
   const FREQ_TECH = /(adhesive|resin|prepolymer|isocyanate|polyol|polyurethane|polyether|polyester|polyamide|laminate|laminating|coating|corona|solventless|solvent-based|water-based|two-component|curing|hardener|catalyst|endothermic|exothermic|peel|delamination|retort|boil|pouch|spout|zipper|tonnage|bench-scale|certification|declaration|compliance|specification|tolerance|viscosity|solid|reactive|membrane|isocyanate|diisocyanate|catalyst|monomer|additive|plasticizer|extrusion|barrier|permeability|incoterms|documentary|letter-?of-?credit|tender|despatch|demurrage|incoterm|certificate)/i;
 
@@ -1516,6 +1535,16 @@
   const DIFF_UNITS = DIFF.units || {};
   function unitDifficulty(u) { return DIFF_UNITS[String(u.id)] || null; }
 
+  /* 单元用途句「什么时候用」（js/unit-guide.js 提供，纯文案层）。
+     该文件在 index.html 中必须先于本文件加载；缺失/该单元无 when 时返回空串，
+     调用处不渲染空行——不抛错、不影响单元卡其余部分。 */
+  function unitWhenText(u) {
+    const g = window.FTE_GUIDE;
+    if (!g || !g.units) return "";
+    const rec = g.units[String(u.id)];
+    return (rec && rec.when) ? String(rec.when) : "";
+  }
+
   /* 单元难度说明块（客观指标，供「从易到难」可量化） */
   function unitDiffBlockHtml(u) {
     const du = unitDifficulty(u);
@@ -1523,14 +1552,14 @@
     return `
     <div class="card uc-diff-card" style="margin-top:12px;max-width:760px">
       <div class="uc-diff-bars">
-        <div><b>难度档</b><span class="uc-diff-val">${esc(du.band)}</span><small>综合 CEFR 档/词长/句长/专业词占比</small></div>
+        <div><b>难度档</b><span class="uc-diff-val">${esc(du.band)}</span><small>语言复杂度（相对本站语料）</small></div>
         <div><b>平均 CEFR 档</b><span class="uc-diff-val">${cefrLabel(du.avgCefr)}</span><small>1=A1 … 6=C2（未收录按 B2 计）</small></div>
         <div><b>平均句长</b><span class="uc-diff-val">${du.wordsPerSentence} 词</span><small>越长信息密度越高</small></div>
         <div><b>可读性 Flesch</b><span class="uc-diff-val">${du.flesch}</span><small>越高越易读（约 60 为中等）</small></div>
-        <div><b>专业词占比</b><span class="uc-diff-val">${Math.round(du.domPct * 100)}%</span><small>行业术语密度</small></div>
+        <div><b>专业词占比</b><span class="uc-diff-val">${du.domPct}%</span><small>行业术语密度（不参与难度档）</small></div>
         <div><b>站内难度序</b><span class="uc-diff-val">#${du.sortIdx}</span><small>1 = 最易，${DATA.units.length} = 最难</small></div>
       </div>
-      <div class="uc-diff-note">词级为真实 CEFR 分级（CEFR-J + C1-C2 开放画像）；<b>平均 CEFR 档</b>：A1/A2=易，B1=中，B2/C1/C2=难，未收录行业/复合术语按难度兜底并标「专」。单元指标相对本站语料归一，用于站内相对排序。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
+      <div class="uc-diff-note">词级为 CEFR 画像分级（CEFR-J A1-B2 + C1-C2 开放画像，未收录的行业/复合术语按词长与音节兜底并标「专」）。<b>难度档＝语言复杂度</b>：把本站 19 个单元放在一起比<b>措辞本身好不好读</b>，不是<b>业务内容好不好做</b>——U7 物流、U13 海运这类术语密集型单元，正文读起来不难但业务上手难，两者不是一回事。档位由合成分按站内相对位置切出：<b>0.5×平均 CEFR 档 + 0.3×每词音节数 + 0.2×平均词长</b>（三者都取本站语料内分位，低分＝更易）；<b>平均句长 / Flesch 可读性 / 专业词占比只作参考展示，不参与该合成分</b>。口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
     </div>`;
   }
   function cefrLabel(c) {
@@ -1668,6 +1697,12 @@
     const score = rec.score;
     const ratio = score / PLACE_N;
     try { localStorage.setItem("fte-placement", JSON.stringify(rec.unitId)); } catch (e) {}
+    /* v2 诊断层：把「答对几题」升级为【带日期的分项定级】。
+       只写 `fte-placement`（起点单元号）无法回答「我比 30 天前好了吗」——没有日期、没有分项、没有历史。
+       Placement 负责落日期、锁定基线、排期第 7/30/90 天复测，并保留逐项历史。
+       placement.js 未加载时（老浏览器缓存）整块静默跳过，不影响原有自测。 */
+    const P = window.Placement;
+    if (P && P.recordQuiz) { try { P.recordQuiz(score, PLACE_N, rec.unitId); } catch (e) { /* ignore */ } }
     let levelTxt, levelHint;
     if (ratio < 0.25) { levelTxt = "新手起步"; levelHint = "从最基础的商务场景打地基，单词卡与听写优先。"; }
     else if (ratio < 0.5) { levelTxt = "基础适用"; levelHint = "直接进商务基础阶段，先扎实常用词与流程。"; }
@@ -1689,7 +1724,8 @@
         <button class="btn btn-outline" data-action="placement-retest">🔁 重新测试</button>
         <a class="btn btn-ghost" href="#/units">浏览全部课程</a>
       </div>
-    </div>`;
+    </div>
+    <div id="plCard">${(P && P.cardHtml) ? P.cardHtml() : ""}</div>`;
   }
 
   function wordRowHtml(w, hl) {
@@ -4085,6 +4121,10 @@
     getUnit: getUnit,
     pathStagesData: pathStagesData,
     coachToday: coachToday,
+    /* 最后一次练习日期（YYYY-MM-DD）：供「今日」识别**中断回归**。
+       原先只有 coachStats 的累计值，看不出「中间停了几天」——而中断后的处理方式
+       和学习本身一样重要（补作业 / 熬夜还债是最容易让人彻底放弃的做法）。 */
+    coachLastDate: function () { return (progress.coach && progress.coach.lastDate) || ""; },
     /* 「今日」用它把用户选的「工作目标」纳入当天清单生成（原先只有首页的目标筛选在用） */
     homeGoalLoad: homeGoalLoad,
     homeGoals: function () { return HOME_GOALS; },
@@ -4093,6 +4133,14 @@
     placementUnit: function () {
       try { const v = parseInt(localStorage.getItem("fte-placement"), 10); return v >= 1 ? v : null; }
       catch (e) { return null; }
+    },
+    /* 诊断层（js/placement.js）：带日期的分项定级记录。键名知识同样留在模块内，
+       外部模块（今日的复测提醒）只拿结构化的结果，不碰 localStorage。 */
+    placementRecord: function () {
+      return (window.Placement && window.Placement.load) ? window.Placement.load() : null;
+    },
+    placementRetest: function () {
+      return (window.Placement && window.Placement.retestStatus) ? window.Placement.retestStatus() : null;
     },
     UNIT_DONE_PCT: UNIT_DONE_PCT,
     /* 供测试与外部模块读取「本周自测」文本（P4：该文本已分「坚持 / 能力」两栏） */
