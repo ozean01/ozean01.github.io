@@ -64,6 +64,14 @@ let PROGRESS = freshProgress();
 let GOAL = { patterns: { done: 0, target: 10 }, write: { done: 0, target: 1 } };
 let PLACEMENT = null;          /* 水平自测推荐的起点单元 */
 let GOAL_ID = "all";           /* 工作目标 id */
+let LAST_DATE = TODAY;         /* 最后一次练习日期（中断回归用） */
+let RETEST = null;             /* 复测排期状态（placement 提供） */
+/* n 天前的日期字符串（构造「中断了几天」的场景）。月与日都要补零——
+   只补月份时，回看落在个位数日期上会产出 "2026-09-1" 这种非法串，被 dayGap 拒掉。 */
+function ydStr(n) {
+  const d = new Date(Date.now() - n * DAY);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
 const CREDITED = [];
 const pctOf = function (u) { return u.id === 1 ? 40 : 0; };
 
@@ -88,6 +96,9 @@ global.window = {
     UNIT_DONE_PCT: 80,
     /* P2 个人化：工作目标 + 水平自测起点 */
     homeGoalLoad: function () { return GOAL_ID; },
+    /* 中断回归 / 复测到期（P7）：两个新数据源 */
+    coachLastDate: function () { return LAST_DATE; },
+    placementRetest: function () { return RETEST; },
     placementUnit: function () { return PLACEMENT; },
     totalLearned: function () { return Object.keys(PROGRESS.learned).length; },
     getUnit: function (id) { return UNITS.filter(function (u) { return u.id === id; })[0]; },
@@ -140,6 +151,36 @@ const phtml = appEl.innerHTML;
 check("「今日」页渲染出发音提醒", phtml.indexOf('class="td-pron"') !== -1);
 check("提醒里给出证据数字", /你错过 <b>2<\/b> 个词/.test(phtml) && /其中 <b>2<\/b> 个含/.test(phtml));
 check("提醒链到音素与辨音", /class="td-pron"[\s\S]{0,400}href="#\/phonemes"/.test(phtml));
+
+/* ---------------- 🎧 连听本单元（P7 · 借鉴 ENGSENCE「连听所有例句」） ----------------
+   清单构建是纯函数，决定"连听到底读什么"：只吃当前单元、英文轨必须纯英文。 */
+const luDemo = {
+  id: 1,
+  vocab: [
+    { w: "film", ex: "The adhesive bonds two layers of film.", exCn: "胶粘剂把两层薄膜复合在一起。" },
+    { w: "empty", cn: "这个词没有例句，必须被跳过" }
+  ],
+  phrases: [{ p: "place an order", ex: "We would like to place an order for 500 units.", exCn: "我们想下 500 台的订单。" }],
+  dialogues: [{ title: "首次询盘（电话）", lines: [{ sp: "A", en: "Good morning! I am calling about your quotation.", cn: "早上好！我打电话是想问你们的报价。" }] }]
+};
+const lAll = H.listenItems(luDemo, "all");
+check("连听：跳过没有例句的词条（3 句）", lAll.length === 3, "n=" + lAll.length);
+check("连听：英文轨不含中文", lAll.every(function (x) { return !/[\u4e00-\u9fff]/.test(x.en); }));
+check("连听：每句都带中文对照（供英中交替）", lAll.every(function (x) { return !!x.cn; }));
+check("连听：范围=词条例句", H.listenItems(luDemo, "ex").length === 1);
+check("连听：范围=短语例句", H.listenItems(luDemo, "ph").length === 1);
+check("连听：范围=对话且标签带标题",
+  H.listenItems(luDemo, "dlg").length === 1 && /对话/.test(H.listenItems(luDemo, "dlg")[0].tag));
+check("连听：三个分范围之和 = 全部（不漏不重）",
+  H.listenItems(luDemo, "ex").length + H.listenItems(luDemo, "ph").length + H.listenItems(luDemo, "dlg").length === lAll.length);
+check("连听：空单元/缺字段不抛错", (function () {
+  try { return H.listenItems({}, "all").length === 0 && H.listenItems({ vocab: [null] }, "all").length === 0; } catch (e) { return false; }
+})());
+check("连听范围选项齐全（全部/词条例句/短语例句/对话）",
+  H.LISTEN_SCOPES.map(function (s) { return s.key; }).join(">") === "all>ex>ph>dlg");
+check("「今日」页渲染出连听区块", phtml.indexOf('class="td-listen"') !== -1);
+check("连听区块声明「不计入打卡」（坚持口径不被泛听污染）", /不计入打卡/.test(phtml));
+check("连听区块没被塞进五步清单（仍是 5 步 + 独立区块）", H.buildSteps().length === 5 && /class="td-listen"/.test(phtml));
 
 PROGRESS.wrong = {};
 T.render();
@@ -227,6 +268,7 @@ check("全新用户错题为「还没有错题」", /还没有错题/.test(s0[4]
 
 /* ---------------- ⑤ 深链交叉校验：每个 href 都必须是 app.js 里真实注册的路由 ---------------- */
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
+const todaySrc = fs.readFileSync(path.join(ROOT, "js", "today.js"), "utf8");
 const routeBlob = (appjs.match(/if \(\[([\s\S]*?)\]\.indexOf\(parts\[0\]\)/) || [])[1] || "";
 /* [a-z0-9]+：路由含 eval4 这类带数字的标识，用 [a-z]+ 会静默漏掉 */
 const ROUTES = (routeBlob.match(/"([a-z0-9]+)"/g) || []).map(function (s) { return s.replace(/"/g, ""); });
@@ -319,6 +361,70 @@ check("今日页样式已定义", /\.td-step\{/.test(style) && /\.td-list\{/.tes
 ["coachStats", "unitPct", "totalLearned", "pathStagesData", "coachToday"].forEach(function (k) {
   check("FTE_BOOT 暴露 " + k, new RegExp("\\b" + k + ":\\s*" + k + "\\b").test(appjs));
 });
+
+/* ---------------- ⑨ 🔄 中断回归 + 🧭 复测到期 ----------------
+   两块新机制共用一条原则：**有证据才出现，没证据不打扰**。
+   中断用「上次练习日期」判定；复测用 placement 的排期锚点判定。两者都是可算的，
+   所以必须有测试盯着——否则「停了两周」和「昨天练过」在页面上会长得一模一样。 */
+
+/* ⑨-1 中断回归：必须真停了 ≥2 天才提示 */
+LAST_DATE = TODAY;
+check("昨天/今天练过 → 不打扰（不算中断）", H.comeback() === null);
+
+LAST_DATE = ydStr(1);
+check("昨天练过 → 仍不算中断（只隔一天是正常节律）", H.comeback() === null);
+
+LAST_DATE = ydStr(2);
+let cb = H.comeback();
+check("★ 停了 2 天 → 触发中断回归", !!cb && cb.gapDays === 2, cb ? "gap=" + cb.gapDays : "null");
+
+LAST_DATE = ydStr(14);
+cb = H.comeback();
+check("★ 停了 14 天 → gap 算得准", !!cb && cb.gapDays === 14, cb ? "gap=" + cb.gapDays : "null");
+check("★ 中断面板带「最小回归动作」入口", /td-comeback-min/.test(todaySrc));
+check("★ 中断面板带「明确不补做什么」（防补作业 / 熬夜还债）",
+  /不补做/.test(todaySrc) && /不熬夜还债/.test(todaySrc));
+check("★ 中断面板写明连续打卡会重算但进度不倒退",
+  /重新算/.test(todaySrc) && /不会清零/.test(todaySrc));
+check("★ 中断面板写明「连续三次同一阻力就改条件」", /连续出现三次/.test(todaySrc));
+check("中断不做人格判断（只记事实）", /只记事实/.test(todaySrc) && /不作人格判断/.test(todaySrc));
+
+LAST_DATE = "";                       /* 从没练过（新用户） */
+check("从没练过 → 不算中断（走正常清单，不吓唬新人）", H.comeback() === null);
+
+/* ⑨-2 复测到期：future 不打扰，due 才提示 */
+LAST_DATE = TODAY;
+RETEST = { day: 7, dueAt: "2026-01-08", overdueDays: -3, overdue: false, future: true };
+check("复测还没到日子 → 不打扰", H.retestDue() === null);
+
+RETEST = { day: 7, dueAt: "2026-01-01", overdueDays: 0, overdue: false };
+let rt = H.retestDue();
+check("★ 复测到期当天 → 提示", !!rt && rt.day === 7);
+
+RETEST = { day: 30, dueAt: "2026-01-01", overdueDays: 9, overdue: true };
+rt = H.retestDue();
+check("★ 复测逾期 → 提示且带逾期天数", !!rt && rt.overdue === true && rt.overdueDays === 9);
+
+RETEST = null;
+check("没有自测记录 → 不提示（不干扰没测过的人）", H.retestDue() === null);
+check("today.js 复测提示指向既有 #/placement（未新造页面）", /href="#\/placement"/.test(todaySrc));
+check("复测提示写明要「换主题、换听众」（否则测的是记忆不是能力）",
+  /换主题、换听众/.test(todaySrc));
+
+/* ⑨-3 dayGap 边界 */
+check("dayGap 同日为 0", H.dayGap("2026-03-01", "2026-03-01") === 0);
+check("dayGap 跨月正确", H.dayGap("2026-01-31", "2026-02-01") === 1, H.dayGap("2026-01-31", "2026-02-01"));
+check("dayGap 跨年正确", H.dayGap("2026-12-31", "2027-01-01") === 1);
+check("dayGap 拒绝非法输入（返回 null 而非 NaN）",
+  H.dayGap("", "2026-01-01") === null && H.dayGap("2026-1-1", "2026-01-01") === null);
+
+/* ⑨-4 接线：两个新数据源必须由 app.js 暴露 */
+check("FTE_BOOT 暴露 coachLastDate", /coachLastDate:\s*function/.test(appjs));
+check("FTE_BOOT 暴露 placementRetest / placementRecord",
+  /placementRetest:\s*function/.test(appjs) && /placementRecord:\s*function/.test(appjs));
+check("两块新面板的样式已定义", /\.td-comeback\{/.test(style) && /\.td-retest\{/.test(style));
+check("中断面板可切到已有的精简模式（未新造机制）",
+  /act === "td-comeback-min"\)\s*\{\s*S\.short = true/.test(todaySrc));
 
 console.log("\n-- 今日清单（合成数据） --");
 allSteps.forEach(function (s, i) {

@@ -224,8 +224,15 @@ check("today.js 写明「不补作业、不熬夜还债」", /不熬夜还债/.t
 check("today.js 写明「进度不会倒退」", /不会清零/.test(todaySrc));
 
 const cssSrc = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
-check("诊断卡的样式类都有定义", [".pl-skill", ".pl-lv", ".pl-sched", ".pl-history", ".td-comeback", ".td-retest"]
+check("诊断卡的样式类都有定义", [".pl-skill", ".pl-lv", ".pl-sched", ".pl-history", ".td-comeback", ".td-retest", ".pl-notfor"]
   .every(function (c) { return cssSrc.indexOf(c) !== -1; }));
+
+/* P7「不适合谁」：自测卡必须同时说清"不测什么、别指望它做什么"（借鉴 ENGSENCE 第 9 章的诚实边界） */
+const plSrc = fs.readFileSync(path.join(ROOT, "js", "placement.js"), "utf8");
+check("自测卡列出「不适合谁」（诚实边界）", /不适合谁/.test(plSrc) && /notForHtml/.test(plSrc));
+check("「不适合谁」写明不刷题型 / 不代写", /四六级/.test(plSrc) && /不代写/.test(plSrc));
+check("「不适合谁」提醒零基础先别做四项定级", /先别做本页/.test(plSrc));
+check("「不适合谁」重申 打卡天数≠口语变好（坚持/能力口径）", /不等于口语变好/.test(plSrc));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

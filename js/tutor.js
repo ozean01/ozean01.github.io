@@ -63,8 +63,21 @@
   const PROVIDERS = {
     deepseek: { label: "DeepSeek（推荐，支持跨域）", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
     openai: { label: "OpenAI（浏览器可能被跨域拦截）", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+    ollama: { label: "🖥 本地 Ollama（离线，数据不出本机）", baseUrl: "http://localhost:11434/v1", model: "qwen2.5:7b", local: true },
     custom: { label: "自定义（任意 OpenAI 兼容端点）", baseUrl: "", model: "" }
   };
+
+  /* 本地模型（Ollama）不需要 API Key：数据一步都不出本机。
+     外贸场景的真实价值：客户原话、报价、索赔细节不必再发给云端 API。 */
+  function isLocalCfg(c) {
+    const c2 = c || cfg;
+    const p = PROVIDERS[c2.provider];
+    if (p && p.local) return true;
+    return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//i.test(String(c2.baseUrl || "") + "/");
+  }
+  /* 「能不能开始对话」的统一口径：本地端点免 Key；其余服务商必须有 Key。
+     原先的门禁只看 apiKey —— 选本地 Ollama 会被挡在「请先填写 API Key」之外。 */
+  function readyToChat(c) { const c2 = c || cfg; return isLocalCfg(c2) || !!(c2.apiKey || "").trim(); }
 
   const DEFAULT_SYSTEM_PROMPT = [
     "You are a native English speaker and a friendly, patient language tutor. Your goal is to help the student improve spoken English and listening so their expression becomes natural, fluent and idiomatic.",
@@ -214,6 +227,8 @@
   let chatHistory = [];   // [{role:"user"|"assistant", content}]
   let sending = false;
   let rec = null;
+  let autoMic = false;         // 🔁 免按键通话模式（VAD 静音自动断句）
+  let autoMicHandle = null;
 
   /* ---------------- 工具 ---------------- */
   const esc = function (s) { return E().esc(s); };
@@ -223,7 +238,7 @@
   /* ---------------- 渲染 ---------------- */
   function render() {
     try {
-      const hasKey = !!cfg.apiKey.trim();
+      const hasKey = readyToChat();   // 本地 Ollama 免 Key，同样算「已就绪」
       const root = document.getElementById("app");
       root.innerHTML = `
       <div class="page-head">
@@ -259,11 +274,31 @@
     }
   }
 
+  /* 本地模型提示块：把「数据不出本机」的价值与三步上手讲清楚（Ollama 的跨域是最常见的坑） */
+  function localHintHtml() {
+    return `
+    <div class="tutor-local">
+      <div class="tutor-local-title">🖥 本地模型（Ollama）：客户原话、报价、索赔细节一步都不出本机</div>
+      <ol class="tutor-local-steps">
+        <li>安装 <a href="https://ollama.com/download" target="_blank" rel="noopener">Ollama</a>，然后拉一个模型：<code>ollama pull qwen2.5:7b</code></li>
+        <li>放行浏览器跨域（否则会报 Failed to fetch / CORS）。Windows 在启动 Ollama 前设一次环境变量：<code>set OLLAMA_ORIGINS=http://localhost:8000</code>，再重启 Ollama；macOS/Linux 用 <code>export OLLAMA_ORIGINS=http://localhost:8000</code>。端口与你打开本站的地址保持一致。</li>
+        <li>回到上面点「🔍 测试连接」——本地模型不需要 API Key，留空即可。</li>
+      </ol>
+      <p class="field-note">
+        ⚠️ <b>模型别选太小</b>：本站 AI 陪练会聊到 MOQ、复合强度、蒸煮条件、Incoterms 这类高风险术语，1.5B/0.6B 量级很容易答得"像那么回事"却是错的。
+        建议 <b>7B 起</b>（qwen2.5:7b / llama3.1:8b 等）；内存吃紧就用 <code>qwen2.5:7b-instruct-q4_K_M</code>。<br>
+        ⚠️ 用本地模型时，请务必勾选下方教练规则里的「<b>行业术语人工核对提示</b>」——本地小模型没有云端模型稳，
+        对拿不准的术语会标「请人工核对」，这是本站对术语准确性的既有纪律（README「不加戏、不黑盒」）。
+      </p>
+    </div>`;
+  }
+
   function configHtml(hasKey) {
+    const local = isLocalCfg();
     return `
     <div class="card tutor-config">
       <details ${hasKey ? "" : "open"}>
-        <summary>⚙️ 模型设置 ${hasKey ? "（已配置 · 点击展开修改）" : "（未配置，请先填写 API Key）"}</summary>
+        <summary>⚙️ 模型设置 ${hasKey ? "（已配置 · 点击展开修改）" : "（未配置，请先填写 API Key 或选本地 Ollama）"}</summary>
         <div class="form-row">
           <div class="field"><label>服务商</label>
             <select id="tProvider">
@@ -277,8 +312,8 @@
         </div>
         <div class="form-row">
           <div class="field">
-            <label>API Key（仅保存在本浏览器，不会上传到任何服务器）</label>
-            <input type="password" id="tKey" value="${esc(cfg.apiKey)}" placeholder="sk-..." autocomplete="off">
+            <label>API Key${local ? "（本地 Ollama 不需要，留空即可）" : "（仅保存在本浏览器，不会上传到任何服务器）"}</label>
+            <input type="password" id="tKey" value="${esc(cfg.apiKey)}" placeholder="${local ? "留空 —— 本地模型不需要 Key" : "sk-..."}" autocomplete="off">
           </div>
           <div class="field" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" data-action="tutor-save">保存设置</button>
@@ -286,6 +321,7 @@
             <label class="step-toggle" title="收到 AI 回复后自动朗读"><input type="checkbox" id="tAutoSpeak" ${cfg.autoSpeak ? "checked" : ""}> 自动朗读回复</label>
           </div>
         </div>
+        ${local ? localHintHtml() : ""}
         <div class="tutor-saved">
           <div class="chat-head" style="margin-top:8px"><span>💾 已保存的服务商（切换不用重填 Key）</span>
             <button class="btn btn-outline btn-sm" data-action="tutor-save-to-list">➕ 把当前设置为一份</button></div>
@@ -396,11 +432,13 @@
       </div>
       <div class="chat-input-row">
         <button class="mic-btn ${micListening ? "listening" : ""}" data-action="tutor-mic" title="语音输入：用浏览器在线识别（Chrome/Edge + 可访问 Google 时最好用）">🎤</button>
+        <button class="mic-btn ${autoMic ? "listening" : ""}" data-action="tutor-mic-auto" title="免按键对话：静音自动断句并自动发送，像打电话一样（需 Chrome/Edge）">${autoMic ? "🔴" : "🔁"}</button>
         <input type="text" id="chatInput" placeholder="用英文或中文说点什么…（Enter 发送；语音点 🎤）" autocomplete="off">
         <button class="btn btn-primary" data-action="tutor-send">发送</button>
       </div>
       <div class="tutor-voice-hint">
         <span><b>🎙 语音输入</b>：点 🎤 用浏览器在线识别（需 Chrome/Edge + 连通 Google）；不生效时可用系统听写（聚焦输入框后按 <kbd>Win</kbd>+<kbd>H</kbd>）。</span>
+        <span><b>🔁 免按键</b>：点一下进入「通话模式」——直接说，停约 1.2 秒算说完，自动发送、AI 读完再自动开麦；再点一次（🔴）退出。<b>客户来电模拟就用它</b>。</span>
         <span style="display:inline-flex;gap:6px;flex-shrink:0">
           <button class="btn btn-outline btn-sm" data-action="tutor-diag">🔍 诊断语音</button>
           <button class="btn btn-outline btn-sm" data-action="tutor-mic" title="浏览器在线识别">🎤 试说话</button>
@@ -569,7 +607,7 @@
   /* 让 AI 依据本次对话提炼“3 句最该重说的表达” */
   function genReview() {
     if (sending) { toast("正在对话中，稍候再生成"); return; }
-    if (!cfg.apiKey.trim()) { toast("请先配置 API Key"); return; }
+    if (!readyToChat()) { toast("请先配置模型：填 API Key，或在上方选「🖥 本地 Ollama」"); return; }
     if (!chatHistory.length) { toast("先聊几句再提炼今日错题吧"); return; }
     toast("🪄 正在根据本次对话提炼错句…");
     const transcript = chatHistory.map(function (m) {
@@ -645,12 +683,11 @@
   /* ---------------- API 调用 ---------------- */
   async function callChat(messages) {
     const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+    const hdr = { "Content-Type": "application/json" };
+    if (cfg.apiKey && cfg.apiKey.trim()) hdr["Authorization"] = "Bearer " + cfg.apiKey.trim();
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + cfg.apiKey
-      },
+      headers: hdr,
       body: JSON.stringify({
         model: cfg.model,
         messages: messages,
@@ -674,7 +711,7 @@
     const input = document.getElementById("chatInput");
     const text = input ? input.value.trim() : "";
     if (!text) { toast("先输入或说出点什么吧"); return; }
-    if (!cfg.apiKey.trim()) { toast("请先在上方模型设置中填写 API Key"); return; }
+    if (!readyToChat()) { toast("请先在上方模型设置中填写 API Key，或改选「🖥 本地 Ollama」（免 Key）"); return; }
     input.value = "";
     chatHistory.push({ role: "user", content: text });
     appendWeekly("user", text);
@@ -690,7 +727,8 @@
       appendWeekly("assistant", reply);
       sending = false;
       render();
-      if (cfg.autoSpeak) speakReply(reply);
+      if (cfg.autoSpeak) speakReply(reply, afterReply);
+      else afterReply();
     }).catch(function (err) {
       chatHistory.push({
         role: "assistant",
@@ -699,16 +737,24 @@
       });
       sending = false;
       render();
+      /* 免按键通话中出错：不要把麦克风留在关闭状态，稍等再开麦，用户可以直接接着说 */
+      if (autoMic) setTimeout(startAutoMic, 1500);
     });
   }
 
-  function speakReply(reply) {
+  /* 一轮问答结束后的收尾：通话模式下自动重新开麦（等 AI 朗读完再听，避免把自己的声音录进去） */
+  function afterReply() {
+    if (autoMic) setTimeout(startAutoMic, 500);
+  }
+
+  function speakReply(reply, onDone) {
     const clean = String(reply)
       .replace(/【[^】]*】/g, " ")
       .replace(/[#*_`>]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    if (clean) E().Player.speak(clean, { rate: cfgRate() });
+    if (!clean) { if (onDone) onDone(); return; }
+    E().Player.speak(clean, { rate: cfgRate(), onend: function () { if (onDone) onDone(); } });
   }
   function cfgRate() {
     const p = E().getProgress();
@@ -721,6 +767,7 @@
 
   function micToggle() {
     const input = document.getElementById("chatInput");
+    if (autoMic) { stopAutoMic(); render(); }   // 两种录音互斥，避免同时抓麦
     if (micListening) {
       stopMic();
       if (input) input.focus();
@@ -776,6 +823,64 @@
     if (micRec) { try { micRec.stop(); } catch (e) { /* ignore */ } micRec = null; }
     const b = document.querySelector('[data-action="tutor-mic"]');
     if (b) b.classList.remove("listening");
+  }
+
+  /* ---------------- 🔁 免按键通话模式（P7 · 借鉴 HiKid 的"开口就能聊"） ----------------
+     目标场景就是「客户五分钟后打来」：不该让人一边紧张一边找按钮。
+     进入后：直接说 → 静音约 1.2 秒自动断句 → 自动发送 → AI 朗读完自动重新开麦（循环）。
+     退出：再点一次 🔴，或点普通 🎤 / 发送。**不改识别引擎**，只在 player.recognize 上加静音检测。 */
+  function autoMicToggle() {
+    if (autoMic) { stopAutoMic(); toast("已退出免按键通话模式"); render(); return; }
+    const P = E().Player;
+    if (!P || !P.vadSupported || !P.vadSupported()) {
+      toast("此浏览器不支持免按键通话（需 Chrome/Edge + 麦克风权限）。可先用 🎤 或系统听写（Win+H）");
+      return;
+    }
+    autoMic = true;
+    render();
+    toast("🔁 免按键已开：直接说英文，停约 1.2 秒自动发送");
+    startAutoMic();
+  }
+  function stopAutoMic() {
+    autoMic = false;
+    if (autoMicHandle) { try { autoMicHandle.stop(); } catch (e) { /* ignore */ } autoMicHandle = null; }
+    const b = document.querySelector('[data-action="tutor-mic-auto"]');
+    if (b) { b.classList.remove("listening"); b.textContent = "🔁"; }
+    const inp = document.getElementById("chatInput");
+    if (inp && inp.placeholder.indexOf("免按键") === 0) inp.placeholder = "用英文或中文说点什么…（Enter 发送）";
+  }
+  function startAutoMic() {
+    if (!autoMic || sending) return;
+    const P = E().Player;
+    if (!P || !P.recognizeAuto) { stopAutoMic(); return; }
+    const inp = document.getElementById("chatInput");
+    if (inp) inp.placeholder = "🎙 免按键：直接说，停 1.2 秒算说完并自动发送…";
+    autoMicHandle = P.recognizeAuto({
+      lang: "en-US",
+      onResult: function (text) {
+        if (!autoMic) return;
+        const i2 = document.getElementById("chatInput");
+        if (i2 && text) i2.value = text;     // 边听边显示，用户能看到识别结果
+      },
+      onEnd: function (text) {
+        autoMicHandle = null;
+        if (!autoMic) return;
+        const say = String(text || "").trim();
+        if (!say) { setTimeout(startAutoMic, 400); return; }   // 没听到内容就继续听
+        const i2 = document.getElementById("chatInput");
+        if (i2) i2.value = say;
+        send();                                                 // 自动发送；回复结束后 afterReply 会再开麦
+      },
+      onError: function (err) {
+        autoMicHandle = null;
+        if (!autoMic) return;
+        const msg = P.recErrorText ? P.recErrorText(err) : "识别出错";
+        stopAutoMic();
+        render();
+        toast(msg || "识别出错，已退出免按键");
+      }
+    });
+    if (!autoMicHandle) { stopAutoMic(); render(); toast("免按键启动失败，可改用 🎤 或系统听写"); }
   }
 
   /* ---------------- 翻译一条 AI 回复 ---------------- */
@@ -1142,7 +1247,9 @@
     if (!cfg.baseUrl) { toast("请填写 Base URL"); return; }
     if (!cfg.model) { toast("请填写模型名称"); return; }
     saveCfg(cfg);
-    toast(cfg.apiKey ? "✅ 设置已保存，开始对话吧！" : "✅ 设置已保存（尚未填写 API Key）");
+    if (!readyToChat()) toast("✅ 设置已保存（尚未填写 API Key）");
+    else if (isLocalCfg()) toast("✅ 已切到本地模型：" + cfg.model + "（数据不出本机，已可开始对话）");
+    else toast("✅ 设置已保存，开始对话吧！");
     render();
   }
 
@@ -1197,15 +1304,18 @@
     const m = model ? model.value.trim() : cfg.model;
     const k = key ? key.value.trim() : cfg.apiKey;
     if (!b || !m) { toast("请先填写 Base URL 和模型名"); return; }
-    if (!k) { toast("请先填写 API Key"); return; }
+    if (!k && !isLocalCfg({ provider: cfg.provider, baseUrl: b })) { toast("请先填写 API Key（若用本地 Ollama 请把 Base URL 填成 http://localhost:11434/v1）"); return; }
     toast("🔍 正在测试连接…");
     const url = b + "/chat/completions";
+    const isLocal = isLocalCfg({ provider: cfg.provider, baseUrl: b });
+    const hdr = { "Content-Type": "application/json" };
+    if (k) hdr["Authorization"] = "Bearer " + k;
     fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + k },
+      headers: hdr,
       body: JSON.stringify({ model: m, messages: [{ role: "user", content: "hi" }], max_tokens: 5 })
     }).then(function (res) {
-      if (res.ok) { toast("✅ 连接成功！Key 有效，可开始对话"); return; }
+      if (res.ok) { toast(isLocal ? "✅ 本地模型连通！数据不出本机，可直接开始对话" : "✅ 连接成功！Key 有效，可开始对话"); return; }
       return res.text().then(function (body) {
         let extra = "";
         try { const j = JSON.parse(body); const msg = j && j.error && (j.error.message || j.error.code); if (msg) extra = "：" + String(msg).slice(0, 160); } catch (e) { /* ignore */ }
@@ -1214,7 +1324,12 @@
         else toast("⚠️ 接口返回 " + res.status + extra);
       });
     }).catch(function (err) {
-      toast("⚠️ 连接失败（网络/跨域）：" + (err && err.message ? err.message : "请求异常") + "。可改用 DeepSeek 服务商，或检查 VPN/网络后重试");
+      const msg = err && err.message ? err.message : "请求异常";
+      if (isLocal) {
+        toast("⚠️ 连不上本地模型：" + msg + "。请确认 ① Ollama 正在运行（命令行执行 ollama list 有反应）；② 已设 OLLAMA_ORIGINS 并重启 Ollama（跨域未放行时浏览器只会报 Failed to fetch）；③ 端口是 11434。");
+        return;
+      }
+      toast("⚠️ 连接失败（网络/跨域）：" + msg + "。可改用 DeepSeek 服务商或本地 Ollama，或检查 VPN/网络后重试");
     });
   }
 
@@ -1234,6 +1349,7 @@
       case "tutor-weakview": weakView(); break;
       case "tutor-send": send(); break;
       case "tutor-mic": micToggle(); break;
+      case "tutor-mic-auto": autoMicToggle(); break;
       case "tutor-diag": {
         toast("🔍 正在检测语音服务…");
         E().Player.testSpeechReach().then(function (r) {
@@ -1416,7 +1532,7 @@
   }
   /* 让 AI 依据本周对话 + 错题 + 生词本生成结构化的「本周学习报告」 */
   async function weeklyReport() {
-    if (!cfg.apiKey.trim()) throw new Error("请先在上方「模型设置」填写 API Key");
+    if (!readyToChat()) throw new Error("请先在上方「模型设置」填写 API Key，或改选「🖥 本地 Ollama」（免 Key、数据不出本机）");
     const pi = E().getProgress();
     const wk = pi.coachWeekly || { wk: weekKey(), lines: [] };
     const review = getReview();
@@ -1457,5 +1573,5 @@
     return await callChat(msgs);
   }
 
-  window.Tutor = { render: render, weeklyReport: weeklyReport, callChat: callChat, hasConfig: function () { return !!cfg.apiKey.trim(); } };
+  window.Tutor = { render: render, weeklyReport: weeklyReport, callChat: callChat, hasConfig: function () { return readyToChat(); } };
 })();

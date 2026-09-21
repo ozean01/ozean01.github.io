@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>subtitle smoke</title></head>
+<body>
+<div id="app"></div>
+<div id="toast" hidden></div>
+<pre id="result">RUNNING</pre>
+<script>
+/* 浏览器内冒烟：用真实 DOM 驱动 subtitle.js 的四档字幕/口音开关（点击路径也一起测） */
+window.FTE_DIFF = { words: {} };
+window.Player = {
+  accent: "us",
+  setAccent: function (a) { this.accent = a; },
+  hasAccent: function () { return true; },
+  accentVoiceName: function () { return "stub-voice"; },
+  speak: function () { return { stop: function () {} }; }
+};
+</script>
+<script src="../js/subtitle.js"></script>
+<script>
+var log = [], pass = 0, fail = 0;
+function check(name, cond, info) {
+  if (cond) { pass++; log.push("PASS " + name); }
+  else { fail++; log.push("FAIL " + name + (info ? "  [" + info + "]" : "")); }
+}
+try {
+  var S = window.Subtitle, T = S._t;
+  /* 1) 真实解析一份双语 SRT，塞进 state，走真实 render() */
+  var srt = "1\n00:00:01,000 --> 00:00:03,500\nHello there, welcome to our booth.\n你好，欢迎来到我们的展位。\n\n"
+          + "2\n00:00:04,000 --> 00:00:06,500\nOur laminating adhesive is used in food packaging.\n我们的复膜胶用于食品包装。\n";
+  S.state.cues = T.parseSubtitle(srt, "srt");
+  S.state.current = 0;
+  S.state.mode = "";
+  S.state.revealed = {};
+  S.state.mediaUrl = null;
+  S.render();
+
+  var app = document.getElementById("app");
+  check("渲染出四档按钮", app.querySelectorAll("[data-mode]").length === 4, app.querySelectorAll("[data-mode]").length);
+  check("默认档=全部（有中文轨）", app.querySelector('[data-mode="all"]').className.indexOf("cur") !== -1);
+  check("全部档同时显示英文与中文",
+    !!app.querySelector(".sub-row .sub-en") && !!app.querySelector(".sub-row .sub-zh"));
+  check("英文轨不含中文（原 bug：join 后中英混读）",
+    app.querySelector(".sub-row .sub-en").textContent.indexOf("你好") === -1,
+    app.querySelector(".sub-row .sub-en").textContent);
+  check("推荐顺序引导条渲染出来", app.querySelectorAll(".sub-step").length === 4 &&
+    app.textContent.indexOf("推荐顺序") !== -1);
+
+  /* 2) 点「英语」→ 中文行必须消失 */
+  app.querySelector('[data-mode="en"]').click();
+  check("切英语档后中文行消失", !app.querySelector(".sub-row .sub-zh"));
+  check("切英语档后英文仍在", !!app.querySelector(".sub-row .sub-en"));
+
+  /* 3) 点「隐藏」→ 只剩遮罩（纯听） */
+  app.querySelector('[data-mode="hidden"]').click();
+  check("隐藏档只留遮罩", !!app.querySelector(".sub-row .sub-mask") && !app.querySelector(".sub-row .sub-en"));
+
+  /* 4) 点「中文」→ 中文 + 回译检查按钮；点 👁 才出英文 */
+  app.querySelector('[data-mode="zh"]').click();
+  var revealBtn = app.querySelector('[data-reveal]');
+  check("中文档只显示中文与回译按钮", !!app.querySelector(".sub-row .sub-zh") && !!revealBtn && !app.querySelector(".sub-reveal-en"));
+  revealBtn.click();
+  check("点 👁 后英文对照才出现（回译检查）", !!app.querySelector(".sub-row .sub-reveal-en"));
+  check("对照英文不含中文", app.querySelector(".sub-reveal-en").textContent.indexOf("你好") === -1);
+
+  /* 5) 档位切换不得重建 <video> 之外的东西 / 高亮要跟着走 */
+  app.querySelector('[data-mode="en"]').click();
+  check("档位高亮跟着变", app.querySelector('[data-mode="en"]').className.indexOf("cur") !== -1 &&
+    app.querySelector('[data-mode="all"]').className.indexOf("cur") === -1);
+  check("步骤条高亮跟着变", (function () {
+    var cur = app.querySelector(".sub-step.cur");
+    return !!cur && cur.getAttribute("data-step") === "en";
+  })());
+
+  /* 6) 口音开关：点英音 → Player.accent 变 uk，且按钮高亮 */
+  var uk = app.querySelector('[data-accent="uk"]');
+  check("渲染出双语口音开关", app.querySelectorAll("[data-accent]").length === 2);
+  uk.click();
+  check("点英音后 Player.accent=uk", window.Player.accent === "uk", window.Player.accent);
+  check("英音按钮高亮 / 美音取消高亮",
+    uk.className.indexOf("cur") !== -1 && app.querySelector('[data-accent="us"]').className.indexOf("cur") === -1);
+  check("口音开关写明不改音标口径", app.textContent.indexOf("音标与词库不变") !== -1);
+
+  /* 7) 单语字幕不得停下「全部档」显示空中文 */
+  S.state.cues = T.parseSubtitle("1\n00:00:01,000 --> 00:00:02,000\nOnly English here.\n", "srt");
+  S.state.mode = "all";
+  S.state.revealed = {};
+  S.render();
+  check("单语字幕：全部档自动落到英语档", app.querySelector('[data-mode="en"]').className.indexOf("cur") !== -1);
+  check("单语字幕：不渲染空中文行", !app.querySelector(".sub-row .sub-zh"));
+  check("单语字幕：给出说明文案", app.textContent.indexOf("无中文轨") !== -1);
+} catch (e) {
+  fail++;
+  log.push("FAIL 抛错: " + (e && e.message));
+}
+document.getElementById("result").textContent = "pass=" + pass + " fail=" + fail + "\n" + log.join("\n");
+</script>
+</body>
+</html>

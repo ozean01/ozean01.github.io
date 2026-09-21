@@ -107,7 +107,12 @@
   function loadLLMCfg() {
     try {
       const c = JSON.parse(localStorage.getItem(CFG_KEY));
-      if (c && c.baseUrl && c.model && c.apiKey) return c;
+      /* 本地 Ollama 免 Key：端点/模型填好即算可用（与 tutor.js 的 readyToChat 口径一致） */
+      if (c && c.baseUrl && c.model) {
+        const local = c.provider === "ollama" ||
+          /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//i.test(String(c.baseUrl).replace(/\/+$/, "") + "/");
+        if (local || c.apiKey) return c;
+      }
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -115,9 +120,11 @@
     const cfg = loadLLMCfg();
     if (!cfg) throw new Error("no-key");
     const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+    const hdr = { "Content-Type": "application/json" };
+    if (cfg.apiKey) hdr["Authorization"] = "Bearer " + cfg.apiKey;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey },
+      headers: hdr,
       body: JSON.stringify({ model: cfg.model, messages: messages, temperature: 0.3, max_tokens: maxTokens || 520 })
     });
     if (!res.ok) {

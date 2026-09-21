@@ -258,6 +258,145 @@
     return (short ? steps.slice(0, 2) : steps).reduce(function (a, s) { return a + s.min; }, 0);
   }
 
+  /* ---------------- 🎧 连听本单元（P7 · 借鉴 ENGSENCE「连听所有例句」） ----------------
+     碎片时间（通勤 / 做家务 / 看不了屏幕）的复习方式：把当前单元的英文素材串成一条音频，
+     一句接一句自动读完，不用点、不用看。
+     ⚠️ 三条边界：① 不新增第 6 步（五步清单与 20 分钟模板是站内冻结的架构）；
+     ② 不加导航项（它作为「今日」页内区块存在，与「场景急救」同一位置策略）；
+     ③ **不计入打卡**——打卡只记上面那五步，泛听混进"练了多少"的账会污染坚持口径。
+     素材全部来自当前单元（词条例句 / 短语例句 / 对话），默认只读英文轨。 */
+  const LISTEN_SCOPES = [
+    { key: "all", label: "全部" },
+    { key: "ex", label: "词条例句" },
+    { key: "ph", label: "短语例句" },
+    { key: "dlg", label: "对话" }
+  ];
+  function listenUnit() {
+    const boot = E();
+    const units = (boot.DATA && boot.DATA.units) || [];
+    return startUnit(units, boot.progress || {});
+  }
+  /* 纯函数：把单元素材拍平成连听清单（无 DOM、无播放副作用，便于测试） */
+  function listenItems(unit, scope) {
+    const u = unit || listenUnit();
+    if (!u) return [];
+    const out = [];
+    const push = function (tag, en, cn) {
+      const e = String(en == null ? "" : en).trim();
+      if (!e) return;
+      out.push({ tag: tag, en: e, cn: String(cn == null ? "" : cn).trim() });
+    };
+    (u.vocab || []).forEach(function (v) { if (v && v.ex) push("词条例句", v.ex, v.exCn); });
+    (u.phrases || []).forEach(function (p) { if (p && p.ex) push("短语例句", p.ex, p.exCn); });
+    (u.dialogues || []).forEach(function (d) {
+      ((d && d.lines) || []).forEach(function (l) { if (l && l.en) push("对话 · " + (d.title || "对话"), l.en, l.cn); });
+    });
+    const s = scope || "all";
+    if (s === "all") return out;
+    const want = s === "ex" ? "词条例句" : s === "ph" ? "短语例句" : "对话";
+    return out.filter(function (x) { return x.tag.indexOf(want) === 0; });
+  }
+  function listenStop() {
+    const L = S.listen || (S.listen = {});
+    L.on = false;
+    L.gen = (L.gen || 0) + 1;   // 让已排队/被打断的 onend 失效，避免"停了又自己往下读"
+    if (L.timer) { clearTimeout(L.timer); L.timer = null; }
+    try { if (window.Player && window.Player.stop) window.Player.stop(); } catch (e) { /* ignore */ }
+    paintListen();
+  }
+  function listenStep() {
+    const L = S.listen || (S.listen = {});
+    const items = L.items || [];
+    if (!L.on) return;
+    if (L.i < 0) L.i = 0;
+    if (L.i >= items.length) {
+      L.on = false; L.i = items.length - 1;
+      paintListen();
+      toast("🎧 连听完毕（" + items.length + " 句）");
+      return;
+    }
+    const it = items[L.i];
+    paintListen();
+    const P = window.Player;
+    if (!P || !P.speak) { L.on = false; paintListen(); toast("当前环境不支持朗读"); return; }
+    const g = L.gen || 0;
+    const alive = function () { return L.on && (L.gen || 0) === g; };
+    const advance = function (gap) {
+      L.timer = setTimeout(function () {
+        if (!alive()) return;
+        L.i++;
+        listenStep();
+      }, gap);
+    };
+    P.speak(it.en, {
+      rate: 0.95,
+      onend: function () {
+        if (!alive()) return;
+        if (L.mix && it.cn) {
+          L.timer = setTimeout(function () {
+            if (!alive()) return;
+            P.speak(it.cn, { rate: 1, onend: function () { if (alive()) advance(500); } });
+          }, 400);
+        } else advance(300);
+      }
+    });
+  }
+  function listenStart() {
+    const L = S.listen || (S.listen = {});
+    const items = listenItems(null, L.scope || "all");
+    if (!items.length) { toast("本单元没有可连听的素材"); return; }
+    L.items = items;
+    L.gen = (L.gen || 0) + 1;
+    if (L.i < 0 || L.i >= items.length) L.i = 0;
+    L.on = true;
+    listenStep();
+  }
+  /* 只做局部 DOM 更新，不整页 render()——否则每读一句都会把页面滚回顶部 */
+  function paintListen() {
+    const L = S.listen || {};
+    const items = L.items || [];
+    const btn = document.getElementById("tdListenPlay");
+    if (btn) btn.textContent = L.on ? "⏸ 暂停连听" : "▶ 开始连听";
+    const c = document.getElementById("tdListenCount");
+    if (c) c.textContent = items.length ? Math.min(items.length, (L.i < 0 ? 0 : L.i) + 1) + " / " + items.length : "0 / 0";
+    const now = document.getElementById("tdListenNow");
+    if (now) {
+      const it = items[L.i];
+      now.innerHTML = it
+        ? '<span class="td-listen-tag">' + esc(it.tag) + "</span>" + esc(it.en) +
+          (L.mix && it.cn ? '<span class="td-listen-cn">' + esc(it.cn) + "</span>" : "")
+        : "点「开始连听」，一句接一句自动读完。";
+    }
+    document.querySelectorAll("#app [data-lscope]").forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-lscope") === (L.scope || "all"));
+    });
+    const mix = document.getElementById("tdListenMix");
+    if (mix) mix.classList.toggle("on", !!L.mix);
+  }
+  function listenHtml() {
+    const L = S.listen || (S.listen = {});
+    const n = listenItems(null, L.scope || "all").length;
+    return `
+    <section class="td-listen">
+      <div class="td-listen-head">
+        <b>🎧 连听本单元</b>
+        <span class="td-listen-sub">通勤 / 做家务 / 看不了屏幕时的复习：一句接一句自动读完，不用点、不用看</span>
+      </div>
+      <div class="td-listen-ops">
+        <button class="btn btn-primary btn-sm" id="tdListenPlay" data-action="td-listen-play">▶ 开始连听</button>
+        <button class="btn btn-outline btn-sm" data-action="td-listen-prev">⏮ 上一句</button>
+        <button class="btn btn-outline btn-sm" data-action="td-listen-next">⏭ 下一句</button>
+        ${LISTEN_SCOPES.map(function (s) {
+          return '<button class="td-lchip' + ((L.scope || "all") === s.key ? " on" : "") + '" data-action="td-listen-scope" data-scope="' + s.key + '">' + s.label + "</button>";
+        }).join("")}
+        <button class="td-lchip${L.mix ? " on" : ""}" id="tdListenMix" data-action="td-listen-mix" title="英文读完停一下，再读中文">🀄 英中交替</button>
+        <span class="badge badge-muted" id="tdListenCount">0 / ${n}</span>
+        <span class="field-note">共 ${n} 句 · 听力口音跟随「⚙️ 发音设置」（可切 🇬🇧 英音）；这里只做复习，<b>不计入打卡</b>——打卡只记上面那五步。</span>
+      </div>
+      <div class="td-listen-now" id="tdListenNow">点「开始连听」，一句接一句自动读完。</div>
+    </section>`;
+  }
+
   /* ---------------- 记账：打勾即计入连续打卡 / 今日时长 ---------------- */
   function creditMin(min) {
     try { if (window.CoachBridge && window.CoachBridge.credit) window.CoachBridge.credit(min * 60); } catch (e) { /* ignore */ }
@@ -381,6 +520,8 @@
 
     <section class="td-list">${rows}</section>
 
+    ${listenHtml()}
+
     ${weekHtml
       ? '<details class="td-week" open><summary><b>📅 本周</b>' +
         '<span class="td-week-sub">只读视图 · 计划源已统一到「今日」，不再另设看板</span></summary>' +
@@ -419,6 +560,41 @@
 
     if (act === "td-short") { S.short = !S.short; render(); return; }
 
+    /* 🎧 连听本单元（P7）：全部走局部 DOM 更新，不 render()，避免每读一句就滚回顶部 */
+    if (act === "td-listen-play") {
+      const L = S.listen || (S.listen = {});
+      if (L.on) listenStop(); else listenStart();
+      return;
+    }
+    if (act === "td-listen-prev" || act === "td-listen-next") {
+      const L = S.listen || (S.listen = {});
+      const items = listenItems(null, L.scope || "all");
+      if (!items.length) { toast("本单元没有可连听的素材"); return; }
+      L.items = items;
+      const cur = (typeof L.i === "number" && L.i >= 0) ? L.i : 0;
+      L.i = (cur + (act === "td-listen-next" ? 1 : -1) + items.length) % items.length;
+      listenStop();          // 停当前句（会递增 gen，作废已排队的 onend）
+      L.on = true;
+      listenStep();
+      return;
+    }
+    if (act === "td-listen-mix") {
+      const L = S.listen || (S.listen = {});
+      L.mix = !L.mix;
+      paintListen();
+      return;
+    }
+    if (act === "td-listen-scope") {
+      const L = S.listen || (S.listen = {});
+      L.scope = el.getAttribute("data-scope") || "all";
+      listenStop();
+      L.i = -1;
+      L.items = listenItems(null, L.scope);
+      paintListen();
+      toast("连听范围：" + (LISTEN_SCOPES.filter(function (s) { return s.key === L.scope; })[0] || {}).label + "（" + L.items.length + " 句）");
+      return;
+    }
+
     /* 中断回归的「最小动作」：直接切到精简模式（只做前两步），
        不新增任何机制——它就是把站内已有的「今天只有 5 分钟」按一次。 */
     if (act === "td-comeback-min") { S.short = true; render(); return; }
@@ -441,6 +617,8 @@
     buildSteps: buildSteps, countDue: countDue, stageOf: stageOf, todayStr: todayStr, totalMin: totalMin,
     goalPlan: goalPlan, startUnit: startUnit, isNewbie: isNewbie, GOAL_PLAN: GOAL_PLAN,
     pronFocus: pronFocus,
+    /* 🎧 连听本单元（P7）：清单构建是纯函数，必须有测试盯着——它决定"连听到底读什么" */
+    listenItems: listenItems, LISTEN_SCOPES: LISTEN_SCOPES, listenUnit: listenUnit,
     /* 中断回归 + 复测到期：AI 无法自动判定的部分是「态度」，但这两者都是**可算的**
        （日期差 / 排期锚点），所以必须有测试盯着，见 tools/test-today.js。 */
     comeback: comeback, retestDue: retestDue, dayGap: dayGap

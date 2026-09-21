@@ -167,7 +167,7 @@ function renderPage(hash) {
 }
 
 const renderErrors = [];
-["#/home", "#/coach", "#/speaking", "#/today", "#/units", "#/write", "#/speak"].forEach(function (h) {
+["#/home", "#/coach", "#/speaking", "#/today", "#/units", "#/write", "#/speak", "#/placement"].forEach(function (h) {
   try {
     const html = renderPage(h);
     if (!html) renderErrors.push(h + "（渲染为空）");
@@ -287,6 +287,60 @@ check("自测文本含「坚持」与「能力」两个小节",
   /▍坚持/.test(repText) && /▍能力/.test(repText), repText.split("\n")[0] || "(空)");
 check("自测文本明确提示坚持≠能力", /坚持是过程、能力是结果/.test(repText));
 
+/* ---------------- 🧭 水平自测 v2 诊断层（P7）· 真加载顺序下的端到端 ----------------
+   单元测试（tools/test-placement.js）用的是自建最小环境；这里在**真实的脚本加载顺序**下
+   把整条链路跑一遍：placement.js 有没有真的挂上、app.js 的 #plCard 有没有真的接到它、
+   「今日」在真实 boot 下会不会误报中断。漏加 <script> 或顺序颠倒只有这里才暴露。 */
+const plHtml = renderPage("#/placement");
+check("#/placement 能真实渲染", plHtml.length > 200 && plHtml.indexOf("页面渲染出错") === -1);
+check("诊断层在真实启动顺序下已挂上 window.Placement",
+  !!(ctx.window.Placement && typeof ctx.window.Placement.cardHtml === "function"));
+
+/* 走真实写入路径（app.js 的 finishPlacementHtml 用的就是 P.recordQuiz + P.cardHtml） */
+const PL = ctx.window.Placement;
+const plRec = PL.recordQuiz(4, 6, 5);
+check("recordQuiz 写出带日期的基线", !!plRec && /^\d{4}-\d{2}-\d{2}$/.test(plRec.baselineAt), plRec && plRec.baselineAt);
+PL.setSkill("listen", "B1");
+PL.setSkill("speak", "A2");
+const plCard = PL.cardHtml();
+check("诊断卡渲染出四项能力与基线锁定",
+  plCard.indexOf("已锁定") !== -1 &&
+  ["听", "说", "读", "写"].every(function (k) { return plCard.indexOf("<b>" + k + "</b>") !== -1; }));
+check("诊断卡给出第 7/30/90 天复测排期",
+  plCard.indexOf("第 7 天") !== -1 && plCard.indexOf("第 30 天") !== -1 && plCard.indexOf("第 90 天") !== -1);
+
+/* 今日：真实 boot 下不应误报中断（storage 里没有练习记录） */
+const todayHtml2 = renderPage("#/today");
+check("没有练习记录时不误报中断", todayHtml2.indexOf("欢迎回来") === -1);
+check("没有复测排期时不显示复测横幅", todayHtml2.indexOf("复测到期") === -1);
+
+/* 造一个「停了 9 天」的真实进度，再渲染今日 → 中断面板必须出现 */
+const prog = ctx.window.FTE_BOOT.progress;
+if (!prog.coach) prog.coach = { lastDate: "", today: 0, total: 0, streak: 0 };
+(function () {
+  const d = new Date(Date.now() - 9 * 86400000);
+  prog.coach.lastDate = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+})();
+const comebackHtml = renderPage("#/today");
+check("★ 停了 9 天 → 今日真渲染出中断回归面板", comebackHtml.indexOf("欢迎回来") !== -1);
+check("中断面板给出最小回归动作入口", comebackHtml.indexOf("td-comeback-min") !== -1);
+check("中断面板写明不补作业 / 不熬夜还债",
+  comebackHtml.indexOf("不熬夜还债") !== -1 && comebackHtml.indexOf("不补做") !== -1);
+check("中断面板写明进度不会倒退", comebackHtml.indexOf("不会清零") !== -1);
+
+/* 复测到期：把基线推到 10 天前，今日必须提示 */
+(function () {
+  const r = PL.load();
+  const d = new Date(Date.now() - 10 * 86400000);
+  r.baselineAt = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  r.history = [{ at: r.baselineAt, kind: "baseline", score: 4, total: 6, unitId: 5, skills: {} }];
+  PL.save(r);
+})();
+const retestHtml = renderPage("#/today");
+check("★ 复测逾期 → 今日真渲染出复测提醒", retestHtml.indexOf("复测到期") !== -1);
+check("复测提醒指向 #/placement 且要求换主题换听众",
+  retestHtml.indexOf('href="#/placement"') !== -1 && retestHtml.indexOf("换主题、换听众") !== -1);
+
 /* ---------------- 为什么不另做「_t 位置」静态检查 ----------------
    曾试过一条静态断言：要求 `window.X._t = ...` 出现在本文件最后一个顶层 const/let 之后。
    它被废弃，因为两头都不可靠：
@@ -297,6 +351,50 @@ check("自测文本明确提示坚持≠能力", /坚持是过程、能力是结
    结论：与其猜，不如跑。上面「按 index.html 真实顺序执行全部脚本」这一步会真正执行代码，
    任何加载期抛错（TDZ / 顺序 / 缺依赖）都会当场暴露。已实测验证：把 js/urgent.js 的 _t
    挪到 const SCENES 之前，本测试即报 "Cannot access 'SCENES' before initialization"。 */
+
+/* ---------------- 🎤 免按键通话（VAD 静音自动断句 · P7 借鉴 HiKid） ----------------
+   状态机是纯函数，必须锁死：太早停会吃掉半句，太晚停就不像打电话。 */
+const PLR = ctx.window.Player;
+check("Player 暴露 vadNext（纯状态机）与 recognizeAuto", typeof PLR.vadNext === "function" && typeof PLR.recognizeAuto === "function");
+check("VAD：一直安静 → 不触发（没人说话就不该判定为说完）",
+  PLR.vadNext({ speechSeen: false, silentMs: 0 }, 0.001, { tickMs: 100 }).stop !== true);
+check("VAD：说话前的大段静音不计入停顿时长",
+  (function () {
+    let st = { speechSeen: false, silentMs: 0 };
+    for (let i = 0; i < 30; i++) st = PLR.vadNext(st, 0.001, { tickMs: 100, silenceMs: 1200 });
+    return st.speechSeen === false && st.stop !== true;
+  })());
+check("VAD：说过话后静音不足 1.2 秒 → 不结束",
+  (function () {
+    let st = PLR.vadNext({ speechSeen: false, silentMs: 0 }, 0.2, { tickMs: 100 });   // 说了一句
+    for (let i = 0; i < 11; i++) st = PLR.vadNext(st, 0.001, { tickMs: 100, silenceMs: 1200 });
+    return st.speechSeen === true && st.stop === false;
+  })());
+check("VAD：说过话后静音满 1.2 秒 → 自动结束",
+  (function () {
+    let st = PLR.vadNext({ speechSeen: false, silentMs: 0 }, 0.2, { tickMs: 100 });
+    for (let i = 0; i < 12; i++) st = PLR.vadNext(st, 0.001, { tickMs: 100, silenceMs: 1200 });
+    return st.stop === true;
+  })());
+check("VAD：中途再说话会重置静音计时（不把长句截断）",
+  (function () {
+    let st = PLR.vadNext({ speechSeen: false, silentMs: 0 }, 0.2, { tickMs: 100 });
+    for (let i = 0; i < 8; i++) st = PLR.vadNext(st, 0.001, { tickMs: 100, silenceMs: 1200 });
+    st = PLR.vadNext(st, 0.3, { tickMs: 100, silenceMs: 1200 });   // 又说了一句
+    return st.silentMs === 0 && st.stop === false;
+  })());
+check("VAD：阈值可调（环境嘈杂时不必改代码）",
+  (function () {
+    let st = PLR.vadNext({ speechSeen: true, silentMs: 0 }, 0.03, { threshold: 0.05, tickMs: 100, silenceMs: 200 });
+    for (let i = 0; i < 2; i++) st = PLR.vadNext(st, 0.03, { threshold: 0.05, tickMs: 100, silenceMs: 200 });
+    return st.stop === true;   // 0.03 低于 0.05 的阈值 → 视为静音
+  })());
+const tutorSrcForVad = fs.readFileSync(path.join(ROOT, "js", "tutor.js"), "utf8");
+check("免按键接线到 AI 陪练：有开关动作与自动发送",
+  /tutor-mic-auto/.test(tutorSrcForVad) && /function autoMicToggle/.test(tutorSrcForVad) && /autoMicHandle = P\.recognizeAuto/.test(tutorSrcForVad));
+check("免按键：AI 朗读完才重新开麦（不把自己的声音录进去）",
+  /speakReply\(reply, afterReply\)/.test(tutorSrcForVad) && /function afterReply/.test(tutorSrcForVad));
+check("免按键与普通 🎤 互斥", /if \(autoMic\) \{ stopAutoMic\(\); render\(\); \}/.test(tutorSrcForVad));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

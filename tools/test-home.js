@@ -202,5 +202,286 @@ check("导航容器允许整块换行（flex-wrap:wrap）", /flex-wrap:wrap/.tes
 check("桌面端导航独占一行（否则 9 个中文项挤不进 1120px）",
   /@media \(min-width:721px\)\{[\s\S]{0,200}?\.main-nav\{order:3;flex:1 0 100%/.test(css));
 
+/* ---------------- ⑦ 首页难度角标的**渲染级**回归（T16-1 / P1-B 配套） ----------------
+   背景：P1-B 要在单元卡旁并列一块「出口能力断言」，而首页 `ps-d` 角标正是难度的**最先被看到**
+   的触点（t15 给角标加了「语言·」前缀、t16 独立验证）。一旦有人为了放新块而重排这段渲染，
+   角标可能被挤掉、被改成裸档位（读成「业务难度」），或掉到口径句**前面**（先看到标签再看解释）——
+   这些都不是逻辑错误，纯文本断言（上面的正则检查）一条也发现不了。
+   所以这里真的把 app.js 在沙箱里跑一遍、渲染 `#/home`，再对**渲染产物**做三条断言。 */
+const vm = require("vm");
+function fakeEl() {
+  return {
+    innerHTML: "", textContent: "", value: "", hidden: false, checked: false, disabled: false,
+    style: {}, dataset: {}, children: [], childNodes: [], parentNode: null,
+    offsetWidth: 0, offsetHeight: 0, width: 0, height: 0, tagName: "DIV",
+    classList: { add: function () { }, remove: function () { }, toggle: function () { }, contains: function () { return false; } },
+    setAttribute: function () { }, getAttribute: function () { return null; },
+    removeAttribute: function () { }, hasAttribute: function () { return false; },
+    addEventListener: function () { }, removeEventListener: function () { },
+    appendChild: function (c) { return c; }, removeChild: function (c) { return c; },
+    insertBefore: function (c) { return c; }, insertAdjacentHTML: function () { },
+    insertAdjacentElement: function (p, c) { return c; },
+    append: function () { }, prepend: function () { }, after: function () { }, before: function () { },
+    replaceChildren: function () { }, replaceWith: function () { },
+    querySelector: function () { return null; }, querySelectorAll: function () { return []; },
+    closest: function () { return null; }, matches: function () { return false; },
+    focus: function () { }, blur: function () { }, click: function () { }, scrollIntoView: function () { },
+    getBoundingClientRect: function () { return { top: 0, left: 0, width: 0, height: 0, bottom: 0, right: 0 }; },
+    getContext: function () { return null; }, toDataURL: function () { return ""; },
+    play: function () { return Promise.resolve(); }, pause: function () { }, load: function () { },
+    remove: function () { }, cloneNode: function () { return fakeEl(); }
+  };
+}
+const elCache = {};
+function getEl(id) { if (!elCache[id]) elCache[id] = fakeEl(); return elCache[id]; }
+const winListeners = {};
+const storageStub = {
+  _d: {},
+  getItem: function (k) { return Object.prototype.hasOwnProperty.call(this._d, k) ? this._d[k] : null; },
+  setItem: function (k, v) { this._d[k] = String(v); },
+  removeItem: function (k) { delete this._d[k]; },
+  clear: function () { this._d = {}; },
+  key: function () { return null; },
+  get length() { return Object.keys(this._d).length; }
+};
+const sandbox = {
+  console: console,
+  addEventListener: function (t, fn) { (winListeners[t] = winListeners[t] || []).push(fn); },
+  removeEventListener: function () { },
+  dispatchEvent: function (type) {
+    (winListeners[type] = winListeners[type] || []).forEach(function (fn) { fn({ type: type }); });
+    return true;
+  },
+  scrollTo: function () { }, scrollBy: function () { }, scroll: function () { },
+  getComputedStyle: function () { return {}; },
+  matchMedia: function () { return { matches: false, addEventListener: function () { } }; },
+  document: {
+    getElementById: getEl,
+    createElement: function () { return fakeEl(); },
+    createElementNS: function () { return fakeEl(); },
+    createDocumentFragment: function () { return fakeEl(); },
+    querySelector: function () { return null; },
+    querySelectorAll: function () { return []; },
+    addEventListener: function () { }, removeEventListener: function () { },
+    body: fakeEl(), head: fakeEl(), documentElement: fakeEl(),
+    cookie: "", readyState: "complete", title: ""
+  },
+  localStorage: storageStub,
+  sessionStorage: Object.assign({}, storageStub, { _d: {} }),
+  location: { hash: "", href: "http://localhost/", protocol: "http:", origin: "http://localhost", reload: function () { }, replace: function () { } },
+  history: { replaceState: function () { }, pushState: function () { } },
+  navigator: { userAgent: "node", clipboard: null, mediaDevices: null, serviceWorker: null, language: "zh-CN" },
+  screen: { width: 1280, height: 800 },
+  setTimeout: setTimeout, clearTimeout: clearTimeout,
+  setInterval: setInterval, clearInterval: clearInterval,
+  requestAnimationFrame: function (fn) { return setTimeout(fn, 0); },
+  cancelAnimationFrame: clearTimeout,
+  fetch: function () { return Promise.reject(new Error("no network in test")); },
+  Image: function () { return fakeEl(); },
+  Audio: function () { return fakeEl(); },
+  AudioContext: function () { return { createAnalyser: function () { return {}; }, close: function () { } }; },
+  SpeechSynthesisUtterance: function () { return {}; },
+  speechSynthesis: { speak: function () { }, cancel: function () { }, getVoices: function () { return []; }, addEventListener: function () { } },
+  alert: function () { }, confirm: function () { return false; }, prompt: function () { return null; },
+  URL: URL, Blob: function () { }, FileReader: function () { return { readAsText: function () { } }; },
+  XMLHttpRequest: function () { return { open: function () { }, send: function () { }, setRequestHeader: function () { } }; }
+};
+sandbox.window = sandbox;
+sandbox.globalThis = sandbox;
+sandbox.self = sandbox;
+const ctx = vm.createContext(sandbox);
+
+/* 按 index.html 的真实脚本顺序执行（数量从文档里读，不写死） */
+const scriptSrcs = [];
+let reS;
+const reScr = /<script\s+src="(js\/[^"]+)"/g;
+while ((reS = reScr.exec(html)) !== null) scriptSrcs.push(reS[1]);
+const loadFails = [];
+scriptSrcs.forEach(function (rel) {
+  const file = path.join(ROOT, rel);
+  if (!fs.existsSync(file)) { loadFails.push(rel + "（文件不存在）"); return; }
+  try { vm.runInContext(fs.readFileSync(file, "utf8"), ctx, { filename: rel }); }
+  catch (e) { loadFails.push(rel + " → " + (e && e.message ? e.message : String(e))); }
+});
+check("首页渲染沙箱：全部脚本按真实顺序加载通过", loadFails.length === 0, loadFails.join("；"));
+
+let unitN = -1;
+try {
+  unitN = vm.runInContext("(typeof FTE_DATA !== 'undefined' && FTE_DATA && FTE_DATA.units) ? FTE_DATA.units.length : -1", ctx);
+} catch (e) { unitN = -1; }
+check("渲染沙箱里读到站点单元数", unitN === 19, "n=" + unitN);
+
+let homeHtml = "";
+try {
+  ctx.location.hash = "#/home";
+  ctx.dispatchEvent("hashchange");
+  homeHtml = getEl("app").innerHTML || "";
+} catch (e) { homeHtml = ""; }
+check("首页在沙箱里真实渲染出内容", homeHtml.length > 2000, "len=" + homeHtml.length);
+
+/* title 是悬停提示，触屏端看不到也不参与「可见文本」——口径句与角标的位置关系必须在
+   **去掉 title 之后**仍然成立，否则触屏用户先看到的是没有解释的标签。 */
+const homeVisible = homeHtml.replace(/\stitle="[^"]*"/g, "");
+const badgeRe = /<em class="ps-d"[^>]*>([^<]*)<\/em>/g;
+const badges = [];
+let bm;
+while ((bm = badgeRe.exec(homeVisible)) !== null) badges.push(bm[1]);
+check("① 首页 ps-d 难度角标数 = 单元数（19）", badges.length === unitN && unitN > 0,
+  badges.length + " 枚 / 单元 " + unitN + " 个");
+check("② ps-d 可见文本匹配 /^语言·(基础|进阶|拔高)$/（裸档位会被读成「业务难度」）",
+  badges.length > 0 && badges.every(function (t) { return /^语言·(基础|进阶|拔高)$/.test(t); }),
+  Array.from(new Set(badges)).join(" / "));
+
+const basisAt = homeVisible.indexOf("不是业务难度");
+const badgeAt = homeVisible.indexOf('class="ps-d"');
+check("③ 口径句「不是业务难度」仍在首页可见文本里", basisAt !== -1);
+check("③ ps-d 角标的 offset > 口径句的 offset（先读口径，再看到标签）",
+  basisAt !== -1 && badgeAt > basisAt, "口径 @" + basisAt + " / 角标 @" + badgeAt);
+
+/* P1-B 并行改动（出口能力断言）不得把难度触点挤掉：断言块与 ps-d 必须同页共存 */
+check("P1-B：首页仍渲染难度角标（出口能力断言没有替换掉它）", badgeAt !== -1);
+check("P1-B：单元卡上出口能力断言与难度角标并存（并列不替换，门禁 3）",
+  /class="uc-outcome"/.test(appjs) && /class="badge uc-diff"/.test(appjs));
+
+/* ---------------- ⑧ P1-C2：「全部课程」页的已完成 M / 口径 / 进度展示面计数 ----------------
+   由来：方案 §5.2-P1-C2 验收①要求本页出现 `已完成 M / N`，验收②要求「全站进度展示面计数不增加
+   （仍是 3 处）」。t2（_p1-eval/02-c2-decision.md §3.3）逐行核对过：原有的
+   `③ 旧机制不许回来`（本文件 :99-110）只守 8 个已删函数名 + 2 个 data-action + 2 个容器指纹，
+   **完全不覆盖进度展示面计数**，也没有任何断言覆盖页头那条 `N/总量` 的 pill
+   —— 所以这一节是新增的，不是既有断言的复述。
+
+   计数口径（先写死，否则无法独立复算；沿用 t2 §7.2 的定义）：
+   「页面级进度面」= 在某个路由的顶层渲染里聚合表达「我的课程进度」的语句；逐单元的进度条 /
+   百分比 / 徽标不计，难度分母（站内从易到难第 n/N）不计，页头常驻 pill 与默认折叠的历史快照
+   面板单列为**区块级**、不并入计数。
+   a) 首页：#/home 的聚合进度语句 = 1（「已完成单元」统计卡；路径区另有 3 枚阶段徽标 = 3 个阶段）
+   b) 全部课程页：#/units 的聚合进度语句 = 1（本项新增，分子在前）
+   c) 单元页：#/unit/N 仍只有逐单元进度，**不得**出现跨单元聚合语句（否则就是第 4 处）
+   d) 区块级红线 6 处（t2 §3.2-B）：页头 pill / 当前进度卡 / 历史快照折叠 / 单元掌握度块 /
+      单元页难度序 / SOP 清单完成度 —— 逐项确认仍在且未被 M 吞并或复制。
+   说明：本节的 A1–A6 沿用 t2 §7.2 的编号，但 A1 的分子分母按本任务契约用 recordUnits().length
+   （不是 t2 建议稿里的 DATA.units.length）——契约要求「分母必须同步」，否则 P2-G 去重后会
+   出现分子去重、分母不去重的更坏失真。 */
+function renderPage(hash) {
+  ctx.location.hash = hash;
+  ctx.dispatchEvent("hashchange");
+  return getEl("app").innerHTML || "";
+}
+let unitsHtml2 = "", unitHtml2 = "";
+try {
+  unitsHtml2 = renderPage("#/units");
+  unitHtml2 = renderPage("#/unit/" + unitN);
+} catch (e) { unitsHtml2 = ""; unitHtml2 = ""; }
+check("⑧ 沙箱里能渲染「全部课程」页与单元页", unitsHtml2.length > 1000 && unitHtml2.length > 1000,
+  "units=" + unitsHtml2.length + " unit=" + unitHtml2.length);
+const unitsVisible2 = unitsHtml2.replace(/\stitle="[^"]*"/g, "");
+const unitVisible2 = unitHtml2.replace(/\stitle="[^"]*"/g, "");
+
+/* ---- A1：写法②（分子在前）+ 本页不引入第二个大分母 + 既有那行保留 ---- */
+const ruSrc = (appjs.match(/function renderUnits\(\)[\s\S]*?\n  \}/) || [])[0] || "";
+/* 注释里的解释性说明不参与判定：验收约束的是**渲染出来的数**与**代码里的判定式**，
+   注释引用历史行号或反例不算违规。 */
+const ruCode = ruSrc.replace(/\/\*[\s\S]*?\*\//g, "");
+check("A1 提取到 renderUnits 源码（注释已剥离）", ruSrc.length > 400 && ruCode.length > 200,
+  "src=" + ruSrc.length + " code=" + ruCode.length);
+check("A1 M 行采用写法②「已完成 M / N 单元」（分子在前，与全站既有进度语句同构）",
+  /已完成 \$\{doneCount\} \/ \$\{recordUnits\(\)\.length\} 单元/.test(ruCode));
+check("A1 既有「N 个单元 · 覆盖外贸全流程」那行保留，M 行在它下方新增（不替换）",
+  /class="en">\$\{recordUnits\(\)\.length\} 个单元 · 覆盖外贸全流程<\/div>/.test(ruCode) &&
+  ruCode.indexOf("uc-progress") > ruCode.indexOf("覆盖外贸全流程"));
+check("A1 本页不引入第二个大分母（无 768 / totals.words / totals.dlg）",
+  !/768|totals\.(words|dlg)/.test(ruCode));
+check("A1 渲染产物的 M 语句确实分子在前（正则读真实 HTML，不是只读源码）",
+  /已完成 \d+ \/ \d+ 单元/.test(unitsVisible2) && !/\d+ 单元 \/ 已完成/.test(unitsVisible2),
+  (unitsVisible2.match(/已完成 \d+ \/ \d+ 单元/) || [])[0]);
+
+/* ---- A2：口径唯一（复用 unitDone，不另写判定式，阈值只经 UNIT_DONE_PCT） ---- */
+check("A2 M 的判定复用 unitDone()（不在本页另写一套）", /recordUnits\(\)\.filter\(unitDone\)/.test(ruCode));
+check("A2 本页不出现 unitPct( / === 100 / 任何字面量阈值（阈值只能来自 UNIT_DONE_PCT）",
+  !/unitPct\(/.test(ruCode) && !/===\s*100/.test(ruCode) && !/(?<!\d)80(?!\d)/.test(ruCode));
+check("A2 全站「完成」判定仍收敛在 unitDone() 与 UNIT_DONE_PCT=80（既有断言未被绕过）",
+  /const UNIT_DONE_PCT = 80;/.test(appjs) && /function unitDone\(u\) \{/.test(appjs));
+
+/* ---- A3：口径串单一常量，title 与可见说明同源；且可见（不靠 title） ---- */
+const mBasisSrc = (appjs.match(/const UNIT_M_BASIS = [\s\S]{0,240}?;\n/) || [])[0] || "";
+check("A3 M 口径串是单一常量，且 80 由 UNIT_DONE_PCT 拼出（不写死第二个阈值）",
+  /const UNIT_M_BASIS = "已完成 = 该单元内已掌握词汇达 " \+ UNIT_DONE_PCT/.test(appjs));
+check("A3 同一常量在渲染里出现两次：title 提示 + 可见说明（触屏端可读）",
+  (ruCode.match(/\$\{esc\(UNIT_M_BASIS\)\}/g) || []).length === 2 &&
+  /title="\$\{esc\(UNIT_M_BASIS\)\}"/.test(ruCode));
+check("A3 口径句在去 title 后的可见文本里仍在（触屏端不显示 title 是站内既有教训）",
+  unitsVisible2.indexOf("已完成 = 该单元内已掌握词汇达 80%") !== -1 &&
+  unitsVisible2.indexOf("每个单元只计一次") !== -1);
+check("A3 M 口径句不借用水平/难度口径词（无 CEFR / 等级 / 档位 / 基础 / 进阶 / 拔高）",
+  mBasisSrc.length > 60 && !/CEFR|等级|档位|基础|进阶|拔高/.test(mBasisSrc));
+check("A3 M 口径句与页头难度口径分处两段（不混进难度说明块 diffLegendHtml）",
+  /function diffLegendHtml\(\)[\s\S]*?\n  \}/.test(appjs) &&
+  !/UNIT_M_BASIS/.test((appjs.match(/function diffLegendHtml\(\)[\s\S]*?\n  \}/) || [])[0] || ""));
+
+/* ---- A4：进度展示面计数 ---- */
+const homeAgg = (homeVisible.match(/class="lbl">已完成单元</g) || []).length;
+const psBadge = (homeVisible.match(/class="ps-badge"/g) || []).length;
+const unitsAgg = (unitsVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).length;
+const unitAgg = (unitVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).length;
+check("A4 首页聚合进度语句 = 1（「已完成单元」统计卡）", homeAgg === 1, "n=" + homeAgg);
+check("A4 首页路径区阶段徽标 = 3（= 3 个阶段，不是第 4 个页面级面）", psBadge === 3, "n=" + psBadge);
+check("A4 「全部课程」页聚合进度语句 = 1（本项新增处，且只有 1 处）", unitsAgg === 1, "n=" + unitsAgg);
+check("A4 单元页不含跨单元聚合进度语句（不新增第四处页面级面）", unitAgg === 0, "n=" + unitAgg);
+console.log("  页面级进度面实测：首页 1 条聚合语句 + 路径区 " + psBadge + " 枚阶段徽标；全部课程页 " +
+  unitsAgg + " 条（本项新增，分子在前）；单元页 " + unitAgg + " 条跨单元聚合语句");
+
+/* ---- A4 配套：6 处区块级红线（不得增加 / 不得被 M 吞并或复制） ---- */
+check("B1 页头常驻 pill 仍只有 1 处（app.js updateHeaderStat + index.html #headerStat）",
+  (appjs.match(/getElementById\("headerStat"\)/g) || []).length === 1 &&
+  (html.match(/id="headerStat"/g) || []).length === 1);
+check("B2 首页「当前进度卡」仍在（未被 M 复制或替换）",
+  (homeVisible.match(/当前进度：/g) || []).length === 1);
+check("B3 「进度数据」历史快照仍在，且 M 不读它（M 必须实时计算）",
+  /function renderTrendHtml/.test(appjs) && /recordSnapshot/.test(appjs) && !/recordSnapshot/.test(ruCode));
+check("B4 首页「单元掌握度」块仍在", homeVisible.indexOf("单元掌握度") !== -1);
+check("B5 单元页难度序仍在，且没被写进 M（M 里不含 sortIdx / 难度分量）",
+  /站内从易到难第 /.test(appjs) && !/sortIdx|难度/.test(ruCode));
+check("B6 SOP 清单完成度仍是独立口径，未并入 M",
+  /实操清单完成度/.test(fs.readFileSync(path.join(ROOT, "js", "sop.js"), "utf8")) &&
+  !/实操清单|sop\./i.test(ruCode));
+
+/* ---- A5：口径隔离（M 与 P1-B 出口断言共用一张卡、零个字段） ---- */
+const outcomesSrc2 = fs.readFileSync(path.join(ROOT, "js", "outcomes.js"), "utf8");
+check("A5 outcomes.js 不含进度/难度口径符号（progress / unitDone / UNIT_DONE_PCT / done / cefr / band）",
+  !/progress|unitDone|UNIT_DONE_PCT|\bdone\b|cefr|band/i.test(outcomesSrc2));
+check("A5 M 行不读出口断言（renderUnits 不含 FTE_OUTCOMES / uc-outcome）",
+  !/FTE_OUTCOMES|uc-outcome/.test(ruCode));
+check("A5 出口断言的显示不依赖完成状态（断言块不以 unitDone 为门槛）",
+  !/\$\{oc && [a-zA-Z]*(done|Done|pct)/.test(appjs));
+
+/* ---- A6：P2-G 接口预留（别名为空 ⇒ 行为逐字节不变；去重漏配立刻失败） ---- */
+let recLen = -1, sameOrder = false;
+try {
+  recLen = vm.runInContext("(typeof FTE_BOOT !== 'undefined' && FTE_BOOT.recordUnits) ? FTE_BOOT.recordUnits().length : -1", ctx);
+  sameOrder = vm.runInContext(
+    "(function(){var r=FTE_BOOT.recordUnits(),u=FTE_DATA.units;" +
+    "if(r.length!==u.length)return false;" +
+    "for(var i=0;i<r.length;i++){if(r[i]!==u[i])return false;}return true;})()", ctx) === true;
+} catch (e) { recLen = -1; sameOrder = false; }
+check("A6 recordUnits().length === 19（P2-G 给单元挂第二个入口却漏配别名时，这条立刻失败）",
+  recLen === unitN && recLen > 0, "n=" + recLen + " / 单元 " + unitN);
+check("A6 CONTENT_ID_ALIAS 默认为空对象 ⇒ recordUnits() 与 DATA.units 逐项同序同对象（行为逐字节不变）",
+  /const CONTENT_ID_ALIAS = \{\};/.test(appjs) && sameOrder === true);
+check("A6 三个纯函数齐备（contentKeyOf / dedupeUnits / recordUnits）且已从 FTE_BOOT 暴露",
+  /function contentKeyOf\(unitId\)/.test(appjs) && /function dedupeUnits\(units\)/.test(appjs) &&
+  /function recordUnits\(\) \{ return dedupeUnits\(DATA\.units\); \}/.test(appjs) &&
+  /contentKeyOf: contentKeyOf,/.test(appjs) && /recordUnits: recordUnits,/.test(appjs));
+check("A6 M 的分母同步走 recordUnits()：本页不再残留 DATA.units.length（分子去重、分母不去重是最坏的失真）",
+  /\$\{recordUnits\(\)\.length\} 个单元 · 覆盖外贸全流程/.test(ruCode) && !/DATA\.units\.length/.test(ruCode));
+
+/* ---- A4 配套：M 必须真的在算（防空壳数字 / 硬编码） ---- */
+let mAfter = "";
+try {
+  vm.runInContext("(function(){FTE_BOOT.progress.done[3]=true;return true;})()", ctx);
+  mAfter = (renderPage("#/units").replace(/\stitle="[^"]*"/g, "").match(/已完成 \d+ \/ \d+ 单元/) || [])[0] || "";
+} catch (e) { mAfter = ""; }
+check("A4 M 随进度实时变化：手动标记 1 个单元完成后，本页 M 由 0 变 1（不是硬编码数字）",
+  mAfter === "已完成 1 / 19 单元", "渲染得：" + (mAfter || "（未渲染出）"));
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

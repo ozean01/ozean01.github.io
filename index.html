@@ -193,6 +193,15 @@
       <select id="setVoice"><option value="">自动选择（优选高质量发音人）</option></select>
     </div>
     <div class="field">
+      <label>🗣 听力口音（只影响「听」的人声，<b>不改音标与词库</b>）</label>
+      <div class="chip-row">
+        <button type="button" class="btn btn-outline btn-sm" data-accent="us">🇺🇸 美音（站内标准 GA）</button>
+        <button type="button" class="btn btn-outline btn-sm" data-accent="uk">🇬🇧 英音（听辨训练）</button>
+      </div>
+      <p class="field-note" id="accentNote"></p>
+      <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎若要英音，请把上面的发音人改成 <code>en-GB-SoniaNeural</code>；Google 在线音源固定美音。）</p>
+    </div>
+    <div class="field">
       <label>默认朗读语速：<b id="setRateVal">1.0×</b></label>
       <div class="rate-wrap">
         <span>0.5×</span>
@@ -270,6 +279,14 @@
 <script src="js/board.js"></script>
 <script src="js/radar.js"></script>
 <script src="js/placement.js"></script>
+<!-- 出口能力断言映射（P1-B）：app.js 执行时就要读 window.FTE_OUTCOMES，
+     标签若排在它后面，单元卡与单元页的断言块会静默消失。纯数据文件，无依赖。 -->
+<script src="js/outcomes.js"></script>
+<!-- 入口离开 / 主线进入 只读行为记录（P1-D 前置）：app.js 执行时就要读 window.FTE_TRACE
+     的两个挂点，标签必须排在它前面。纯记录，不渲染任何东西、不新增页面/导航/路由。
+     关闭：FTE_TRACE.disable() / localStorage 写入 "fte-trace-off" / 地址栏 ?traceOff=1 /
+     直接删掉下面这一行。 -->
+<script src="js/entry-trace.js"></script>
 <script src="js/app.js"></script>
 
 <script>

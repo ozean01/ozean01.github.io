@@ -64,6 +64,34 @@
   /* 在线音源自动回退到浏览器语音时的回调（由 app 注入，用于提示用户） */
   Player.onEngineFallback = null;
 
+  /* ---------------- 听力口音开关（P7 · 借鉴 ENGSENCE 的双口音） ----------------
+     ⚠️ 口径边界（不可越界）：本站音标、词库、审计基线一律保持「美式通用口音 GA」
+     （见 README「音标口径」；tools/audit-ipa.js 以此为基线）。这里切换的**只是用来朗读的人声**，
+     不改音标、不改课程数据、不新增英式音标注解。
+     双口音的价值在外贸场景：同一段材料用美音/英音各过一遍，适应不同国家买家的口音。
+     优先级：单次 opts.voice > 手动指定发音人 > 口音开关 > 自动优选。 */
+  const ACCENT_KEY = "fte-accent";
+  Player.accent = (function () {
+    try { const a = localStorage.getItem(ACCENT_KEY); return (a === "uk" || a === "us") ? a : "us"; } catch (e) { return "us"; }
+  })();
+  Player.setAccent = function (a) {
+    if (a !== "us" && a !== "uk") return;
+    Player.accent = a;
+    try { localStorage.setItem(ACCENT_KEY, a); } catch (e) { /* ignore */ }
+  };
+  function accentVoice(a) {
+    const want = ((a || Player.accent) === "uk") ? "en-gb" : "en-us";
+    const cand = voices.filter(function (v) { return v.lang && v.lang.toLowerCase().indexOf(want) === 0; });
+    if (!cand.length) return null;
+    return cand.slice().sort(function (x, y) { return voiceScore(y) - voiceScore(x); })[0];
+  }
+  /* 本机是否装了对应口音的人声（UI 据此提示"需装语音包"而不是静默回退） */
+  Player.hasAccent = function (a) {
+    const want = (a === "uk") ? "en-gb" : "en-us";
+    return voices.some(function (v) { return v.lang && v.lang.toLowerCase().indexOf(want) === 0; });
+  };
+  Player.accentVoiceName = function (a) { const v = accentVoice(a); return v ? v.name : ""; };
+
   /* 发音引擎：native（浏览器语音）| google（在线·不稳定）| azure（微软神经人声） */
   Player.engine = "native";
 
@@ -91,7 +119,7 @@
     let stopped = false;
 
     function pickVoice() {
-      return opts.voice || Player.voiceByName(Player.defaultVoiceName) || preferredVoice;
+      return opts.voice || Player.voiceByName(Player.defaultVoiceName) || accentVoice() || preferredVoice;
     }
 
     function speakNext() {
@@ -470,6 +498,83 @@
     return {
       stop: function () { stopped = true; try { if (rec) rec.stop(); } catch (e) { /* ignore */ } }
     };
+  };
+
+  /* ---------------- 免按键说话（VAD 静音自动断句 · P7 借鉴 HiKid 的本地对话闭环） ----------------
+     电话模拟 / 连续对话里最别扭的是「每说一句都要按一下」——真实通话不长这样。
+     这里在站内既有的在线识别之上加一层**能量阈值静音检测**：确认你说过话、之后静音够久，
+     就替你结束这一轮（等价于自动按了"停止"）。不引入本地模型、不换识别引擎、不改任何既有调用。
+     口径：宁晚停不早停（早停会吃掉半句），阈值/参数全部可调（环境差异靠 threshold 兜）。 */
+  function vadNext(st, rms, opts) {
+    const o = opts || {};
+    const th = (typeof o.threshold === "number") ? o.threshold : 0.02;
+    const silMs = o.silenceMs || 1200;
+    const tick = o.tickMs || 100;
+    const loud = rms >= th;
+    const ns = {
+      speechSeen: !!((st && st.speechSeen) || loud),
+      silentMs: loud ? 0 : (((st && st.silentMs) || 0) + tick)
+    };
+    ns.stop = !!(ns.speechSeen && !loud && ns.silentMs >= silMs);
+    return ns;
+  }
+  Player.vadNext = vadNext;
+  Player.vadSupported = function () {
+    return !!(window.AudioContext || window.webkitAudioContext) &&
+      !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+      !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  };
+  /* 在 Player.recognize 之上包一层静音断句。opts 原样透传给 recognize，另加：
+     threshold（能量阈值，默认 0.02）/ silenceMs（静音多久算说完，默认 1200ms）/
+     maxMs（单轮上限，默认 20s）/ tickMs / onAuto(reason: "silence"|"timeout") */
+  Player.recognizeAuto = function (opts) {
+    opts = opts || {};
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    let ctx = null, stream = null, analyser = null, buf = null, timer = null, rec = null;
+    let st = { speechSeen: false, silentMs: 0 };
+    let stopped = false;
+    const startedAt = Date.now();
+    const maxMs = opts.maxMs || 20000;
+    function cleanup() {
+      if (timer) { clearInterval(timer); timer = null; }
+      try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* ignore */ }
+      try { if (ctx && ctx.close) ctx.close(); } catch (e) { /* ignore */ }
+      stream = null; analyser = null; ctx = null;
+    }
+    const handle = {
+      stop: function () { stopped = true; cleanup(); if (rec) { try { rec.stop(); } catch (e) { /* ignore */ } } },
+      state: function () { return { speechSeen: st.speechSeen, silentMs: st.silentMs }; }
+    };
+    if (!Ctx || !navigator || !navigator.mediaDevices) { if (opts.onError) opts.onError(new Error("vad-unsupported")); return null; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      if (stopped) { try { s.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* ignore */ } return; }
+      stream = s;
+      ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(s);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      buf = new Float32Array(analyser.fftSize);
+      src.connect(analyser);
+      timer = setInterval(function () {
+        if (stopped) { cleanup(); return; }
+        analyser.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const rms = Math.sqrt(sum / buf.length);
+        st = vadNext(st, rms, opts);
+        if (st.stop || (Date.now() - startedAt) > maxMs) {
+          cleanup();
+          if (rec) { try { rec.stop(); } catch (e) { /* ignore */ } }
+          if (opts.onAuto) opts.onAuto(st.stop ? "silence" : "timeout");
+        }
+      }, opts.tickMs || 100);
+    }).catch(function (err) {
+      cleanup();
+      if (opts.onError) opts.onError(err);
+    });
+    rec = Player.recognize(opts);
+    if (!rec) { stopped = true; cleanup(); return null; }
+    return handle;
   };
 
   /* 先请求麦克风权限（把权限问题前置，给出清晰提示）。resolve 后即可调用 recognize */

@@ -177,6 +177,101 @@ const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
 check("架构冻结：导航仍为 16 项", navCount === 16, "n=" + navCount);
 check("本功能未新增路由", !/#\/draft/.test(htmlSrc) && !/"draft"/.test(fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")));
 
+/* ---------------- ⑦ AI 留痕与「先自己写」纪律（P7） ----------------
+   由来（写作篇 / AI 篇）：原提示词第 3 条直接要「一封更专业自然的英文版本」——**那就是整段代写**；
+   而且稿子存进作品集后，看不出用过 AI 没有、采纳了什么。这里盯四件事：
+     ① AI 契约（可以做 / 不可以做）必须是显式的、写在按钮旁边的；
+     ② 第一档批改**只指问题不给整段改写**，「地道版本」要等二稿完成才解锁（先交自己的版本）；
+     ③ 留痕三元组：介入前的样本 / 关闭工具后的独立样本 / 采纳·拒绝 + 理由；
+     ④ 独立复测环节里**不能出现任何 AI 入口**（不是禁用，是根本不渲染）。 */
+
+check("导出 AI 契约两侧清单", Array.isArray(T.AI_CAN) && Array.isArray(T.AI_CANNOT) &&
+  T.AI_CAN.length >= 3 && T.AI_CANNOT.length >= 3);
+check("契约「不可以做」明确禁止代写整段", T.AI_CANNOT.some(function (x) { return /整段/.test(x); }));
+check("契约里没有把「给整段改写」列进「可以做」",
+  !T.AI_CAN.some(function (x) { return /整段|代写|改写/.test(x); }), T.AI_CAN.join(" / "));
+
+const contract = T.aiContractHtml();
+check("契约区块同时渲染可以做与不可以做", /AI 可以做/.test(contract) && /AI 不可以做/.test(contract));
+check("契约写明「先提交你自己的版本」", /先提交你自己的版本/.test(contract));
+check("契约写明地道版本要二稿后才解锁", /二稿才解锁/.test(contract));
+check("契约写明「聊天记录不能单独作为能力证明」", /不能单独作为能力证明/.test(contract));
+check("契约出现在反馈区（按钮旁边，而不是藏在提示词里）", html1.indexOf("ws-contract") !== -1);
+
+/* ---- 两档批改：第一档禁止整段改写，第二档要二稿后才可用 ---- */
+check("第一档提示词明令禁止整段改写", /严禁输出整段改写的英文版本/.test(src));
+check("第一档要求「引用他的原句」并给最小提示", /每条都要引用他的原句/.test(src) && /最小提示/.test(src));
+check("第二档（地道版本）要求已写过二稿才允许调用", /先自己写完二稿，再对照 AI 的地道版本/.test(src));
+check("按钮文案标明「只指问题 · 不代写」", /只指问题 · 不代写/.test(src));
+check("解锁按钮只在二稿完成后渲染", /s\.d2done \? '<button[^']*ws-ai-full/.test(src));
+check("两档共用同一次调用，没有复制第二份实现",
+  (src.match(/function writeAi\(/g) || []).length === 1);
+
+/* 行为验证：未完成二稿时调用 full 档必须被拒（不发出请求） */
+let chatCalls = 0;
+global.window.Tutor = {
+  hasConfig: function () { return true; },
+  callChat: function () { chatCalls++; return Promise.resolve("x"); }
+};
+els.wsAi = fakeEl("wsAi");
+global.sessionStorage.setItem("fte-write-state", JSON.stringify({ scen: "cold", text: d1, checked: true, d2done: false }));
+T.writeAi({ scen: "cold", text: d1, d2done: false }, "full");
+check("★ 二稿没写完时「地道版本」被拒绝（顺序反了就成代写）", chatCalls === 0, "calls=" + chatCalls);
+T.writeAi({ scen: "cold", text: d1, d2done: false }, "review");
+check("第一档批改正常发出请求", chatCalls === 1, "calls=" + chatCalls);
+
+/* ---- 留痕三元组 ---- */
+check("没有用过 AI 时不渲染留痕块", T.aiLedgerHtml({ text: d1 }) === "");
+const led = T.aiLedgerHtml({ text: d1, aiAt: Date.now(), aiAdopt: "partial", aiReason: "它把我的 MOQ 写丢了" });
+check("用过 AI 后渲染留痕三行", /介入前的样本/.test(led) && /我的处理/.test(led) && /独立样本/.test(led));
+check("① 介入前的样本标记为只读保留", /只读保留/.test(led));
+check("② 采纳方式三个选项齐全", /全部采纳/.test(led) && /部分采纳/.test(led) && /拒绝/.test(led));
+check("② 选了处理方式后才要求填理由（必填）", /理由（必填）/.test(led) && /wsAiReason/.test(led));
+check("未选处理方式时不显示理由输入（不提前堆字段）",
+  T.aiLedgerHtml({ text: d1, aiAt: Date.now() }).indexOf("wsAiReason") === -1);
+check("③ 没有独立稿时明确指出去第三步", /还没有——见下面第三步/.test(led));
+
+/* ---- 平行任务：每个场景都有，且必须换条件 ---- */
+check("平行任务表覆盖全部场景",
+  T.SCENARIOS.every(function (sc) { return !!T.PARALLEL[sc.id]; }),
+  Object.keys(T.PARALLEL).join(","));
+const pt = T.parallelTask({ scen: "cold" });
+check("场景写作的平行任务给出「换条件」的具体指令", !!pt && /换/.test(pt.text) && pt.kind === "scen");
+const ptMail = T.parallelTask({ mail: (T.MAIL()[0] || {}).id });
+check("真实来信的平行任务换成另一封信（同技能不同材料）",
+  !ptMail || (ptMail.kind === "mail" && ptMail.id !== (T.MAIL()[0] || {}).id));
+check("未知场景返回 null（不硬编）", T.parallelTask({ scen: "nope" }) === null);
+
+/* ---- 第三步：关掉 AI 的独立复测 ---- */
+check("二稿没完成时不出现第三步", T.indepHtml({ scen: "cold", d2done: false }, kw) === "");
+const ind = T.indepHtml({ scen: "cold", d2done: true }, kw);
+check("二稿完成后出现第三步", ind.indexOf("关掉 AI 独立复测") !== -1);
+check("★ 第三步区块内没有任何 AI 入口（不是禁用，是不渲染）",
+  ind.indexOf("ws-ai") === -1 && ind.indexOf("AI 批改") === -1);
+check("第三步给出平行任务原文", ind.indexOf(T.parallelTask({ scen: "cold" }).text) !== -1);
+check("第三步说明「工具介入过的样本不能证明你独立能做到」", /不能证明你独立能做到/.test(ind));
+const indDone = T.indepHtml({ scen: "cold", d2done: true, indepDone: true, indep: { at: Date.now(), text: d2, wc: 13, rate: 50 } }, kw);
+check("完成独立稿后显示词数与要点覆盖", /13 词/.test(indDone) && /要点覆盖 50%/.test(indDone));
+check("完成态写明「只有这一栏能被当作能力证据」", /只有这一栏能被当作能力证据/.test(indDone));
+check("完成态可回看与重做", /ws-indep-view/.test(indDone) && /ws-indep-reset/.test(indDone));
+
+/* ---- 教学守卫与接线 ---- */
+check("独立稿为空时被拒", /独立稿是空的/.test(src));
+check("独立稿与前面那稿雷同时被拒（这一步要换条件自己写）", /独立稿和前面那稿一模一样/.test(src));
+check("五个新动作都已接线",
+  ['act === "ws-ai-adopt"', 'act === "ws-indep-done"', 'act === "ws-indep-fill"',
+   'act === "ws-indep-view"', 'act === "ws-indep-reset"'].every(function (s) { return src.indexOf(s) !== -1; }));
+/* 断言行为而不是运算符写法：input 监听把两格都写进会话状态即可，
+   至于是 "a || b" 还是 "a !== x && b !== x" 的守卫形式，不属于契约。 */
+check("理由与独立稿都是「输入即存」（按钮重渲染不会冲掉文字）",
+  /document\.addEventListener\("input"/.test(src) &&
+  /s\.aiReason = el\.value/.test(src) && /s\.indepText = el\.value/.test(src));
+check("保存时一并写入 ai 与 indep 留痕",
+  /ai: s\.aiAt \? \{/.test(src) && /indep: \(s\.indep && s\.indep\.text\)/.test(src));
+check("作品集区分「有 AI 参与」与「独立稿」两种含金量", /有 AI 参与/.test(src) && /🔒 独立稿/.test(src));
+check("完成任务时同步计入打卡（复用 CoachBridge）",
+  /CoachBridge\.done\(\)|CoachBridge\.done\("write"\)/.test(src));
+
 console.log("\n-- 一稿 → 二稿 对比样例 --");
 console.log("  一稿(" + c.wc1 + "词，" + c.rate1 + "%)：" + d1);
 console.log("  二稿(" + c.wc2 + "词，" + c.rate2 + "%)：" + d2);

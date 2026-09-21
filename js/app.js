@@ -214,6 +214,7 @@
   function syncPlayerSettings() {
     Player.engine = progress.engine || "native";
     Player.defaultVoiceName = progress.voice || "";
+    if (Player.setAccent) Player.setAccent(progress.accent === "uk" ? "uk" : "us");
     Player.azure = { key: progress.azureKey || "", region: progress.azureRegion || "", voice: progress.azureVoice || "en-US-JennyNeural" };
     Player.onEngineFallback = function () {
       /* 在线音源一旦失败就永久切回浏览器语音，避免每句都失败/反复提示 */
@@ -267,6 +268,38 @@
   function unitDone(u) {
     return !!progress.done[u.id] || unitPct(u) >= UNIT_DONE_PCT;
   }
+
+  /* ---- 进度主键：内容键（P1-C2 预留，P2-G 消费）----
+     现状：主键 = 单元 id + 词序号（wordId，见上），即「单元 id 直接当主键」。
+     P2-G 起：同一份内容可以有多个「入口 id」（多主题入口），但内容键唯一——多条入口 id
+     映射到同一内容键，进度只记一次，否则同一单元会被数两遍（P2-G 门禁 1 的硬前提）。
+     别名为空 ⇒ contentKeyOf 是恒等、dedupeUnits 是保序恒等，**当前行为逐字节不变**，
+     因此本项可以零风险先落地；将来给单元挂第二个入口 id 时，必须同时配 CONTENT_ID_ALIAS，
+     否则 tools/test-home.js 的 recordUnits().length === 19 断言会立刻失败。 */
+  const CONTENT_ID_ALIAS = {};                    // 入口 id -> 内容 id，默认空
+  function contentKeyOf(unitId) {                 // ① 单元 id → 内容键
+    let k = String(unitId), seen = {};
+    while (CONTENT_ID_ALIAS[k] && !seen[k]) { seen[k] = 1; k = String(CONTENT_ID_ALIAS[k]); }
+    return k;
+  }
+  function dedupeUnits(units) {                   // ② 按内容键去重，保序
+    const seen = {}, out = [];
+    units.forEach(function (u) {
+      const k = contentKeyOf(u.id);
+      if (!seen[k]) { seen[k] = 1; out.push(u); }
+    });
+    return out;
+  }
+  function recordUnits() { return dedupeUnits(DATA.units); }   // ③ 所有「进度计数」的统一输入
+
+  /* ---- M 的口径（P1-C2）----
+     M = 已完成单元数：单元内已掌握词汇达 UNIT_DONE_PCT(=80%)，或用户手动「标记为已完成」；
+     每个单元只计一次。
+     判定一律复用 unitDone()（上），**不在展示处另写一套判定式**——「口径唯一」是这个数字
+     能被信任的前提。同一句话既作 M 行的可见说明（触屏端也读得到），又作它的 title 提示，
+     两处同源故必然逐字一致。 */
+  const UNIT_M_BASIS = "已完成 = 该单元内已掌握词汇达 " + UNIT_DONE_PCT +
+    "%，或已手动标记完成；与首页「已完成单元」同一口径，每个单元只计一次。";
   /* 该单元已有几段对话把五阶段闯关走完（progress.stage 的 key 是「单元id-对话序号」） */
   function stageCleared(u, dlgIdx) {
     return ((progress.stage || {})[u.id + "-" + dlgIdx] || 0) >= STAGE_DONE_N;
@@ -509,6 +542,13 @@
 
   function renderRoute() {
     const route = parseHash();
+    /* P1-D 前置·只读行为埋点（js/entry-trace.js）：记一条「主线进入」= 路由进了某个主线单元页。
+       挂在这里而不是某个点击处，是为了覆盖点击 / 深链 / 前进后退 / 程序化赋值全部进入方式。
+       该模块对 localStorage 的访问全部 try/catch 并带内存回落，任何异常都不会影响渲染；
+       模块缺失（script 标签被删）时这里静默跳过 —— 属于设计上的可拔除点。 */
+    if (window.FTE_TRACE && typeof window.FTE_TRACE.noteRoute === "function") {
+      try { window.FTE_TRACE.noteRoute(location.hash); } catch (e) { /* 记录失败不影响渲染 */ }
+    }
     clearCoachTimer();          // 离开「AI 教练手册」页时停止计时器
     if (window.SpeechAnalyzer && window.SpeechAnalyzer.cleanup) window.SpeechAnalyzer.cleanup();  // 离开「自由表达」页时停识别
     setNavActive(route.view);
@@ -1242,8 +1282,37 @@
     </div>`;
   }
 
+  /* ================= 出口能力断言（P1-B）=================
+     数据源：js/outcomes.js（window.FTE_OUTCOMES）。断言说「学完你能做什么」，难度角标说
+     「措辞好不好读」——两者在这张卡上**并列显示、互不替换**（门禁 3），所以三者各占一行、
+     各用各的 class，且断言块**不读进度、不看是否已完成**（练没练完都能看到目标）。
+     渲染契约：**存在即渲染，缺失即静默不渲染**——没登记的单元不落占位文案（见 outcomes.js 头注释）。 */
+  const OUTCOMES = (window.FTE_OUTCOMES && window.FTE_OUTCOMES.items) || {};
+  const OUTCOMES_BASIS = (window.FTE_OUTCOMES && window.FTE_OUTCOMES.basis) ||
+    "课程层出口能力（本站自述，不构成任何等级认定）";
+  /* 产出锚点落在站内哪个既有页面（不新增页面、不新增导航、不新增路由）：
+     write → 写作（作品库独立稿）；sop → 实操清单 27 步勾选；eval4 → 四维评分（并入「口语」页 tab）。 */
+  const OUTCOME_ANCHOR_META = {
+    write: { route: "#/write", kind: "写作产出 · 独立稿" },
+    sop: { route: "#/sop", kind: "实操清单勾选" },
+    eval4: { route: "#/eval4", kind: "四维评分" }
+  };
+  function outcomeOf(u) {
+    return (u && OUTCOMES[String(u.id)]) || null;
+  }
+  /* 产出一行的「凭证」文案。单元卡整张是 <a>，#/unit/N 跳转本身就是卡片的动作，
+     所以锚点只在单元页渲染成链接（<a> 不可嵌套 <a>）。 */
+  function outcomeAnchorHtml(anchor, asLink) {
+    if (!anchor) return "";
+    const meta = OUTCOME_ANCHOR_META[anchor.kind];
+    const text = "凭证：" + esc(meta ? meta.kind : anchor.kind) + " · " + esc(anchor.label || anchor.ref);
+    if (!asLink || !meta) return '<span class="uc-out-a">' + text + "</span>";
+    return '<a class="uc-out-a" href="' + meta.route + '">' + text + " →</a>";
+  }
+
   function unitCardHtml(u) {
     const pct = unitPct(u);
+    const oc = outcomeOf(u);
     const done = unitDone(u);
     const du = unitDifficulty(u);
     const dlgN = (u.dialogues || []).length;
@@ -1265,6 +1334,10 @@
         </div>
       </div>
       <div class="uc-sum">${esc(u.summary)}</div>
+      ${oc ? '<div class="uc-outcome" style="margin-top:8px;padding:8px 10px;background:var(--surface);border-left:3px solid var(--primary);border-radius:8px;line-height:1.6">' +
+        '<span class="uc-out-k" style="font-size:12px;font-weight:700;color:var(--primary)">🎯 学完能做到</span>' +
+        '<div class="uc-out-v" style="font-size:13.5px;color:var(--ink);margin-top:2px">' + esc(oc.say) + "</div>" +
+        outcomeAnchorHtml(oc.anchor, false) + "</div>" : ""}
       ${whenText ? '<div class="uc-when" style="font-size:13px;color:var(--ink);background:var(--primary-soft);border-radius:8px;padding:6px 9px;line-height:1.5">📍 ' + esc(whenText) + '</div>' : ""}
       ${du ? '<div class="uc-diffline">' + diffHtml +
         '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
@@ -1280,11 +1353,22 @@
 
   /* ================= 课程列表 ================= */
   function renderUnits() {
+    /* M = 已完成单元数：单元内已掌握词汇达 UNIT_DONE_PCT，或用户手动「标记为已完成」；
+       每个单元只计一次。判定复用 unitDone()，本页不另写判定式（口径唯一，见 UNIT_M_BASIS）。
+       计数与分母都走 recordUnits()：P2-G 若给同一内容挂多个入口 id，分子分母必须一起去重，
+       否则「分子去重、分母不去重」会造出比现状更坏的大分母失真。
+       写法：分子在前（「已完成 M / N 单元」）——全站既有进度语句一律分子在前（路径区阶段徽标、
+       首页「已完成单元」、页头已掌握词、SOP 完成度），把总数放首位会成为全站唯一例外，
+       且与本页路径 chip 的顺序冲突（t2 §1.2 的选定写法②）。 */
+    const doneCount = recordUnits().filter(unitDone).length;
     app.innerHTML = `
     <div class="page-head">
       <h2>📚 全部课程</h2>
-      <div class="en">${DATA.units.length} 个单元 · 覆盖外贸全流程</div>
+      <div class="en">${recordUnits().length} 个单元 · 覆盖外贸全流程</div>
+      <div class="en uc-progress" title="${esc(UNIT_M_BASIS)}">已完成 ${doneCount} / ${recordUnits().length} 单元</div>
+      <p class="uc-progress-note" style="margin-top:8px;max-width:760px;font-size:13px;color:var(--muted)">${esc(UNIT_M_BASIS)}</p>
       ${diffLegendHtml()}
+      ${outcomeLegendHtml()}
     </div>
     <div class="grid grid-2" style="margin-top:18px">${DATA.units.map(unitCardHtml).join("")}</div>`;
   }
@@ -1297,6 +1381,16 @@
       '不是<b>业务内容好不好做</b>——物流、海运这类术语密集的单元读起来不难，业务上手却难，两者不是一回事。' +
       '口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐；' +
       '点任意单元可看该单元各项指标与算法分量。</p>';
+  }
+
+  /* 课程列表页顶部的出口能力口径说明（P1-B 门禁 5：断言落在「课程层」，附本站自述）。
+     与单元页断言块共用同一句 basis，且**不与进度口径混用**：它不含任何水平档位/分数，
+     也不说「完成了才看得到」。 */
+  function outcomeLegendHtml() {
+    return '<p class="uc-out-note" style="margin-top:10px;max-width:760px">卡上的 <b>🎯 学完能做到</b> 是' +
+      '<b>课程层出口能力</b>：每条都对应站内一处可留痕的产出（写作作品库的独立稿 / 实操清单勾选 / 四维评分），' +
+      '点卡片进单元即可看到对应凭证。它与<b>难度（语言）</b>并列显示、互不替换——难度说的是措辞好不好读，' +
+      '断言说的是学完能做什么事，两者不是一回事。' + esc(OUTCOMES_BASIS) + '。</p>';
   }
 
   /* ================= 中国外贸人高频易错点 ================= */
@@ -1459,6 +1553,7 @@
       <div class="en">${esc(u.titleEn)}</div>
       <p style="margin-top:8px;color:var(--muted);max-width:760px">${esc(u.summary)}</p>
       ${unitDiffBlockHtml(u)}
+      ${outcomeBlockHtml(u)}
       <div style="display:flex;align-items:center;gap:12px;margin-top:14px;max-width:520px;flex-wrap:wrap">
         <div class="progressbar"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
@@ -1562,6 +1657,22 @@
       <div class="uc-diff-note">词级为 CEFR 画像分级（CEFR-J A1-B2 + C1-C2 开放画像，未收录的行业/复合术语按词长与音节兜底并标「专」）。<b>难度档＝语言复杂度</b>：把本站 19 个单元放在一起比<b>措辞本身好不好读</b>，不是<b>业务内容好不好做</b>——U7 物流、U13 海运这类术语密集型单元，正文读起来不难但业务上手难，两者不是一回事。档位由合成分按站内相对位置切出：<b>0.5×平均 CEFR 档 + 0.3×每词音节数 + 0.2×平均词长</b>（三者都取本站语料内分位，低分＝更易）；<b>平均句长 / Flesch 可读性 / 专业词占比只作参考展示，不参与该合成分</b>。口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
     </div>`;
   }
+  /* 单元页出口能力断言块（P1-B）：紧挨难度块**并列**出现，不替换难度块（门禁 3）。
+     没登记断言的单元返回空串——静默不渲染，不落占位文案。 */
+  function outcomeBlockHtml(u) {
+    const oc = outcomeOf(u);
+    if (!oc) return "";
+    return `
+    <div class="card uc-out-card" style="margin-top:12px;max-width:760px">
+      <div class="uc-out-k" style="font-weight:700;color:var(--primary)">🎯 学完你能做什么</div>
+      <div class="uc-out-v" style="margin-top:6px;line-height:1.7;color:var(--ink)">${esc(oc.say)}</div>
+      <div class="uc-out-meta" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;font-size:13px">
+        ${outcomeAnchorHtml(oc.anchor, true)}
+        <span class="uc-out-note" style="color:var(--muted)">${esc(OUTCOMES_BASIS)}</span>
+      </div>
+    </div>`;
+  }
+
   function cefrLabel(c) {
     if (c == null) return "—";
     const m = Math.round(c);
@@ -2958,6 +3069,12 @@
 
   /* ================= 事件委托 ================= */
   document.addEventListener("click", function (e) {
+    /* P1-D 前置·只读行为埋点：判断这次点击是不是「在某个非主线入口上点了去主线单元的链接」。
+       必须放在下面那行 return 之前 —— 普通 <a href="#/unit/N"> 没有 data-action，
+       放后面会被提前 return 掉、整类入口点击全部漏记。记录器自身静默失败，不影响后续渲染。 */
+    if (window.FTE_TRACE && typeof window.FTE_TRACE.traceClick === "function") {
+      try { window.FTE_TRACE.traceClick(e); } catch (e2) { /* 记录失败不影响交互 */ }
+    }
     const el = e.target.closest("[data-action]");
     if (!el) return;
     const act = el.getAttribute("data-action");
@@ -3995,6 +4112,28 @@
     const azureVoice = document.getElementById("setAzureVoice");
     const azurePA = document.getElementById("setAzurePA");
     const setLocalASR = document.getElementById("setLocalASR");
+    const accentNote = document.getElementById("accentNote");
+    let pendingAccent = Player.accent || "us";
+
+    /* 口音开关：只预览+暂存，点「保存」才落库（与模态框其它字段同一节奏） */
+    function paintAccent() {
+      document.querySelectorAll("#settingsModal [data-accent]").forEach(function (b) {
+        const on = b.getAttribute("data-accent") === pendingAccent;
+        b.classList.toggle("btn-primary", on);
+        b.classList.toggle("btn-outline", !on);
+      });
+      if (!accentNote) return;
+      const name = pendingAccent === "uk" ? "英音" : "美音";
+      let t = "当前：" + name;
+      const vn = Player.accentVoiceName ? Player.accentVoiceName(pendingAccent) : "";
+      if (vn) t += "（人声：" + vn + "）";
+      else if (Player.hasAccent && !Player.hasAccent(pendingAccent)) {
+        t += "（⚠️ 本机没找到" + name + "人声，会回退默认发音人；建议用 Edge 并在系统「语音」里安装该口音的语音包）";
+      }
+      if (voiceSel.value) t += " · 下方已手动指定发音人，切口音会自动改回「自动选择」。";
+      t += " 音标与词库始终是全站统一的美式 GA。";
+      accentNote.textContent = t;
+    }
 
     function populateVoices() {
       voiceSel.innerHTML = '<option value="">自动选择（优选高质量发音人）</option>' +
@@ -4017,6 +4156,10 @@
       voiceSel.value = progress.voice || "";
       rateRange.value = progress.rate || 1;
       rateVal.textContent = (progress.rate || 1).toFixed(1) + "×";
+      /* 口音取 Player 的**实时值**（字幕点读页也能切口音，progress 可能还没跟上），
+         否则用户在这里一保存就会把刚切的英音又退回美音 */
+      pendingAccent = (Player.accent === "uk") ? "uk" : "us";
+      paintAccent();
       modal.hidden = false;
     }
     function close() { modal.hidden = true; }
@@ -4030,6 +4173,7 @@
         progress.azurePA = azurePA ? azurePA.checked : true;
         progress.localASR = setLocalASR ? setLocalASR.checked : false;
         progress.voice = voiceSel.value;
+        progress.accent = pendingAccent;
         progress.rate = parseFloat(rateRange.value) || 1;
         saveProgress();
         syncPlayerSettings();
@@ -4048,6 +4192,15 @@
 
     btn.addEventListener("click", open);
     engineSel.addEventListener("change", syncAzureField);
+    voiceSel.addEventListener("change", paintAccent);
+    document.querySelectorAll("#settingsModal [data-accent]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        pendingAccent = b.getAttribute("data-accent");
+        /* 口音是「我要听这个口音」的明确意图：顺手清掉手动指定的发音人，否则开关像是坏的 */
+        if (voiceSel.value) { voiceSel.value = ""; toast("已改为跟随口音（清除手动指定的发音人），点「保存」生效"); }
+        paintAccent();
+      });
+    });
     rateRange.addEventListener("input", function () {
       rateVal.textContent = parseFloat(rateRange.value).toFixed(1) + "×";
     });
@@ -4114,6 +4267,10 @@
     coachStats: coachStats,
     unitPct: unitPct,
     unitDone: unitDone,
+    /* P2-G（同一内容多主题入口）的进度去重接口：外部模块与测试只通过这里拿内容键 /
+       去重后的单元清单，不自己去重（口径唯一）。别名为空时 recordUnits() === DATA.units。 */
+    contentKeyOf: contentKeyOf,
+    recordUnits: recordUnits,
     unitStageDone: unitStageDone,
     unitLearned: unitLearned,
     unitWords: unitWords,
@@ -4172,7 +4329,13 @@
      本方案改为：首次访问在导航下方常驻一条可关闭横幅，只做三件事——测起点 / 进第 1 单元 / 关闭；
      点击任意一项或 ✕ 即写入 fte-onboarded，此后永不再显示。 */
   function showOnboarding() {
-    if (localStorage.getItem("fte-onboarded")) return;
+    /* localStorage 不可用（隐私模式 / 配额满 / 被策略禁用）时不许把启动流程带崩：
+       这两处原先裸调，是本站最后两处未包 try/catch 的 localStorage 访问。
+       读不到 ⇒ 当作「没看过导流」，横幅照常出现（只是每次都会出现）；
+       写不进 ⇒ 只关掉当次横幅，不持久化。两处都静默降级，不抛错。 */
+    let onboarded = false;
+    try { onboarded = !!localStorage.getItem("fte-onboarded"); } catch (e) { onboarded = false; }
+    if (onboarded) return;
     const header = document.getElementById("siteHeader");
     if (!header) return;
 
@@ -4192,7 +4355,8 @@
     header.insertAdjacentElement("afterend", bar);
 
     function done() {
-      localStorage.setItem("fte-onboarded", "1");
+      /* 写不进也要把横幅收掉：导流是可选功能，不该让存储故障拦住页面 */
+      try { localStorage.setItem("fte-onboarded", "1"); } catch (e) { /* 静默：仅当次关闭 */ }
       if (bar.parentNode) bar.parentNode.removeChild(bar);
     }
     bar.addEventListener("click", function (e) {
