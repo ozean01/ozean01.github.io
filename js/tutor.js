@@ -281,7 +281,7 @@
       <div class="tutor-local-title">🖥 本地模型（Ollama）：客户原话、报价、索赔细节一步都不出本机</div>
       <ol class="tutor-local-steps">
         <li>安装 <a href="https://ollama.com/download" target="_blank" rel="noopener">Ollama</a>，然后拉一个模型：<code>ollama pull qwen2.5:7b</code></li>
-        <li>放行浏览器跨域（否则会报 Failed to fetch / CORS）。Windows 在启动 Ollama 前设一次环境变量：<code>set OLLAMA_ORIGINS=http://127.0.0.1:8088,http://localhost:8088</code>，再重启 Ollama；macOS/Linux 用 <code>export OLLAMA_ORIGINS=http://127.0.0.1:8088,http://localhost:8088</code>。**来源必须与你地址栏里的完全一致**——用 127.0.0.1 打开就填 127.0.0.1，用 localhost 打开就填 localhost（所以两个都写上最保险）；端口以启动器打印的为准。</li>
+        <li>放行浏览器跨域（否则会报 Failed to fetch / CORS）。Windows 在启动 Ollama 前设一次环境变量：<code>set OLLAMA_ORIGINS=http://localhost:8000,http://127.0.0.1:8000</code>，再重启 Ollama；macOS/Linux 用 <code>export OLLAMA_ORIGINS=http://localhost:8000,http://127.0.0.1:8000</code>。**来源必须与你地址栏里的完全一致**——用 localhost 打开就填 localhost，用 127.0.0.1 打开就填 127.0.0.1（两个都写上最保险）；端口以启动器打印的为准。</li>
         <li>回到上面点「🔍 测试连接」——本地模型不需要 API Key，留空即可。</li>
       </ol>
       <p class="field-note">

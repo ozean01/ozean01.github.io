@@ -673,7 +673,7 @@
       "no-speech": "没有听到声音：请靠近麦克风、保持环境安静后重试",
       "audio-capture": "未检测到麦克风设备：请检查麦克风连接与系统设置",
       "aborted": "",
-      "no-media": "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8088）打开页面",
+      "no-media": "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8000）打开页面",
       "denied": "无法使用麦克风：请在浏览器设置中允许麦克风权限后重试",
       "unsupported": "当前浏览器不支持语音识别（Web Speech 仅 Chrome/Edge 完整支持），建议使用 Chrome / Edge"
     };
