@@ -345,7 +345,7 @@ const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 const style = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8"));
 
-check("index.html 已引入 js/today.js", /<script src="js\/today\.js"><\/script>/.test(htmlSrc));
+check("index.html 已引入 js/today.js", /<script\s+src="js\/today\.js"[^>]*><\/script>/.test(htmlSrc));
 check("today.js 在 app.js 之前加载", htmlSrc.indexOf("js/today.js") < htmlSrc.indexOf("js/app.js"));
 check("index.html 导航含 #/today 且带 data-nav", /href="#\/today" data-nav="today"/.test(htmlSrc));
 check("品牌 logo 指向今日", /<a class="brand" href="#\/today">/.test(htmlSrc));

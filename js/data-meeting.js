@@ -30,10 +30,11 @@
       { w: "capability", ipa: "/ˌkeɪpəˈbɪləti/", pos: "n.", cn: "能力，产能", ex: "Our monthly capability is enough for a repeat order of this size.", exCn: "我们的月产能足以承接这个规模的回单。" },
       { w: "capacity", ipa: "/kəˈpæsəti/", pos: "n.", cn: "产能，容量", ex: "We have spare capacity in June to fit your peak season.", exCn: "我们六月还有富余产能，能贴合您的旺季。" },
       { w: "win-win", ipa: "/ˌwɪn ˈwɪn/", pos: "n.", cn: "双赢", ex: "We are looking for a win-win: better quality for you, stable volume for us.", exCn: "我们追求双赢：质量对您更好，稳定订单量对我们更稳。" },
-      { w: "call to action", ipa: "/ˈkɔːl tu ˈækʃn/", pos: "n.", cn: "行动号召（促成交）", ex: "Shall we schedule a small trial run so you can verify the quality?", exCn: "要不要安排一个小批量试单，让你们先验证一下质量？" }
+      { w: "call to action", ipa: "/ˈkɔːl tu ˈækʃn/", pos: "n.", cn: "行动号召（促成交）", ex: "Shall we schedule a small trial run so you can verify the quality?", exCn: "要不要安排一个小批量试单，让你们先验证一下质量？" },
+      { w: "walk through", ipa: "/wɔːk θruː/", pos: "v.", cn: "逐步讲解；带着过一遍", ex: "Let me walk you through the migration test report.", exCn: "我带你过一遍迁移测试报告。" }
     ],
     phrases: [
-      { p: "open the meeting", cn: "开场主持，宣布开会", ex: "Thank you everyone for joining. Let me open the meeting with a quick agenda.", exCn: "谢谢大家参加。我用一个简要议程开场。" },
+      { p: "open the meeting", cn: "开场主持，宣布开会", ex: "Thank you, everyone, for joining. Let me start with a quick run-through of the agenda.", exCn: "谢谢大家参加。我先快速过一遍议程。" },
       { p: "run through the agenda", cn: "过一遍议程", ex: "Let's run through the agenda: product update, then pricing, then delivery.", exCn: "我们过一遍议程：产品更新、价格、然后交期。" },
       { p: "walk you through the product", cn: "带您过一遍产品（讲解）", ex: "Let me walk you through the product and highlight the key selling points.", exCn: "我带您过一遍产品，并指出核心卖点。" },
       { p: "present the value proposition", cn: "陈述价值主张", ex: "Let me present our value proposition in one sentence: lower total cost.", exCn: "我用一句话陈述价值主张：更低的总成本。" },

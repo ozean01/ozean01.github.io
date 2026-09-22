@@ -63,7 +63,8 @@
       { w: "constructive total loss", ipa: "/kənˈstrʌktɪv ˈtoʊtl lɑːs/", pos: "n.", cn: "推定全损（修复费用超过货值）", ex: "Since salvage would cost more than the goods, the underwriter declared a constructive total loss.", exCn: "由于救助费用超过货值，保险人宣布为推定全损。" },
       { w: "salvage charges", ipa: "/ˈsælvɪdʒ ˈtʃɑːdʒɪz/", pos: "n.", cn: "救助费用（施救报酬）", ex: "Salvage charges are recoverable under the policy provided the loss is insured.", exCn: "只要损失属承保范围，救助费用可在保单下获赔。" },
       { w: "claim", ipa: "/kleɪm/", pos: "n./v.", cn: "索赔（lodge a claim 提出索赔）", ex: "We lodged a claim for USD 4,200 supported by the survey report and packing list.", exCn: "我们凭检验报告和箱单提出了 4,200 美元的索赔。" },
-      { w: "survey report", ipa: "/ˈsɜːveɪ rɪˈpɔːt/", pos: "n.", cn: "检验报告、公证报告（查勘报告）", ex: "No claim will be entertained without a survey report issued at the port of discharge.", exCn: "没有卸货港出具的检验报告，索赔不予受理。" }
+      { w: "survey report", ipa: "/ˈsɜːveɪ rɪˈpɔːt/", pos: "n.", cn: "检验报告、公证报告（查勘报告）", ex: "No claim will be entertained without a survey report issued at the port of discharge.", exCn: "没有卸货港出具的检验报告，索赔不予受理。" },
+      { w: "take out insurance", ipa: "/teɪk aʊt ɪnˈʃʊrəns/", pos: "v.", cn: "投保", ex: "Please take out insurance for 110% of the invoice value.", exCn: "请按发票金额的 110% 投保。" }
     ],
     phrases: [
       { p: "open a letter of credit", cn: "开立信用证", ex: "Please open an irrevocable letter of credit at sight before the end of this month.", exCn: "请在本月底前开出不可撤销即期信用证。" },

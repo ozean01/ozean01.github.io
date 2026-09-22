@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-09-22T13:40:00.482Z",
+  "basis": "输入量=英文教学文本词数；复现次数=词条出现于多少条不同句子；目标参考 Nation：不同语境 ≥3 次",
+  "totals": {
+    "vocabEx": 8215,
+    "phraseEx": 1845,
+    "dialogue": 4089,
+    "mailBody": 933,
+    "mailDrill": 704
+  },
+  "totalInput": 15786,
+  "sentences": 1352,
+  "vocab": 798,
+  "occurrences": {
+    "1": 199,
+    "2": 101,
+    "3+": 498
+  },
+  "perUnit": [
+    {
+      "id": 1,
+      "vocab": 33,
+      "input": 515,
+      "sentences": 53
+    },
+    {
+      "id": 2,
+      "vocab": 22,
+      "input": 407,
+      "sentences": 42
+    },
+    {
+      "id": 3,
+      "vocab": 35,
+      "input": 576,
+      "sentences": 55
+    },
+    {
+      "id": 4,
+      "vocab": 22,
+      "input": 433,
+      "sentences": 48
+    },
+    {
+      "id": 5,
+      "vocab": 25,
+      "input": 470,
+      "sentences": 49
+    },
+    {
+      "id": 6,
+      "vocab": 26,
+      "input": 432,
+      "sentences": 43
+    },
+    {
+      "id": 7,
+      "vocab": 27,
+      "input": 481,
+      "sentences": 48
+    },
+    {
+      "id": 8,
+      "vocab": 24,
+      "input": 510,
+      "sentences": 52
+    },
+    {
+      "id": 9,
+      "vocab": 35,
+      "input": 606,
+      "sentences": 59
+    },
+    {
+      "id": 10,
+      "vocab": 29,
+      "input": 511,
+      "sentences": 53
+    },
+    {
+      "id": 11,
+      "vocab": 201,
+      "input": 1973,
+      "sentences": 219
+    },
+    {
+      "id": 12,
+      "vocab": 49,
+      "input": 1194,
+      "sentences": 86
+    },
+    {
+      "id": 13,
+      "vocab": 52,
+      "input": 1204,
+      "sentences": 88
+    },
+    {
+      "id": 14,
+      "vocab": 40,
+      "input": 1148,
+      "sentences": 76
+    },
+    {
+      "id": 15,
+      "vocab": 56,
+      "input": 1483,
+      "sentences": 96
+    },
+    {
+      "id": 16,
+      "vocab": 40,
+      "input": 695,
+      "sentences": 52
+    },
+    {
+      "id": 17,
+      "vocab": 31,
+      "input": 484,
+      "sentences": 45
+    },
+    {
+      "id": 18,
+      "vocab": 30,
+      "input": 435,
+      "sentences": 46
+    },
+    {
+      "id": 19,
+      "vocab": 21,
+      "input": 592,
+      "sentences": 40
+    }
+  ]
+}

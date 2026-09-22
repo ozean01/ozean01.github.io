@@ -419,15 +419,20 @@ check("A3 M 口径句与页头难度口径分处两段（不混进难度说明�
   !/UNIT_M_BASIS/.test((appjs.match(/function diffLegendHtml\(\)[\s\S]*?\n  \}/) || [])[0] || ""));
 
 /* ---- A4：进度展示面计数 ---- */
-const homeAgg = (homeVisible.match(/class="lbl">已完成单元</g) || []).length;
+/* P1-4：首页「能力」栏不再放自评口径的「已掌握单词」「已完成单元」——它们移到了「坚持 · 进度」
+   一侧的说明行（不是统计卡）。能力栏只留两块有留痕的结果：最近四维得分、有产出证据的单元。 */
+const homeSelfAssessCards = (homeVisible.match(/class="lbl">(已掌握单词|已完成单元)</g) || []).length;
+const homeEvidenceCard = (homeVisible.match(/class="lbl">有产出证据的单元</g) || []).length;
 const psBadge = (homeVisible.match(/class="ps-badge"/g) || []).length;
 const unitsAgg = (unitsVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).length;
 const unitAgg = (unitVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).length;
-check("A4 首页聚合进度语句 = 1（「已完成单元」统计卡）", homeAgg === 1, "n=" + homeAgg);
+check("A4 首页「能力」栏不含自评统计卡（已掌握单词 / 已完成单元）", homeSelfAssessCards === 0, "n=" + homeSelfAssessCards);
+check("A4 首页「能力」栏有且仅有 1 张「有产出证据的单元」", homeEvidenceCard === 1, "n=" + homeEvidenceCard);
+check("A4 自评进度仍可见（移到说明行，不作为能力证据）", /已掌握单词/.test(homeVisible) && /学完单元/.test(homeVisible));
 check("A4 首页路径区阶段徽标 = 3（= 3 个阶段，不是第 4 个页面级面）", psBadge === 3, "n=" + psBadge);
 check("A4 「全部课程」页聚合进度语句 = 1（本项新增处，且只有 1 处）", unitsAgg === 1, "n=" + unitsAgg);
 check("A4 单元页不含跨单元聚合进度语句（不新增第四处页面级面）", unitAgg === 0, "n=" + unitAgg);
-console.log("  页面级进度面实测：首页 1 条聚合语句 + 路径区 " + psBadge + " 枚阶段徽标；全部课程页 " +
+console.log("  页面级进度面实测：首页能力栏 2 张留痕卡 + 坚持栏说明行；路径区 " + psBadge + " 枚阶段徽标；全部课程页 " +
   unitsAgg + " 条（本项新增，分子在前）；单元页 " + unitAgg + " 条跨单元聚合语句");
 
 /* ---- A4 配套：6 处区块级红线（不得增加 / 不得被 M 吞并或复制） ---- */

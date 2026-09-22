@@ -73,7 +73,15 @@ UNITS.forEach(function (u) {
     });
   });
 });
-check("扫描到全部 768 条音标", checked === 768, "n=" + checked);
+/* 断言「有声明的词条都带音标、且都被扫描到」——**不要写死总数**。
+   816 曾把 768 写死在这里，数据一扩充（动词补口 768→798）门禁就误报成缺陷；
+   这类「数字写死在工具里」与 test-doc-numbers 要防的是同一件事。 */
+const vocabWithIpa = UNITS.reduce(function (a, u) {
+  return a + (u.vocab || []).filter(function (v) { return !!v.ipa; }).length;
+}, 0);
+const vocabTotal = UNITS.reduce(function (a, u) { return a + (u.vocab || []).length; }, 0);
+check("每个词条都有音标（无漏标）", checked === vocabTotal, "已扫描 " + checked + " / 词条 " + vocabTotal);
+check("扫描到全部带音标的词条（动态总数）", checked === vocabWithIpa, "n=" + checked + " / " + vocabWithIpa);
 check("分词器零未识别字符", Object.keys(unknown).length === 0,
   Object.keys(unknown).length ? JSON.stringify(unknown) + "  例: " + samples.join(" | ") : "");
 
@@ -226,7 +234,7 @@ const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
 const style = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
 
-check("index.html 已引入 js/phonemes.js", /<script src="js\/phonemes\.js"><\/script>/.test(htmlSrc));
+check("index.html 已引入 js/phonemes.js", /<script\s+src="js\/phonemes\.js"[^>]*><\/script>/.test(htmlSrc));
 check("phonemes.js 在 app.js 之前加载", htmlSrc.indexOf("js/phonemes.js") < htmlSrc.indexOf("js/app.js"));
 check("index.html 导航含 #/phonemes 入口", /href="#\/phonemes"/.test(htmlSrc));
 check("app.js 路由表含 phonemes", /"mysay",\s*"phonemes"/.test(appjs));

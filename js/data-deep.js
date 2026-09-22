@@ -41,13 +41,14 @@
       { w: "gel", ipa: "/dʒel/", pos: "n.", cn: "凝胶点（胶中局部固化颗粒）", ex: "Filtration removes gel particles from the adhesive.", exCn: "过滤去除胶中的凝胶颗粒。" },
       { w: "curl", ipa: "/kɜːrl/", pos: "n.", cn: "卷曲（膜翘曲）", ex: "A large curl makes the film hard to feed on the machine.", exCn: "明显卷曲会让薄膜难以在机器上走料。" },
       { w: "wrinkle", ipa: "/ˈrɪŋkl/", pos: "n.", cn: "皱褶", ex: "Wrinkles usually appear when the tension is not balanced.", exCn: "皱褶通常出现在张力不平衡时。" },
-      { w: "tunneling", ipa: "/ˈtʌnəlɪŋ/", pos: "n.", cn: "隧道效应（复合后局部未粘合形成的通道/气泡带）", ex: "Tunneling is common with solventless lamination at low coating weight.", exCn: "低上胶量下做无溶剂复合常出现隧道效应。" }
+      { w: "tunneling", ipa: "/ˈtʌnəlɪŋ/", pos: "n.", cn: "隧道效应（复合后局部未粘合形成的通道/气泡带）", ex: "Tunneling is common with solventless lamination at low coating weight.", exCn: "低上胶量下做无溶剂复合常出现隧道效应。" },
+      { w: "run a peel test", ipa: "/rʌn ə piːl test/", pos: "v.", cn: "做剥离测试", ex: "We run a peel test on every batch before release.", exCn: "每批放行前我们都会做剥离测试。" }
     ],
     phrases: [
       { p: "run within the heat seal window", cn: "在热封窗口内运行", ex: "Make sure the machine runs within the heat seal temperature window.", exCn: "请确保机器在热封温度窗口内运行。" },
       { p: "maintain proper tension", cn: "保持适当张力", ex: "Maintain proper tension to prevent wrinkle and tunneling.", exCn: "保持适当张力以防皱褶与隧道效应。" },
       { p: "verify the barrier performance", cn: "验证阻隔性能", ex: "We verify the barrier performance on each batch.", exCn: "我们对每批都验证阻隔性能。" },
-      { p: "tune the mixing ratio", cn: "调节配比", ex: "Please tune the mixing ratio according to the ambient humidity.", exCn: "请根据环境湿度调节配比。" }
+      { p: "adjust the mix ratio", cn: "调整配比", ex: "Please adjust the mix ratio to suit the ambient humidity.", exCn: "请根据环境湿度调整配比。" }
     ],
     dialogues: [
       {
@@ -93,7 +94,7 @@
       { w: "acknowledge", ipa: "/əkˈnɑːlɪdʒ/", pos: "v.", cn: "确认收悉（客诉）", ex: "We acknowledge the complaint within 24 hours.", exCn: "我们在 24 小时内确认收到投诉。" },
       { w: "investigation", ipa: "/ɪnˌvestɪˈɡeɪʃn/", pos: "n.", cn: "调查", ex: "The investigation covers the batch record and the film structure.", exCn: "调查涵盖批次记录与膜结构。" },
       { w: "root cause", ipa: "/ruːt kɔːz/", pos: "n.", cn: "根因", ex: "We identified the root cause as a contaminated mixing line.", exCn: "我们确定根因是混胶线被污染。" },
-      { w: "corrective action", ipa: "/kəˈrektɪv ˈækʃn/", pos: "n.", cn: "纠正措施", ex: "The corrective action fixes the defect already found.", exCn: "纠正措施用于消除已发现的不合格。" },
+      { w: "corrective action", ipa: "/kəˈrektɪv ˈækʃn/", pos: "n.", cn: "纠正措施（针对**根因**、防止再发；修已发现的缺陷是 rework/containment）", ex: "The corrective action eliminates the root cause so the defect cannot recur.", exCn: "纠正措施消除根因，使该缺陷不再发生。（只把已发现的不合格修好，叫 rework；先隔离止住影响，叫 containment）" },
       { w: "preventive action", ipa: "/prɪˈventɪv ˈækʃn/", pos: "n.", cn: "预防措施（防止复发）", ex: "A preventive action stops the same defect from recurring.", exCn: "预防措施防止同类不合格再次出现。" },
       { w: "nonconformance", ipa: "/ˌnɑːnkənˈfɔːrməns/", pos: "n.", cn: "不合格（不符合）", ex: "Any nonconformance is recorded and quarantined.", exCn: "任何不合格都要记录并隔离。" },
       { w: "deviation", ipa: "/ˌdiːviˈeɪʃn/", pos: "n.", cn: "偏差（与规范的偏离）", ex: "A small deviation in coating weight was noted.", exCn: "记录到上胶量的轻微偏差。" },
@@ -110,7 +111,10 @@
       { w: "goodwill", ipa: "/ˌɡʊdˈwɪl/", pos: "n.", cn: "善意（售后补偿、维持关系）", ex: "We offered a goodwill discount to keep the partnership.", exCn: "我们拿出善意折扣以维护合作关系。" },
       { w: "credit note", ipa: "/ˈkredɪt noʊt/", pos: "n.", cn: "贷记单（退款/抵扣）", ex: "A credit note will be issued for the returned goods.", exCn: "对退回货物会出具贷记单。" },
       { w: "replacement", ipa: "/rɪˈpleɪsmənt/", pos: "n.", cn: "换货；替代品", ex: "The replacement lot ships this week.", exCn: "换货批次本周发出。" },
-      { w: "compensation", ipa: "/ˌkɑːmpənˈseɪʃn/", pos: "n.", cn: "赔偿", ex: "We agreed on compensation for the freight cost.", exCn: "我们就运费损失达成赔偿。" }
+      { w: "compensation", ipa: "/ˌkɑːmpənˈseɪʃn/", pos: "n.", cn: "赔偿", ex: "We agreed on compensation for the freight cost.", exCn: "我们就运费损失达成赔偿。" },
+      { w: "issue a credit note", ipa: "/ˈɪʃuː ə ˈkredɪt noʊt/", pos: "v.", cn: "开贷项通知单", ex: "We will issue a credit note for the short shipment.", exCn: "短装部分我们会开具贷项通知单。" },
+      { w: "recall the batch", ipa: "/rɪˈkɔːl ðə bætʃ/", pos: "v.", cn: "召回批次", ex: "We had to recall the batch after the migration test failed.", exCn: "迁移测试不合格后，我们不得不召回该批次。" },
+      { w: "eliminate the root cause", ipa: "/ɪˈlɪmɪneɪt ðə ruːt kɔːz/", pos: "v.", cn: "消除根本原因", ex: "The corrective action must eliminate the root cause.", exCn: "纠正措施必须消除根本原因。" }
     ],
     phrases: [
       { p: "as a gesture of goodwill", cn: "作为善意表示", ex: "We offer this discount as a gesture of goodwill.", exCn: "我们以此折扣作为善意表示。" },

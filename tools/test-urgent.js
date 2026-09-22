@@ -160,7 +160,7 @@ const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
 const todayjs = fs.readFileSync(path.join(ROOT, "js", "today.js"), "utf8");
 
-check("index.html 已引入 js/urgent.js", /<script src="js\/urgent\.js"><\/script>/.test(htmlSrc));
+check("index.html 已引入 js/urgent.js", /<script\s+src="js\/urgent\.js"[^>]*><\/script>/.test(htmlSrc));
 check("urgent.js 在 app.js 之前加载", htmlSrc.indexOf("js/urgent.js") < htmlSrc.indexOf("js/app.js"));
 check("sw.js 预缓存含 ./js/urgent.js", /"\.\/js\/urgent\.js"/.test(sw));
 check("app.js 启动校验注册了 Urgent", /_need\("场景急救 urgent\.js", !!window\.Urgent\)/.test(appjs));

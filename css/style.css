@@ -34,16 +34,19 @@
   --bg:#f4f7fb;
   --card:#ffffff;
   --ink:#1e293b;
-  --muted:#64748b;
+  /* P2-5 对比度（WCAG 2.1 AA，正文 ≥4.5:1）：以下四个状态/中性色原先不达标——
+     实测 --ok 2.54:1、--accent 2.15:1、--bad 3.76:1、--muted 4.43:1。现取值：
+     muted 5.07 / ok 5.10 / bad 6.10 / accent 4.67（对页面底 #f4f7fb），全部 ≥4.5:1。 */
+  --muted:#5b6b7f;
   --line:#e2e8f0;
   --primary:#2563eb;
   --primary-2:#1e40af;
   --primary-soft:#eff6ff;
-  --accent:#f59e0b;
+  --accent:#b45309;
   --accent-soft:#fffbeb;
-  --ok:#10b981;
+  --ok:#047857;
   --ok-soft:#ecfdf5;
-  --bad:#ef4444;
+  --bad:#b91c1c;
   --bad-soft:#fef2f2;
   --radius:14px;
   --radius-sm:9px;
@@ -799,11 +802,18 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 }
 @media (max-width:720px){
   .header-inner{flex-wrap:wrap}
-  .main-nav{order:3;width:100%;flex-direction:column;align-items:stretch;gap:2px;padding-bottom:2px}
-  .nav-home-link{display:block}
+  /* P2-3：窄屏导航**默认收起**，由 ☰ 展开。此前这里没有 display 规则、也没有 .show，
+     而 #navToggle 在 HTML 里带 hidden 且无人摘除 —— 于是手机上 9 个一级项竖直常驻，
+     约吃掉 375×667 首屏的 45%。 */
+  .main-nav{display:none;order:3;width:100%;flex-direction:column;align-items:stretch;gap:2px;padding:6px 0 2px;border-top:1px solid var(--line)}
+  .main-nav.show{display:flex}
+  /* 触控目标 ≥44px（WCAG 2.5.5 建议值；此前一级项实测约 31px） */
+  .main-nav a,.nav-group summary{min-height:44px;display:flex;align-items:center;padding:10px 12px}
+  .nav-home-link{display:flex}
   .nav-group{width:100%}
   .nav-group summary{width:100%;justify-content:space-between}
   .nav-sub{position:static;min-width:0;width:100%;box-shadow:none;border:none;margin-left:8px}
+  .nav-sub a{min-height:44px}
   .searchbox input{width:140px}
   .grid-2,.grid-3{grid-template-columns:1fr}
   .hero{padding:32px 22px}
@@ -1174,6 +1184,15 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 /* ================= 暗色模式（跟随系统偏好）=================
    通过覆盖设计令牌实现：中性表面 / 卡片 / 文字自动翻转；
    彩色状态块（成功/警告/错误/主色 soft）保持其强调色，保证可读性。 */
+/* P2-6：手机横向溢出。单证明细行是 11 列网格、`.dg-doc table.sop-table` 继承了
+   `min-width:640px` 的重置（其它表格有 .sop-table-wrap 兜底，单证生成器这两处没有），
+   375px 宽度下会把整页撑出横向滚动条。给它们各自的滚动容器，压扁由滚动解决。 */
+@media (max-width:720px){
+  .dg-lines{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dg-lines>*{min-width:720px}
+  .dg-doc table.sop-table{display:block;overflow-x:auto;min-width:0;max-width:100%}
+}
+
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#0f172a;
@@ -1188,6 +1207,18 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
     --glass:rgba(15,23,42,.92);
     --shadow:0 1px 3px rgba(0,0,0,.5), 0 10px 28px -14px rgba(0,0,0,.6);
     --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    /* P2-5：状态色与主色在暗色下必须换成**更亮的前景色**。
+       此前只有中性色被覆盖，--primary-2 仍是深蓝 #1e40af —— 在暗底上仅 1.68:1（47 处使用）；
+       四个 *-soft 也仍是浅色底，配浅色文字基本读不出来。现取值（对暗卡 #1e293b）：
+       primary-2 8.11 / ok 7.61 / bad 5.29 / accent 8.76，soft 底配对应前景 6.1–9.5。 */
+    --primary-2:#93c5fd;
+    --primary-soft:#16233b;
+    --ok:#34d399;
+    --ok-soft:#0f2a20;
+    --bad:#f87171;
+    --bad-soft:#2c1618;
+    --accent:#fbbf24;
+    --accent-soft:#2a2113;
   }
   /* 状态强调色在暗色下用更亮的内文，保证对比 */
   .stat-card .lbl,.section-title .sub,.field label{color:var(--muted)}
@@ -1276,6 +1307,16 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .sub-mask{color:var(--muted);font-size:13.5px;letter-spacing:1px}
 .sub-reveal-en{margin-top:4px}
 .sub-reveal{white-space:nowrap}
+/* P8 原声波形：宽幅铺满，高度固定；浅色底便于看清灰色高亮带 */
+.sub-wave{display:block;width:100%;height:46px;margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+/* P8 逐句笔记：常驻小按钮（有笔记时高亮）+ 按需展开的编辑器 */
+.sub-note-btn{cursor:pointer;border:1px solid transparent;background:transparent;color:inherit;border-radius:6px;padding:0 5px;margin-left:6px;font-size:13px;line-height:1.5;opacity:.5;vertical-align:middle}
+.sub-note-btn:hover{border-color:var(--primary);background:var(--primary-soft);opacity:1}
+.sub-note-btn:focus-visible{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.2);opacity:1}
+.sub-note-btn.has{opacity:1;border-color:var(--line);background:var(--surface-2)}
+.sub-note-input{display:block;width:100%;box-sizing:border-box;margin-top:8px;font:inherit;font-size:13.5px;line-height:1.7;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical}
+.sub-note-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.sub-note-acts{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 @media (prefers-reduced-motion: reduce){ .sub-row{transition:none} .sub-mode{transition:none} }
 
 /* ================= 🎙 深度口语操练（tutor.js drill）================= */

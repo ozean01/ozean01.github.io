@@ -93,7 +93,110 @@ try {
   fail++;
   log.push("FAIL 抛错: " + (e && e.message));
 }
-document.getElementById("result").textContent = "pass=" + pass + " fail=" + fail + "\n" + log.join("\n");
+
+/* ============ P8 冒烟：🔂 A-B 复读 / 🌊 原声波形（含诚实降级）/ 📝 逐句笔记 ============ */
+var speakCalls = 0;
+window.Player.speak = function () { speakCalls++; return { stop: function () {} }; };
+window.Player.stop = function () {};
+function flush() {
+  document.getElementById("result").textContent = "pass=" + pass + " fail=" + fail + "\n" + log.join("\n");
+}
+flush();
+
+(async function () {
+  try {
+    var S = window.Subtitle, T = S._t;
+    S.state.cues = T.parseSubtitle("1\n00:00:01,000 --> 00:00:03,500\nHello there, welcome to our booth.\n你好，欢迎来到我们的展位。\n", "srt");
+    S.state.current = 0; S.state.mode = "en"; S.state.revealed = {};
+    S.state.mediaUrl = null; S.state.notes = {}; S.state.noteOpen = -1; S.state.ab = null;
+    try { localStorage.removeItem("fte-sub-notes-v1"); } catch (e) {}
+    S.render();
+    var app = document.getElementById("app");
+
+    /* ---- 🔂 A-B 复读 ---- */
+    check("渲染出 A-B 复读按钮", !!app.querySelector('[data-pl="ab"]'));
+    check("渲染出慢速复读按钮", !!app.querySelector('[data-pl="ab-slow"]'));
+    speakCalls = 0;
+    app.querySelector('[data-pl="ab"]').click();
+    check("点 A-B 进入复读态，窗口=当前句（1.00–3.50）",
+      !!S.state.ab && Math.abs(S.state.ab.a - 1) < 0.001 && Math.abs(S.state.ab.b - 3.5) < 0.001,
+      JSON.stringify(S.state.ab));
+    check("A-B 按钮高亮", app.querySelector('[data-pl="ab"]').className.indexOf("cur") !== -1);
+    check("无媒资时 A-B 退化为重复朗读（speak 被调用）", speakCalls > 0, "speak=" + speakCalls);
+    check("A-B 与自动连播互斥（开 A-B 会关 auto）", S.state.auto === false);
+    app.querySelector('[data-pl="ab"]').click();
+    check("再点一次关闭 A-B", !S.state.ab);
+    check("关闭后按钮取消高亮", app.querySelector('[data-pl="ab"]').className.indexOf("cur") === -1);
+    app.querySelector('[data-pl="ab-slow"]').click();
+    check("慢速 A-B：状态带 slow 且高亮落在正确的按钮上",
+      !!S.state.ab && S.state.ab.slow === true &&
+      app.querySelector('[data-pl="ab-slow"]').className.indexOf("cur") !== -1);
+    app.querySelector('[data-pl="ab-slow"]').click();
+    check("慢速 A-B 可关闭", !S.state.ab);
+
+    /* ---- 📝 逐句笔记：最高风险分支（点笔记控件不得触发行播放） ---- */
+    speakCalls = 0;
+    var noteBtn = app.querySelector('[data-note="0"]');
+    check("渲染出逐句笔记按钮", !!noteBtn);
+    noteBtn.click();
+    check("点 📝 只打开编辑器，不触发行播放", speakCalls === 0, "speak=" + speakCalls);
+    check("编辑器出现", !!app.querySelector('[data-note-input="0"]'));
+    check("编辑器带字数上限", app.querySelector('[data-note-input="0"]').getAttribute("maxlength") === String(T.NOTE_MAX));
+
+    app.querySelector('[data-note-input="0"]').click();
+    check("点输入框不播放这一句", speakCalls === 0, "speak=" + speakCalls);
+
+    var kev = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    app.querySelector('[data-note-input="0"]').dispatchEvent(kev);
+    check("输入框里按空格不被行播放的 keydown 拦掉（defaultPrevented=false）", kev.defaultPrevented === false);
+    check("输入框里按空格不触发播放", speakCalls === 0, "speak=" + speakCalls);
+
+    app.querySelector('[data-note-input="0"]').value = "这里 laminating 的连读没抓住";
+    app.querySelector('[data-note-save="0"]').click();
+    check("点「保存」不触发行播放", speakCalls === 0, "speak=" + speakCalls);
+    check("笔记已进 state（键=文件名@起始秒）",
+      T.noteOf(S.state.notes, S.state.fileName, S.state.cues[0]) === "这里 laminating 的连读没抓住",
+      T.cueKeyOf(S.state.fileName, S.state.cues[0]));
+    check("笔记已落 localStorage（随导出备份换设备）",
+      (localStorage.getItem("fte-sub-notes-v1") || "").indexOf("连读") !== -1);
+    check("有笔记的行按钮打上 has 标记", app.querySelector('[data-note="0"]').className.indexOf("has") !== -1);
+
+    app.querySelector('[data-note="0"]').click();
+    app.querySelector('[data-note-del="0"]').click();
+    check("删除后笔记从 state 移除", T.noteOf(S.state.notes, S.state.fileName, S.state.cues[0]) === "");
+    check("删除后 localStorage 同步", (localStorage.getItem("fte-sub-notes-v1") || "").indexOf("连读") === -1);
+
+    /* ---- 🌊 原声波形：无媒资隐藏 / 诚实降级 / 只传时间区间 ---- */
+    S.state.mediaUrl = null; S.render();
+    check("无媒资时整张波形卡隐藏（不占位、不误导）",
+      document.getElementById("diMediaBox").hasAttribute("hidden"));
+    check("原声波形画布已渲染（canvas + 无障碍语义）",
+      !!document.getElementById("diWave") && document.getElementById("diWave").getAttribute("role") === "img");
+
+    window.Player.waveform = function () { return Promise.resolve(false); };
+    S.state.mediaUrl = "blob:fake";
+    S.render();
+    await new Promise(function (r) { setTimeout(r, 0); });
+    check("载入媒资后波形卡显示出来", !document.getElementById("diMediaBox").hasAttribute("hidden"));
+    check("解不出音轨时给诚实说明，不静默",
+      document.getElementById("diWaveNote").textContent.indexOf("已跳过绘制") !== -1,
+      document.getElementById("diWaveNote").textContent);
+
+    var segGiven = null, urlGiven = null;
+    window.Player.waveform = function (url, canvas, opts) { urlGiven = url; segGiven = opts && opts.seg; return Promise.resolve(true); };
+    S.render();
+    await new Promise(function (r) { setTimeout(r, 0); });
+    check("画原声走的是媒资 URL", urlGiven === "blob:fake", String(urlGiven));
+    check("传给 Player 的是时间区间（像素映射只在 Player 侧）",
+      !!segGiven && segGiven.start === S.state.cues[S.state.current].start && segGiven.end === S.state.cues[S.state.current].end,
+      JSON.stringify(segGiven));
+    check("画出后提示指向当前句", document.getElementById("diWaveNote").textContent.indexOf("灰色高亮") !== -1);
+  } catch (e) {
+    fail++;
+    log.push("FAIL P8 抛错: " + (e && e.message));
+  }
+  flush();
+})();
 </script>
 </body>
 </html>

@@ -8,7 +8,14 @@
   "use strict";
 
   const E = function () { return window.TutorEnv || {}; };
-  const esc = function (s) { return String(s == null ? "" : s); };
+  /* P0-1（安全）：此处原为恒等函数（只做 String 转换），但 :121 直接用它渲染
+     用户自己填进输入框的 state.typed——输入标签即被 innerHTML 执行。现改为真转义，
+     口径与 app.js 的 esc 一致（& < > "）。 */
+  const esc = function (s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  };
   const toast = function (m) { if (E().toast) E().toast(m); };
 
   /* 原先这里自己抄了一份 norm / wordSimilar（因为 patterns.js 加载早于 app.js）。
@@ -85,7 +92,7 @@
     const chips = TAGS.map(function (t) {
       return '<button class="pt-tag ' + (state.tag === t.id ? "on" : "") + '" data-action="pt-tag" data-id="' + t.id + '">' + t.label + '</button>';
     }).join("");
-    const unitOpts = '<option value="all">全部单元</option>' + (window.FTE_DATA ? window.FTE_DATA.units.map(function (u) { return '<option value="' + u.id + '">' + u.id + '. ' + esc(u.title) + '</option>'; }).join("") : "");
+    const unitOpts = '<option value="all">全部单元</option>' + (typeof FTE_DATA !== "undefined" && FTE_DATA ? FTE_DATA.units.map(function (u) { return '<option value="' + u.id + '">' + u.id + '. ' + esc(u.title) + '</option>'; }).join("") : "");
     return '<div class="field"><label>按功能分类</label><div class="scen-grid" style="gap:8px">' + chips + '</div></div>' +
       '<div class="field" style="margin-top:10px"><label>按课程单元</label><select id="ptUnit" data-action="pt-unit">' + unitOpts + '</select></div>';
   }

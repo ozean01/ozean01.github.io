@@ -106,7 +106,7 @@ const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
 const style = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
 
-check("index.html 已引入 js/mysay.js", /<script src="js\/mysay\.js"><\/script>/.test(html));
+check("index.html 已引入 js/mysay.js", /<script\s+src="js\/mysay\.js"[^>]*><\/script>/.test(html));
 check("mysay.js 在 app.js 之前加载", html.indexOf("js/mysay.js") < html.indexOf("js/app.js"));
 check("index.html 导航含 #/mysay 入口", /href="#\/mysay"/.test(html));
 check("app.js 路由表含 mysay", /"material",\s*"mysay"/.test(appjs));

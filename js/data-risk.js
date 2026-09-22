@@ -51,7 +51,8 @@
       { w: "phthalate", ipa: "/ˈθæleɪt/", pos: "n.", cn: "邻苯二甲酸酯（增塑剂）", ex: "We use non-phthalate plasticizers to keep the film suitable for food contact.", exCn: "我们使用不含邻苯二甲酸酯的增塑剂，使薄膜适合食品接触。" },
       { w: "certificate of analysis", ipa: "/səˌtɪfɪkət əv əˈnæləsɪs/", pos: "n.", cn: "分析证书（CoA，批次检验报告）", ex: "Each batch of adhesive is shipped with a certificate of analysis covering solid content and viscosity.", exCn: "每批复合胶都随附覆盖固含量与粘度的分析证书。" },
       { w: "material safety data sheet", ipa: "/məˌtɪəriəl ˈseɪfti ˈdeɪtə ʃiːt/", pos: "n.", cn: "材料安全数据表（MSDS）", ex: "Please send the MSDS for the solvent-based adhesive before we arrange carriage.", exCn: "请在安排运输前寄送溶剂型复合胶的材料安全数据表。" },
-      { w: "test report", ipa: "/test rɪˈpɔːrt/", pos: "n.", cn: "检测报告", ex: "We can provide the third-party test report for migration and tensile strength if needed.", exCn: "如有需要，我们可提供第三方关于迁移与拉伸强度的检测报告。" }
+      { w: "test report", ipa: "/test rɪˈpɔːrt/", pos: "n.", cn: "检测报告", ex: "We can provide the third-party test report for migration and tensile strength if needed.", exCn: "如有需要，我们可提供第三方关于迁移与拉伸强度的检测报告。" },
+      { w: "invoke force majeure", ipa: "/ɪnˈvoʊk ˌfɔːrs mæˈʒɜːr/", pos: "v.", cn: "援引不可抗力", ex: "We had to invoke force majeure after the typhoon.", exCn: "台风之后我们不得不援引不可抗力条款。" }
     ],
     phrases: [
       { p: "be governed by the laws of", cn: "适用于……法律", ex: "This contract is governed by the laws of China.", exCn: "本合同适用中国法律。" },

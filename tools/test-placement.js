@@ -103,6 +103,34 @@ check("★ 基线条目逐字保留（首版锁：不用修订版覆盖首版）
   JSON.stringify(reloaded.history[0]) === JSON.stringify(baseEntry));
 check("baselineAt 不会被后续复测改动", reloaded.baselineAt === TODAY, reloaded.baselineAt);
 
+/* ---------------- ②b P1-5：复测可比性（题库指纹） ----------------
+   背景：以前每次自测都重新随机抽题，只记 score/total。换一批题，1 道题的波动就能把推荐起点
+   从 U8 推到 U13——用户看到的「进步」其实是抽样噪声。现在记录题库指纹，只有同一套题才判定可比。
+   注意：recordQuiz 同一天会覆盖当天那条，所以「两次」必须靠改日期造（与上面的复测造法一致）。 */
+reset();
+const BANK_A = "a|b|c|d|e|f", BANK_B = "x|y|z|u|v|w";
+const DIFFS = [1, 1, 2, 2, 3, 3];
+P.recordQuiz(4, 6, 5, { bankId: BANK_A, diffs: DIFFS });
+let r5 = P.load();
+check("P1-5：诊断记录带上题库指纹与每题难度档",
+  r5.history.slice(-1)[0].bankId === BANK_A && JSON.stringify(r5.history.slice(-1)[0].diffs) === JSON.stringify(DIFFS));
+check("P1-5：只有一次记录时不判定可比（不拿单次成绩当进步）",
+  P.scoreComparable(r5).comparable === false);
+r5.history.push(Object.assign({}, r5.history[0], { at: "2026-12-01", kind: "retest", score: 6 }));
+P.save(r5);
+check("P1-5：同一套题的两次自测 → 判定可比", P.scoreComparable(P.load()).comparable === true);
+const r6 = P.load();
+r6.history.push(Object.assign({}, r6.history[r6.history.length - 1], { at: "2026-12-08", bankId: BANK_B, score: 5 }));
+P.save(r6);
+check("P1-5：换了题库 → 判定不可比（不得照样画箭头）", P.scoreComparable(P.load()).comparable === false);
+reset();
+P.recordQuiz(4, 6, 5);
+const r7 = P.load();
+r7.history.push(Object.assign({}, r7.history[0], { at: "2026-12-01", kind: "retest", score: 6 }));
+P.save(r7);
+check("P1-5：没有题库指纹的旧记录 → 不判定可比（保守）", P.scoreComparable(P.load()).comparable === false);
+P.save(reloaded);   /* 还原上面那段的状态（后面还有针对它的断言） */
+
 /* ---------------- ③ 分项定级与逐项比较（不取平均） ---------------- */
 P.setSkill("speak", "A2");
 P.setSkill("write", "B1");
@@ -200,7 +228,7 @@ check("有第二条记录时渲染「与上次相比」", P.cardHtml().indexOf("
 
 /* ---------------- ⑥ 接线：漏一处就会静默坏掉 ---------------- */
 const htmlSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-check("index.html 引入 js/placement.js", /<script src="js\/placement\.js"><\/script>/.test(htmlSrc));
+check("index.html 引入 js/placement.js", /<script\s+src="js\/placement\.js"[^>]*><\/script>/.test(htmlSrc));
 check("placement.js 在 app.js 之前加载", htmlSrc.indexOf("js/placement.js") < htmlSrc.indexOf("js/app.js"));
 
 const swSrc = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
@@ -208,7 +236,14 @@ check("sw.js 预缓存 js/placement.js（否则离线打开即坏）", swSrc.ind
 check("sw.js CACHE 版本号已 +1（否则老用户拿不到新文件）", /const CACHE = "fte-v(\d+)"/.test(swSrc));
 
 const appSrc = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
-check("app.js 在自测结束时写入诊断记录", /P\.recordQuiz\(score, PLACE_N, rec\.unitId\)/.test(appSrc));
+check("app.js 在自测结束时写入诊断记录（P1-5 起额外带题库指纹 meta）",
+  /P\.recordQuiz\(score, PLACE_N, rec\.unitId,\s*\{/.test(appSrc));
+check("P1-5：诊断记录带上题库指纹与每题难度档",
+  /bankId:\s*placementBankId\(plItems\)/.test(appSrc) && /diffs:\s*plItems\.map/.test(appSrc));
+check("P1-5：同一用户复测复用同一套题（题库落盘）",
+  /PLACE_BANK_KEY/.test(appSrc) && /loadPlacementBank\(\)/.test(appSrc) && /savePlacementBank\(items\)/.test(appSrc));
+check("P1-6：placement.js 提供两次得分可比性判定",
+  /scoreComparable/.test(fs.readFileSync(path.join(ROOT, "js", "placement.js"), "utf8")));
 check("app.js 渲染诊断卡容器（#plCard）", /<div id="plCard">/.test(appSrc));
 check("app.js 仍保留原有 fte-placement 语义（老数据不失效）",
   /localStorage\.setItem\("fte-placement"/.test(appSrc));

@@ -31,8 +31,8 @@
       id: "inquiry",
       icon: "💬",
       title: "客户询盘回复",
-      ref: "Thank you for your inquiry. Since the order quantity is below our MOQ of 10,000 pieces, we can still produce a trial batch for you at a slightly higher unit price.",
-      refCn: "感谢您的询盘。由于订单数量低于我们 10,000 个的起订量，我们仍可为您生产一个小批量试单，单价会略高一些。",
+      ref: "Thank you for your inquiry. Although the order quantity is below our MOQ of 10,000 pieces, we can still produce a trial batch for you at a slightly higher unit price.",
+      refCn: "感谢您的询盘。虽然订单数量低于我们 10,000 个的起订量，我们仍可为您生产一个小批量试单，单价会略高一些。",
       follow: "A buyer asks: \"Your price is 8% higher than your competitor. Can you give me a discount if I double the quantity?\"",
       followCn: "买家追问：你的价格比竞争对手高 8%。如果我数量翻倍，你能给我折扣吗？",
       terms: ["inquiry", "MOQ", "trial batch", "unit price"]
@@ -41,8 +41,8 @@
       id: "qc-claim",
       icon: "🛡️",
       title: "质量异议处理",
-      ref: "I sincerely apologize for the quality issue. We will arrange a free replacement for the defective rolls and issue a credit note once we confirm the batch number.",
-      refCn: "对质量问题我们深表歉意。确认批次号后，我们将为您免费更换有缺陷的卷膜，并开具退款单。",
+      ref: "I sincerely apologize for the quality issue. We will verify the peel strength on the retained sample, then arrange a free replacement and issue a credit note once we confirm the batch number.",
+      refCn: "对质量问题我们深表歉意。我们会复测留样的剥离强度，确认批次号后为您免费更换并开具退款单。",
       follow: "A buyer complains: \"The peel strength on your laminated film is much lower than the spec. I already shipped it to my customer. What are you going to do?\"",
       followCn: "买家投诉：你们复合膜的剥离强度远低于规格。我已经发货给客户了。你们打算怎么办？",
       terms: ["apologize", "replacement", "credit note", "batch number", "peel strength"]
@@ -51,7 +51,7 @@
       id: "lead-time",
       icon: "🚢",
       title: "交期与物流",
-      ref: "The lead time for this order is 25 days after deposit. For urgent orders we can offer air freight at your cost to make the delivery date.",
+      ref: "The lead time for this order is 25 days after deposit. For urgent orders we can offer air freight at your cost to meet the delivery date.",
       refCn: "此订单交期为收到定金后 25 天。若急需，我们可安排空运（费用由您承担）以确保到货日期。",
       follow: "A buyer asks: \"If I confirm today, can you guarantee delivery by the 20th? My customer will cancel if it's late.\"",
       followCn: "买家问：如果我今天确认，你能保证 20 号前到货吗？如果晚了我的客户会取消订单。",
@@ -71,8 +71,8 @@
       id: "compliance-claim",
       icon: "⚖️",
       title: "合规与索赔",
-      ref: "The adhesive is food-contact compliant under EU Regulation 1935/2004, and we can provide the declaration of conformity, the migration test report and the certificate of analysis for this batch.",
-      refCn: "该复合胶符合欧盟 1935/2004 食品接触法规，我们可为该批次提供符合性声明、迁移检测报告和分析证书。",
+      ref: "The migration test report and the declaration of conformity are attached, and the certificate of analysis confirms the adhesive is food-contact compliant under EU Regulation 1935/2004. We do not see a breach of contract here, because the specification was agreed and signed before production.",
+      refCn: "随附迁移检测报告与符合性声明；分析证书确认该复合胶符合欧盟 1935/2004 食品接触法规。我们看不出这里有违约，因为规格是生产前双方确认并签署的。",
       follow: "A buyer asks: \"The inspector found the total migration is above the food-contact limit, and there is a breach-of-contract clause. What are you going to do?\"",
       followCn: "买家追问：验货发现总迁移量超过食品接触限量，而且合同里有违约条款。你们打算怎么办？",
       terms: ["food contact", "declaration of conformity", "migration test", "certificate of analysis", "breach of contract"]
@@ -173,23 +173,49 @@
   }
 
   /* ---------------- 跟读评分（发音 + 流利，ASR 判） ---------------- */
-  /* 参考句里抽「术语词」：由场景 terms 提供；计算术语词在转写中的命中率 */
-  function termScore(refText, matched, terms) {
+  /* 把场景术语归一化成**可判定的术语单元**（P1-2）。旧实现有三个致命口径问题：
+       ① `terms.indexOf(w)` 拿归一化后的词去比未归一化的术语 → `MOQ`／`Food Contact` 永不命中；
+       ② 只按单个词匹配 → 多词术语（trial batch / peel strength / declaration of conformity）
+          全部沉默，等于 40% 权重里那些术语从未被计分；
+       ③ `near` 记满分 → 把「猜个大概」当成读对。
+     现在：先 norm，再把多词术语当作**连续词序列**在参考句中定位；只对参考句里真实出现的术语计分。 */
+  function termUnits(refText, terms) {
     const refWords = U().norm(refText).split(" ").filter(Boolean);
-    if (!refWords.length) return 50;
-    let ok = 0, total = 0;
-    matched.forEach(function (m, i) {
-      const w = refWords[i];
-      total++;
-      if (terms.indexOf(w) !== -1) { if (m.ok) ok++; }
+    const out = [];
+    (terms || []).forEach(function (t) {
+      const tw = U().norm(t).split(" ").filter(Boolean);
+      if (!tw.length) return;
+      for (let i = 0; i + tw.length <= refWords.length; i++) {
+        let hit = true;
+        for (let j = 0; j < tw.length; j++) if (refWords[i + j] !== tw[j]) { hit = false; break; }
+        if (hit) { out.push({ raw: t, words: tw, start: i }); return; }
+      }
     });
-    /* 无术语词命中时降级：用整句单词命中近似 */
-    if (terms.length && total) {
-      const hitTerms = matched.filter(function (m) { return terms.indexOf(m.w) !== -1; });
-      const termTotal = hitTerms.length;
-      if (termTotal) return Math.round(hitTerms.filter(function (m) { return m.ok || m.near; }).length / termTotal * 100);
-    }
-    return Math.round(ok / Math.max(1, total) * 100);
+    return out;
+  }
+  /* 参考句里属于术语的归一化词集合（供逐词着色与术语护航提示共用同一口径） */
+  function termWordSet(refText, terms) {
+    const set = {};
+    termUnits(refText, terms).forEach(function (u) {
+      for (let j = 0; j < u.words.length; j++) set[u.words[j]] = true;
+    });
+    return set;
+  }
+  /* 术语发音分：精确 1 分、近似 0.5 分、漏读 0 分（与 js/score.js 的全站口径一致）。
+     **返回 null 表示「本句不适用」**——参考句里没有行业术语时不该给 0 分，
+     0 分会被用户读成「我术语全错」，也会把 40% 的权重压在一个不存在的维度上。 */
+  function termScore(refText, matched, terms) {
+    const units = termUnits(refText, terms);
+    if (!units.length) return null;
+    let sum = 0;
+    units.forEach(function (u) {
+      const parts = [];
+      for (let j = 0; j < u.words.length; j++) parts.push(matched[u.start + j]);
+      if (parts.some(function (p) { return !p; })) return;            /* 对齐异常：不计分也不猜 */
+      if (parts.some(function (p) { return p.errType === "miss"; })) return;
+      sum += parts.some(function (p) { return p.errType === "near"; }) ? 0.5 : 1;
+    });
+    return Math.round(sum / units.length * 100);
   }
 
   function fluencyScore(ev) {
@@ -357,13 +383,12 @@
      找不到音标的词也会高亮提示（说明这句要重点读它）。 */
   function phoneticHint(scene, ref) {
     const terms = scene.terms || [];
-    const words = String(ref).replace(/[.,;:!?]/g, "").split(/\s+/).filter(Boolean);
-    const seen = {};
+    /* P1-2 同口径：只列**参考句里真实出现**的术语（多词术语按连续序列判定），
+       否则会把本句根本没有的术语也画成「重点词」，用户照着找却找不到。 */
+    const applicable = termUnits(String(ref), terms);
     const chips = [];
-    terms.forEach(function (t) {
-      const key = t.toLowerCase();
-      if (seen[key]) return;
-      seen[key] = true;
+    applicable.forEach(function (u) {
+      const t = u.raw;
       const hit = U().lookupWord ? U().lookupWord(t) : null;
       const ipa = (hit && hit.ipa) ? " " + hit.ipa : "";
       chips.push('<span class="ph-word' + (ipa ? "" : " ph-nomatch") + '"><b>' + esc(t) + "</b>" + (ipa ? "<i>" + esc(ipa) + "</i>" : '<i class="ph-note">重点词</i>') + "</span>");
@@ -405,21 +430,23 @@
   /* 术语护航：ASR 对长难行业术语（laminating / polyurethane 等）易误判为「近似/漏读」，
      此时发音分可能失真。若有术语词被判非 ok，给一句「仅参考 + 建议音素级/人工核对」的提示。 */
   function termGuardHtml(ev, scene) {
-    const terms = scene.terms || [];
-    if (!terms.length) return "";
-    const termMiss = ev.matched.filter(function (m) { return terms.indexOf(m.w) !== -1 && m.errType !== "ok"; });
+    const set = termWordSet(scene.ref, scene.terms);
+    const termMiss = ev.matched.filter(function (m) { return set[m.w] && m.errType !== "ok"; });
     if (!termMiss.length) return "";
     return '<div class="eval-check" style="margin-top:6px">⚠️ <b>' + termMiss.length + '</b> 个行业术语被判为「近似/漏读」。ASR 对长难术语（laminating / polyurethane 等）易误判，本发音分仅供练习参考——建议改用右上角「🔎 Azure 音素级评测」或对照音标人工核对。</div>';
   }
 
   function refEvalHtml(ev, scene) {
-    const cls = ev.term >= 80 ? "sc" : ev.term >= 50 ? "sm" : "sb";
+    /* P1-2：术语分为 null 表示「本句没有行业术语」——此时不能显示 0%，也不能假装有分 */
+    const noTerm = (ev.term === null || ev.term === undefined);
+    const cls = noTerm ? "sc" : ev.term >= 80 ? "sc" : ev.term >= 50 ? "sm" : "sb";
     const cls2 = ev.fluency >= 80 ? "sc" : ev.fluency >= 50 ? "sm" : "sb";
+    const termSet = termWordSet(scene.ref, scene.terms);
     const azNote = hasAzurePA()
       ? "要更权威的发音分，请用上方「🔎 Azure 音素级评测」（逐词逐音素）。"
       : "要更权威的发音分，可在发音设置里配置 Azure Key 后改走「🔎 Azure 音素级评测」。";
     const targetHtml = ev.matched.map(function (m) {
-      const isTerm = scene.terms.indexOf(m.w) !== -1;
+      const isTerm = !!termSet[m.w];
       if (m.errType === "ok") return '<span class="wm ' + (isTerm ? "term" : "ok") + '">' + esc(m.w) + "</span>";
       if (m.errType === "near") {
         return '<span class="eval-pair"><span class="wm no' + (isTerm ? " term" : "") + '">' + esc(m.w) + "</span>" +
@@ -430,11 +457,12 @@
     return `
     <div class="eval-check" style="margin-top:12px;margin-bottom:4px">📌 <b>参考分</b>：此分来自<b>浏览器语音识别</b>（把你读出的词转成文本再比对），<b>识别≠发音</b>——口音、噪音或长难行业术语（laminating / polyurethane 等）都可能让它偏低或偏高，请把它当"练习参考"而非绝对标准。${azNote}</div>
     <div style="margin-top:12px;display:flex;gap:18px;flex-wrap:wrap">
-      <div class="e4-dim"><span class="e4-label">术语发音</span><span class="${cls} e4-num">${ev.term}%</span><span class="e4-weight">×40%</span></div>
+      <div class="e4-dim"><span class="e4-label">术语发音</span><span class="${cls} e4-num">${noTerm ? "不适用" : ev.term + "%"}</span><span class="e4-weight">${noTerm ? "本句无行业术语" : "×40%"}</span></div>
       <div class="e4-dim"><span class="e4-label">语调流利度</span><span class="${cls2} e4-num">${ev.fluency}%</span><span class="e4-weight">×30%</span></div>
     </div>
     <div class="eval-target" style="margin-top:10px">${targetHtml}</div>
     <div class="eval-transcript" style="margin-top:6px">识别到：${esc(ev.transcript) || "（未识别到语音）"}</div>
+    ${noTerm ? '<div class="eval-hint">ℹ️ 本句参考句里<b>没有</b>行业术语，因此「术语发音」不计分，综合分按其余维度加权。</div>' : ""}
     <div class="eval-hint">💡 ${ev.hint}</div>
     ${termGuardHtml(ev, scene)}`;
   }
@@ -522,6 +550,7 @@
     <div class="card" style="margin-top:12px;text-align:center">
       <div style="font-size:13px;color:var(--muted)">综合分（按已完成维度加权）</div>
       <div class="e4-total ${cls}">${total == null ? "—" : total + " 分"}</div>
+      ${term == null && total != null ? '<div style="font-size:12px;color:var(--muted);margin-top:2px">本句参考句无行业术语，「术语发音」不参与加权（综合分按其余维度重新归一）</div>' : ""}
       <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="e4-save" ${total == null ? "disabled" : ""}>💾 保存本次成绩（本地）</button>
     </div>`;
   }
@@ -574,7 +603,7 @@
       else if (ev.acc >= 70) hint = "不错！重点是把标红的行业术语（lamination / MOQ / peel strength 等）读准。";
       else hint = "建议先 0.7× 慢速听原声，逐词跟读；把开头的客套句与术语词分开练。";
       state.refEval = { term: term, fluency: flu, matched: ev.matched, transcript: transcript || "", hint: hint };
-      toast("🎯 跟读评测完成：术语发音 " + term + "% · 流利度 " + flu + "%");
+      toast("🎯 跟读评测完成：" + (term == null ? "本句无行业术语" : "术语发音 " + term + "%") + " · 流利度 " + flu + "%");
       if (btn) { btn.disabled = false; btn.textContent = "🎯 跟读评测（发音/流利）"; }
       render();
     }
@@ -921,12 +950,25 @@
     var dd = el && el.closest && el.closest("details.dx-menu");
     if (dd) dd.removeAttribute("open");
   }
-  /* 公共：拿到识别文本后 → phonemizer 打目标/识别音标 → 音素编辑距离 → 渲染 */
+  /* 公共：拿到识别文本后 → phonemizer 打目标/识别音标 → 音素编辑距离 → 渲染。
+     P1-1：**没有识别结果就不诊断**。此前这里是 `text || scene.ref`——识别失败时直接拿参考句
+     当作「你读的」去比对，于是任何人、任何时候都会得到「✅ 整句音素完全匹配（音素一致率 100%）」。
+     那不是诊断，是假装；一个会对用户说 100% 的分数比没有分数更糟。 */
   function finishDiagnose(out, scene, text) {
+    const said = String(text == null ? "" : text).trim();
+    if (!said) {
+      out.innerHTML =
+        '<div class="sop-warn"><b>⚠️ 没有识别到你说的话，本次不做音素诊断。</b><br>' +
+        '常见原因：麦克风没拾到声音 / 环境太吵 / 语音识别服务不可达（浏览器在线识别依赖 Google）。<br>' +
+        '请确认麦克风权限后重试；也可以先用「🎯 跟读评测」做参考比对，或改用「🔎 Azure 音素级评测」。' +
+        '<br><b>这里不会给出任何一致率</b>——没有识别结果时的一致率一定是假的。</div>';
+      toast("未识别到语音，已跳过音素诊断（不给假分数）");
+      return Promise.resolve(null);
+    }
     return Promise.all([
       ensurePhonemizer().then(function (mod) { return callPhonemize(mod, scene.ref); }),
-      ensurePhonemizer().then(function (mod) { return callPhonemize(mod, text || scene.ref); })
-    ]).then(function (ips) { renderDeepDx(out, scene, { text: text || "", refIpa: ips[0], recIpa: ips[1] }); });
+      ensurePhonemizer().then(function (mod) { return callPhonemize(mod, said); })
+    ]).then(function (ips) { renderDeepDx(out, scene, { text: said, refIpa: ips[0], recIpa: ips[1] }); });
   }
   /* 离线近似识别：优先本地 vosk（离线），否则浏览器在线识别。返回识别文本。 */
   function offlineTranscribe() {

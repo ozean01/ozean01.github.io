@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Phase 2 冒烟 · 窄屏 / 键盘 / 离线识别诚实化</title>
+<style>
+  body{font-family:system-ui,"Microsoft YaHei",sans-serif;margin:16px;line-height:1.7}
+  #log{white-space:pre-wrap;font-family:Consolas,monospace;font-size:13px;margin-top:14px}
+  iframe{border:1px solid #94a3b8;width:375px;height:667px}
+  .ok{color:#047857}.bad{color:#b91c1c}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Phase 2 冒烟</h1>
+<p>下面是一个 <b>375×667</b> 的 iframe，用真实像素触发站点的 <code>max-width:720px</code> 媒体查询。
+   它按顺序点开 ☰ 与设置弹窗，读取真实计算样式与属性，不做任何静态推断。</p>
+<iframe id="fr" src="../index.html#/today"></iframe>
+<div id="log">运行中…</div>
+<script>
+var results = [];
+function t(name, cond, info) { results.push({ name: name, ok: !!cond, info: info == null ? "" : String(info) }); }
+var fr = document.getElementById("fr");
+var W, D;
+function whenReady(cb) {
+  var w = fr.contentWindow, d = fr.contentDocument;
+  if (w && d && w.FTE_BOOTED) return cb(w, d);
+  setTimeout(function () { whenReady(cb); }, 200);
+}
+setTimeout(function () {
+  whenReady(function (w, d) {
+    W = w; D = d;
+    var verEl = d.getElementById("appVersion");
+    t("应用已启动（FTE_BOOTED）", !!w.FTE_BOOTED);
+    t("页脚版本为 v1.8.0", verEl && verEl.textContent.indexOf("v1.8.0") === 0, verEl ? verEl.textContent : "missing");
+    t("iframe 命中窄屏媒体查询", w.matchMedia("(max-width:720px)").matches);
+
+    var nav = d.getElementById("mainNav"), tog = d.getElementById("navToggle");
+    t("窄屏导航默认收起", w.getComputedStyle(nav).display === "none", w.getComputedStyle(nav).display);
+    t("☰ 按钮可见（不再永久 hidden）", tog && !tog.hidden, tog ? "hidden=" + tog.hidden : "missing");
+
+    if (tog) tog.click();
+    t("点 ☰ 后导航展开", w.getComputedStyle(nav).display !== "none", w.getComputedStyle(nav).display);
+    t("aria-expanded 同步为 true", tog && tog.getAttribute("aria-expanded") === "true");
+    var minH = 999, n = 0;
+    d.querySelectorAll("#mainNav a").forEach(function (a) {
+      var h = a.getBoundingClientRect().height;
+      if (h > 0) { n++; if (h < minH) minH = h; }
+    });
+    t("导航项触控高度 ≥44px", minH >= 44, "实测最小 " + (minH === 999 ? "n/a" : minH.toFixed(1) + "px") + " / 可见项 " + n);
+    var de = d.documentElement;
+    t("375px 无横向溢出", de.scrollWidth <= de.clientWidth + 1, "scroll=" + de.scrollWidth + " client=" + de.clientWidth);
+    if (tog) tog.click();
+
+    var sb = d.getElementById("settingsBtn");
+    if (sb) sb.click();
+    var modal = d.getElementById("settingsModal");
+    t("设置弹窗可打开", modal && !modal.hidden);
+    var box = modal && modal.querySelector(".modal");
+    t("弹窗 role=dialog + aria-modal", box && box.getAttribute("role") === "dialog" && box.getAttribute("aria-modal") === "true");
+    t("打开后焦点已进入弹窗", d.activeElement && modal && modal.contains(d.activeElement),
+      d.activeElement ? (d.activeElement.tagName + "#" + (d.activeElement.id || "")) : "");
+
+    setTimeout(function () {
+      var cb = d.getElementById("setLocalASR");
+      var note = d.getElementById("localASRNote");
+      var app = d.getElementById("app");
+      /* 开关状态必须与**现场探测结果**一致：模型不在站内→禁用并说明；在站内→可用。
+         本机开发目录里 models/ 是存在的（只是被 gitignore、不随站发布），所以这里不能假设未就绪。 */
+      w.LocalASR.probe().then(function (st) {
+        t("离线识别开关状态与探测结果一致（就绪才可勾选）",
+          !cb || (st.ready ? cb.disabled === false : cb.disabled === true),
+          "probe.ready=" + st.ready + " disabled=" + (cb ? cb.disabled : "n/a"));
+        t("说明与实现一致（未就绪时必须写明原因与补救路径）",
+          st.ready ? true : (note && note.textContent.indexOf("不可用") >= 0 && note.textContent.indexOf("fetch-vosk-model") >= 0),
+          st.ready ? "本机模型在场，保持可用" : "未就绪分支已说明");
+        t("今日页不含漏出的模板注释", app && app.textContent.indexOf("完成庆祝块") === -1);
+        /* 能力栏在**首页**（应用默认落在 #/today），先切过去再断言 */
+        w.location.hash = "#/home";
+        setTimeout(function () {
+          var home = d.getElementById("app");
+          t("首页能力栏为「有产出证据的单元」", home && home.textContent.indexOf("有产出证据的单元") >= 0);
+          t("首页能力栏不再有自评的「已掌握单词」统计卡",
+            home && Array.prototype.every.call(home.querySelectorAll(".stat-card .lbl"), function (el) {
+              return el.textContent.replace(/\s/g, "").indexOf("已掌握单词") !== 0;
+            }));
+          t("首页保留了「练得多不等于说得好」说明", home && home.textContent.indexOf("练得多不等于说得好") >= 0);
+          render();
+        }, 500);
+      }).catch(function () { t("可调用 LocalASR.probe()", false); render(); });
+    }, 700);
+  });
+}, 900);
+function render() {
+  var pass = results.filter(function (r) { return r.ok; }).length;
+  document.getElementById("log").innerHTML = results.map(function (r) {
+    return '<div class="' + (r.ok ? "ok" : "bad") + '">' + (r.ok ? "✅ " : "❌ ") + r.name +
+      (r.info ? '  <span style="opacity:.65">' + r.info + "</span>" : "") + "</div>";
+  }).join("") + "<h3>pass=" + pass + " fail=" + (results.length - pass) + "</h3>";
+}
+</script>
+</body>
+</html>

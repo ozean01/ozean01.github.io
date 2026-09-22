@@ -5,7 +5,7 @@
      - 跨域（TTS / LLM / 汇率等外部 API）：一律不拦截，交给浏览器直连
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v76";
+const CACHE = "fte-v83";
 
 /* 需要离线可用的全部静态资源（本站文件数量固定，手写清单比引运行时更划算） */
 const PRECACHE = [
@@ -19,6 +19,8 @@ const PRECACHE = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
   "./manifest.webmanifest",
+  "./js/pwa-init.js",
+  "./js/storage-keys.js",
   "./js/data.js",
   "./js/data-ops.js",
   "./js/data-ocean.js",

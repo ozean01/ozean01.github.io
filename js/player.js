@@ -166,10 +166,15 @@
     let audio = null;
 
     function fallback(chunk) {
-      /* 在线音源失败：自动回退到浏览器语音，保证能听到 */
+      /* 在线音源失败：自动回退到浏览器语音，保证能听到。
+         P2-1（真机复现的静默中断）：`Player.speakNative` 内部会 `current.stop()`，而 `current`
+         此刻正是**本闭包自己的 handle**——它的 stop() 会把下面 onend 里要读的 `stopped` 置真，
+         于是第一句回退播出后 `playNext()` 直接 return，连听 / 字幕连播就此静默卡死。
+         修法：进回退前先把自己从 `current` 摘掉，让 speakNative 无从 stop 本闭包。 */
       idx++;
       if (Player.supported && !stopped) {
         if (Player.onEngineFallback) Player.onEngineFallback();
+        current = null;
         Player.speakNative(chunk, {
           rate: opts.rate,
           onend: function () { if (!stopped) playNext(); }
@@ -279,6 +284,7 @@
       idx++;
       if (Player.supported && !stopped) {
         if (Player.onEngineFallback) Player.onEngineFallback();
+        current = null;   /* P2-1：与 speakGoogle 同一处自锁，见那里的说明 */
         Player.speakNative(chunk, { rate: opts.rate, onend: function () { if (!stopped) playNext(); } });
       } else {
         playNext();
@@ -398,39 +404,96 @@
     return mediaRecorder && mediaRecorder.state === "recording";
   };
 
-  /* ---------------- 录音波形可视化 ----------------
-     从录音 blob URL 解码音频，绘制振幅波形到 canvas，方便与原文节奏对比。
-     返回 Promise（成功 true / 环境不支持或解码失败返回 false，不影响业务）。 */
+  /* ---------------- 波形可视化（原声对照 + 录音回放，共用唯一绘制实现） ----------------
+     两类调用方：
+       ① 跟读录音回放（app.js）：只要振幅，不传 opts；
+       ② 字幕点读的原声波形（subtitle.js · P8）：传 opts.seg = { start, end } 高亮当前句，
+          与下方"我的录音"波形上下对照，练的是报价/交期/异议处理的节奏。
+     为什么区间→像素的映射放在本模块：它要用**解码后的真实时长**，而这个时长只有这里知道；
+     放到调用方就得把 duration 传出去，等于把同一套映射写两份（违反单一数据源）。
+     P8 诚实边界：超长媒资拒绝解码（解码整段视频会吃掉内存），失败一律返回 false，
+     由调用方给出明确说明 —— 不静默、不假装画出来了。 */
   Player.waveColor = "#2563eb";
-  Player.waveform = function (url, canvas) {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!url || !canvas || !Ctx) return Promise.resolve(false);
+  Player.waveSegColor = "#94a3b8";
+  Player.WAVE_MAX_SEC = 1200;              // 20 分钟：超过则不解码（短视频/播客足够）
+  let waveCache = { url: "", buf: null };  // 单条缓存：逐句点读会反复重画，不能每次重解码
+
+  /* 纯函数：把 [start, end]（秒）映射为画布像素区间 { x0, x1 }。
+     口径：夹取到 [0, width]；x1 至少比 x0 大 1px（否则高亮带宽度为 0，看上去像"没高亮"）。
+     非法输入（非正时长/宽度、非数字端点）返回 null —— 调用方据此不做高亮。 */
+  Player.waveSegRange = function (start, end, duration, width) {
+    if (typeof start !== "number" || typeof end !== "number") return null;
+    if (!(duration > 0) || !(width > 0)) return null;
+    const clamp = function (v) { return Math.max(0, Math.min(duration, v)); };
+    const a = clamp(start), b = clamp(end);
+    let x0 = Math.floor(a / duration * width);
+    let x1 = Math.ceil(b / duration * width);
+    if (x0 < 0) x0 = 0;
+    if (x1 > width) x1 = width;
+    if (x1 <= x0) x1 = Math.min(width, x0 + 1);
+    return { x0: x0, x1: x1 };
+  };
+
+  /* 内部唯一绘制实现：高亮带先铺底，振幅棒画在上面 */
+  function drawWave(audioBuf, canvas, opts) {
+    const o = opts || {};
+    const data = audioBuf.getChannelData(0);
+    const W = canvas.width, H = canvas.height;
+    const g = canvas.getContext("2d");
+    if (!g) return false;
+    g.clearRect(0, 0, W, H);
+    const band = Player.waveSegRange(o.seg && o.seg.start, o.seg && o.seg.end, audioBuf.duration, W);
+    if (band) {
+      g.fillStyle = o.segColor || Player.waveSegColor;
+      g.globalAlpha = 0.28;
+      g.fillRect(band.x0, 0, Math.max(1, band.x1 - band.x0), H);
+      g.globalAlpha = 1;
+    }
+    const mid = H / 2;
+    const step = Math.max(1, Math.floor(data.length / W));
+    g.fillStyle = o.color || Player.waveColor;
+    for (let x = 0; x < W; x++) {
+      let min = 1, max = -1;
+      const start = x * step;
+      for (let i = 0; i < step && start + i < data.length; i++) {
+        const v = data[start + i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      if (max < 0) max = 0;
+      if (min > 0) min = 0;
+      const top = mid - max * H * 0.45;
+      const hgt = Math.max(1, (max - min) * H * 0.45);
+      g.fillRect(x, top, 1, hgt);
+    }
+    return true;
+  }
+
+  /* 解码一次并缓存；环境不支持 / 无音轨 / 解码失败 / 超长 → null（不是 false：
+     让调用方拿到"没画"的原因由自己决定文案，本模块不替它编话术） */
+  function decodeWave(url) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!url || !Ctx) return Promise.resolve(null);
+    if (waveCache.url === url && waveCache.buf) return Promise.resolve(waveCache.buf);
     return fetch(url).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
-      var ctx = Player.waveCtx = Player.waveCtx || new Ctx();
+      const ctx = Player.waveCtx = Player.waveCtx || new Ctx();
       return ctx.decodeAudioData(buf).then(function (audioBuf) {
-        var data = audioBuf.getChannelData(0);
-        var W = canvas.width, H = canvas.height;
-        var g = canvas.getContext("2d");
-        g.clearRect(0, 0, W, H);
-        var mid = H / 2;
-        var step = Math.max(1, Math.floor(data.length / W));
-        g.fillStyle = Player.waveColor;
-        for (var x = 0; x < W; x++) {
-          var min = 1, max = -1;
-          var start = x * step;
-          for (var i = 0; i < step && start + i < data.length; i++) {
-            var v = data[start + i];
-            if (v < min) min = v;
-            if (v > max) max = v;
-          }
-          if (max < 0) max = 0;
-          if (min > 0) min = 0;
-          var top = mid - max * H * 0.45;
-          var hgt = Math.max(1, (max - min) * H * 0.45);
-          g.fillRect(x, top, 1, hgt);
-        }
-        return true;
+        if (!(audioBuf.duration > 0) || audioBuf.duration > Player.WAVE_MAX_SEC) return null;
+        waveCache = { url: url, buf: audioBuf };
+        return audioBuf;
       });
+    }).catch(function () { return null; });
+  }
+  /* 换媒资时清缓存：旧音频缓冲留着只会占内存，而它再也不会被重画 */
+  Player.waveClearCache = function () { waveCache = { url: "", buf: null }; };
+
+  /* 对外：画波形。opts = { color, seg:{ start, end }, segColor }
+     返回 Promise<boolean>：true = 已画出；false = 环境不支持/无音轨/解码失败/超长媒资。 */
+  Player.waveform = function (url, canvas, opts) {
+    if (!url || !canvas) return Promise.resolve(false);
+    return decodeWave(url).then(function (audioBuf) {
+      if (!audioBuf) return false;
+      return drawWave(audioBuf, canvas, opts);
     }).catch(function () { return false; });
   };
 
@@ -610,7 +673,7 @@
       "no-speech": "没有听到声音：请靠近麦克风、保持环境安静后重试",
       "audio-capture": "未检测到麦克风设备：请检查麦克风连接与系统设置",
       "aborted": "",
-      "no-media": "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8000）打开页面",
+      "no-media": "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8088）打开页面",
       "denied": "无法使用麦克风：请在浏览器设置中允许麦克风权限后重试",
       "unsupported": "当前浏览器不支持语音识别（Web Speech 仅 Chrome/Edge 完整支持），建议使用 Chrome / Edge"
     };

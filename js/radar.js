@@ -39,11 +39,12 @@
     const gGram = avg(s.filter(function (r) { return r.ai; }).map(function (r) { return r.ai.grammar; }));
     const gExpr = avg(s.filter(function (r) { return r.ai; }).map(function (r) { return r.ai.expression; }));
 
-    /* 词汇维度：自由表达不能直接测词汇量，用「去重词数 + 平均语速」做一个诚实的启发式，标"估算" */
+    /* 词汇维度：自由表达不能直接测词汇量，用「去重词数」做一个诚实的启发式，标"估算"。
+       P1-6：**不再把语速 rate/4 加进来**——语速快不等于词汇量大，把它混进词汇分会
+       让「说得快」被读成「词多」。 */
     const uniq = avg(s.map(function (r) { return r.uniq; }));
-    const rate = avg(s.map(function (r) { return r.rate; }));
     let vocab = null;
-    if (uniq != null && uniq > 0) vocab = Math.round(Math.min(100, Math.max(20, uniq * 2.2 + (rate != null ? rate / 4 : 0))));
+    if (uniq != null && uniq > 0) vocab = Math.round(Math.min(100, Math.max(20, uniq * 2.2)));
 
     const dims = [
       { key: "pron", label: "术语发音", val: eTerm, from: "四维", href: "#/eval4", tip: "跟读标准句 + Azure 音素级最准" },
@@ -53,8 +54,14 @@
       { key: "expr", label: "表达·逻辑", val: avg([eAcc, eLog, gExpr]), from: "四维/自由表达", href: "#/eval4", tip: "先认可 → 给理由 → 给方案 → 承诺" }
     ];
     const have = dims.filter(function (d) { return d.val != null; });
-    const overall = have.length ? Math.round(have.reduce(function (a, d) { return a + d.val; }, 0) / have.length) : null;
-    return { dims: dims, overall: overall, nEval: e.length, nSpeech: s.length };
+    /* P1-6：**综合分与段位需要最小样本量**。
+       综合分是「可用维度的等权平均」，此前 1 条记录就能评出「母语级」——弱证据被包装成强结论。
+       要求至少 MIN_SAMPLES 次有效测评（四维 / 自由表达合计），否则不给综合分、不评段位。 */
+    const n = e.length + s.length;
+    const MIN_SAMPLES = 3;
+    const enough = n >= MIN_SAMPLES;
+    const overall = (have.length && enough) ? Math.round(have.reduce(function (a, d) { return a + d.val; }, 0) / have.length) : null;
+    return { dims: dims, overall: overall, nEval: e.length, nSpeech: s.length, n: n, minSamples: MIN_SAMPLES, enough: enough };
   }
 
   /* 段位（站内相对，诚实标注） */
@@ -114,8 +121,8 @@
         <div class="card">
           <div class="rd-score">${data.overall == null ? "—" : data.overall}<span>/100</span></div>
           <div class="rd-rank ${rk ? rk.cls : ""}">${rk ? rk.ic + " " + rk.name : "未评定"}</div>
-          <div class="rd-rank-desc">${rk ? esc(rk.desc) : "先多练几次，就能评定你的口语段位。"}</div>
-          <div class="rd-disclaimer">⚠️ 本段位为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。</div>
+          <div class="rd-rank-desc">${rk ? esc(rk.desc) : (data.enough ? "先多练几次，就能评定你的口语段位。" : "样本不足（已 " + data.n + " / " + data.minSamples + " 次有效测评）——先多练几次再评段位，避免拿一次成绩当水平。")}</div>
+          <div class="rd-disclaimer">⚠️ 本段位为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。${data.enough ? "" : "<b>当前样本 " + data.n + " / " + data.minSamples + "，综合分与段位暂不给出。</b>"}</div>
           <canvas id="radarCanvas" width="560" height="420"></canvas>
           <div class="rd-actions">
             <button class="btn btn-primary btn-sm" data-radar="export">⬇️ 导出口语雷达图</button>

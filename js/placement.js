@@ -118,14 +118,19 @@
      · 首次 → 建立基线，baselineAt 落日期并锁定；
      · 同一天重复测试 → 覆盖当天那一条（不制造假历史）；
      · 换天再测 → **追加**，基线条目原样保留（这就是「不要用修订版覆盖首版」的数据约束）。 */
-  function recordQuiz(score, total, unitId) {
+  function recordQuiz(score, total, unitId, meta) {
     var at = todayStr();
     var rec = load() || { v: 2, baselineAt: at, history: [] };
     if (!rec.baselineAt) rec.baselineAt = at;
     var last = currentEntry(rec);
+    var bankId = (meta && meta.bankId) || "";
+    var diffs = (meta && meta.diffs) || null;
     var entry = {
       at: at, kind: (rec.history.length === 0 ? "baseline" : "retest"),
       score: score, total: total, unitId: unitId,
+      /* P1-5：题库指纹与每题难度档。没有它们，两次分数在数据层无法判断是否可比——
+         换一批题，1 道题的波动就能被读成「进步了」。 */
+      bankId: bankId, diffs: diffs, bankRebuilt: (meta && meta.rebuilt) || null,
       skills: {}, focus: "", rubric: {}, evidence: ""
     };
     if (last && last.at === at) {
@@ -135,12 +140,22 @@
       entry.rubric = last.rubric || {};
       entry.evidence = last.evidence || "";
       entry.kind = last.kind;
+      if (!entry.bankId) { entry.bankId = last.bankId || ""; entry.diffs = last.diffs || null; }
       rec.history[rec.history.length - 1] = entry;
     } else {
       rec.history.push(entry);
     }
     save(rec);
     return rec;
+  }
+
+  /* 两次词义题得分是否可比：必须是同一套题（bankId 相同且都非空）。
+     返回 {comparable, from, to}——不可比时 UI 必须明说，而不是照样画箭头。 */
+  function scoreComparable(rec) {
+    if (!rec || !rec.history || rec.history.length < 2) return { comparable: false, from: null, to: null };
+    var cur = currentEntry(rec), prev = rec.history[rec.history.length - 2];
+    var comparable = !!(cur && prev && cur.bankId && prev.bankId && cur.bankId === prev.bankId);
+    return { comparable: comparable, from: prev, to: cur };
   }
 
   function setSkill(skillId, levelId) {
@@ -418,6 +433,7 @@
     refresh: refresh,
     load: load, save: save, currentEntry: currentEntry,
     recordQuiz: recordQuiz, setSkill: setSkill, setFocus: setFocus,
+    scoreComparable: scoreComparable,
     setRubric: setRubric, setEvidence: setEvidence,
     schedule: schedule, retestStatus: retestStatus, vsLast: vsLast,
     _t: {

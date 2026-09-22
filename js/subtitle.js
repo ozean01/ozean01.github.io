@@ -26,17 +26,87 @@
     zh:     { label: "中文", icon: "🀄", hint: "只留中文 —— 看着中文把英文说出来，再点 👁 对照检查" }
   };
 
+  /* ---------------- 🔂 A-B 段循环复读（P8 · 借鉴 English Anchor 的复读机） ----------------
+     为什么补它：站内原有「点读」是「播到句末自动停」，要重复听同一句只能再点一次；
+     而外贸材料里的报价、交期、异议处理都是**节奏性表达**——听一遍抓不住节奏，必须反复听同一段。
+     本功能只补"到 B 自动回到 A"这一段最小能力，不改点读主链路。
+
+     设计约束（与全站工程规范一致）：
+       · 回绕判定**只有 abTick 一处**：播放侧与 UI 侧不得各写一份条件；
+       · 循环窗口**一律由 abWindowOf 从 cue 派生**，手动标记只是可选覆盖参数；
+       · 与「自动连播」互斥 —— 两者都要推进 timeupdate，同时开必然互相打断。 */
+  const AB_MIN = 0.05;       // 窗口下限（秒）：小于它的片段会退化成"哒"一声
+  const AB_SLOW_RATE = 0.75; // 复读慢速（听不清时先降速听顺，再回原速）
+
+  /* 纯函数：由 cue 算出循环窗口。markA / markB 为可选手动标记（秒），未给则用整句。
+     返回 { a, b }（已夹取到合法区间）；cue 无效返回 null。 */
+  function abWindowOf(cue, markA, markB) {
+    if (!cue || typeof cue.start !== "number" || typeof cue.end !== "number") return null;
+    let a = (typeof markA === "number" && isFinite(markA)) ? markA : cue.start;
+    let b = (typeof markB === "number" && isFinite(markB)) ? markB : cue.end;
+    if (a < 0) a = 0;
+    if (b < a + AB_MIN) b = a + AB_MIN;
+    return { a: a, b: b };
+  }
+
+  /* 纯函数：到达 B 是否需要回绕。返回回绕目标（秒）；不需要回绕返回 null。
+     这是全站**唯一**的 A-B 回绕判定 —— 加第二处条件判断即视为破坏单一数据源。 */
+  function abTick(ab, t) {
+    if (!ab || typeof ab.b !== "number" || typeof t !== "number") return null;
+    return t >= ab.b ? ab.a : null;
+  }
+
+  /* ---------------- 📝 逐句笔记（P8 · 借鉴 English Anchor 的逐句笔记） ----------------
+     为什么补它：站内 data-mistakes.js 记的是「表达错误」（我说错了什么），
+     而「这句我没听懂 / 这里连读没抓住 / 这个短语我要换个说法」是另一类信息，此前无处安放 ——
+     外贸精听里最该回看的恰恰是这些卡点。
+     存储口径（改这段前务必读懂）：
+       · 键 fte-sub-notes-v1 的值形如 { [cueKey]: string }；
+       · cueKey 用「文件名 + 起始秒」而不是句子下标 —— 下标会随换字幕/重排串位，
+         串位意味着"笔记跑到别的句子下面"，那比不记还糟；
+       · 文件名缺失时退化为 "@起始秒"（单字幕场景仍可用，且不与其他文件串）。
+     工程口径：localStorage 读写一律 try/catch —— 装载环境（tools/test-subtitle-ab.js）
+     根本没有 localStorage，模块加载期裸调会直接炸。 */
+  const NOTES_KEY = "fte-sub-notes-v1";
+  const NOTE_MAX = 500;     // 上限：笔记是"回看卡点"，不是写作文
+
+  function cueKeyOf(fileName, cue) {
+    if (!cue || typeof cue.start !== "number") return "";
+    return String(fileName || "") + "@" + cue.start.toFixed(2);
+  }
+  function noteOf(notes, fileName, cue) {
+    const k = cueKeyOf(fileName, cue);
+    return (k && notes && typeof notes[k] === "string") ? notes[k] : "";
+  }
+  function loadNotes() {
+    try {
+      const raw = localStorage.getItem(NOTES_KEY);
+      const o = raw ? JSON.parse(raw) : null;
+      return (o && typeof o === "object" && !Array.isArray(o)) ? o : {};
+    } catch (e) { return {}; }
+  }
+  /* 返回是否真的写成功：隐私模式 / 配额满时**必须**让用户知道，不能假装存上了 */
+  function saveNotes() {
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(state.notes || {})); return true; }
+    catch (e) { return false; }
+  }
+
   window.Subtitle = { render: render, DATA: null };
   /* 供自动化测试/诊断使用的解析钩子（不影响运行时） */
   window.Subtitle._t = {
     toSec: toSec, parseSubtitle: parseSubtitle, diff: diff, coloredText: coloredText, guessFormat: guessFormat,
     hasCJK: hasCJK, splitBilingual: splitBilingual, buildCue: buildCue,
-    modeOrder: MODE_ORDER, modeHint: modeHint, effModeOf: effModeOf
+    modeOrder: MODE_ORDER, modeHint: modeHint, effModeOf: effModeOf,
+    abWindowOf: abWindowOf, abTick: abTick, AB_MIN: AB_MIN,
+    cueKeyOf: cueKeyOf, noteOf: noteOf, NOTE_MAX: NOTE_MAX, noteActionOf: noteActionOf
   };
   const state = window.Subtitle.state = {
     cues: [], mediaUrl: null, mediaEl: null, current: -1, fileName: "",
     mode: loadMode(),        // "" = 自动（有中文轨→全部，否则→英语）
-    revealed: {}             // 中文档下「已对照英文」的句子下标（本次载入内有效）
+    revealed: {},            // 中文档下「已对照英文」的句子下标（本次载入内有效）
+    ab: null,                // 🔂 A-B 复读状态：{ a, b, idx, slow, seq }；null = 关闭
+    notes: loadNotes(),      // 📝 逐句笔记：{ [cueKey]: 文本 }，跨字幕载入保留
+    noteOpen: -1             // 正在编辑笔记的句子下标（-1 = 没有）
   };
 
   /* ---------------- 四档字幕（P7） ---------------- */
@@ -257,7 +327,30 @@
     } else {
       body = '<span class="sub-en">' + coloredText(enText) + "</span>";
     }
-    return '<div class="sub-row ' + (isCur ? "cur" : "") + '" data-idx="' + i + '">' +
+    /* 📝 逐句笔记：按钮常驻，编辑器按需展开。
+       放在 .sub-text 内部（而不是当第三列）：.sub-row 是 64px + 1fr 的两列 grid，
+       加第三个子元素会触发隐式列、把整行挤歪。 */
+    const note = noteOf(state.notes, state.fileName, c);
+    const noteOpen = state.noteOpen === i;
+    body += '<button class="sub-note-btn' + (note ? " has" : "") + '" data-note="' + i + '"' +
+      ' title="' + (note ? "查看/编辑这句的笔记" : "给这句加一条笔记：记的是卡点（哪个音没听清、哪个短语要换说法），不是生词") + '">📝</button>';
+    if (noteOpen) {
+      body += '<div class="sub-note-edit">' +
+        '<textarea class="sub-note-input" data-note-input="' + i + '" rows="2" maxlength="' + NOTE_MAX + '"' +
+        ' placeholder="记卡点：哪个音没听清 / 哪处连读没抓住 / 这句我想换成自己的说法…（最多 ' + NOTE_MAX + ' 字）">' +
+        esc(note) + "</textarea>" +
+        '<div class="sub-note-acts">' +
+        '<button class="btn btn-primary btn-sm" data-note-save="' + i + '">保存</button>' +
+        '<button class="btn btn-outline btn-sm" data-note-cancel="' + i + '">取消</button>' +
+        (note ? '<button class="btn btn-outline btn-sm" data-note-del="' + i + '">删除</button>' : "") +
+        "</div></div>";
+    }
+    /* P2-4（WCAG 2.1.1 键盘可达）：整行可点读，就必须能被键盘触达。
+       此前这里是纯 <div data-idx> + 事件委托 click，全文件 0 tabindex / 0 role / 0 keydown，
+       键盘与读屏用户完全用不了「字幕逐句点读」。 */
+    const rowLabel = "播放第 " + (i + 1) + " 句" + (isCur ? "（当前句）" : "");
+    return '<div class="sub-row ' + (isCur ? "cur" : "") + '" data-idx="' + i + '"' +
+      ' role="button" tabindex="0" aria-label="' + esc(rowLabel) + '">' +
       '<span class="sub-time">' + fmtSec(c.start) + "</span>" +
       '<span class="sub-text">' + body + "</span></div>";
   }
@@ -291,12 +384,66 @@
     const cue = state.cues[i];
     if (!cue) return;
     state.revealed[i] = true;
-    const box = document.querySelector('#app .sub-row[data-idx="' + i + '"] .sub-text');
-    if (box) {
-      box.innerHTML = '<span class="sub-zh">' + esc(cue.zh || "（本句无中文）") + '</span>' +
-        '<div class="sub-reveal-en">' + coloredText(cue.en || cue.text) + "</div>";
-    }
+    refreshRows();   // 复用唯一列表重排出口：中文档「已对照」与 📝 按钮会一起正确重画
   }
+
+  /* ---------------- 📝 逐句笔记：动作解析与执行 ----------------
+     click 与 keydown 两条路径共用 noteActionOf，保证键盘用户与鼠标用户
+     走完全相同的动作集合（不允许有差别）。 */
+  function noteActionOf(target) {
+    if (!target || !target.closest) return null;
+    const hit = target.closest("[data-note],[data-note-save],[data-note-cancel],[data-note-del],[data-note-input]");
+    if (!hit) return null;
+    const keys = ["data-note", "data-note-save", "data-note-cancel", "data-note-del", "data-note-input"];
+    for (let i = 0; i < keys.length; i++) {
+      const v = hit.getAttribute(keys[i]);
+      if (v != null) return { act: keys[i], idx: parseInt(v, 10) };
+    }
+    return null;
+  }
+
+  function handleNoteAction(a) {
+    if (!a || isNaN(a.idx)) return;
+    const s = state;
+    if (a.act === "data-note") { s.noteOpen = (s.noteOpen === a.idx) ? -1 : a.idx; refreshRows(); return; }
+    if (a.act === "data-note-cancel") { s.noteOpen = -1; refreshRows(); return; }
+    if (a.act === "data-note-save") { saveNoteFor(a.idx); return; }
+    if (a.act === "data-note-del") { delNoteFor(a.idx); return; }
+    /* data-note-input：点在输入框上不做任何事 —— 尤其不能顺带触发"播放这一句" */
+  }
+
+  function saveNoteFor(idx) {
+    const s = state;
+    const cue = s.cues[idx];
+    if (!cue) return;
+    const key = cueKeyOf(s.fileName, cue);
+    if (!key) return;
+    const box = document.querySelector('#app .sub-note-input[data-note-input="' + idx + '"]');
+    const val = String((box && box.value) || "").trim().slice(0, NOTE_MAX);
+    if (val) s.notes[key] = val; else delete s.notes[key];
+    /* 写不进去必须说出来：隐私模式/配额满时"已保存"是假承诺 */
+    if (!saveNotes()) { toastMsg("⚠️ 笔记没能写入本机存储（可能是隐私模式或空间已满）—— 请先导出备份，删掉一些旧笔记后重试。"); return; }
+    s.noteOpen = -1;
+    refreshRows();
+    toastMsg(val ? "📝 已保存这句的笔记（会随「导出备份」一起换设备）" : "已清除这句的笔记");
+  }
+
+  function delNoteFor(idx) {
+    const s = state;
+    const cue = s.cues[idx];
+    if (!cue) return;
+    const key = cueKeyOf(s.fileName, cue);
+    if (key) delete s.notes[key];
+    saveNotes();
+    s.noteOpen = -1;
+    refreshRows();
+    toastMsg("已删除这句的笔记");
+  }
+
+  /* 唯一列表重排出口：档位切换、中文档「已对照」、笔记增删都走它。
+     刻意不新写第二个 renderList —— 三处各自渲染必然漂移。
+     也刻意不整页 render()：重排字幕列表不该重建 <video>、不该打断正在播放的媒资。 */
+  function refreshRows() { applyModeDom(); }
   function modeBarHtml() {
     const m = effMode();
     return `
@@ -373,8 +520,17 @@
       </div>
     </div>
 
-    <div style="margin-top:12px" ${showMedia}>
+    <div id="diMediaBox" style="margin-top:12px" ${showMedia}>
       <div class="card" style="padding:12px"><video id="diMedia" controls playsinline style="width:100%;max-height:320px;background:#000"></video></div>
+      <div class="card" style="padding:12px 14px;margin-top:8px">
+        <div class="sub-modes-row">
+          <b style="font-size:13px">🌊 原声波形</b>
+          <span class="field-note">灰色高亮 = 当前句；与跟读界面里「我的录音」波形上下对照，练的是报价/交期/异议处理的节奏</span>
+        </div>
+        <canvas id="diWave" class="sub-wave" width="960" height="46" role="img"
+          aria-label="原声波形图：灰色高亮段表示当前句"></canvas>
+        <div class="field-note" id="diWaveNote"></div>
+      </div>
     </div>
 
     <div class="card" style="margin-top:12px;padding:12px">
@@ -382,6 +538,8 @@
       <button class="btn btn-soft btn-sm" id="diPrev" data-pl="prev">⏮ 上一句</button>
       <button class="btn btn-soft btn-sm" id="diNext" data-pl="next">⏭ 下一句</button>
       <button class="btn btn-soft btn-sm" id="diAuto" data-pl="auto">🔁 自动连播</button>
+      <button class="sub-mode" id="diAb" data-pl="ab" title="同一句循环复读：播到句末自动回到句首，适合抠报价/交期/异议处理的节奏">🔂 A-B 复读本句</button>
+      <button class="sub-mode" id="diAbSlow" data-pl="ab-slow" title="以 0.75 倍速循环复读同一句 —— 听不清时先降速听顺，再回原速">🐢 慢速 0.75x</button>
       <span class="badge badge-muted" id="diCounter">${s.cues.length ? (s.current >= 0 ? (s.current + 1) + " / " + s.cues.length : "0 / " + s.cues.length) : "0 / 0"}</span>
       <span class="field-note" style="margin-left:8px" id="diNote">点任意一句开始点读；无媒资时用 TTS 朗读当前句。</span>
     </div>
@@ -410,12 +568,28 @@
     /* 点读：事件委托到列表容器 —— 切档位会重排行 HTML，逐行绑定会失效 */
     const listBox = document.querySelector("#app .sub-list");
     if (listBox) listBox.addEventListener("click", function (e) {
+      /* 📝 笔记控件必须先于 .sub-row 命中：否则点「保存/删除」会顺带触发"播放这一句" */
+      const nAct = noteActionOf(e.target);
+      if (nAct) { handleNoteAction(nAct); return; }
       const rv = e.target.closest("[data-reveal]");
       if (rv) { revealCue(parseInt(rv.getAttribute("data-reveal"), 10)); return; }
       const w = e.target.closest(".sub-word");
       if (w) { onWordClick(w.getAttribute("data-w")); return; }
       const row = e.target.closest(".sub-row");
       if (row) playCue(parseInt(row.getAttribute("data-idx"), 10));
+    });
+    /* P2-4：同一套动作给键盘（Enter / Space）——与 click 委托同源，不新增第二条播放路径 */
+    if (listBox) listBox.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+      const target = e.target;
+      if (!target || !target.closest) return;
+      if (target.closest("[data-reveal]") || target.closest(".sub-word")) return;   /* 让链接/按钮自己处理 */
+      /* 📝 笔记控件：Enter / Space 必须留给输入框自己（否则笔记里打不出空格、换不了行） */
+      if (noteActionOf(target)) return;
+      const row = target.closest(".sub-row");
+      if (!row) return;
+      e.preventDefault();
+      playCue(parseInt(row.getAttribute("data-idx"), 10));
     });
     /* 四档字幕切换 */
     document.querySelectorAll("#app [data-mode]").forEach(function (b) {
@@ -439,19 +613,34 @@
         else if (k === "prev") { s.auto = false; playCue(prevCueIdx(s.current)); }
         else if (k === "next") { s.auto = false; playCue(nextCueIdx(s.current)); }
         else if (k === "auto") autoPlay();
+        else if (k === "ab") toggleAb(false);
+        else if (k === "ab-slow") toggleAb(true);
       });
     });
 
     if (s.mediaEl) {
       s.mediaEl.addEventListener("timeupdate", onTime);
       s.mediaEl.addEventListener("ended", function () { if (s.auto) autoPlay(); });
+      /* 重新渲染会重建 <video>：A-B 复读若仍在进行，把倍速恢复回去（否则慢速复读静默变原速） */
+      if (s.ab) { try { s.mediaEl.playbackRate = s.ab.slow ? AB_SLOW_RATE : 1; } catch (_) { /* ignore */ } }
     }
+    applyAbDom();
+    if (s.mediaUrl) drawSrcWave();   // 重建后补画原声波形（媒资未变，走 Player 缓存，不重复解码）
   }
 
   /* 单个 timeupdate 处理器：既高亮当前句，又到句末自动暂停（点读/自动连播共用） */
   function onTime() {
     const s = state;
     const t = s.mediaEl ? s.mediaEl.currentTime : 0;
+    /* 🔂 A-B 复读优先于句末暂停：到 B 立即回到 A，不参与点读/连播推进。
+       判定只有 abTick 一处；这里只负责执行回绕。 */
+    if (s.ab && s.mediaEl) {
+      const jump = abTick(s.ab, t);
+      if (jump != null) {
+        try { s.mediaEl.currentTime = jump; } catch (_) { /* ignore */ }
+        return;
+      }
+    }
     /* 句末暂停：非自动模式下停在句尾；自动模式下由此推进下一句 */
     if (s._stopAt != null && t >= s._stopAt) {
       try { s.mediaEl.pause(); } catch (_) { /* ignore */ }
@@ -486,6 +675,8 @@
       state.current = 0;
       state.fileName = file.name;
       state.revealed = {};   /* 换字幕即清空「已对照」标记 */
+      state.noteOpen = -1;   /* 收起笔记编辑器（笔记本身按 文件名+起始秒 存，换字幕必须在） */
+      stopAb(true);          /* 换字幕 = 换句身份，旧的 A-B 窗口不再成立，静默关闭 */
       toastMsg("✓ 已载入 " + cues.length + " 句字幕：" + file.name +
         (cues.some(function (c) { return c.zh; }) ? "（识别到中英双语轨）" : ""));
       render();
@@ -496,6 +687,8 @@
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     if (state.mediaUrl) { try { URL.revokeObjectURL(state.mediaUrl); } catch (_) { /* ignore */ } }
+    /* 换媒资即清波形缓存：旧音频缓冲再也不会被重画，留着只占内存 */
+    if (window.Player && window.Player.waveClearCache) window.Player.waveClearCache();
     state.mediaUrl = URL.createObjectURL(file);
     if (state.mediaEl) { state.mediaEl.src = state.mediaUrl; }
     toastMsg("✓ 已载入媒资（本地，不上传）");
@@ -517,6 +710,8 @@
     if (idx < 0 || !s.cues.length) return;
     const cue = s.cues[idx];
     s.current = idx;
+    /* A-B 复读进行中：换句即换窗口（窗口始终由 cue 派生，不另做一套定位逻辑） */
+    if (s.ab) { const w = abWindowOf(cue); if (w) { s.ab.a = w.a; s.ab.b = w.b; s.ab.idx = idx; } }
     highlightCue(idx);
     updateCounter();
     if (s.mediaEl && s.mediaUrl && typeof s.mediaEl.currentTime === "number") {
@@ -527,7 +722,8 @@
         return;
       } catch (_) { /* fall through to TTS */ }
     }
-    /* 无媒资或播放失败：TTS 点读这一句 */
+    /* 无媒资或播放失败：TTS 点读这一句（A-B 进行中则退化为重复朗读） */
+    if (s.ab) { speakAbLoop(cue); return; }
     if (window.Player) window.Player.speak(cue.text, { rate: 1 });
   }
 
@@ -549,10 +745,115 @@
     seq(s.current >= 0 && s.current < s.cues.length ? s.current : 0);
   }
 
+  /* ---------------- 🔂 A-B 复读：状态开关与 DOM 同步 ---------------- */
+
+  /* 无媒资时的 A-B 退化路径：重复 TTS 朗读同一句。
+     seq 令牌保证同时只有一条朗读链（换句 / 关开关都会让旧链自然失效），
+     不会出现两条链各读一句的重音。 */
+  function speakAbLoop(cue) {
+    const s = state;
+    if (!s.ab || !window.Player) return;
+    s.ab.seq = (s.ab.seq || 0) + 1;
+    const mySeq = s.ab.seq;
+    const rate = s.ab.slow ? AB_SLOW_RATE : 1;
+    const once = function () {
+      if (!s.ab || s.ab.seq !== mySeq) return;
+      window.Player.speak(cue.text, {
+        rate: rate,
+        onend: function () { setTimeout(function () { if (s.ab && s.ab.seq === mySeq) once(); }, 300); }
+      });
+    };
+    once();
+  }
+
+  /* 开 / 关 A-B 复读。slow=true 时以 0.75 倍速复读。
+     与「自动连播」互斥：两者都要推进 timeupdate，同时开必然互相打断。 */
+  function toggleAb(slow) {
+    const s = state;
+    if (s.ab) { stopAb(false); return; }
+    const cue = s.cues[s.current];
+    if (!cue) { toastMsg("先点一句开始点读，再开 A-B 复读"); return; }
+    const w = abWindowOf(cue);
+    if (!w) return;
+    s.ab = { a: w.a, b: w.b, idx: s.current, slow: !!slow, seq: 0 };
+    s.auto = false;          // 互斥：关掉连播，避免两套推进逻辑抢同一个 timeupdate
+    if (s.mediaEl && s.mediaUrl) {
+      try {
+        s.mediaEl.currentTime = w.a;
+        s.mediaEl.playbackRate = slow ? AB_SLOW_RATE : 1;
+        s.mediaEl.play();
+      } catch (_) { /* ignore */ }
+    } else {
+      speakAbLoop(cue);
+    }
+    applyAbDom();
+    toastMsg(slow ? "🔂 慢速复读中（0.75x）· 再点一次关闭" : "🔂 A-B 复读中：本句循环 · 再点一次关闭");
+  }
+
+  /* silent=true 用于换字幕等场景：静默清理，不弹提示 */
+  function stopAb(silent) {
+    const s = state;
+    if (!s.ab) return;
+    s.ab = null;
+    try { if (s.mediaEl) s.mediaEl.playbackRate = 1; } catch (_) { /* ignore */ }
+    try { if (window.Player && window.Player.stop) window.Player.stop(); } catch (_) { /* ignore */ }
+    applyAbDom();
+    if (!silent) toastMsg("已关闭 A-B 复读");
+  }
+
+  /* 只改 A-B 两个按钮的激活态与文案，不重排字幕列表（重排会打断正在播放的媒资） */
+  function applyAbDom() {
+    const s = state;
+    const ab = document.querySelector('#app [data-pl="ab"]');
+    if (ab) {
+      ab.classList.toggle("cur", !!s.ab);
+      ab.textContent = s.ab ? "🔂 A-B 复读中（点此关闭）" : "🔂 A-B 复读本句";
+    }
+    const slow = document.querySelector('#app [data-pl="ab-slow"]');
+    if (slow) {
+      slow.classList.toggle("cur", !!(s.ab && s.ab.slow));
+      slow.textContent = (s.ab && s.ab.slow) ? "🐢 慢速复读中" : "🐢 慢速 0.75x";
+    }
+  }
+
+  /* ---------------- 🌊 原声波形对照（P8 · 借鉴 English Anchor 的波形对照） ----------------
+     为什么补它：站内此前只有「我的录音」波形（app.js 的 wave-wrap），没有原声波形 ——
+     而"我的节奏 vs 母语者节奏"的差距，正是外贸听力/口语最该看得见的东西。
+     实现口径：
+       · 绘制与「区间→像素」映射**全在 Player 侧唯一实现**（waveform / waveSegRange），
+         这里只传 seg 时间区间，绝不自己算像素（否则就是第二份映射）；
+       · 换句即重画，但音频只解码一次（Player 内部单条缓存）；
+       · 画不出来必须给出明确原因，不静默 —— 超长媒资与视频容器解不出音轨都走这条路。 */
+  let waveSeq = 0;   // 重画令牌：快速连点时只认最后一次的结果，避免旧结果覆盖新句
+  function drawSrcWave() {
+    const s = state;
+    const cv = document.getElementById("diWave");
+    const note = document.getElementById("diWaveNote");
+    if (!cv || !note) return;
+    const cue = s.cues[s.current];
+    if (!s.mediaUrl || !cue) {
+      note.textContent = "载入音/视频后，这里显示原声波形并高亮当前句。";
+      return;
+    }
+    const P = window.Player;
+    if (!P || !P.waveform) { note.textContent = "当前环境不支持波形绘制 —— 不影响逐句点读。"; return; }
+    const my = ++waveSeq;
+    const label = "灰色高亮 = 第 " + (s.current + 1) + " 句（" + fmtSec(cue.start) + "–" + fmtSec(cue.end) + "）；下方可对照你的录音波形。";
+    P.waveform(s.mediaUrl, cv, { color: "#94a3b8", seg: { start: cue.start, end: cue.end } })
+      .then(function (drawn) {
+        if (my !== waveSeq) return;   // 已有更新的一次重画在跑，放弃这次结果
+        note.textContent = drawn
+          ? label
+          : "原声波形需要纯音频文件或较短视频（≤ " + Math.round((P.WAVE_MAX_SEC || 1200) / 60) +
+            " 分钟）；当前媒资解不出音轨，已跳过绘制 —— 不影响逐句点读。";
+      });
+  }
+
   function highlightCue(idx) {
     document.querySelectorAll("#app .sub-row").forEach(function (r) {
       r.classList.toggle("cur", parseInt(r.getAttribute("data-idx"), 10) === idx);
     });
+    drawSrcWave();   // 换句即重画原声波形（音频只解码一次，见 Player 内部缓存）
   }
   function updateCounter() {    const el = document.getElementById("diCounter");
     if (el) el.textContent = state.cues.length ? (state.current >= 0 ? (state.current + 1) + " / " + state.cues.length : "0 / " + state.cues.length) : "0 / 0";
@@ -569,10 +870,13 @@
   }
 
   let toastTimer = null;
+  /* P0-1（安全）：toast 唯一渲染出口。默认**转义**，只有明确传 isHtml 时才按 HTML 渲染
+     （目前仅「点词查意」需要里面那个 #/units 链接）。
+     此前载入字幕时把**用户文件名**直接拼进 innerHTML，恶意命名的 .srt 即可执行脚本。 */
   function toastMsg(msg, isHtml) {
     const t = document.getElementById("toast");
     if (t) {
-      t.innerHTML = msg;
+      t.innerHTML = isHtml ? msg : esc(msg);
       t.hidden = false; t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
       clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 6500);
     }

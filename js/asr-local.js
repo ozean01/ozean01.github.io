@@ -80,7 +80,10 @@
       if (!model) return ensureModel().then(function (m) { model = m; return m; });
       return model;
     }).then(function (m) {
-      var rec = m.KaldiRecognizer ? m.KaldiRecognizer(44100) : m.KaldiRecognizer(16000);
+      /* P2-2：vosk-browser 的 KaldiRecognizer 是**构造函数**，必须 new。
+         此前写成 m.KaldiRecognizer(44100)（还把采样率写成 44100）——库内是 getter，
+         直接调用拿不到识别器，即使模型到位也不可能工作。 */
+      var rec = new m.KaldiRecognizer(16000);
       if (!rec) throw new Error("KaldiRecognizer 不可用");
       // vosk 以 chunk 方式喂数据
       var chunk = 4096;
@@ -132,10 +135,23 @@
     };
   }
 
+  /* P2-2 就绪探测：离线识别需要**模型目录**在场（库可按需加载）。
+     本站**不分发**这个模型（约 66MB，会显著增大仓库与首次安装流量），所以默认未就绪。
+     此前设置页照样摆着一个可勾选的「优先本地识别」，勾了也不会生效——那是一句拿不到凭证的承诺。
+     现在把真实状态交给 UI，由它禁用入口并说明原因。 */
+  function probe() {
+    var missing = { ready: false, reason: "模型目录不在站内（" + MODELS_DIR + "/）" };
+    if (typeof fetch !== "function") return Promise.resolve(missing);
+    return fetch(MODELS_DIR + "/conf/mfcc.conf", { method: "HEAD" }).then(function (r) {
+      return r && r.ok ? { ready: true, reason: "" } : missing;
+    }).catch(function () { return missing; });
+  }
+
   window.LocalASR = {
     transcribe: transcribe,
     record: record,
     status: status,
+    probe: probe,
     MODELS_DIR: MODELS_DIR
   };
 })();

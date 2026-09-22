@@ -456,6 +456,8 @@
       </div>`;
     }).join("");
 
+    // ⚠️ 这个模板字符串里绝不能出现块注释符号：模板会把注释原样渲染成页面上的可见文字。
+    // 真机浏览时曾在「本周」区下方漏出一整段说明文字。需要说明就写在这里（模板之外）。
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs">今日</div>
@@ -528,11 +530,6 @@
         '<div class="td-week-body">' + weekHtml + "</div></details>"
       : ""}
 
-    /* 完成庆祝块：不指向旧看板路由。此处原有一个「🗂 本周看板」按钮指向旧看板路由
-       （已不再是独立页面，见 app.js 的 REDIRECT_ROUTES 与下方周区说明）——那条路由会被
-       整页重定向回本页，点击等于原地刷新（自环空操作，R5）。本周内容就在上方那一块
-       只读「本周」区里，故直接删掉该按钮，改为只留「口语水平 / 说我想说」两个真实出口
-       ——不新增入口是本页既有原则。 */
     ${allDone
       ? '<div class="td-finish"><b>🎉 今天这五步做完了</b><span>连续 ' + st.streak + " 天 · 今天 " + st.today + " 分。明天回来接着走，进度会自动往前推。</span>" +
         '<div class="td-finish-ops"><a class="btn btn-outline btn-sm" href="#/speaking">📡 看看口语水平</a>' +

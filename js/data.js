@@ -27,7 +27,7 @@ const FTE_DATA = {
         { w: "trade", ipa: "/treɪd/", pos: "n./v.", cn: "贸易；交易", ex: "International trade has grown rapidly over the past decade.", exCn: "过去十年，国际贸易增长迅速。" },
         { w: "international trade", ipa: "/ˌɪntərˈnæʃnəl treɪd/", pos: "n.", cn: "国际贸易", ex: "Our company has been engaged in international trade since 2005.", exCn: "我们公司自 2005 年起从事国际贸易。" },
         { w: "foreign trade", ipa: "/ˈfɔːrən treɪd/", pos: "n.", cn: "对外贸易", ex: "Foreign trade is an important engine of our economy.", exCn: "对外贸易是我国经济的重要引擎。" },
-        { w: "export", ipa: "/ˈekspɔːrt/", pos: "n./v.", cn: "出口；出口商品", ex: "We mainly export textiles to Europe and North America.", exCn: "我们主要向欧洲和北美出口纺织品。" },
+        { w: "export", ipa: "/ˈekspɔːrt/", pos: "n./v.", cn: "出口；出口商品", ex: "We mainly export flexible packaging to Europe and North America.", exCn: "我们主要向欧洲和北美出口软包装。" },
         { w: "import", ipa: "/ɪmˈpɔːrt/", pos: "n./v.", cn: "进口；进口商品", ex: "The country imports most of its crude oil.", exCn: "该国的大部分原油依赖进口。" },
         { w: "importer", ipa: "/ɪmˈpɔːrtər/", pos: "n.", cn: "进口商", ex: "As an importer, we need documents for customs clearance.", exCn: "作为进口商，我们需要清关单据。" },
         { w: "exporter", ipa: "/ˈekspɔːrtər/", pos: "n.", cn: "出口商", ex: "The exporter is responsible for packing the goods.", exCn: "出口商负责货物的包装。" },
@@ -109,7 +109,7 @@ const FTE_DATA = {
         { w: "exhibition", ipa: "/ˌeksɪˈbɪʃn/", pos: "n.", cn: "展览会", ex: "Our booth was very busy during the exhibition.", exCn: "展会期间我们的展位非常繁忙。" },
         { w: "booth", ipa: "/buːθ/", pos: "n.", cn: "展位", ex: "Welcome to our booth! Feel free to look around.", exCn: "欢迎来到我们的展位！请随便看看。" },
         { w: "stand", ipa: "/stænd/", pos: "n.", cn: "展台", ex: "The stand was decorated with our new products.", exCn: "展台上陈列着我们的新产品。" },
-        { w: "brochure", ipa: "/ˈbroʊʃər/", pos: "n.", cn: "宣传册", ex: "Here's a brochure about our latest models.", exCn: "这是关于我们最新型号的宣传册。" },
+        { w: "brochure", ipa: "/ˈbroʊʃər/", pos: "n.", cn: "宣传册", ex: "Please find our brochure with the full product range and latest grades.", exCn: "请查收我们的宣传册，内含完整产品系列与最新牌号。" },
         { w: "catalog", ipa: "/ˈkætəlɔːɡ/", pos: "n.", cn: "产品目录", ex: "You can download our catalog from the website.", exCn: "您可以从网站下载我们的产品目录。" },
         { w: "business card", ipa: "/ˈbɪznəs kɑːrd/", pos: "n.", cn: "名片", ex: "May I have your business card, please?", exCn: "能给我一张您的名片吗？" },
         { w: "appointment", ipa: "/əˈpɔɪntmənt/", pos: "n.", cn: "预约；约会", ex: "I'd like to make an appointment with your manager.", exCn: "我想预约和你们经理见面。" },
@@ -123,7 +123,7 @@ const FTE_DATA = {
         { w: "target requirement", ipa: "/ˈtɑːrɡɪt rɪˈkwaɪərmənt/", pos: "n.", cn: "目标需求（客户对胶水的性能要求）", ex: "Knowing the customer's target requirement helps us recommend the right grade.", exCn: "了解客户的目标需求有助于推荐合适的型号。" },
         { w: "grade", ipa: "/ɡreɪd/", pos: "n.", cn: "型号；等级（产品牌号）", ex: "We have many grades for different film structures.", exCn: "针对不同膜结构我们有很多型号。" },
         { w: "specification sheet", ipa: "/ˌspesɪfɪˈkeɪʃn ʃiːt/", pos: "n.", cn: "规格表", ex: "Could you send the specification sheet of that grade?", exCn: "能发一下那个型号的规格表吗？" },
-        { w: "performance level", ipa: "/pərˈfɔːrməns ˈlevl/", pos: "n.", cn: "性能等级（通用/冷冻/水煮/蒸煮）", ex: "Confirm the performance level: general, freezer, boil or retort.", exCn: "请确认性能等级：通用、冷冻、水煮还是蒸煮。" }
+        { w: "performance level", ipa: "/pərˈfɔːrməns ˈlevl/", pos: "n.", cn: "性能等级（通用/冷冻/水煮/蒸煮）", ex: "Confirm the performance level: general purpose, freezer, boilable (100 °C) or retort (121 °C).", exCn: "请确认性能等级：通用、冷冻、水煮（100 °C）还是蒸煮（121 °C）。" }
       ],
       phrases: [
         { p: "exchange business cards", cn: "交换名片", ex: "We exchanged business cards and agreed to follow up after the show.", exCn: "我们交换了名片，并约定展会后再跟进。" },
@@ -177,7 +177,7 @@ const FTE_DATA = {
         { w: "counter-offer", ipa: "/ˈkaʊntər ˌɔːfər/", pos: "n.", cn: "还盘；还价", ex: "Their counter-offer is 10% below our listed price.", exCn: "他们的还盘比我们的报价低 10%。" },
         { w: "valid", ipa: "/ˈvælɪd/", pos: "adj.", cn: "有效的", ex: "This quotation is valid until the end of this month.", exCn: "此报价有效期到本月底。" },
         { w: "validity", ipa: "/vəˈlɪdəti/", pos: "n.", cn: "有效期", ex: "The validity of the offer is 30 days.", exCn: "该报价的有效期是 30 天。" },
-        { w: "MOQ", ipa: "/ˌem oʊ ˈkjuː/", pos: "n.", cn: "最小起订量（Minimum Order Quantity）", ex: "Our MOQ is 500 pieces per design.", exCn: "我们每个款式的起订量是 500 件。" },
+        { w: "MOQ", ipa: "/ˌem oʊ ˈkjuː/", pos: "n.", cn: "最小起订量（Minimum Order Quantity）", ex: "Our MOQ is 500 kg (two drums) per order.", exCn: "我们的起订量是每单 500 公斤（两桶）。" },
         { w: "lead time", ipa: "/liːd taɪm/", pos: "n.", cn: "交货期；生产周期", ex: "The lead time for this order is 25 days.", exCn: "这批订单的交货期是 25 天。" },
         { w: "bulk order", ipa: "/bʌlk ˈɔːrdər/", pos: "n.", cn: "大额订单；批量订单", ex: "For bulk orders, we can offer better prices.", exCn: "对于批量订单，我们可以提供更优惠的价格。" },
         { w: "trial order", ipa: "/ˈtraɪəl ˈɔːrdər/", pos: "n.", cn: "试单；试购", ex: "We'd like to start with a trial order of 200 units.", exCn: "我们想先从 200 台的试单开始。" },
@@ -198,7 +198,10 @@ const FTE_DATA = {
         { w: "tunneling", ipa: "/ˈtʌnəlɪŋ/", pos: "n.", cn: "隧道效应（复合膜离层形成条状空泡）", ex: "Tunneling occurs when the laminate is wound too tightly before curing.", exCn: "若熟化前收卷过紧会出现隧道效应。" },
         { w: "catalyst", ipa: "/ˈkætəlɪst/", pos: "n.", cn: "催化剂", ex: "A trace of catalyst speeds up the polyurethane reaction.", exCn: "微量催化剂可加速聚氨酯反应。" },
         { w: "acrylic", ipa: "/əˈkrɪlɪk/", pos: "n.", cn: "丙烯酸（另一类胶体体系）", ex: "Acrylic adhesives are an alternative to polyurethane.", exCn: "丙烯酸胶粘剂是聚氨酯之外的选择。" },
-        { w: "base resin", ipa: "/beɪs ˈrezɪn/", pos: "n.", cn: "主剂树脂（A 料）", ex: "The base resin and the hardener form the two-component system.", exCn: "主剂树脂与固化剂共同构成双组分体系。" }
+        { w: "base resin", ipa: "/beɪs ˈrezɪn/", pos: "n.", cn: "主剂树脂（A 料）", ex: "The base resin and the hardener form the two-component system.", exCn: "主剂树脂与固化剂共同构成双组分体系。" },
+        { w: "follow up on", ipa: "/ˈfɑːloʊ ʌp ɑːn/", pos: "v.", cn: "跟进；催办", ex: "I am following up on the quotation we sent last Tuesday.", exCn: "我们上周二发的报价，我来跟进一下。" },
+        { w: "hold the price", ipa: "/hoʊld ðə praɪs/", pos: "v.", cn: "维持报价；保持价格不变", ex: "Can you hold this price until the end of the quarter?", exCn: "这个价格能维持到本季度末吗？" },
+        { w: "clarify", ipa: "/ˈklærəfaɪ/", pos: "v.", cn: "澄清；说明清楚", ex: "Could you clarify the required retort temperature?", exCn: "能否说明一下所需的蒸煮温度？" }
       ],
       phrases: [
         { p: "offer a discount", cn: "给予折扣", ex: "We can offer a 10% discount if you pay in advance.", exCn: "如果你们预付，我们可以给 10% 的折扣。" },
@@ -243,7 +246,7 @@ const FTE_DATA = {
       icon: "✉️",
       summary: "开发信、回复询盘、催款与跟进：掌握外贸邮件的结构与高频句式，写出专业高效的邮件。",
       vocab: [
-        { w: "attachment", ipa: "/əˈtætʃmənt/", pos: "n.", cn: "附件", ex: "Please find the attachment for details.", exCn: "详情请见附件。" },
+        { w: "attachment", ipa: "/əˈtætʃmənt/", pos: "n.", cn: "附件", ex: "Please see the attachment for details.", exCn: "详情请见附件。" },
         { w: "subject line", ipa: "/ˈsʌbdʒɪkt laɪn/", pos: "n.", cn: "主题行", ex: "Make your subject line specific and clear.", exCn: "邮件主题要具体、清晰。" },
         { w: "recipient", ipa: "/rɪˈsɪpiənt/", pos: "n.", cn: "收件人", ex: "Check the recipient's name and title before sending.", exCn: "发送前检查收件人的姓名和头衔。" },
         { w: "cc", ipa: "/ˌsiː ˈsiː/", pos: "v./n.", cn: "抄送", ex: "Please cc the purchase manager in your reply.", exCn: "回复时请抄送采购经理。" },
@@ -257,7 +260,7 @@ const FTE_DATA = {
         { w: "polite", ipa: "/pəˈlaɪt/", pos: "adj.", cn: "礼貌的", ex: "Always be polite, even when chasing payment.", exCn: "即使催款也要保持礼貌。" },
         { w: "regarding", ipa: "/rɪˈɡɑːrdɪŋ/", pos: "prep.", cn: "关于", ex: "Regarding your question about the samples...", exCn: "关于您提出的样品问题……" },
         { w: "enclose", ipa: "/ɪnˈkloʊz/", pos: "v.", cn: "随函附上", ex: "We enclose our latest catalog for your reference.", exCn: "随函附上我们的最新目录供您参考。" },
-        { w: "sincerely", ipa: "/sɪnˈsɪrli/", pos: "adv.", cn: "诚挚地", ex: "Yours sincerely, David Wang", exCn: "此致敬礼，王大卫" },
+        { w: "sincerely", ipa: "/sɪnˈsɪrli/", pos: "adv.", cn: "诚挚地", ex: "I sincerely hope we can settle this amicably.", exCn: "我诚挚希望我们能友好地解决此事。" },
         { w: "draft", ipa: "/dræft/", pos: "n./v.", cn: "草稿；起草", ex: "I've drafted a reply for your review.", exCn: "我已起草了一份回复供您审阅。" },
         { w: "TDS", ipa: "/ˌtiː diː ˈes/", pos: "n.", cn: "技术数据表（Technical Data Sheet）", ex: "Attached are the TDS and the recommended curing conditions.", exCn: "随函附上技术数据表和建议的熟化条件。" },
         { w: "NDA", ipa: "/ˌen diː ˈeɪ/", pos: "n.", cn: "保密协议（Non-Disclosure Agreement）", ex: "We can share the formula details after signing the NDA.", exCn: "签署保密协议后我们可以共享配方细节。" },
@@ -280,9 +283,9 @@ const FTE_DATA = {
         {
           title: "开发信模板（Cold Outreach Email）",
           lines: [
-            { sp: "✉", en: "Subject: High-Quality Ceramic Tiles at Factory Prices", cn: "主题：工厂价优质瓷砖" },
+            { sp: "✉", en: "Subject: High-Quality Laminating Adhesives at Factory Prices", cn: "主题：工厂价优质复合胶" },
             { sp: "✉", en: "Dear Ms. Chen,", cn: "陈女士，您好：" },
-            { sp: "✉", en: "I am writing to introduce our company, which specializes in ceramic tiles.", cn: "我写信是想向您介绍我们公司，我们专业生产瓷砖。" },
+            { sp: "✉", en: "I am writing to introduce our company, which specialises in laminating adhesives for flexible packaging.", cn: "我写信是想介绍我们公司——我们专注软包装复合胶。" },
             { sp: "✉", en: "We have been exporting to 30 countries for over 15 years.", cn: "我们出口到 30 个国家已超过 15 年。" },
             { sp: "✉", en: "Our factory offers prices 10–15% below the market average with ISO-certified quality.", cn: "我们工厂的价格比市场均价低 10–15%，并通过 ISO 认证。" },
             { sp: "✉", en: "Please find attached our latest catalog and price list.", cn: "请查收随附的最新目录和价目表。" },
@@ -294,12 +297,12 @@ const FTE_DATA = {
         {
           title: "回复询盘（Reply to an Inquiry）",
           lines: [
-            { sp: "✉", en: "Subject: Re: Quotation for 2,000 Mugs — FOB Ningbo", cn: "主题：回复：2000 个杯子的报价——宁波离岸价" },
+            { sp: "✉", en: "Subject: Re: Quotation for 2,000 kg of Solventless Adhesive — FOB Ningbo", cn: "主题：回复：2000 公斤无溶剂复合胶报价——宁波离岸价" },
             { sp: "✉", en: "Dear Mr. Smith,", cn: "史密斯先生，您好：" },
             { sp: "✉", en: "Thank you for your inquiry dated May 10.", cn: "感谢您 5 月 10 日的询盘。" },
-            { sp: "✉", en: "Please find attached our quotation for 2,000 ceramic mugs.", cn: "请查收随附的 2000 个陶瓷杯报价单。" },
-            { sp: "✉", en: "The unit price is USD 1.2 FOB Ningbo, valid for 30 days.", cn: "单价为 1.2 美元，宁波离岸价，30 天内有效。" },
-            { sp: "✉", en: "For orders above 5,000 pieces, we can offer a 5% discount.", cn: "订单超过 5000 件，可享受 5% 折扣。" },
+            { sp: "✉", en: "Please find attached our quotation for 2,000 kg of solventless laminating adhesive.", cn: "请查收随附的 2000 公斤无溶剂复合胶报价单。" },
+            { sp: "✉", en: "The unit price is USD 3.80 per kg FOB Ningbo, valid for 30 days.", cn: "单价为 3.80 美元/公斤，宁波离岸价，30 天内有效。" },
+            { sp: "✉", en: "For orders above 5,000 kg, we can offer a 5% discount.", cn: "订单超过 5000 公斤可享 5% 折扣。" },
             { sp: "✉", en: "Production time is 25 days after receiving your deposit.", cn: "收到定金后 25 天生产完成。" },
             { sp: "✉", en: "We look forward to your confirmation. Should you have any questions, please feel free to contact us.", cn: "期待您的确认。如您有任何问题，请随时联系我们。" },
             { sp: "✉", en: "Best regards, Li Na — Export Department", cn: "此致敬礼，李娜——出口部" }
@@ -307,7 +310,7 @@ const FTE_DATA = {
         }
       ],
       tips: [
-        "邮件主题要具体：产品 + 数量 + 港口（Quotation for 2,000 Mugs — FOB Ningbo），不要只写 Hello 或 Quotation。",
+        "邮件主题要具体：产品 + 数量 + 港口（Quotation for 2,000 kg of Solventless Adhesive — FOB Ningbo），不要只写 Hello 或 Quotation。",
         "结构上先结论后细节：开头一句说明来意，中间给关键信息，结尾明确下一步（请确认/请回复）。",
         "商务邮件要 24 小时内回复；催款邮件语气要礼貌但坚定；避免全大写、过多感叹号和口语缩写（gonna, wanna）。"
       ]
@@ -340,7 +343,10 @@ const FTE_DATA = {
         { w: "tech support", ipa: "/tek səˈpɔːrt/", pos: "n.", cn: "技术支持（售前工艺服务）", ex: "We provide free tech support and on-site troubleshooting.", exCn: "我们提供免费技术支持和现场故障排查。" },
         { w: "application engineer", ipa: "/ˌæplɪˈkeɪʃn ˌendʒɪˈnɪər/", pos: "n.", cn: "应用工程师（驻场调试）", ex: "An application engineer will assist you on the coating line.", exCn: "应用工程师会在涂布线协助您。" },
         { w: "frame agreement", ipa: "/freɪm əˈɡriːmənt/", pos: "n.", cn: "框架协议（年度采购）", ex: "The frame agreement locks the price for the whole year.", exCn: "框架协议锁定全年价格。" },
-        { w: "exclusive distributor", ipa: "/ɪkˈskluːsɪv dɪˈstrɪbjətər/", pos: "n.", cn: "独家经销商", ex: "We are seeking an exclusive distributor for the region.", exCn: "我们正在该区域寻找独家经销商。" }
+        { w: "exclusive distributor", ipa: "/ɪkˈskluːsɪv dɪˈstrɪbjətər/", pos: "n.", cn: "独家经销商", ex: "We are seeking an exclusive distributor for the region.", exCn: "我们正在该区域寻找独家经销商。" },
+        { w: "split the difference", ipa: "/splɪt ðə ˈdɪfərəns/", pos: "v.", cn: "各让一半；折中", ex: "Let's split the difference and settle at 1.95 USD/kg.", exCn: "我们各让一半，就定在 1.95 美元/公斤。" },
+        { w: "hold firm on", ipa: "/hoʊld fɜːrm ɑːn/", pos: "v.", cn: "坚持（不让步）", ex: "We have to hold firm on the 30% deposit.", exCn: "30% 定金这一条我们必须坚持。" },
+        { w: "walk away", ipa: "/wɔːk əˈweɪ/", pos: "v.", cn: "放弃交易；退出谈判", ex: "If the price stays this high, we may walk away.", exCn: "如果价格一直这么高，我们可能就不做了。" }
       ],
       phrases: [
         { p: "meet each other halfway", cn: "各让一步", ex: "Let's meet each other halfway on the price.", exCn: "价格上我们各让一步吧。" },
@@ -354,7 +360,7 @@ const FTE_DATA = {
         { p: "annual purchase volume", cn: "年采购量", ex: "If you commit a larger annual purchase volume, we can lower the tonnage price.", exCn: "如果你们承诺更大的年采购量，我们可以降低吨价。" },
         { p: "price reduces with tonnage", cn: "量越大单价越低", ex: "The unit price reduces with the total tonnage of the annual contract.", exCn: "单价随年度合同总吨位的增加而降低。" },
         { p: "guarantee stable supply", cn: "保证稳定供货", ex: "We guarantee stable supply to keep your laminating line running.", exCn: "我们保证稳定供货，确保你们的复合线不停产。" },
-        { p: "long-term cooperation", cn: "长期合作", ex: "We'd like a long-term cooperation based on a yearly frame agreement.", exCn: "我们希望通过年度框架协议建立长期合作。" }
+        { p: "long-term cooperation", cn: "长期合作", ex: "We'd like a long-term partnership based on an annual framework agreement.", exCn: "我们希望通过年度框架协议建立长期合作关系。" }
       ],
       dialogues: [
         {
@@ -409,7 +415,11 @@ const FTE_DATA = {
         { w: "tonnage", ipa: "/ˈtʌnɪdʒ/", pos: "n.", cn: "吨位；载重吨位", ex: "The annual tonnage contract reduces the unit price.", exCn: "年度吨位合同可以降低单价。" },
         { w: "freight prepaid", ipa: "/freɪt priːˈpeɪd/", pos: "adj.", cn: "运费预付", ex: "The goods are shipped freight prepaid to your port.", exCn: "货物按运费预付方式发往贵方港口。" },
         { w: "drum", ipa: "/drʌm/", pos: "n.", cn: "料桶（复膜胶的标准包装）", ex: "We supply in 200kg drums or 20kg aluminum bags.", exCn: "我们提供 200 千克料桶或 20 千克铝箔袋包装。" },
-        { w: "pallet", ipa: "/ˈpælət/", pos: "n.", cn: "托盘", ex: "The drums are shrink-wrapped on pallets for shipping.", exCn: "料桶打托并缠绕膜后发运。" }
+        { w: "pallet", ipa: "/ˈpælət/", pos: "n.", cn: "托盘", ex: "The drums are shrink-wrapped on pallets for shipping.", exCn: "料桶打托并缠绕膜后发运。" },
+        { w: "amend the L/C", ipa: "/əˈmend ðə ˌel ˈsiː/", pos: "v.", cn: "修改信用证", ex: "The buyer agreed to amend the L/C to allow partial shipment.", exCn: "买方同意修改信用证，允许分批装运。" },
+        { w: "settle the balance", ipa: "/ˈsetl ðə ˈbæləns/", pos: "v.", cn: "结清余款", ex: "We will settle the balance within 30 days of B/L date.", exCn: "我们将在提单日后 30 天内结清余款。" },
+        { w: "open an L/C", ipa: "/ˈoʊpən ən ˌel ˈsiː/", pos: "v.", cn: "开立信用证", ex: "Please open the L/C 30 days before the shipping date.", exCn: "请在装运日前 30 天开立信用证。" },
+        { w: "waive the charge", ipa: "/weɪv ðə tʃɑːrdʒ/", pos: "v.", cn: "免收费用", ex: "Could you waive the bank charges on this first order?", exCn: "这笔首单的银行手续费能免掉吗？" }
       ],
       phrases: [
         { p: "30% deposit, 70% balance before shipment", cn: "30% 定金，发货前付清 70% 余款", ex: "Our standard terms are 30% deposit, 70% balance before shipment.", exCn: "我们的标准条款是 30% 定金，发货前付清余款。" },
@@ -469,11 +479,14 @@ const FTE_DATA = {
         { w: "dispatch", ipa: "/dɪˈspætʃ/", pos: "v./n.", cn: "发货；派遣", ex: "The goods will be dispatched within 3 business days.", exCn: "货物将在 3 个工作日内发出。" },
         { w: "consignee", ipa: "/ˌkɑːnsaɪˈniː/", pos: "n.", cn: "收货人", ex: "Please confirm the consignee's name and address.", exCn: "请确认收货人的名称和地址。" },
         { w: "transit time", ipa: "/ˈtrænzɪt taɪm/", pos: "n.", cn: "运输时间；在途时间", ex: "The transit time to Hamburg is about 28 days.", exCn: "到汉堡的运输时间大约 28 天。" },
-        { w: "delay", ipa: "/dɪˈleɪ/", pos: "n./v.", cn: "延误；延迟", ex: "We apologize for the delay in shipment.", exCn: "我们对装运延误表示歉意。" },
+        { w: "delay", ipa: "/dɪˈleɪ/", pos: "n./v.", cn: "延误；延迟", ex: "The shipment delay was caused by port congestion.", exCn: "这次装运延误是港口拥堵造成的。" },
         { w: "dangerous goods", ipa: "/ˈdeɪndʒərəs ɡʊdz/", pos: "n.", cn: "危险品（溶剂型胶粘剂多为易燃品，运输需特殊申报）", ex: "Solvent-based adhesive is classified as dangerous goods for shipping.", exCn: "溶剂型胶粘剂在运输中属于危险品。" },
         { w: "MSDS", ipa: "/ˌem es diː ˈes/", pos: "n.", cn: "材料安全数据表（Material Safety Data Sheet）", ex: "We provide the MSDS together with each shipment of solvent-based products.", exCn: "每批溶剂型产品出货都附带材料安全数据表（MSDS）。" },
         { w: "temperature control", ipa: "/ˈtemprətʃər kənˈtroʊl/", pos: "n.", cn: "温控（运输/仓储）", ex: "Curing starts too fast if the temperature control fails in summer.", exCn: "夏季若温控失误，胶粘剂会过快熟化。" },
-        { w: "shelf life", ipa: "/ʃelf laɪf/", pos: "n.", cn: "储存期；保质期（胶水从出厂到使用）", ex: "The shelf life of our adhesive is 12 months from the production date.", exCn: "我们胶粘剂的储存期自生产日期起 12 个月。" }
+        { w: "shelf life", ipa: "/ʃelf laɪf/", pos: "n.", cn: "储存期；保质期（胶水从出厂到使用）", ex: "The shelf life of our adhesive is 12 months from the production date.", exCn: "我们胶粘剂的储存期自生产日期起 12 个月。" },
+        { w: "trace the shipment", ipa: "/treɪs ðə ˈʃɪpmənt/", pos: "v.", cn: "追踪货物", ex: "Could you trace the shipment? The customer needs an ETA today.", exCn: "能查一下这批货吗？客户今天就要到港时间。" },
+        { w: "book the space", ipa: "/bʊk ðə speɪs/", pos: "v.", cn: "订舱；订舱位", ex: "Please book the space now; rates go up on Monday.", exCn: "请现在就订舱，周一运价要涨。" },
+        { w: "load the container", ipa: "/loʊd ðə kənˈteɪnər/", pos: "v.", cn: "装柜", ex: "We will load the container on Wednesday morning.", exCn: "我们周三上午装柜。" }
       ],
       phrases: [
         { p: "ship by sea / by air", cn: "海运 / 空运", ex: "We can ship the first batch by air and the rest by sea.", exCn: "我们可以第一批走空运，其余走海运。" },
@@ -629,7 +642,11 @@ const FTE_DATA = {
         { w: "general purpose", ipa: "/ˈdʒenrəl ˈpɜːrpəs/", pos: "adj.", cn: "通用型（轻包装）", ex: "The general-purpose grade covers most snack packaging.", exCn: "通用型覆盖大多数零食包装。" },
         { w: "dry lamination", ipa: "/draɪ ˌlæmɪˈneɪʃn/", pos: "n.", cn: "干法复合（溶剂型工艺）", ex: "Dry lamination is the traditional solvent-based process.", exCn: "干法复合是传统的溶剂型工艺。" },
         { w: "extrusion lamination", ipa: "/ɪkˈstruːʒn ˌlæmɪˈneɪʃn/", pos: "n.", cn: "挤出复合", ex: "Extrusion lamination uses molten resin as the bonding layer.", exCn: "挤出复合用熔融树脂作为粘合层。" },
-        { w: "aging", ipa: "/ˈeɪdʒɪŋ/", pos: "n.", cn: "老化（性能测试）", ex: "We run an aging test to confirm long-term peel strength.", exCn: "我们进行老化测试以确认长期剥离强度。" }
+        { w: "aging", ipa: "/ˈeɪdʒɪŋ/", pos: "n.", cn: "老化（性能测试）", ex: "We run an aging test to confirm long-term peel strength.", exCn: "我们进行老化测试以确认长期剥离强度。" },
+        { w: "look into", ipa: "/lʊk ˈɪntuː/", pos: "v.", cn: "调查；核实", ex: "We will look into the complaint and reply within 48 hours.", exCn: "我们会调查这起投诉，48 小时内回复。" },
+        { w: "expedite", ipa: "/ˈekspədaɪt/", pos: "v.", cn: "加快处理；催办", ex: "Could you expedite the replacement shipment? Our line is down.", exCn: "能加急处理补发的货吗？我们产线停了。" },
+        { w: "apologize for", ipa: "/əˈpɑːlədʒaɪz fɔːr/", pos: "v.", cn: "为…致歉", ex: "We sincerely apologize for the delay in shipment.", exCn: "我们为本次发货延误诚挚致歉。" },
+        { w: "process the claim", ipa: "/ˈprɑːses ðə kleɪm/", pos: "v.", cn: "处理索赔", ex: "We will process the claim once we receive the survey report.", exCn: "收到检验报告后我们就受理这笔索赔。" }
       ],
       phrases: [
         { p: "we apologize for the inconvenience", cn: "给您带来不便，我们深表歉意", ex: "We apologize for the inconvenience caused by the delay.", exCn: "对延误给您带来的不便，我们深表歉意。" },
@@ -705,7 +722,8 @@ const FTE_DATA = {
         { w: "spout pouch", ipa: "/spaʊt paʊtʃ/", pos: "n.", cn: "吸嘴袋（带吸嘴的软包装袋）", ex: "Spout pouches are common for liquid detergents and drinks.", exCn: "吸嘴袋常用于液体洗涤剂和饮料包装。" },
         { w: "zipper bag", ipa: "/ˈzɪpər bæɡ/", pos: "n.", cn: "拉链袋（夹链自封袋）", ex: "Zipper bags are resealable and popular for snacks.", exCn: "拉链袋可反复密封，零食常用。" },
         { w: "roll", ipa: "/roʊl/", pos: "n.", cn: "卷膜（未制袋的卷料）", ex: "We supply the material as cut-to-size rolls or bags.", exCn: "我们按定尺卷膜或制袋两种形式供货。" },
-        { w: "flexible film roll", ipa: "/ˈfleksəbl fɪlm roʊl/", pos: "n.", cn: "软包装膜卷", ex: "Flexible film rolls are the main export format.", exCn: "软包装膜卷是主要的出口形式。" }
+        { w: "flexible film roll", ipa: "/ˈfleksəbl fɪlm roʊl/", pos: "n.", cn: "软包装膜卷", ex: "Flexible film rolls are the main export format.", exCn: "软包装膜卷是主要的出口形式。" },
+        { w: "restock", ipa: "/ˌriːˈstɑːk/", pos: "v.", cn: "补货；重新备货", ex: "We need to restock the top-selling SKU before Q4.", exCn: "第四季度前我们得给销量第一的 SKU 补货。" }
       ],
       phrases: [
         { p: "leave a positive review", cn: "留下好评", ex: "We encourage buyers to leave a positive review.", exCn: "我们鼓励买家留下好评。" },
@@ -967,7 +985,7 @@ const FTE_DATA = {
         { w: "slitter", ipa: "/ˈslɪtər/", pos: "n.", cn: "分切机", ex: "The slitter rewinds the film on new cores.", exCn: "分切机把膜复卷到新纸芯上。" }
       ],
       phrases: [
-        { p: "bond strength test", cn: "粘合强度测试", ex: "Run a bond strength test before mass production.", exCn: "量产前先做粘合强度测试。" },
+        { p: "check the peel strength", cn: "检测剥离强度", ex: "Check the peel strength after 24 hours of curing.", exCn: "熟化 24 小时后检测剥离强度。" },
         { p: "mix the two components", cn: "把两组分混合", ex: "Mix the two components thoroughly for three minutes.", exCn: "将两组分充分混合三分钟。" },
         { p: "adjust the coating weight", cn: "调整上胶量", ex: "Adjust the coating weight to 2.0 g/m² for this run.", exCn: "本批次把上胶量调到 2.0 克/平方米。" },
         { p: "check the surface tension", cn: "检查表面张力（达因）", ex: "Check the surface tension of the film before coating.", exCn: "涂布前检查薄膜的表面张力。" },

@@ -136,7 +136,7 @@
     /* 默认使用浏览器内置语音（离线可用、最可靠）。在线高音质（Google 音源）端点已被 Google
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
-    return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, done: {}, rate: 1, voice: "",
+    return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, flashChunk: {}, done: {}, rate: 1, voice: "",
       engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, localASR: false };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
@@ -190,10 +190,20 @@
   function doneUnitCount() {
     return DATA.units.filter(unitDone).length;
   }
+  /* P1-5：以前只有「手动点 ✓ 标记过单词」才会记快照（totalLearned 只统计自评标记），
+     于是只刷单词卡、只做跟读的人**永远没有走势图**——最需要看历史的那批人反而没有。
+     现在只要有任意一种学习痕迹就记。 */
+  function hasAnyStudy() {
+    return totalLearned() > 0 ||
+      Object.keys(progress.flash || {}).length > 0 ||
+      Object.keys(progress.stage || {}).length > 0 ||
+      (progress.eval4 || []).length > 0 ||
+      ((progress.coach && progress.coach.total) || 0) > 0;
+  }
   function recordSnapshot() {
     const now = Date.now();
     const learned = totalLearned();
-    if (!learned) return;                       // 还没学词，不记（无意义快照）
+    if (!hasAnyStudy()) return;                 // 完全没学过，不记（无意义快照）
     const ret = overallRetention(now);
     if (ret == null) return;
     const DAY = 86400000;
@@ -267,6 +277,47 @@
   const STAGE_DONE_N = 5;
   function unitDone(u) {
     return !!progress.done[u.id] || unitPct(u) >= UNIT_DONE_PCT;
+  }
+
+  /* ---- 出口能力的「证据」判定（P1-3）----
+     问题：单元「完成」只看词汇掌握 80% 或用户手动标记，与 js/outcomes.js 的能力断言
+     **零耦合**——用户可以零产出标完 19 个单元，页面照样宣称「能独立回复 8D 客诉」。
+     承诺与证据必须连上。口径（保守：宁可不认，也不误认）——按该单元断言的 anchor
+     精确匹配站内真实产出物：
+       · sop    → fte-sop-v1 里该步骤被勾选
+       · eval4  → 四维成绩历史里存在同一场景（标题精确相等）
+       · write  → 作品集里存在同一场景 / 同一封来信（有独立稿时额外标注）
+     **手动「标记完成」永远不算证据**——它只是自我声明，不是产出。 */
+  function readLS(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+  function outcomeEvidence(u) {
+    const items = (window.FTE_OUTCOMES && window.FTE_OUTCOMES.items) || {};
+    const it = items[String(u.id)];
+    if (!it || !it.anchor) return null;              /* 未登记断言的单元（如 U10，属显式例外） */
+    const a = it.anchor;
+    if (a.kind === "sop") {
+      const checks = readLS("fte-sop-v1") || {};
+      return { done: !!checks[a.ref], label: a.label || a.ref, kind: a.kind, strong: false };
+    }
+    if (a.kind === "eval4") {
+      const his = progress.eval4 || [];
+      const hit = his.filter(function (r) { return r && r.title === a.label; }).length > 0;
+      return { done: hit, label: a.label || a.ref, kind: a.kind, strong: false };
+    }
+    if (a.kind === "write") {
+      const works = readLS("fte-writes-v1") || [];
+      const hit = works.filter(function (w) { return w && (w.scen === a.ref || w.title === a.label); })[0];
+      return { done: !!hit, label: a.label || a.ref, kind: a.kind, strong: !!(hit && hit.indep) };
+    }
+    return { done: false, label: a.label || a.ref, kind: a.kind, strong: false };
+  }
+  /* 有产出证据的单元（= 能力栏唯一允许出现的单元计数） */
+  function evidencedUnits() {
+    return recordUnits().filter(function (u) { const e = outcomeEvidence(u); return e && e.done; });
+  }
+  /* 最近一次四维口语总分（来自 ASR/AI 评测的客观留痕，非自评） */
+  function lastEval4Total() {
+    const list = (progress.eval4 || []).filter(function (r) { return r && r.total != null; });
+    return list.length ? list[0].total : null;
   }
 
   /* ---- 进度主键：内容键（P1-C2 预留，P2-G 消费）----
@@ -484,10 +535,16 @@
 
   function mergedTabBarHtml(key, idx) {
     const page = MERGED_PAGES[key];
+    /* P2-4：tab 语义要成对——role="tab" 必须有 aria-selected，且要有 tabpanel 关联。
+       此前全仓 0 命中 aria-selected / tabpanel，读屏用户听不出哪个 tab 是当前页。 */
     return '<div class="tabs merged-tabs" role="tablist">' +
       page.tabs.map(function (t, i) {
-        return '<a class="tab' + (i === idx ? " active" : "") + '" role="tab" href="#/' + key +
-          (i === 0 ? "" : "/" + t.k) + '">' + t.label + "</a>";
+        const active = (i === idx);
+        const panelId = "merged-panel-" + key;
+        return '<a class="tab' + (active ? " active" : "") + '" role="tab" id="merged-tab-' + key + "-" + i + '"' +
+          ' aria-selected="' + (active ? "true" : "false") + '" aria-controls="' + panelId + '"' +
+          ' tabindex="' + (active ? "0" : "-1") + '"' +
+          ' href="#/' + key + (i === 0 ? "" : "/" + t.k) + '">' + t.label + "</a>";
       }).join("") + "</div>";
   }
 
@@ -501,6 +558,19 @@
     if (!el) return;
     /* tab 栏插回顶部；同时把模块自己的面包屑/标题下沉，避免与 tab 重复 */
     el.insertAdjacentHTML("afterbegin", mergedTabBarHtml(key, idx));
+    /* P2-4：给内容区一个 tabpanel 身份，和上面的 role="tab" + aria-controls 配对。
+       移动（而非复制）tab 栏之后的节点，事件监听随节点一起搬走，模块内的后代选择器不受影响
+       （全仓没有 #app 直接子选择器，已在改前核对）。 */
+    const tabBar = el.querySelector ? el.querySelector(".merged-tabs") : null;
+    if (tabBar && tabBar.nextSibling && typeof document.createElement === "function") {
+      const panel = document.createElement("div");
+      panel.id = "merged-panel-" + key;
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", "merged-tab-" + key + "-" + idx);
+      panel.setAttribute("tabindex", "0");
+      while (tabBar.nextSibling) panel.appendChild(tabBar.nextSibling);
+      el.appendChild(panel);
+    }
   }
 
   /* ---------------- 路由 ---------------- */
@@ -1119,24 +1189,28 @@
 
     <section class="prog-split">
       <div class="prog-col">
-        <div class="prog-h prog-h-ability">📈 能力 <small>说得怎么样（结果）</small></div>
+        <div class="prog-h prog-h-ability">📈 能力 <small>说得怎么样（结果 · 有留痕）</small></div>
         <div class="stats-row" style="margin-bottom:0;grid-template-columns:repeat(2,1fr)">
-          <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${totalLearned()}</div><div class="lbl">已掌握单词</div></div>
-          <div class="stat-card stat-p"><div class="stat-ic">${ringHtml(donePct)}</div><div class="num">${doneCount}/${DATA.units.length}</div><div class="lbl">已完成单元</div></div>
+          <div class="stat-card stat-p"><div class="stat-ic">${icon("mic")}</div><div class="num">${lastEval4Total() == null ? "—" : lastEval4Total()}</div><div class="lbl">最近四维口语得分</div></div>
+          <div class="stat-card stat-p"><div class="stat-ic">${icon("check")}</div><div class="num">${evidencedUnits().length}/${recordUnits().length}</div><div class="lbl">有产出证据的单元</div></div>
         </div>
       </div>
       <div class="prog-col">
-        <div class="prog-h prog-h-behavior">🔥 坚持 <small>练了多少（过程）</small></div>
+        <div class="prog-h prog-h-behavior">🔥 坚持 · 进度 <small>练了多少（过程 · 自评）</small></div>
         <div class="stats-row" style="margin-bottom:0;grid-template-columns:repeat(2,1fr)">
           <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${cs.streak}</div><div class="lbl">连续打卡（天）</div></div>
           <div class="stat-card stat-p"><div class="stat-ic">⏱</div><div class="num">${cs.today}</div><div class="lbl">今天练习（分钟） <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
         </div>
+        <p class="field-note" style="margin:8px 0 0">已掌握单词 <b>${totalLearned()}</b>（自己点 ✓ 标记）· 学完单元 <b>${doneCount}/${recordUnits().length}</b>（词汇 ≥${UNIT_DONE_PCT}% 或自我标记）。这两项都是<b>进度</b>，不作为能力证据。</p>
       </div>
     </section>
 
     <div class="prog-note" style="margin-top:-16px;margin-bottom:24px">
-      左边是<b>结果</b>，右边是<b>过程</b>——练得多不等于说得好。想知道口语到底有没有长进，看
-      <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a> 的四维分与雷达。
+      左边只放<b>有留痕的结果</b>（评测分、有产出的单元），右边是<b>过程与自评进度</b>——<b>练得多不等于说得好</b>，标记得多也一样。
+      想知道口语到底有没有长进，看
+      <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a> 的四维分与雷达；
+      想知道每个单元「学完能做到」的那件事有没有留下证据，看
+      <a href="#/units" style="color:var(--primary);font-weight:700">📚 全部课程</a> 的单元卡。
     </div>
 
     <h3 class="section-title" id="home-body">📚 学习路径 <span class="sub">按顺序学 · 三阶段递进 · 每单元标注<b>语言</b>难度（相对本站语料，不是业务难度） · <a href="#/placement" style="color:var(--primary);font-weight:700">🎯 测测起点</a></span></h3>
@@ -1309,6 +1383,31 @@
     if (!asLink || !meta) return '<span class="uc-out-a">' + text + "</span>";
     return '<a class="uc-out-a" href="' + meta.route + '">' + text + " →</a>";
   }
+  /* P1-3：把「学完能做到」与「有没有留下证据」连起来。
+     没有这一行，断言就只是一句承诺——用户零产出标完 19 个单元，页面照样说「能独立回复 8D 客诉」。 */
+  function outcomeEvidenceHtml(u) {
+    const e = outcomeEvidence(u);
+    if (!e) return "";
+    if (e.done) {
+      return '<div class="uc-out-ev ok" style="margin-top:6px;font-size:12.5px;color:var(--ok,#1a7f37)">✅ 已留痕：' +
+        esc(e.label) + (e.strong ? "（含关掉 AI 写的独立稿）" : "") + "</div>";
+    }
+    return '<div class="uc-out-ev" style="margin-top:6px;font-size:12.5px;color:var(--muted)">⬜ 尚未留痕：还没有在「' +
+      esc(e.label) + "」留下产出。完成进度 ≠ 具备这项能力。</div>";
+  }
+
+  /* ---- P4-6：速查型 / 选修型单元（S1 建议）----
+     这两类单元的价值在「随用随查」而不是线性推进：U13 是 50 个海运缩写、U14 是 40 个
+     Incoterms 术语与报价核算，硬按顺序背完收益很低；U10 跨境电商与本站主业
+     （软包装 B2B 出口）的任务形态不同，标为选修更诚实。
+     这里**只做标注**，不改路径顺序、不改完成判定——路径与完成度是有冻结契约与门禁的区域，
+     标注不碰它们。 */
+  const REFERENCE_UNITS = {
+    10: { icon: "🎓", label: "选修单元", note: "与本站主业（软包装 B2B 出口）的任务形态不同：做跨境电商平台业务的同学再学" },
+    13: { icon: "📖", label: "速查型单元", note: "50 个海运缩写按需查用，不必按顺序背完" },
+    14: { icon: "📖", label: "速查型单元", note: "11 种 Incoterms 随用随查；配套的报价核算可单独练" }
+  };
+  function unitRefType(u) { return (u && REFERENCE_UNITS[u.id]) || null; }
 
   function unitCardHtml(u) {
     const pct = unitPct(u);
@@ -1337,7 +1436,7 @@
       ${oc ? '<div class="uc-outcome" style="margin-top:8px;padding:8px 10px;background:var(--surface);border-left:3px solid var(--primary);border-radius:8px;line-height:1.6">' +
         '<span class="uc-out-k" style="font-size:12px;font-weight:700;color:var(--primary)">🎯 学完能做到</span>' +
         '<div class="uc-out-v" style="font-size:13.5px;color:var(--ink);margin-top:2px">' + esc(oc.say) + "</div>" +
-        outcomeAnchorHtml(oc.anchor, false) + "</div>" : ""}
+        outcomeAnchorHtml(oc.anchor, false) + outcomeEvidenceHtml(u) + "</div>" : ""}
       ${whenText ? '<div class="uc-when" style="font-size:13px;color:var(--ink);background:var(--primary-soft);border-radius:8px;padding:6px 9px;line-height:1.5">📍 ' + esc(whenText) + '</div>' : ""}
       ${du ? '<div class="uc-diffline">' + diffHtml +
         '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
@@ -1345,6 +1444,7 @@
         <div class="progressbar" title="已掌握词汇占比。掌握 ${UNIT_DONE_PCT}% 即算本单元完成"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
         ${done ? '<span class="badge badge-ok">✓ 已完成</span>' : (pct === 0 ? '<span class="badge badge-muted">从这里开始</span>' : '<span class="badge badge-muted">继续学习</span>')}
+        ${unitRefType(u) ? '<span class="badge uc-ref" title="' + esc(unitRefType(u).note) + '">' + unitRefType(u).icon + " " + esc(unitRefType(u).label) + " · 可跳读</span>" : ""}
       </div>
       ${dlgN ? '<div class="uc-stage' + (stageN ? " on" : "") + '">🎤 跟读：' + stageN + " / " + dlgN + " 段对话走完五阶段" +
         (!done && stageN === 0 ? "（建议至少练 1 段再算学完）" : "") + "</div>" : ""}
@@ -1648,13 +1748,13 @@
     <div class="card uc-diff-card" style="margin-top:12px;max-width:760px">
       <div class="uc-diff-bars">
         <div><b>难度档</b><span class="uc-diff-val">${esc(du.band)}</span><small>语言复杂度（相对本站语料）</small></div>
-        <div><b>平均 CEFR 档</b><span class="uc-diff-val">${cefrLabel(du.avgCefr)}</span><small>1=A1 … 6=C2（未收录按 B2 计）</small></div>
+        <div><b>平均 CEFR 档</b><span class="uc-diff-val">${cefrLabel(du.avgCefr)}</span><small>1=A1 … 6=C2（本单元的 CEFR 命中数不足 10 时不计入合成分，显示「—」）</small></div>
         <div><b>平均句长</b><span class="uc-diff-val">${du.wordsPerSentence} 词</span><small>越长信息密度越高</small></div>
         <div><b>可读性 Flesch</b><span class="uc-diff-val">${du.flesch}</span><small>越高越易读（约 60 为中等）</small></div>
         <div><b>专业词占比</b><span class="uc-diff-val">${du.domPct}%</span><small>行业术语密度（不参与难度档）</small></div>
         <div><b>站内难度序</b><span class="uc-diff-val">#${du.sortIdx}</span><small>1 = 最易，${DATA.units.length} = 最难</small></div>
       </div>
-      <div class="uc-diff-note">词级为 CEFR 画像分级（CEFR-J A1-B2 + C1-C2 开放画像，未收录的行业/复合术语按词长与音节兜底并标「专」）。<b>难度档＝语言复杂度</b>：把本站 19 个单元放在一起比<b>措辞本身好不好读</b>，不是<b>业务内容好不好做</b>——U7 物流、U13 海运这类术语密集型单元，正文读起来不难但业务上手难，两者不是一回事。档位由合成分按站内相对位置切出：<b>0.5×平均 CEFR 档 + 0.3×每词音节数 + 0.2×平均词长</b>（三者都取本站语料内分位，低分＝更易）；<b>平均句长 / Flesch 可读性 / 专业词占比只作参考展示，不参与该合成分</b>。口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
+      <div class="uc-diff-note">词级为 CEFR 画像分级（CEFR-J A1-B2 + C1-C2 开放画像，未收录的行业/复合术语按词长与音节兜底并标「专」）。<b>难度档＝语言复杂度</b>：把本站 19 个单元放在一起比<b>措辞本身好不好读</b>，不是<b>业务内容好不好做</b>——U7 物流、U13 海运这类术语密集型单元，正文读起来不难但业务上手难，两者不是一回事。<b>档位＝「单位复杂度 × 条目量」</b>：先算单位复杂度 <b>0.6×平均 CEFR 档 + 0.4×每词音节数</b>（CEFR 命中数不足 10 的单元只用音节＋词长，并把权重按比例归一），再乘条目量项 <b>(1+单位复杂度)×log₂(本单元词条数)</b>——所以 <b>201 词的 U11 排在最难一端，而 22 词的单元即使词面偏难也不会排到前面</b>。<b>平均句长 / Flesch 可读性 / 专业词占比只作参考展示，不参与该合成分</b>。口径唯一权威表述见 <code>FTE_DIFF.difficultyBasis</code>，不声称与任何外部量表对齐。可到 <a href="#/placement">🎯 水平自测</a> 校准你的起点。</div>
     </div>`;
   }
   /* 单元页出口能力断言块（P1-B）：紧挨难度块**并列**出现，不替换难度块（门禁 3）。
@@ -1695,7 +1795,26 @@
     State._flatVocab = arr;
     return arr;
   }
-  function buildPlacementItems() {
+  /* P1-5：**同一用户每次复测用同一套题**。
+     此前每次进入都重新随机抽题，复测分数不可比——换一批题，1 道题的波动就能把推荐起点
+     从 U8 推到 U13，用户看到的「进步 / 退步」其实是抽样噪声。首次抽题后把题目（词 + 单元 +
+     难度档）落盘，复测复用同一套；若语料变化导致某题不在库中，则整批重建并**明确标记为不可比**。 */
+  const PLACE_BANK_KEY = "fte-placement-bank";
+  function loadPlacementBank() {
+    try {
+      const a = JSON.parse(localStorage.getItem(PLACE_BANK_KEY));
+      return (Array.isArray(a) && a.length === PLACE_N) ? a : null;
+    } catch (e) { return null; }
+  }
+  function savePlacementBank(items) {
+    try {
+      localStorage.setItem(PLACE_BANK_KEY, JSON.stringify(items.map(function (x) {
+        return { w: x.w, uid: x.uid, dif: x.dif == null ? null : x.dif };
+      })));
+    } catch (e) { /* ignore */ }
+  }
+  function placementBankId(items) { return items.map(function (x) { return x.w; }).join("|"); }
+  function randomPlacementItems() {
     const order = DIFF.order && DIFF.order.length ? DIFF.order : DATA.units.map(function (u) { return u.id; });
     // 在难度梯度上均匀采样 6 个单元（从易到难）
     const pos = [0, 2.5, 5, 8, 11, order.length - 1];
@@ -1714,6 +1833,22 @@
       if (!items.some(function (it) { return it.w === c.w; })) items.push(c);
     }
     return items.slice(0, 6);
+  }
+  function buildPlacementItems() {
+    const bank = loadPlacementBank();
+    if (bank) {
+      const pool = flatVocab();
+      const items = [], missing = [];
+      bank.forEach(function (b) {
+        const hit = pool.filter(function (x) { return x.w === b.w && x.uid === b.uid; })[0];
+        if (hit) items.push(hit); else missing.push(b.w);
+      });
+      if (!missing.length) { State.placementBankReused = true; return items; }
+      State.placementBankRebuilt = missing;      // 语料变了 → 本次与历史不可直接比较
+    }
+    const items = randomPlacementItems();
+    savePlacementBank(items);
+    return items;
   }
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function placementOptions(item, n) {
@@ -1813,7 +1948,18 @@
        Placement 负责落日期、锁定基线、排期第 7/30/90 天复测，并保留逐项历史。
        placement.js 未加载时（老浏览器缓存）整块静默跳过，不影响原有自测。 */
     const P = window.Placement;
-    if (P && P.recordQuiz) { try { P.recordQuiz(score, PLACE_N, rec.unitId); } catch (e) { /* ignore */ } }
+    /* P1-5：把「用的是哪一套题 + 每题的难度档」一起记进诊断记录。
+       没有这一栏，两次分数在数据层就无法判断是否可比，复测的「进步/退步」只能是抽样噪声。 */
+    const plItems = State.placementItems || [];
+    if (P && P.recordQuiz) {
+      try {
+        P.recordQuiz(score, PLACE_N, rec.unitId, {
+          bankId: placementBankId(plItems),
+          diffs: plItems.map(function (x) { return x.dif == null ? null : x.dif; }),
+          rebuilt: State.placementBankRebuilt || null
+        });
+      } catch (e) { /* ignore */ }
+    }
     let levelTxt, levelHint;
     if (ratio < 0.25) { levelTxt = "新手起步"; levelHint = "从最基础的商务场景打地基，单词卡与听写优先。"; }
     else if (ratio < 0.5) { levelTxt = "基础适用"; levelHint = "直接进商务基础阶段，先扎实常用词与流程。"; }
@@ -1830,6 +1976,9 @@
       <div class="uc-diff-note" style="margin-top:16px">
         <b>建议起点</b>：${esc(rec.stage || "第一阶段 · 商务基础")} → <a href="#/unit/${rec.unitId}">${esc(recUnit ? recUnit.title : "第一个单元")}</a>
       </div>
+      <div class="field-note" style="margin-top:8px">${State.placementBankRebuilt
+        ? "⚠️ 课程语料有更新，本次题库已重建（原题 " + State.placementBankRebuilt.length + " 道上不再存在）——这一版分数与上次<b>不可直接比较</b>。"
+        : (State.placementBankReused ? "✅ 本次与上次使用<b>同一套题</b>，分数可以直接对比。" : "")}</div>
       <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
         <a class="btn btn-primary" href="#/unit/${rec.unitId}">从推荐单元开始 →</a>
         <button class="btn btn-outline" data-action="placement-retest">🔁 重新测试</button>
@@ -2035,40 +2184,53 @@
     const state = Flashcards.stateOf(progress, card.id, flashStoreKey(s));
     /* 产出档：正面给中文、背面给英文——考的是「说得出」，不是「认得出」 */
     const prod = !!s.prod;
+    /* P3-1/P4-1：牌型（word / phrase / frame）与单词档内的产出档（prod）是两件事 */
+    const deck = s.deck || "word";
     app.innerHTML = `
-    <div class="page-head"><h2>🃏 单词卡 · ${esc(s.unit.title)}</h2>
-      <div class="en">${prod
-        ? "🔄 产出档：看中文说英文 · 点击翻面 · 空格键翻面"
-        : "点击卡片翻面 · 空格键翻面 · 想不起来就点“不认识”"}</div>
+    <div class="page-head"><h2>${deck === "word" ? "🃏 单词卡" : (deck === "phrase" ? "🧩 语块卡 · 短语" : "🧱 语块卡 · 句型骨架")} · ${esc(s.unit.title)}</h2>
+      <div class="en">${deck === "word"
+        ? (prod ? "🔄 产出档：看中文说英文 · 点击翻面 · 空格键翻面" : "点击卡片翻面 · 空格键翻面 · 想不起来就点“不认识”")
+        : (deck === "phrase"
+          ? "🧩 语块档 · 短语：看中文说出整条英文短语 · 点击翻面 · 空格键翻面"
+          : "🧱 语块档 · 句型骨架：看挖空句与中文义，说出完整句子 · 点击翻面 · 空格键翻面")}</div>
     </div>
     <div class="flash-wrap">
       <div class="flash-progress">第 <b>${s.idx + 1}</b> / ${s.queue.length} 张 · 已认识 <b style="color:var(--ok)">${s.stats.known}</b> · 未掌握 <b style="color:var(--bad)">${s.stats.unknown}</b>
-        <button class="fp-toggle${prod ? " on" : ""}" data-action="flash-prod" title="在「看英文想中文」与「看中文说英文」之间切换——两条线各自按 FSRS 排期">${prod ? "🔄 产出档（中→英）" : "↔ 切到产出档"}</button>
+        <button class="fp-toggle${deck === "word" ? "" : " on"}" data-action="flash-deck" title="依次切换：单词档 → 语块档·短语 → 语块档·句型骨架">${flashDeckLabel()}</button>
+        ${deck === "word" ? '<button class="fp-toggle' + (prod ? " on" : "") + '" data-action="flash-prod" title="在「看英文想中文」与「看中文说英文」之间切换——两条线各自按 FSRS 排期">' + (prod ? "🔄 产出档（中→英）" : "↔ 切到产出档") + "</button>" : ""}
       </div>
       <div class="flash-card" id="flashCard" data-action="flash-flip">
         <div class="flash-inner">
           <div class="flash-face flash-front">
-            <div class="big">${esc(prod && card.kind !== "mistake" ? (card.cn || card.w) : card.w)}</div>
-            <div class="ipa">${prod ? (card.kind === "mistake" ? "" : "（说出它的英文）") : esc(card.ipa || "")}</div>
+            ${card.kind === "frame"
+              ? '<div class="big" style="font-size:23px;line-height:1.5">' + esc(card.w) + "</div>" +
+                '<div class="cn" style="margin-top:8px;opacity:.9">' + esc(card.cn) + "</div>" +
+                '<div class="ipa">（说出完整句子）</div>'
+              : '<div class="big">' + esc(prod && card.kind !== "mistake" ? (card.cn || card.w) : card.w) + "</div>" +
+                '<div class="ipa">' + (prod ? (card.kind === "mistake" ? "" : "（说出它的英文）") : esc(card.ipa || "")) + "</div>"}
             <span class="flash-meta">
               <span class="fs-badge fs-${state.cls}">${esc(state.label)}</span>
               ${wron > 0 ? '<span class="fs-badge fs-wrong">常错 ' + wron + ' 次</span>' : ""}
               ${card.kind === "mistake" ? '<span class="fs-badge fs-wrong">⚠️ 错句 · 怎么改？</span>' : ""}
+              ${card.kind === "frame" ? '<span class="fs-badge">🧱 句型骨架</span>' : ""}
+              ${card.kind === "phrase" ? '<span class="fs-badge">🧩 短语</span>' : ""}
             </span>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="flash-say" title="朗读">🔊</button>
-            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : (prod ? "先说出英文，再翻面核对" : "点击卡片查看释义")}</div>
+            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : (card.kind === "frame" ? "先说完整句，再翻面核对骨架块" : (prod ? "先说出英文，再翻面核对" : "点击卡片查看释义"))}</div>
           </div>
           <div class="flash-face flash-back">
             ${card.kind === "mistake"
               ? '<div class="cn" style="color:var(--ok);font-weight:800">✓ 正确：' + esc(card.cn) + '</div>' +
                 '<div class="cn" style="margin-top:6px;color:var(--accent);font-weight:600">💡 ' + esc(card.why || "") + '</div>'
-              : (prod
-                ? '<div class="big" style="font-size:30px">' + esc(card.w) + '</div><div class="ipa">' + esc(card.ipa || "") + "</div>"
-                : '<div class="cn">' + esc(card.cn) + '</div>')}
+              : (card.kind === "frame"
+                ? '<div class="cn" style="font-size:19px;font-weight:700;line-height:1.6">' + esc(card.ex) + "</div>" +
+                  '<div class="cn" style="margin-top:8px;color:var(--accent);font-weight:600">骨架块：' + esc(card.slot) + "</div>"
+                : (prod
+                  ? '<div class="big" style="font-size:30px">' + esc(card.w) + '</div><div class="ipa">' + esc(card.ipa || "") + "</div>"
+                  : '<div class="cn">' + esc(card.cn) + '</div>'))}
             ${window.FTE_MEMO && card.kind !== "mistake" && window.FTE_MEMO[String(card.w).toLowerCase()]
               ? '<div class="cn memo">💡 助记：' + esc(window.FTE_MEMO[String(card.w).toLowerCase()]) + '</div>' : ""}
-            <div class="ex">${esc(card.ex)}</div>
-            <div class="ex">${esc(card.exCn)}</div>
+            ${card.kind === "frame" ? "" : '<div class="ex">' + esc(card.ex) + '</div><div class="ex">' + esc(card.exCn) + "</div>"}
             <button class="play-btn" style="width:40px;height:40px;font-size:16px;background:rgba(255,255,255,.2);color:#fff" data-action="flash-say" title="朗读例句">🔊</button>
           </div>
         </div>
@@ -2098,6 +2260,15 @@
         <label class="step-toggle" title="在本次单词卡里加入「中国外贸人高频易错点」：正面是错误句，翻面看正确说法与原因，刻意复习你容易踩的坑">
           <input type="checkbox" id="flashMistakes"> ⚠️ 同时复习易错点（错句→正确说法）
         </label>
+      </div>
+      <div class="field">
+        <label>卡片牌型</label>
+        <select id="flashDeckSel" title="三种牌型共用同一套 FSRS 算法，但各自记在独立线上：单词（接受/产出）、语块（短语与句型骨架）">
+          ${FLASH_DECKS.map(function (d) {
+            return '<option value="' + d.id + '"' + (flashDeck === d.id ? " selected" : "") + ">" + d.label + "</option>";
+          }).join("")}
+        </select>
+        <p class="field-note">🗣 <b>语块档是一条独立于单词的调度线</b>（<code>progress.flashChunk</code>）：认得 <code>solventless</code> 不等于说得出 <code>solventless adhesive</code>，更不等于能在句子里用对语序。语块档练的是<b>产出</b>（看中文/看挖空骨架说出英文），复习间隔与单词各排各的；重置单元时三条线一起清空。语块档不与「易错点混排」同时生效。</p>
       </div>
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" data-action="flash-start">开始学习 →</button>
@@ -2170,14 +2341,54 @@
     });
   }
 
+  /* 32 位字符串哈希（FNV-1a），给句型骨架卡生成**内容稳定**的 id。
+     用数组下标当 id 会让数据一改就把记忆状态错配到别的句子上——那比「少记几张卡」糟得多。 */
+  function flashHash(s) {
+    let h = 2166136261;
+    const str = String(s);
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36);
+  }
+
   function startFlashSession(prefUnit) {
     const sel = document.getElementById("flashUnit");
+    /* 起始页的牌型下拉只在起始页存在（练习中为 null），
+       所以这里读它不会在会话中途把模式改掉。 */
+    const dsel = document.getElementById("flashDeckSel");
+    if (dsel) flashDeck = dsel.value || "word";
     const u = prefUnit || (sel ? getUnit(parseInt(sel.value, 10)) : DATA.units[0]);
-    let cards = unitWords(u).map(function (w) {
-      return { id: w.id, w: w.v.w, ipa: w.v.ipa, cn: w.v.cn, ex: w.v.ex, exCn: w.v.exCn };
-    });
+    let cards;
+    let buildNote = "";
+    if (flashDeck === "phrase") {
+      /* P3-1 语块档 · 短语：把本单元的短语送进同一条语块调度线（progress.flashChunk）。
+         缺陷背景（S1 发现 2/7）：FSRS 只调度单词，174 条短语零间隔重复——
+         最该「用出来」的语块反而没有机制，于是出现「认得 solventless 却组不出 solventless adhesive」。 */
+      cards = (u.phrases || []).map(function (p, i) {
+        return { id: "ch" + u.id + "-" + i, kind: "phrase", w: p.p, ipa: "", cn: p.cn, ex: p.ex, exCn: p.exCn };
+      });
+    } else if (flashDeck === "frame") {
+      /* P4-1 语块档 · 句型骨架：复用「句型克隆库」的骨架抽取（window.Patterns.build()），
+         只保留**值得当产出单元**的那些：挖空块 ≥ 2 个词（单空练的是词不是语序）、
+         整句 ≤ 18 词（太长在卡片上说不出来）、且属于本单元。 */
+      const all = (window.Patterns && window.Patterns.build) ? window.Patterns.build() : [];
+      const mine = all.filter(function (f) {
+        return f.unit && f.unit.id === u.id &&
+          String(f.slot).trim().split(/\s+/).filter(Boolean).length >= 2 &&
+          String(f.text).trim().split(/\s+/).filter(Boolean).length <= 18;
+      });
+      cards = mine.map(function (f) {
+        return { id: "fr" + flashHash(f.display + "|" + f.tag), kind: "frame",
+          w: f.display, ipa: "", cn: f.cn, ex: f.text, exCn: "", slot: f.slot, tag: f.tag };
+      });
+      buildNote = "（全站骨架 " + all.length + " 条 → 本单元可用 " + cards.length + " 条）";
+    } else {
+      cards = unitWords(u).map(function (w) {
+        return { id: w.id, w: w.v.w, ipa: w.v.ipa, cn: w.v.cn, ex: w.v.ex, exCn: w.v.exCn };
+      });
+    }
     const fmk = document.getElementById("flashMistakes");
-    const includeMk = fmk && fmk.checked;
+    /* 易错点只与「单词档」混排：语块档是短语/骨架池，混入错句会让两种卡型在同一队列里失去一致性 */
+    const includeMk = flashDeck === "word" && fmk && fmk.checked;
     if (includeMk) {
       /* 单元词与易错词交错排列，避免易错词排在后面被「最多 15 张新卡」裁掉 */
       const mkCards = mistakeFlashCards();
@@ -2189,7 +2400,12 @@
       }
       cards = mixed;
     }
-    const built = Flashcards.buildQueue(cards, progress, 30, includeMk ? 26 : 15, flashStoreKey({ prod: flashProdMode }));
+    const built = Flashcards.buildQueue(cards, progress, 30, includeMk ? 26 : 15, flashStoreKey({ prod: flashProdMode, deck: flashDeck }));
+    if (!cards.length) {
+      toast(flashDeck === "frame"
+        ? "「" + u.title + "」没有符合条件的句型骨架" + buildNote + "——换个单元或切回短语档。"
+        : (flashDeck === "phrase" ? "「" + u.title + "」没有短语可练——换个单元试试。" : "「" + u.title + "」没有词汇卡。"));
+    }
     State.flash = {
       unit: includeMk ? { id: u.id, title: u.title + " + ⚠️易错点" } : u,
       queue: built.queue,
@@ -2197,7 +2413,8 @@
       stats: { known: 0, unknown: 0 },
       freshLeft: built.freshLeft,
       dueLeft: built.dueLeft,
-      prod: flashProdMode
+      prod: flashDeck === "word" ? flashProdMode : true,
+      deck: flashDeck
     };
     renderFlash();
   }
@@ -2206,19 +2423,57 @@
      SLA 专家评审指出「FSRS 只调度接受性词汇，无产出性调度」——于是出现
      「认得 film 但说不出 film」的典型状态。两层知识**分开排期**：
      一个词可以在接受线上已牢固，在产出线上仍是新词。调度算法完全共用。 */
-  function flashStoreKey(s) { return (s && s.prod) ? "flashProd" : "flash"; }
+  /* 三条调度线：接受（flash）/ 产出（flashProd）/ 语块（flashChunk）。
+     语块线内部再分「短语」与「句型骨架」两种牌型，共用同一条记忆线——它们考的是同一件事：
+     把一个语块**自己说出来**，用同一套 FSRS 排期即可；牌型只决定卡片正反面怎么渲染。 */
+  function flashStoreKey(s) {
+    if (s && s.deck && s.deck !== "word") return "flashChunk";
+    return (s && s.prod) ? "flashProd" : "flash";
+  }
 
   /* 产出档开关（会话级偏好，不写进 progress） */
   let flashProdMode = false;
+  /* P3-1/P4-1：牌型（deck）。word = 词条（接受/产出两条线）；phrase = 本单元短语；
+     frame = 句型骨架（从全站例句抽出的挖空骨架）。后两者共用语块线 progress.flashChunk，
+     方向固定为产出（看中文/看骨架说出英文），不跟随 flashProdMode。 */
+  let flashDeck = "word";
+  const FLASH_DECKS = [
+    { id: "word", label: "🃏 单词档（词条）" },
+    { id: "phrase", label: "🧩 语块档 · 短语" },
+    { id: "frame", label: "🧱 语块档 · 句型骨架" }
+  ];
+
+  function flashDeckLabel() {
+    const d = FLASH_DECKS.filter(function (x) { return x.id === flashDeck; })[0];
+    return d ? d.label : FLASH_DECKS[0].label;
+  }
+
+  function restartFlashWithCurrentUnit() {
+    const s = State.flash;
+    const pref = (s && s.unit && s.unit.id !== "atrisk" && s.unit.id !== "weak") ? s.unit.id : undefined;
+    startFlashSession(pref);
+  }
 
   function toggleFlashProd() {
     flashProdMode = !flashProdMode;
-    const s = State.flash;
-    const pref = (s && s.unit && s.unit.id !== "atrisk" && s.unit.id !== "weak") ? s.unit.id : undefined;
-    startFlashSession(pref);   /* 内部会按 flashProdMode 重新排队并写回 s.prod */
+    flashDeck = "word";        /* 切回单词档，避免与语块档同时生效 */
+    restartFlashWithCurrentUnit();
     toast(flashProdMode
       ? "🔄 已切到「产出档」：看中文说英文——与「英→中」各排各的期，互不影响。"
       : "🔄 已切回「接受档」：看英文想中文。");
+  }
+
+  /* 依次循环三种牌型：单词 → 短语 → 句型骨架 → 单词 */
+  function cycleFlashDeck() {
+    const order = ["word", "phrase", "frame"];
+    flashDeck = order[(order.indexOf(flashDeck) + 1) % order.length];
+    if (flashDeck === "word") flashProdMode = false;   /* 回到单词档时回到接受档起点 */
+    restartFlashWithCurrentUnit();
+    toast(flashDeck === "word"
+      ? "🃏 已切回「单词档」。"
+      : (flashDeck === "phrase"
+        ? "🧩 已切到「语块档 · 短语」：看中文说出整条英文短语。"
+        : "🧱 已切到「语块档 · 句型骨架」：看挖空句与中文义，说出完整句子——练的是语序与骨架，不是单个词。"));
   }
 
   function gradeFlash(rating) {
@@ -3102,6 +3357,7 @@
         break;
       case "placement-retest":
         State.placementItems = null; State.placementIdx = 0; State.placementScore = 0; State.placementOpts = {};
+        State.placementBankReused = false; State.placementBankRebuilt = null;
         renderPlacement();
         break;
       case "unit-tab":
@@ -3212,6 +3468,9 @@
       case "flash-prod":
         toggleFlashProd();
         break;
+      case "flash-deck":
+        cycleFlashDeck();
+        break;
       case "flash-say": {
         const s = State.flash;
         if (!s) break;
@@ -3242,8 +3501,21 @@
           delete progress.flash[w.id];
           delete progress.flashProd[w.id];
         });
+        /* P3-1/P4-1：语块档的 id 有两类——短语是 ch<unit>-<n>，句型骨架是内容哈希 fr<hash>。
+           两类都要清，否则重置后语块卡仍显示「牢固」（单词档曾修过的同类半清理 bug）。 */
+        (u.phrases || []).forEach(function (p, i) {
+          if (progress.flashChunk) delete progress.flashChunk["ch" + u.id + "-" + i];
+        });
+        try {
+          const frames = (window.Patterns && window.Patterns.build) ? window.Patterns.build() : [];
+          frames.forEach(function (f) {
+            if (f.unit && f.unit.id === u.id && progress.flashChunk) {
+              delete progress.flashChunk["fr" + flashHash(f.display + "|" + f.tag)];
+            }
+          });
+        } catch (e) { /* 骨架抽取不可用时不影响其它两条线 */ }
         saveProgress();
-        toast("已重置「" + u.title + "」的记忆数据（接受档 + 产出档）");
+        toast("已重置「" + u.title + "」的记忆数据（接受档 + 产出档 + 语块档）");
         break;
       }
 
@@ -3457,9 +3729,34 @@
         drop.hidden = true;
       }
     });
-    document.getElementById("navToggle").addEventListener("click", function () {
-      document.getElementById("mainNav").classList.toggle("show");
-    });
+    /* P2-3：窄屏才显示 ☰，并让导航默认收起（CSS 在 ≤720px 里 .main-nav{display:none}，加 .show 才展开）。
+       此前 #navToggle 写了 hidden 却没人摘掉、CSS 也没有 .show 规则，手机上九个一级项竖直常驻。 */
+    const navToggle = document.getElementById("navToggle");
+    const mainNav = document.getElementById("mainNav");
+    if (navToggle && mainNav && typeof window.matchMedia === "function") {
+      const navMQ = window.matchMedia("(max-width: 720px)");
+      const syncNav = function () {
+        navToggle.hidden = !navMQ.matches;
+        if (!navMQ.matches) mainNav.classList.remove("show");
+        navToggle.setAttribute("aria-expanded", mainNav.classList.contains("show") ? "true" : "false");
+      };
+      const closeNav = function () {
+        mainNav.classList.remove("show");
+        navToggle.setAttribute("aria-expanded", "false");
+      };
+      navToggle.addEventListener("click", function () {
+        const open = mainNav.classList.toggle("show");
+        navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        navToggle.setAttribute("aria-label", open ? "收起导航菜单" : "展开导航菜单");
+      });
+      /* 点了导航项就收起，别让菜单继续挡着内容 */
+      mainNav.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest("a")) closeNav();
+      });
+      if (navMQ.addEventListener) navMQ.addEventListener("change", syncNav);
+      else if (navMQ.addListener) navMQ.addListener(syncNav);
+      syncNav();
+    }
   }
 
   /* ---------------- 听写输入回车 ---------------- */
@@ -3592,19 +3889,29 @@
     const learnedThen = first ? first.learned : null;
     const delta = (learnedNow != null && learnedThen != null) ? Math.max(0, learnedNow - learnedThen) : null;
     const trend = (retNow != null && retThen != null) ? (retNow - retThen) : null;
+    /* P1-6：趋势必须**有足够样本**才下方向性结论。
+       整体保持率是最多几百张卡各自的 R(t,S) 平均值；只有 3 个词时，一张卡到期就能让它跳动
+       6 个百分点——那已经超过下面 ±5 的「▲ 上升」阈值，于是「样本极少」会被读成「在进步」。 */
+    let reviewed = 0;
+    Object.keys(progress.flash || {}).forEach(function (k) { const f = progress.flash[k]; if (f && f.reps) reviewed += f.reps; });
+    const MIN_REVIEWED = 30;
+    const enough = reviewed >= MIN_REVIEWED;
     let conclusion;
     if (retNow == null) conclusion = "先学几轮词、至少有一天保持率数据，再看看。";
+    else if (!enough) conclusion = "样本还太少（累计复习 " + reviewed + " 次，建议 ≥" + MIN_REVIEWED + " 次再看）——这一周先不下方向性结论。";
     else if (trend == null) conclusion = "样本还少，多练几天才能看出方向。";
     else if (trend >= 5) conclusion = "▲ 保持率在上升，复习很有效——继续按节奏走。";
     else if (trend >= 1) conclusion = "↗ 保持率稳中有升，节奏良好。";
     else if (trend <= -3) conclusion = "▼ 保持率在下滑，本周漏复习多了，建议补几轮单词卡。";
     else conclusion = "→ 保持率基本稳定，保持习惯即可。";
-    return { practicedDays: practicedDays, patterns: patterns, write: write, learned: learnedNow, delta: delta, retNow: retNow, retThen: retThen, trend: trend, conclusion: conclusion };
+    return { practicedDays: practicedDays, patterns: patterns, write: write, learned: learnedNow, delta: delta,
+      retNow: retNow, retThen: retThen, trend: trend, conclusion: conclusion,
+      reviewed: reviewed, minReviewed: MIN_REVIEWED, enough: enough };
   }
   function localReportText() {
     const r = localWeekReport();
     const ret = r.retNow != null ? r.retNow + "%" : "—";
-    const retChg = r.trend != null ? (r.trend >= 0 ? "+" : "") + r.trend + "%" : "—";
+    const retChg = (r.enough && r.trend != null) ? (r.trend >= 0 ? "+" : "") + r.trend + "%" : "样本不足，未判断";
     /* 复制的文本同样分栏：过程与结果不能混成一段，否则「练了几天」会被读成「进步了多少」 */
     return "【软包装外贸英语 · 本周本地自测】\n" +
       "\n▍坚持（练了多少 · 过程）\n" +
@@ -3619,7 +3926,7 @@
   function localReportHtml() {
     const r = localWeekReport();
     const retCls = r.retNow == null ? "badge-muted" : r.retNow >= 85 ? "badge-ok" : r.retNow >= 70 ? "badge-warn" : "badge-bad";
-    const trendGlyph = r.trend == null ? "" : r.trend >= 5 ? "▲" : r.trend >= 1 ? "↗" : r.trend <= -3 ? "▼" : "→";
+    const trendGlyph = (!r.enough || r.trend == null) ? "" : r.trend >= 5 ? "▲" : r.trend >= 1 ? "↗" : r.trend <= -3 ? "▼" : "→";
     /* 分栏呈现：左「坚持」（过程）、右「能力」（结果）。
        评审指出原先两者混在一行 badge 里，会诱导用户拿打卡天数冒充能力。 */
     return `
@@ -3640,6 +3947,7 @@
           <div class="sop-overall-a">
             <span class="badge badge-muted">词汇 <b>${r.learned}</b>${r.delta != null ? '（本周 +' + r.delta + '）' : ""}</span>
             <span class="badge ${retCls}">保持率 <b>${r.retNow != null ? r.retNow + "%" : "—"}</b> ${trendGlyph}</span>
+            ${r.enough ? "" : '<span class="badge badge-muted">样本 ' + r.reviewed + "/" + r.minReviewed + " · 暂不判断方向</span>"}
           </div>
         </div>
       </div>
@@ -4112,6 +4420,24 @@
     const azureVoice = document.getElementById("setAzureVoice");
     const azurePA = document.getElementById("setAzurePA");
     const setLocalASR = document.getElementById("setLocalASR");
+    /* P2-2：离线识别**不做无凭证的承诺**。模型不随站分发，所以这项在多数环境里不可用；
+       现场探测一次，不可用就禁用开关、清掉已勾选状态并写明原因，而不是让用户勾了却毫无效果。 */
+    if (setLocalASR && window.LocalASR && window.LocalASR.probe) {
+      try {
+        window.LocalASR.probe().then(function (st) {
+          if (st && st.ready) return;
+          const note = document.getElementById("localASRNote");
+          if (progress.localASR) { progress.localASR = false; try { saveProgress(); } catch (e) { /* ignore */ } }
+          setLocalASR.checked = false;
+          setLocalASR.disabled = true;
+          if (note) {
+            note.innerHTML = "⚠️ <b>离线识别当前不可用</b>：" + esc((st && st.reason) || "未就绪") +
+              "。本站不分发该模型（约 66MB），已自动切回<b>浏览器在线识别</b>；" +
+              "确实需要离线时按 <code>tools/fetch-vosk-model.ps1</code> 的说明把模型与库放进站内，刷新后此开关自动可用。";
+          }
+        }).catch(function () { /* ignore */ });
+      } catch (e) { /* ignore */ }
+    }
     const accentNote = document.getElementById("accentNote");
     let pendingAccent = Player.accent || "us";
 
@@ -4181,6 +4507,7 @@
         console.error("保存发音设置失败：", err);
       } finally {
         close();
+        restoreFocus();
       }
       const label = progress.engine === "azure" ? "（Azure 神经人声）" : progress.engine === "google" ? "（Google，不稳定）" : "";
       if (progress.engine === "azure" && (!progress.azureKey || !progress.azureRegion)) {
@@ -4190,7 +4517,19 @@
       }
     }
 
-    btn.addEventListener("click", open);
+    /* P2-4：弹窗焦点管理。role="dialog"/aria-modal 已在 index.html 声明；这里补上键盘行为——
+       打开时把焦点送进弹窗（否则键盘用户仍停在页面里那些被遮住的控件上），关闭时还给触发按钮，
+       Esc 也能关。此前 aria-haspopup="dialog" 承诺了对话框语义，但没有任何焦点处理。 */
+    let lastFocus = null;
+    function focusIn() {
+      const first = modal.querySelector ? modal.querySelector("select, input, button, a[href]") : null;
+      if (first && first.focus) first.focus();
+    }
+    function restoreFocus() { if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && modal && !modal.hidden) { close(); restoreFocus(); }
+    });
+    btn.addEventListener("click", function () { lastFocus = document.activeElement; open(); focusIn(); });
     engineSel.addEventListener("change", syncAzureField);
     voiceSel.addEventListener("change", paintAccent);
     document.querySelectorAll("#settingsModal [data-accent]").forEach(function (b) {
@@ -4222,8 +4561,8 @@
     }
     modal.addEventListener("click", function (e) {
       const t = e.target;
-      if (t === modal) { close(); return; }
-      if (t.closest('[data-action="settings-close"]')) close();
+      if (t === modal) { close(); restoreFocus(); return; }
+      if (t.closest('[data-action="settings-close"]')) { close(); restoreFocus(); }
       else if (t.closest('[data-action="settings-save"]')) save();
       else if (t.closest('[data-action="settings-test-azure"]')) testAzure();
     });
@@ -4322,6 +4661,9 @@
   recordSnapshot();          // 启动时补记今天的效果快照（老用户回归也能进走势）
   renderRoute();
   showOnboarding();
+  /* P0-5：告诉 js/pwa-init.js「应用真的起来了」——它据此决定是否显示启动失败面板。
+     放在 renderRoute() 之后：渲染自身抛错时不该被判定为启动成功。 */
+  window.FTE_BOOTED = true;
 
   /* ---------------- 首次上手导流：非阻塞横幅（替代原全屏 3 步引导） ----------------
      科学依据（first-run / HCI 最佳实践）：首次进入的引导应【不阻塞内容】、可随时关闭、

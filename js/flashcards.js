@@ -35,6 +35,17 @@
   var FACTOR = round(Math.exp(Math.log(0.9) / DECAY) - 1.0);
   var INTERVAL_MODIFIER = round((Math.pow(REQUEST_RETENTION, 1 / DECAY) - 1) / FACTOR);
 
+  /* 首评「认识」得到的初始稳定度（W[2]=2.3065）——「已掌握」的下限锚点，见 isLearned。 */
+  var LEARNED_MIN_STABILITY = 2.0;
+
+  /* ---- 可测性注入口（唯一用途：让测试注入可控时钟）----
+     默认 Flashcards._now === null → 一律走 Date.now()，对外行为与改动前逐字节一致。
+     测试可设 Flashcards._now = function () { return T; } 来推进时间（tools/test-fsrs.js）。
+     生产代码（app.js）从不读写 _now，因此默认路径不依赖它。 */
+  function nowMs() {
+    return typeof Flashcards._now === "function" ? Flashcards._now() : Date.now();
+  }
+
   function initDifficulty(g) { return round(W[4] - Math.exp((g - 1) * W[5]) + 1); }
   function initStability(g) { return Math.max(W[g - 1], 0.1); }
   function linearDamping(delta, oldD) { return round((delta * (10 - oldD)) / 9); }
@@ -76,6 +87,11 @@
     BOX_DAYS: [0, 1, 2, 4, 7, 15],
     PARAMS: W.slice(),
 
+    /* 可替换时钟提供者：null = 用系统 Date.now()（默认/生产路径）。
+       仅测试会赋值，用于推进时间以断言间隔增长（FSRS 在同一天内 t=0 → r=1 → 稳定度不变，
+       不注入时钟就无法测出「间隔随复习递增」）。 */
+    _now: null,
+
     /* 用 FSRS 计算下一次复习。rating=1..4 → AGAIN/HARD/GOOD/EASY。
        旧调用可用布尔（true→Good/3，false→Again/1）。
        legacy 卡（无 stability 字段）先按 interval/ef 估出状态，再进 FSRS。 */
@@ -84,7 +100,7 @@
        兼容旧二档布尔调用（true→GOOD, false→AGAIN）。 */
     grade: function (progress, id, rating, storeKey) {
       var store = Flashcards.storeOf(progress, storeKey);
-      var now = Date.now();
+      var now = nowMs();
       var cur = migrate(store[id]);
       /* 评分归一化 */
       var g;
@@ -150,12 +166,19 @@
       return progress[k];
     },
 
-    /* 全部到期卡 + 新词排序（保持原语义）。maxNew 控制一次最多引入的新卡数，默认 15 */
+    /* 全部到期卡 + 新词排序（保持原语义）。maxNew 控制一次最多引入的新卡数，默认 15。
+
+       去重契约（回归守卫见 tools/test-fsrs.js「队列不得含重复卡」）：
+       同一张卡在**一次会话内只入队一次**，且**优先级最高者胜**。
+       缺陷背景：错题优先(weak)、到期(due)、新词(fresh) 三条来源各自切片后直接 concat，
+       weak 兜底分支没有排除已入队的卡 → 实测 queue=[a,b,a,b]（S6 探针段 F）；
+       同一张卡被评两次时 t=0 → r=1 → 稳定度/间隔不变，但 reps+1、wrong 可能+1，污染统计。
+       优先级：fresh(新词引入) ≤ due(到期，越逾期越前) < 兜底 weak 尾部；已入队者不再重复。 */
     buildQueue: function (cards, progress, limit, maxNew, storeKey) {
       var store = Flashcards.storeOf(progress, storeKey);
       limit = limit || 30;
       maxNew = maxNew == null ? 15 : maxNew;
-      var now = Date.now();
+      var now = nowMs();
       var wrong = progress.wrong || {};
       var fresh = [], due = [];
       cards.forEach(function (c) {
@@ -171,35 +194,69 @@
         if (wa !== wb) return wb - wa;
         return (fa.ef || EF_START) - (fb.ef || EF_START);
       });
-      var queue = fresh.slice(0, maxNew);
-      var dueGot = due.slice(0, limit);
-      queue = queue.concat(dueGot);
+      /* seen 记录已入队 id：先到者优先，后到的重复来源被丢弃 */
+      var seen = Object.create(null);
+      var queue = [];
+      function enqueue(list) {
+        list.forEach(function (c) {
+          if (!c || seen[c.id]) return;
+          seen[c.id] = true;
+          queue.push(c);
+        });
+      }
+      enqueue(fresh.slice(0, maxNew));
+      enqueue(due.slice(0, limit));
       if (queue.length < limit) {
         var weak = cards
           .map(function (c) {
             var f = migrate(store[c.id]);
             return { c: c, w: wrong[c.id] || 0, reps: f.reps || 0, r: Flashcards.retentionOf(f, now) };
           })
-          .filter(function (x) { return x.reps > 0 && x.w > 0; })
+          .filter(function (x) { return x.reps > 0 && x.w > 0 && !seen[x.c.id]; })
           .sort(function (a, b) { return b.w - a.w; })
           .slice(0, limit - queue.length)
           .map(function (x) { return x.c; });
-        queue = queue.concat(weak);
+        enqueue(weak);
       }
       return { queue: queue, freshLeft: Math.max(0, fresh.length - maxNew), dueLeft: Math.max(0, due.length - limit) };
     },
 
+    /* 是否「已掌握」——保守口径，勿放宽（回归守卫见 tools/test-fsrs.js「isLearned 保守口径」）：
+       必须同时满足
+         ① 至少复习过一次，且**最近一次评分 ≥ 认识(3)**：答「忘了(1)」或「模糊(2)」即回到未掌握；
+         ② 稳定度 ≥ 2.0 天（LEARNED_MIN_STABILITY，首评「认识」的初始稳定度 2.3065 之上）；
+         ③ 间隔 ≥ 2 天（已离开「隔天再来」阶段）。
+       旧口径 `reps > 0` = 「碰过就算学会」，答错一次仍为 true（S6 缺陷 3），
+       会让「已掌握」变成一个不可证伪的数字，与本站「坚持 ≠ 能力」的声明冲突。
+       注：冻结的兼容性门禁 tools/test-flashprod.js 要求「一次 GOOD 即 isLearned=true」，
+       因此不能采用 `reps >= 2 && interval >= 7` 的更严门槛；当前口径已足以拒绝「答错即掌握」。 */
     isLearned: function (progress, id, storeKey) {
       var f = migrate(Flashcards.storeOf(progress, storeKey)[id]);
-      return !!(f && f.reps > 0);
+      if (!f || !f.reps) return false;
+      if ((f.rating || 0) < RATING.GOOD) return false;
+      if ((f.stability || 0) < LEARNED_MIN_STABILITY) return false;
+      return (f.interval || 0) >= 2;
     },
 
-    stateOf: function (progress, id, storeKey) {
+    /* 卡片徽章文案：区分「已逾期 N 天」「今天到期」「牢固/易遗忘 · N 天后到期」。
+       缺陷背景（S6 缺陷 2）：旧代码把**已逾期**的卡写成 `${interval} 天后到期`，
+       而 interval 是上一次的间隔、不是距到期的天数（探针：已逾期卡显示「1天后到期」）。
+       未到期的卡**同时**给出牢固/易遗忘与距到期天数——前者是记忆状态的判读，后者是排期信息，
+       两样都不能丢（只留天数会让人看不出这张卡到底是记牢了还是快忘了）。
+       now 可显式传入（测试用）；缺省走可注入时钟。 */
+    stateOf: function (progress, id, storeKey, now) {
       var f = migrate(Flashcards.storeOf(progress, storeKey)[id]);
       if (!f || f.reps === 0) return { label: "新词", cls: "new" };
-      var now = Date.now();
-      if (f.due <= now) return { label: (f.interval || 0) + "天后到期", cls: "due" };
-      return { label: f.ef >= 2.5 ? "牢固" : "易遗忘", cls: f.ef >= 2.5 ? "strong" : "weak" };
+      var t = now == null ? nowMs() : now;
+      var cls = f.ef >= 2.5 ? "strong" : "weak";
+      if (f.due <= t) {
+        var overdueDays = Math.floor((t - f.due) / 86400000);
+        return overdueDays >= 1
+          ? { label: "逾期 " + overdueDays + " 天", cls: "due" }
+          : { label: "今天到期", cls: "due" };
+      }
+      var inDays = Math.max(1, Math.ceil((f.due - t) / 86400000));
+      return { label: (cls === "strong" ? "牢固" : "易遗忘") + " · " + inDays + " 天后到期", cls: cls };
     },
 
     wrongCount: function (progress, id) { return (progress.wrong || {})[id] || 0; }

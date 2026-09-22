@@ -1,4 +1,9 @@
-/* ============ 真实业务语料：客户真的这样写信 ============
+/* ============ 真实业务语料：按真实场景撰写的 8 封来信 ============
+   ⚠️ 出处口径（诚实说明，勿删）：这 8 封是**按真实业务场景撰写的教学语料**，
+      刻意保留了各语域特征（印式 / 中东 / 德式 / 美式 / 巴西 / 中式草稿），
+      但它们**不是逐封可溯源的客户原件** —— 本站无法核验其「真实性」，
+      请当「高质量仿真语料」使用；引用给客户看之前请自行判断适用性。
+
    由来（SLA 专家评审遗留项「补真实业务语料」）：
      站内已有 768 词 / 174 短语 / 28 段对话 + SOP 英文，但**全部是构造出来的教科书英文**：
      主谓一致、时态正确、句子完整、没有缩写、没有多余信息。
@@ -64,14 +69,14 @@
         ],
         traps: [
           { t: "「do the needful」不是一句空话", cn: "它指的是**上面列出来的那几件具体事**——给最优价、确认 MOQ、确认交期、回答 FDA、确认能否做到 FOB Nhava Sheva。如果回信只写 We will do the needful，等于一个问题都没回答，客户会立刻转去问下一家。" },
-          { t: "「your film is having FDA or not」问的是产品，不是公司", cn: "他问的是**这款膜**能不能用于食品接触，不是「你们公司有没有 FDA 证书」。回信要落到具体法规（如 FDA 21 CFR 175.300 / 177.1390）与**原材料合规声明 / 保函**上。答「我们有 FDA 证书」会被 QA 直接退档。" },
+          { t: "「your film is having FDA or not」问的是产品，不是公司", cn: "他问的是**这款膜**能不能用于食品接触，不是「你们公司有没有 FDA 证书」。回信要落到具体法规条文（常温 PET/PE 结构：**21 CFR 175.300** 涂层与胶粘剂 + **177.1520** 烯烃聚合物（PE 热封层）/ **177.1630**（PET））与**原材料合规声明 / 保函**上。答「我们有 FDA 证书」会被 QA 直接退档。详见下方 gloss 里 177.1390 的辨析——**引错章节比不引更糟**。" },
           { t: "PE 60 到底是哪一层？", cn: "这是真实业务里**最容易报错价的一处**：12/7/60 可能是「面材 12、铝箔 7、热封层 60，总厚 79μm」，也可能是「总厚 60」。两者用料差 25% 以上。回信必须先复述确认（如 please confirm the PE sealant layer is 60μm and the total structure is 79μm），再报价。" },
           { t: "FOB Nhava Sheva 是他的期望，不是你的条件", cn: "若你只能做 FOB 宁波/上海，不要沉默地改掉——要点明并给替代方案（如 FOB Ningbo + 到 Nhava Sheva 的海运费参考），否则他拿到报价会发现术语不对，直接弃用。" }
         ],
         drill: [
           { en: "Thank you for your enquiry for the three-layer PET/AL/PE laminate.", cn: "感谢您对三层 PET/AL/PE 复合膜的询盘。" },
           { en: "Our MOQ for this structure is 500 kg per width, and the lead time is 25 days after artwork approval.", cn: "该结构的最小起订量是每个门幅 500 公斤，确认稿件后交期 25 天。" },
-          { en: "The sealant layer is compliant with FDA 21 CFR 177.1390, and we can issue a food contact declaration.", cn: "热封层符合 FDA 21 CFR 177.1390，我们可以出具食品接触合规声明。" },
+          { en: "The PE sealant layer complies with FDA 21 CFR 177.1520 and the adhesive with 21 CFR 175.300; we can issue a food contact declaration.", cn: "PE 热封层符合 FDA 21 CFR 177.1520，胶粘剂符合 21 CFR 175.300，我们可以出具食品接触合规声明。" },
           { en: "Could you please confirm whether the 60μm refers to the PE sealant layer, so that we can quote the correct structure?", cn: "能否确认 60μm 指的是 PE 热封层？这样我们才能按正确结构报价。" }
         ],
         points: [
@@ -208,7 +213,7 @@
           { k: "p", s: "Hi there," },
           { k: "p", s: "Thanks for the samples - the seal looked good on our lab sealer." },
           { k: "p", s: "Before we cut the PO, a few things our QA needs on file:" },
-          { k: "p", s: "- TDS for the structure\n- COA, per lot\n- Is the sealant layer compliant under 21 CFR 177.1390 for fatty foods, and can you issue a letter of guaranty?\n- What is the WVTR and OTR? We need it at 100 °F / 90 % RH, not at the standard condition.\n- What is the COF on the outside so it runs on our f/f/s?\n- Shelf life and storage conditions for the rolls" },
+          { k: "p", s: "- TDS for the structure\n- COA, per lot\n- Is the sealant layer compliant under 21 CFR 177.1520 for fatty foods, and is the adhesive covered by 21 CFR 175.300? Can you issue a letter of guaranty?\n- What is the WVTR and OTR? We need it at 100 °F / 90 % RH, not at the standard condition.\n- What is the COF on the outside so it runs on our f/f/s?\n- Shelf life and storage conditions for the rolls" },
           { k: "p", s: "Our line runs at 60 pouches/min, so please advise on the slip and the anti-block." },
           { k: "p", s: "Please advise." },
           { k: "p", s: "Thanks,\nDoug Petrakis\nDoug Petrakis | Procurement\nMidwest Snack Co." }
@@ -225,6 +230,7 @@
           { t: "COF on the outside", cn: "外层摩擦系数（Coefficient of Friction）。膜卷外层太滑跑机会跑偏，太涩会走不动，是设备适性的关键。" },
           { t: "so it runs on our f/f/s", cn: "好让它在我们的成型填充封口机上跑得顺。f/f/s = form-fill-seal。" },
           { t: "the slip and the anti-block", cn: "滑爽性与抗粘连。slip 决定走机顺不顺，anti-block 决定膜卷会不会粘在一起揭不开。" },
+          { t: "21 CFR 177.1390 ≠ 常温结构（最容易张冠李戴的一处）", cn: "**177.1390 的正式标题是“Laminate structures for use at temperatures of 250 °F and above”，只适用于 121 °C 以上的蒸煮层压结构。** 常温零食袋（如本信的 PET/PE 1.5 mil）应引 **177.1520**（烯烃聚合物，PE 热封层）+ **175.300**（涂层与胶粘剂），PET 另有 **177.1630**。客户口头问 177.1390 时，正确做法是**先答对条、再点明适用范围**（例如：for a retort structure we would cite 177.1390; for this ambient structure it is 177.1520 + 175.300）——引错章节会让对方的 QA 直接怀疑你的合规文件。" },
           { t: "Please advise.", cn: "请指示/请答复。美式邮件最高频的收尾，等于「等你回话」。**不是客套，是真的在等。**" }
         ],
         traps: [
@@ -236,7 +242,7 @@
         ],
         drill: [
           { en: "Attached is the TDS for the PET/PE structure; COA will be issued per lot.", cn: "随附 PET/PE 结构的 TDS，COA 将按批次出具。" },
-          { en: "The sealant layer complies with 21 CFR 177.1390 for fatty foods, and our QA department can issue a letter of guaranty within five working days.", cn: "热封层符合 21 CFR 177.1390（适用于油脂类食品），我司质检部门可在五个工作日内出具保函。" },
+          { en: "The PE sealant layer complies with 21 CFR 177.1520 for fatty foods and the adhesive with 21 CFR 175.300, and our QA department can issue a letter of guaranty within five working days.", cn: "PE 热封层符合 21 CFR 177.1520（适用于油脂类食品），胶粘剂符合 21 CFR 175.300，我司质检部门可在五个工作日内出具保函。" },
           { en: "Our standard WVTR value is measured at 38 °C / 90 % RH, which is close to the condition you specified.", cn: "我们的水蒸气透过率标准值是在 38 摄氏度 / 90% 相对湿度下测得的，与您指定的条件接近。" },
           { en: "The outside COF is 0.28 kinetic, which runs cleanly on high-speed f/f/s equipment.", cn: "外层动摩擦系数为 0.28，可在高速成型填充封口机上顺畅运行。" },
           { en: "Regarding the storage, the rolls should be kept upright below 30 °C and used within 12 months of production.", cn: "关于存放：膜卷应直立存放于 30 摄氏度以下，并在生产后 12 个月内使用。" }

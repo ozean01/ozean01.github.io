@@ -134,7 +134,7 @@
       id: "s2",
       icon: "🏭",
       t: "阶段二 · 生产跟进与进度控制",
-      en: "Production Follow-up & Quality Control",
+      en: "Production Follow-up & Progress Control",
       lead: "这个阶段只有一个动作：盯紧。按交期倒推节点，问题在车间就解决掉，别等验货那天才发现。",
       steps: [
         {
@@ -203,13 +203,13 @@
         {
           k: "s3b", cn: "草稿单据先发客户确认，同时催尾款",
           note: "根据工厂装箱资料先做商业发票（CI）和装箱单（PL）草稿发客户确认，顺势提尾款。等提单出来才发现收货人写错，改单费和时间都是白花的。",
-          en: "Please check the draft invoice and packing list. Once you confirm them, we will arrange the balance payment and the shipment.",
-          enCn: "请核对发票和箱单草稿。您确认后，我们即安排尾款与出运。"
+          en: "Please check the draft invoice and packing list. Once you confirm them, please arrange the balance payment so that we can proceed with the shipment.",
+          enCn: "请核对发票和箱单草稿。您确认后，请安排尾款，以便我们安排出运。"
         },
         {
           k: "s3c", cn: "拖车装柜并记录三个号",
           note: "货好且验货合格后安排拖车提柜。装柜后必须记录柜号、车牌号、封条号，并同步给货代。装柜全程拍照：空柜、装载过程、满柜、封条特写。",
-          en: "Loading is completed. Container number TGHU1234567, seal number CN889012, and the loading photos are attached.",
+          en: "Loading is completed. Container number TGHU1234567, seal number CN889012. The loading photos are attached.",
           enCn: "装柜完成。柜号 TGHU1234567，封条号 CN889012，装柜照片附上。"
         },
         {
@@ -227,8 +227,8 @@
         {
           k: "s3f", cn: "报检与危险品资料（化工品必看）",
           note: "属法定检验目录的货物要报检；溶剂型复膜胶、油墨等危险化学品出口还需危险特性分类鉴定报告、危包证（性能与使用鉴定）、UN 包装标记与英文危险公示标签。这类资料缺一样，港口直接不收货。",
-          en: "This is a solvent-based adhesive classified as UN 1866. We will provide the dangerous goods packing certificate and the MSDS in English.",
-          enCn: "这款是溶剂型胶粘剂，危险品编号 UN 1866。我们会提供危包证和英文版 MSDS。"
+          en: "This is a solvent-based adhesive. Adhesives containing a flammable liquid are normally classified as UN 1133; the classification report is the authority, so please confirm the entry before shipping.",
+          enCn: "这款是溶剂型胶粘剂。含易燃液体的胶粘剂通常归入 UN 1133；以危险特性分类鉴定报告为准，出货前请先确认具体条目。我们会提供危包证和英文版 MSDS。"
         }
       ]
     },
@@ -266,7 +266,7 @@
         {
           k: "s4e", cn: "开船通知与到港跟踪",
           note: "开船后 24 小时内发装运通知（Shipping Advice）：船名航次、提单号、ETD、ETA、柜号、件重体、单据寄出方式与快递单号。到港前一周再提醒一次客户准备清关。",
-          en: "Your shipment sailed on June 25 on MSC ANNA, voyage 428W. ETA Hamburg is July 22, and the courier tracking number is 1234567890.",
+          en: "Your shipment sailed on June 25 on board MSC ANNA, voyage 428W. ETA Hamburg is July 22, and the courier tracking number is 1234567890.",
           enCn: "您的货物已于 6 月 25 日由 MSC ANNA 428W 航次开船，预计 7 月 22 日到汉堡，快递单号 1234567890。"
         },
         {
@@ -588,11 +588,11 @@
     },
     {
       k: "ready", label: "④ 生产完成与验货 Ready for inspection",
-      body: "Dear {NAME},\n\nOrder {PO} has been completed and our internal inspection has been passed. Photos of the products, labels and cartons are attached.\n\nShall we book the pre-shipment inspection for {DATE}? Please also let us know if you use a third-party inspector.\n\nBest regards,\n{ME}"
+      body: "Dear {NAME},\n\nOrder {PO} has been completed and has passed our internal inspection. Photos of the products, labels and cartons are attached.\n\nShall we book the pre-shipment inspection for {DATE}? Please also let us know if you use a third-party inspector.\n\nBest regards,\n{ME}"
     },
     {
       k: "balance", label: "⑤ 催尾款 Balance reminder",
-      body: "Dear {NAME},\n\nThe goods for order {PO} are ready and have passed inspection. Attached are the draft invoice and packing list for your checking.\n\nCould you kindly arrange the balance payment by {DATE} so that we can meet the vessel cut-off? Our bank details are unchanged and shown on the invoice.\n\nBest regards,\n{ME}"
+      body: "Dear {NAME},\n\nThe goods for order {PO} are ready and have passed inspection. Attached are the draft invoice and packing list for your review.\n\nCould you kindly arrange the balance payment by {DATE} so that we can meet the vessel cut-off? Our bank details are unchanged and shown on the invoice.\n\nBest regards,\n{ME}"
     },
     {
       k: "loaded", label: "⑥ 装柜完成 Loading completed",
@@ -600,7 +600,7 @@
     },
     {
       k: "sailed", label: "⑦ 开船通知 Shipping advice",
-      body: "Dear {NAME},\n\nYour shipment for order {PO} sailed on {DATE}.\n\nVessel and voyage: {VESSEL}\nB/L number: {BL}\nETA: {ETA}\nQuantity, gross weight and volume: as per the attached packing list\n\nThe full set of documents is attached for your checking.\n\nBest regards,\n{ME}"
+      body: "Dear {NAME},\n\nYour shipment for order {PO} sailed on {DATE}.\n\nVessel and voyage: {VESSEL}\nB/L number: {BL}\nETA: {ETA}\nQuantity, gross weight and volume: as per the attached packing list\n\nThe full set of documents is attached for your review.\n\nBest regards,\n{ME}"
     },
     {
       k: "release", label: "⑧ 放单 / 电放 Documents released",
@@ -1092,7 +1092,10 @@
     { code: "3912.39", en: "Cellulose ethers (in primary forms) — coating agent", cn: "纤维素醚（涂布助剂）" }
   ];
   function HS_REF_HTML() {
-    return '<div class="sop-table-wrap"><table class="sop-table"><thead><tr><th>HS 编码</th><th>官方英文品名（节选）</th><th>软包装商品</th></tr></thead><tbody>' +
+    /* P4-3 复核：原表头写「官方英文品名（节选）」是**过度声明**——抽查 3809.10 与官方文本不符，
+       而这些品名只是本站按经验整理的参考写法。HS 归类与官方品名必须以海关归类决定、
+       单一窗口申报要素与官方文本为准，故表头与表尾都改成如实的口径。 */
+    return '<div class="sop-table-wrap"><table class="sop-table"><thead><tr><th>HS 编码</th><th>英文品名（参考写法）</th><th>软包装商品</th></tr></thead><tbody>' +
       HS_REF.map(function (h) {
         return '<tr><td><b>' + esc(h.code) + '</b></td><td>' + esc(h.en) + '</td><td>' + esc(h.cn) + '</td></tr>';
       }).join("") + '</tbody></table></div>';

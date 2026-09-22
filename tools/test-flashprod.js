@@ -113,10 +113,12 @@ check("isLearned 可指定产出线", (function () {
 const fs = require("fs");
 const ROOT = path.join(__dirname, "..");
 const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
-check("默认进度含 flashProd 字段", /flash: \{\}, flashProd: \{\}/.test(appjs));
+check("默认进度含 flashProd 与 flashChunk 字段（P3-1 起为三条线）",
+  /flash: \{\}, flashProd: \{\}/.test(appjs) && /flashChunk: \{\}/.test(appjs));
 check("有产出档开关（flashProdMode）", /let flashProdMode = false;/.test(appjs));
-check("有档位→存储线的映射",
-  /function flashStoreKey\(s\) \{ return \(s && s\.prod\) \? "flashProd" : "flash"; \}/.test(appjs));
+check("有档位→存储线的映射（语块档优先，其次产出档，默认接受档）",
+  /if \(s && s\.deck && s\.deck !== "word"\) return "flashChunk";/.test(appjs) &&
+  /return \(s && s\.prod\) \? "flashProd" : "flash";/.test(appjs));
 check("建队时按档位取存储线", /buildQueue\(cards, progress, 30,[^)]*flashStoreKey\(/.test(appjs));
 check("评分时按档位写入", /Flashcards\.grade\(progress, card\.id, rating, flashStoreKey\(s\)\)/.test(appjs));
 check("卡片状态按档位读取", /stateOf\(progress, card\.id, flashStoreKey\(s\)\)/.test(appjs));

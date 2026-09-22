@@ -8,7 +8,17 @@
   "use strict";
 
   const E = function () { return window.TutorEnv || {}; };
-  const esc = function (s) { return String(s == null ? "" : s); };
+  /* P0-1（安全）：这里的 esc 原先是**恒等函数**（只做 String 转换、不转义任何字符），
+     却被当成转义用在本模块的 textarea 预填、作品标题与 title 属性上——
+     于是一稿里写入的标签会在「保存 → 回作品列表」时被 innerHTML 执行，
+     并随导出的备份文件传播到其它机器。现改为**真转义**。
+     口径与 app.js 的 esc / subtitle.js 的 esc 一致：& < > "（本模块的属性一律双引号包裹，
+     不额外转义单引号，避免把正文里的撇号写成 &#39; 而影响可读与文本比对）。 */
+  const esc = function (s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  };
   const toast = function (m) { if (E().toast) E().toast(m); };
   const KEY = "fte-writes-v1";
 
@@ -118,20 +128,30 @@
   /* write.js 既有的 esc 是**恒等函数**（只做 String 转换，不转义字符）——历史遗留。
      真实来信里有 > 引用层级与 & 等字符，这里单独给一份**真转义**版本，
      不去改既有的 esc，以免影响已上线页面的渲染结果。 */
-  function escM(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/\n/g, "<br>");
-  }
-  /* 同上的转义，但**保留换行**——<textarea> 的预填值不能出现 <br>，
-     否则用户回来看见的就是字面的「&lt;br&gt;」而不是换行。 */
-  function escTA(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+  /* 来信正文需要保留换行的可见版本；<textarea> 预填不能出现 <br>，用 escTA。
+     两者都复用上面的真转义 esc，避免再出现「同一件事两份实现」。 */
+  function escM(s) { return esc(s).replace(/\n/g, "<br>"); }
+  function escTA(s) { return esc(s); }
 
   function savedWorks() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
   function saveWorks(a) { try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 100))); } catch (e) { /* ignore */ } }
+
+  /* ---------------- P3-3 产出下限 ----------------
+     此前是「保存了就算 1 篇」——写 3 个词也算今日写作完成，这是最直接的刷量通路
+     （连续打卡记的是「练了多少」，而 3 个词不是练习量）。现在只有达到 MIN_PROD_WORDS
+     才计入今日任务与连续打卡；不足时**仍然保存作品**，但明确告知还差多少、且不记账。
+     阈值是可调参数：40 词 ≈ 一封最短的完整商务回信；调高只会更严，不会更松。 */
+  const MIN_PROD_WORDS = 40;
+  function creditProduce(text, hint) {
+    const n = wc(text);
+    if (n >= MIN_PROD_WORDS) {
+      if (window.CoachBridge && window.CoachBridge.done) window.CoachBridge.done("write");
+      return true;
+    }
+    toast("已保存（" + n + " 词），但未计入今日产出：要满 " + MIN_PROD_WORDS + " 词才算。"
+      + (hint || "把要点写完整再短也不行——练习量记的是产出，不是保存动作。"));
+    return false;
+  }
 
   /* 离线要点自查：看用户的英文里用到了哪些关键表达。
      ⚠️ 修一处既有缺陷：原先对原文与短语都不去标点，导致**带标点的短语永远匹配不上**——
@@ -564,7 +584,7 @@
       });
       saveWorks(a);
       toast(has2 ? "💾 已保存（含一稿与二稿）" : "💾 已保存到作品集");
-      if (window.CoachBridge && window.CoachBridge.done) window.CoachBridge.done("write");   // 计入今日任务 + 连续打卡
+      creditProduce(s.text);   // P3-3：达到产出下限才计入今日任务 + 连续打卡
       render();
       return;
     }
@@ -624,7 +644,7 @@
       s.indepText = txt; s.indepDone = true; s.indepView = false;
       writeState(s);
       toast("🔒 独立稿已留档——这一栏才是能力证据");
-      if (window.CoachBridge && window.CoachBridge.done) window.CoachBridge.done("write");
+      creditProduce(txt, "独立稿太短也说明不了「离开工具我还会不会」——写完一整封再交。");
       render(); return;
     }
     if (act === "ws-indep-fill") { s.indepText = ""; writeState(s); render(); return; }

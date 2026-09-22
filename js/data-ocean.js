@@ -9,7 +9,7 @@
     icon: "🚢",
     summary: "软包装出口的海运实操：箱型与整拼箱、海运费与各类附加费、滞期与滞留、提单与单证流程，以及订舱、截关、VGM、甩柜等高频节点的英文说法，跟船公司和货代把细节谈清楚。",
     vocab: [
-      { w: "TEU/FEU", ipa: "/ˌtiː iː ˈjuː, ˌef iː ˈjuː/", pos: "n.", cn: "二十英尺／四十英尺标准箱（Twenty-foot / Forty-foot Equivalent Unit）", ex: "The film reels fill two TEU, so we booked one FEU instead.", exCn: "这批薄膜卷占两个二十尺箱的量，所以我们改订了一个四十尺箱。" },
+      { w: "TEU/FEU", ipa: "/ˌtiː iː ˈjuː, ˌef iː ˈjuː/", pos: "n.", cn: "二十英尺／四十英尺标准箱（Twenty-foot / Forty-foot Equivalent Unit）", ex: "The film reels come to two TEU, so we booked one 40-ft container (one FEU) instead of two.", exCn: "这批薄膜卷合计相当于两个二十尺箱，所以我们改订一个四十尺箱（一个 FEU），而不是两个二十尺箱。" },
       { w: "FCL", ipa: "/ˌef siː ˈel/", pos: "n.", cn: "整箱货（Full Container Load）", ex: "We ship in FCL to keep the pouches clean and avoid damage.", exCn: "我们走整箱，以保持包装袋干净、避免破损。" },
       { w: "LCL", ipa: "/ˌel siː ˈel/", pos: "n.", cn: "拼箱货（Less than Container Load）", ex: "Sample rolls go LCL, but the charges per cubic meter are much higher.", exCn: "样品卷走拼箱，但每立方米的费用要高得多。" },
       { w: "CY/CFS", ipa: "/ˌsiː ˈwaɪ, ˌsiː ef ˈes/", pos: "n.", cn: "集装箱堆场／集装箱货运站（Container Yard / Container Freight Station）", ex: "Our terms are CY to CY, so the buyer unpacks the film at his own plant.", exCn: "我们做场到场，所以由买方在自己厂里拆箱卸膜。" },
@@ -58,7 +58,9 @@
       { w: "feeder vessel", ipa: "/ˈfiːdə ˈvesl/", pos: "n.", cn: "支线船／驳船（Feeder Vessel）", ex: "A feeder vessel takes the box to Shanghai for the mother vessel.", exCn: "先由支线船把箱子驳到上海接大船。" },
       { w: "base port", ipa: "/ˈbeɪs pɔːt/", pos: "n.", cn: "基本港（Base Port）", ex: "Hamburg is a base port, so the freight is lower than for inland delivery.", exCn: "汉堡是基本港，运费比内陆交货便宜。" },
       { w: "direct shipment", ipa: "/dəˈrekt ˈʃɪpmənt/", pos: "n.", cn: "直达船／直达运输（Direct Shipment）", ex: "The customer pays extra for a direct shipment to avoid transshipment damage.", exCn: "客户愿意加钱走直达船，以免中转造成破损。" },
-      { w: "multimodal transport", ipa: "/ˌmʌltiˈmoʊdl ˈtrænspɔːt/", pos: "n.", cn: "多式联运（Multimodal Transport）", ex: "Multimodal transport covers sea, rail and truck under one bill of lading.", exCn: "多式联运用一份提单涵盖海运、铁路和卡车。" }
+      { w: "multimodal transport", ipa: "/ˌmʌltiˈmoʊdl ˈtrænspɔːt/", pos: "n.", cn: "多式联运（Multimodal Transport）", ex: "Multimodal transport covers sea, rail and truck under one bill of lading.", exCn: "多式联运用一份提单涵盖海运、铁路和卡车。" },
+      { w: "miss the cut-off", ipa: "/mɪs ðə ˈkʌt ɔːf/", pos: "v.", cn: "错过截关时间", ex: "If we miss the cut-off, the cargo rolls to next week.", exCn: "一旦错过截关，这批货就要甩到下周。" },
+      { w: "consolidate the cargo", ipa: "/kənˈsɑːlɪdeɪt ðə ˈkɑːrɡoʊ/", pos: "v.", cn: "拼货；集中装运", ex: "We can consolidate the cargo into one container.", exCn: "我们可以把货拼进一个柜。" }
     ],
     phrases: [
       { p: "book shipping space", cn: "订舱", ex: "Please book shipping space at least ten days before the film reels are ready.", exCn: "请在薄膜卷备好前至少十天订舱。" },

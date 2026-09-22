@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 🔒 CSP（P0-2 · 安全）。GitHub Pages 不能自定义响应头，只能用 meta。
+     为什么必须有：本站会把**用户可控内容**渲染进 innerHTML（AI 返回、导入的字幕/文章、
+     自己的写作草稿、localStorage 历史）。没有 CSP 时，任何一处转义漏网都会真的执行脚本。
+     · script-src 刻意**不含 'unsafe-inline'** —— 这正是让 `onerror=` / `onclick=` 这类
+       内联处理器失效的那一条；因此 index.html 里不再有任何内联 <script>（SW 注册已搬到
+       js/pwa-init.js），代码里也不允许写内联事件处理器（用 addEventListener）。
+     · 'wasm-unsafe-eval' 是必需的：音素 IPA（phonemizer）与离线识别（vosk）都是 wasm 模块。
+     · connect-src 只能是通配：AI 陪练的服务商与 Base URL 由用户自己填（含本地 Ollama），
+       无法预先枚举；这不会削弱上面那条——要外发数据仍需先执行脚本。
+     · cdn.jsdelivr.net 是 vendor 库的加载源（phonemizer / vosk-browser / Azure Speech SDK /
+       transformers / exceljs / 汇率接口），js/vendor 里没有内置副本时走它。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: https://translate.google.com https://*.speech.microsoft.com; connect-src *; font-src 'self' data:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>软包装外贸英语 · Soft Packaging Foreign Trade English</title>
 <meta name="description" content="一站式软包装外贸英语学习网站：核心术语、商务邮件、询盘报价、谈判、付款物流、展会口语、跨境电商，另含外贸实操 SOP（订单内部流转、PI/CI/PL/BL/CO 单证规范、报关报检、海运空运快递、T/T 与 L/C 风控、Incoterms 2020），支持朗读、跟读、听写、单词卡与测验。">
 <!-- SEO / 分享（Open Graph·Twitter·canonical）：
@@ -140,14 +152,21 @@
   </div>
 </header>
 
-<main id="app" class="app container" aria-live="polite"></main>
+<main id="app" class="app container" aria-live="polite">
+  <!-- P0-5 静态骨架：脚本全部加载成功后会被 app.js 的渲染整体替换。
+       它存在的意义是「加载中不至于白屏」，同时配合 js/pwa-init.js 给出可读的失败提示。 -->
+  <div id="bootFallback" class="boot-skeleton">
+    <div class="page-head"><h2>⏳ 正在加载…</h2></div>
+    <p class="sop-hint">正在准备课程与语音模块。若这条提示长时间不消失，请检查网络后按 Ctrl+F5 强制刷新。</p>
+  </div>
+</main>
 
 <footer class="site-footer">
   <div class="container footer-inner">
     <div>
       <strong>软包装外贸英语</strong>
-      <span class="footer-ver">v2.0 · 纯静态站点 · 无需服务器</span>
-      <p>你的学习数据只保存在本浏览器（localStorage），不会上传到本站任何服务器。使用第三方发音 / 语音识别 / AI 陪练接口时，相关语音与文本会发送到对应服务商（详见设置页各接口说明）。</p>
+      <span class="footer-ver" id="appVersion">纯静态站点 · 无需服务器</span>
+      <p>你的学习数据只保存在本浏览器（localStorage），不会上传到本站任何服务器。联网功能会向下列服务商发送必要内容——发音朗读（Google 在线音源 / 微软 Azure）、语音识别与音素级评测（Google / 微软 Azure，发送你的录音）、AI 陪练与写作批改（你填写的服务商，默认 DeepSeek；可改为本机 Ollama 从而完全不出本机）、素材投料口抓取网页正文（r.jina.ai，只发送你粘贴的网址）。<b>逐项清单见 ⚙ 设置页「数据去向」。</b></p>
     </div>
     <div class="footer-tips">
       <span>💡 快捷键：单词卡界面按 <kbd>Space</kbd> 翻面</span>
@@ -158,9 +177,9 @@
 </footer>
 
 <div class="modal-mask" id="settingsModal" hidden>
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-head">
-      <b>⚙️ 发音设置</b>
+      <b id="settingsTitle">⚙️ 发音设置</b>
       <button class="icon-btn" data-action="settings-close" title="关闭" aria-label="关闭">✕</button>
     </div>
     <div class="field">
@@ -212,7 +231,23 @@
     <div class="field">
       <label>🗣 识别来源（跟读评测 / AI 陪练语音输入）</label>
       <label class="step-toggle"><input type="checkbox" id="setLocalASR"> 🎙 优先使用本地离线识别（vosk-browser）</label>
-      <p class="field-note">跨浏览器/断网用 Kaldi wasm。需把解压后的 <code>models/vosk-model-small-en-us-0.15/</code> 放到本站目录（运行 <code>tools/fetch-vosk-model.ps1</code> 或手动下载解压），并把 <code>vosk.js</code> 放进 <code>js/vendor/</code>；未就绪时自动回退浏览器在线识别。</p>
+      <p class="field-note" id="localASRNote">跨浏览器/断网用 Kaldi wasm。<b>本站不分发该模型</b>（约 66MB，会显著增大仓库与首次安装流量），因此本开关默认<b>不可用</b>并保持在线识别。<br>确实需要离线识别时：把解压后的 <code>models/vosk-model-small-en-us-0.15/</code> 与 <code>js/vendor/vosk.js</code> 放到本站目录（步骤见 <code>tools/fetch-vosk-model.ps1</code>），刷新后本开关自动可用。</p>
+    </div>
+    <div class="field">
+      <label>🔍 数据去向（P0-4 · 逐项如实列出）</label>
+      <div class="field-note" style="line-height:1.85">
+        <b>本站不接收任何数据</b>：学习记录（掌握词、单词卡、成绩、作品、打卡）全部只写本机 localStorage，站点没有后端、没有埋点。<br>
+        下面这些是<b>你主动使用某个联网功能</b>时才会发生的上行：<br>
+        · <b>发音朗读（浏览器语音）</b>：在本机合成，不出网。<br>
+        · <b>发音朗读（Google 在线音源）</b> → <code>translate.google.com</code>：发送<b>被朗读的英文文本</b>。<br>
+        · <b>发音朗读 / 音素级评测（Azure）</b> → <code>&lt;区域&gt;.tts.speech.microsoft.com</code>、<code>&lt;区域&gt;.stt.speech.microsoft.com</code>：发送<b>文本或你的录音</b> + 你填的订阅 Key。<br>
+        · <b>跟读评分 / 语音输入（浏览器在线识别）</b> → Google：发送<b>你的录音</b>（不发送文本）。<br>
+        · <b>本地离线识别（vosk，若已就绪）</b>：在本机识别，录音不出网。<br>
+        · <b>AI 陪练 / 写作批改 / 四维 AI 判分 / 说我想说</b>：发送<b>对话与写作文本</b>到你选择的 <code>Base URL</code>（默认 <code>api.deepseek.com</code>；选 🖥 本地 Ollama 时一步都不出本机）。<br>
+        · <b>汇率查询</b> → <code>cdn.jsdelivr.net</code>：只取公开汇率表，不发送任何个人信息。<br>
+        · <b>素材投料口 · 粘贴网页链接</b> → <code>r.jina.ai</code>：发送<b>你粘贴的那个网址</b>以取回正文（学习数据与 Key 都不会带上）。<br>
+        关掉对应功能即可停止对应上行；本站不会在你没点的时候主动联网。
+      </div>
     </div>
     <div class="field">
       <label>📦 学习数据（保存在本浏览器）</label>
@@ -223,7 +258,7 @@
         <button class="btn btn-outline btn-sm" data-action="data-csv-wrong">❗ 错题 CSV</button>
       </div>
       <input type="file" id="dataImportFile" accept=".json,application/json" hidden>
-      <p class="field-note">导出的 JSON 含掌握词、单词卡记忆状态、测验成绩、打卡与错题；换电脑或换浏览器时导入即可续学。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
+      <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>（掌握词、单词卡两条线、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、偏好设置等）；换电脑或换浏览器时导入即可续学。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
     </div>
     <div class="field" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-outline btn-sm" data-action="settings-close">关闭</button>
@@ -234,89 +269,64 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/data.js"></script>
-<script src="js/data-ops.js"></script>
-<script src="js/data-ocean.js"></script>
-<script src="js/data-incoterms.js"></script>
-<script src="js/data-settle.js"></script>
-<script src="js/data-mistakes.js"></script>
-<script src="js/data-risk.js"></script>
-<script src="js/data-deep.js"></script>
-<script src="js/data-meeting.js"></script>
-<script src="js/data-mnemonic.js"></script>
-<script src="js/lvl-map.js"></script>
-<script src="js/difficulty-map.js"></script>
+<!-- ⚠️ 必须排在所有业务脚本之前：它安装启动失败的兜底面板，并把 SW 注册从内联脚本搬出来
+     （CSP 不允许内联脚本）。它不依赖任何模块，也不改变任何业务行为。 -->
+<script src="js/pwa-init.js" defer></script>
+<!-- 存储键唯一权威注册表（P0-3）：纯数据、无依赖，export.js 与安全门禁都读它 -->
+<script src="js/storage-keys.js" defer></script>
+<script src="js/data.js" defer></script>
+<script src="js/data-ops.js" defer></script>
+<script src="js/data-ocean.js" defer></script>
+<script src="js/data-incoterms.js" defer></script>
+<script src="js/data-settle.js" defer></script>
+<script src="js/data-mistakes.js" defer></script>
+<script src="js/data-risk.js" defer></script>
+<script src="js/data-deep.js" defer></script>
+<script src="js/data-meeting.js" defer></script>
+<script src="js/data-mnemonic.js" defer></script>
+<script src="js/lvl-map.js" defer></script>
+<script src="js/difficulty-map.js" defer></script>
 <!-- 单元用途句（「什么时候用」）。必须放在最后一个外部脚本之前加载：
      app.js 执行时就要读 window.FTE_GUIDE，标签若排在它后面则取到 undefined、
      单元卡上那行用途句会静默消失（app.js 启动校验也会报此项缺失）。 -->
-<script src="js/unit-guide.js"></script>
-<script src="js/schema.js"></script>
-<script src="js/player.js"></script>
-<script src="js/parser.js"></script>
+<script src="js/unit-guide.js" defer></script>
+<script src="js/schema.js" defer></script>
+<script src="js/player.js" defer></script>
+<script src="js/parser.js" defer></script>
 <!-- 跟读评分 / 词相似度的【全站唯一实现】。必须前置加载：app.js、patterns.js、eval4.js
      都依赖它；此前 patterns.js 因加载顺序拿不到 app.js 的实现，只能自己抄一份。 -->
-<script src="js/score.js"></script>
-<script src="js/flashcards.js"></script>
-<script src="js/quiz.js"></script>
-<script src="js/tutor.js"></script>
-<script src="js/eval4.js"></script>
-<script src="js/listen.js"></script>
-<script src="js/sop.js"></script>
-<script src="js/data-ports.js"></script>
-<script src="js/export.js"></script>
-<script src="js/asr-local.js"></script>
-<script src="js/sources.js"></script>
-<script src="js/subtitle.js"></script>
-<script src="js/material.js"></script>
-<script src="js/mysay.js"></script>
-<script src="js/today.js"></script>
-<script src="js/urgent.js"></script>
-<script src="js/phonemes.js"></script>
-<script src="js/data-mail.js"></script>
-<script src="js/write.js"></script>
-<script src="js/patterns.js"></script>
-<script src="js/speech.js"></script>
-<script src="js/board.js"></script>
-<script src="js/radar.js"></script>
-<script src="js/placement.js"></script>
+<script src="js/score.js" defer></script>
+<script src="js/flashcards.js" defer></script>
+<script src="js/quiz.js" defer></script>
+<script src="js/tutor.js" defer></script>
+<script src="js/eval4.js" defer></script>
+<script src="js/listen.js" defer></script>
+<script src="js/sop.js" defer></script>
+<script src="js/data-ports.js" defer></script>
+<script src="js/export.js" defer></script>
+<script src="js/asr-local.js" defer></script>
+<script src="js/sources.js" defer></script>
+<script src="js/subtitle.js" defer></script>
+<script src="js/material.js" defer></script>
+<script src="js/mysay.js" defer></script>
+<script src="js/today.js" defer></script>
+<script src="js/urgent.js" defer></script>
+<script src="js/phonemes.js" defer></script>
+<script src="js/data-mail.js" defer></script>
+<script src="js/write.js" defer></script>
+<script src="js/patterns.js" defer></script>
+<script src="js/speech.js" defer></script>
+<script src="js/board.js" defer></script>
+<script src="js/radar.js" defer></script>
+<script src="js/placement.js" defer></script>
 <!-- 出口能力断言映射（P1-B）：app.js 执行时就要读 window.FTE_OUTCOMES，
      标签若排在它后面，单元卡与单元页的断言块会静默消失。纯数据文件，无依赖。 -->
-<script src="js/outcomes.js"></script>
+<script src="js/outcomes.js" defer></script>
 <!-- 入口离开 / 主线进入 只读行为记录（P1-D 前置）：app.js 执行时就要读 window.FTE_TRACE
      的两个挂点，标签必须排在它前面。纯记录，不渲染任何东西、不新增页面/导航/路由。
      关闭：FTE_TRACE.disable() / localStorage 写入 "fte-trace-off" / 地址栏 ?traceOff=1 /
      直接删掉下面这一行。 -->
-<script src="js/entry-trace.js"></script>
-<script src="js/app.js"></script>
-
-<script>
-/* PWA：注册 Service Worker（http/https 下生效；file:// 直接打开时自动跳过）。
-   新版本就绪后提示刷新，避免用户一直用着旧缓存。 */
-(function () {
-  if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
-  window.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").then(function (reg) {
-      if (reg.waiting && navigator.serviceWorker.controller) notifyUpdate(reg);
-      reg.addEventListener("updatefound", function () {
-        var sw = reg.installing;
-        if (!sw) return;
-        sw.addEventListener("statechange", function () {
-          if (sw.state === "installed" && navigator.serviceWorker.controller) notifyUpdate(reg);
-        });
-      });
-    }).catch(function () { /* 注册失败不影响正常使用 */ });
-  });
-  function notifyUpdate(reg) {
-    var bar = document.createElement("div");
-    bar.className = "sw-update";
-    bar.innerHTML = '<span>🔄 已下载新版本</span><button class="btn btn-primary btn-sm">立即刷新</button>';
-    bar.querySelector("button").addEventListener("click", function () {
-      if (reg.waiting) reg.waiting.postMessage("skip-waiting");
-      location.reload();
-    });
-    document.body.appendChild(bar);
-  }
-})();
-</script>
+<script src="js/entry-trace.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>

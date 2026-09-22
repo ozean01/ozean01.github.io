@@ -54,7 +54,10 @@
       { w: "notify party", ipa: "/ˈnoʊtɪfaɪ ˈpɑːti/", pos: "n.", cn: "通知方", ex: "Please confirm whether the notify party is the same as the consignee.", exCn: "请确认通知方是否与收货人相同。" },
       { w: "telex release", ipa: "/ˈteleks rɪˈliːs/", pos: "n.", cn: "电放（提单电放）", ex: "We will apply for telex release as soon as the balance clears.", exCn: "尾款一到账我们就申请电放。" },
       { w: "shipping advice", ipa: "/ˈʃɪpɪŋ ədˈvaɪs/", pos: "n.", cn: "装运通知", ex: "Our shipping advice with the vessel name was emailed to you yesterday.", exCn: "带船名的装运通知昨天已邮件发给你。" },
-      { w: "consistency of documents", ipa: "/kənˈsɪstənsi əv ˈdɑːkjumənts/", pos: "n.", cn: "单单一致", ex: "Under a letter of credit, consistency of documents decides whether you get paid.", exCn: "在信用证项下，单单一致决定你能否收到钱。" }
+      { w: "consistency of documents", ipa: "/kənˈsɪstənsi əv ˈdɑːkjumənts/", pos: "n.", cn: "单单一致", ex: "Under a letter of credit, consistency of documents decides whether you get paid.", exCn: "在信用证项下，单单一致决定你能否收到钱。" },
+      { w: "cut the PO", ipa: "/kʌt ðə ˌpiː ˈoʊ/", pos: "v.", cn: "削减订单量", ex: "The buyer cut the PO to 200,000 pouches.", exCn: "买方把订单削减到 20 万只。" },
+      { w: "sign off on the artwork", ipa: "/saɪn ɔːf ɑːn ði ˈɑːrtwɜːrk/", pos: "v.", cn: "签核稿样", ex: "We need you to sign off on the artwork by Friday.", exCn: "需要你们在周五前签核稿样。" },
+      { w: "palletize", ipa: "/ˈpælətaɪz/", pos: "v.", cn: "码盘；托盘装载", ex: "Please palletize the cartons and wrap each pallet.", exCn: "请把纸箱码盘，每托都要缠膜。" }
     ],
     phrases: [
       { p: "place a purchase order", cn: "下采购订单", ex: "The customer placed a purchase order for 20,000 pouches.", exCn: "客户下了 20,000 个包装袋的采购订单。" },
