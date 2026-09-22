@@ -789,7 +789,7 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 
 现象：双击 `启动外贸英语网站.bat` 后，浏览器里出现的是**另一个应用**（本机实测：本地记忆管理应用「记忆核心 · Memory Eternal」的页面，占着 `127.0.0.1:8000`），看不到学习界面。
 
-根因（原脚本的真实缺陷，不是端口巧合）：`启动外贸英语网站.ps1` 的顺序是 **先 `Start-Process $url` 打开浏览器，再 `bind` 8000**。所以只要 8000 有任何东西占着，python 绑定就失败（`WinError 10013`，因为对方用了 `SO_EXCLUSIVEADDRUSE`，所以不是常见的 10048），而浏览器**已经打开了** → 你看到的就是占用 8000 的那个程序。
+根因（原脚本的真实缺陷，不是端口巧合）：启动脚本的顺序是 **先 `Start-Process $url` 打开浏览器，再 `bind` 8000**。所以只要 8000 有任何东西占着，python 绑定就失败（`WinError 10013`，因为对方用了 `SO_EXCLUSIVEADDRUSE`，所以不是常见的 10048），而浏览器**已经打开了** → 你看到的就是占用 8000 的那个程序。
 
 修复后的顺序：**先探测端口（直接尝试 bind，一次识别"被占用 / 被独占 / 落在系统保留段"三种情况）→ 选一个真能绑的（顺延，最多 20 个）→ 起服务器 → 探活真的返回 200 之后才打开浏览器**；若 20 个端口全不可用，则**不开浏览器**直接给出占用者查询命令。新增 `-NoBrowser` 开关（仅起服务器）用于自动化验证。
 
@@ -797,7 +797,7 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 
 ⚠️ **该脚本必须保持纯 ASCII**：`.bat` 用 `powershell.exe`（Windows PowerShell 5.1）执行，而 5.1 对**无 BOM** 的 `.ps1` 按系统 ANSI 代码页（中文系统为 GBK）解码——写进中文提示会变成乱码**并直接破坏语法**（本轮实测：4 处语法错误，启动器会当场坏掉）。所以提示文案沿用英文。仓库里其它含中文的 `.ps1`（如 `tools/fetch-vosk-model.ps1`）同样存在"输出乱码"的轻微问题，可选手工加 UTF-8 BOM 解决。
 
-**实测验证**（`powershell.exe -File 启动外贸英语网站.ps1 -NoBrowser`）：解析零错误、0 个非 ASCII 字节；端口被占用时输出 `[WARN] Port ... is taken; using ... instead.` 并**未提前打开浏览器**；`Invoke-WebRequest` 对首页与 `/js/subtitle.js`、`/js/player.js`、`/css/style.css` 全部 **HTTP 200**，且服务出的文件含本轮 P8 内容（`fte-sub-notes-v1` / `abTick` / `Player.waveSegRange`）。
+**实测验证**（`powershell.exe -File start-site.ps1 -NoBrowser`）：解析零错误、0 个非 ASCII 字节；端口被占用时输出 `[STOP] ... will not switch ports` 并**不启动任何服务**；正常时打印 `URL: http://localhost:8000`，`Invoke-WebRequest` 对首页与 `/js/subtitle.js`、`/js/player.js`、`/css/style.css` 全部 **HTTP 200**，且服务出的文件含本轮 P8 内容（`fte-sub-notes-v1` / `abTick` / `Player.waveSegRange`）。
 
 **8-4b 二次修复：浏览器永不弹出（探活用 `localhost` + 2 秒超时）**
 
@@ -835,6 +835,32 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 
 1. **Python 误判**：`Find-PythonCmd` 原先用 `& python --version 2>&1` 判断"装了没"，而受限环境下**子进程标准输出管道会被拒绝**（实测 `& python --version` 捕获失败）→ 明明装了 Python 却打印 `[ERROR] Python not found`。现在：先排除 `\WindowsApps\` 的商店占位 stub，版本探测失败时**仍采用已解析到的命令**，把真正的 python 报错留给后面（比一句错误的"未安装"可操作得多）。
 2. **窗口挂死**：Python 未找到与"服务已停止"两处的 `ReadKey` 原是**无条件**的 → 无人应答时永久挂起（本轮实测 60s+ 超时）。现在只在"确有真人控制台且非 `-NoBrowser`"时才等待按键。
+
+**8-4e 双击打不开的真凶：`.bat` 被写成了 LF 换行 + 内含中文字节**
+
+现象：在 PowerShell 里用 `cmd /c "启动外贸英语网站.bat" -NoBrowser` 能跑通，但**从资源管理器双击就一闪而过**。实测字节后确认两个叠加问题：
+
+| 文件 | 当时实测 | 为什么致命 |
+|---|---|---|
+| `启动外贸英语网站.bat` | **CRLF=0，裸 LF=5，非 ASCII=48** | ① `cmd.exe` 解析批处理是**按 CR** 定位行边界的，LF-only 会让解析错乱；② 文件里嵌着中文文件名（非 ASCII 字节），而 cmd 用**控制台代码页**解码 BOM-less 的 .bat —— 从 PowerShell 调用时该控制台恰已是 UTF-8（所以侥幸能跑），**双击时 cmd 以 cp936 启动**，第 2 行 `chcp 65001` 又在文件中途切换代码页 → 第 5 行的中文路径解析崩掉，窗口一闪即关 |
+| `启动外贸英语网站.ps1` | 裸 LF（无 CRLF） | PowerShell 能正确解析 LF，**不是**故障原因（但已顺带改名，见下） |
+
+修法与**不变量**（以后改这两个文件必须守住）：
+
+1. **`启动外贸英语网站.bat` 必须是「纯 ASCII + CRLF」**。为此脚本改名为 **`start-site.ps1`**（ASCII 文件名），`.bat` 里只写 `%~dp0start-site.ps1` —— 中文**目录**路径由 `%~dp0` 在运行时取得（经 `CreateProcess` 以 UTF-16 传递，与 .bat 自身字节无关），因此 .bat 内不再需要任何非 ASCII 字节，也就可以去掉 `chcp`。
+2. `.bat` 现在还会：检查 `start-site.ps1` 是否存在、打印 `[launcher exited, code N]`、并**在结尾 `pause`** —— 窗口永远不会"什么都没看见就关掉"。
+3. 改完必须复核字节（下面这条命令同时检查 CRLF 与非 ASCII）：
+   ```powershell
+   $b=[IO.File]::ReadAllBytes('启动外贸英语网站.bat'); $crlf=0;$lf=0;$na=0
+   for($i=0;$i -lt $b.Length;$i++){ if($b[$i] -eq 10){ if($b[$i-1] -eq 13){$crlf++}else{$lf++} }; if($b[$i] -gt 127){$na++} }
+   "CRLF=$crlf 裸LF=$lf 非ASCII=$na"   # 期望：裸LF=0、非ASCII=0
+   ```
+4. 复现"双击"的正确姿势（不要用默认控制台，那样会掩盖问题）：
+   ```powershell
+   & cmd /c 'chcp 936 >nul & "启动外贸英语网站.bat" -NoBrowser'
+   ```
+   **实测**：修好后在该 cp936 环境下 `.bat` 正常拉起服务，`http://localhost:8000/`、`/js/subtitle.js`、`/css/style.css` 全 **HTTP 200** 且含 P8 内容，同时 7999 的记忆核心仍 `ok=true`。
+5. 注意：该 cp936 控制台里启动器打印的 `Site: E:\deepseek harness\外贸英语` 若被**重定向捕获**会显示成乱码（PS 5.1 按 cp936 写字节，读取端按 UTF-8 解），**真实控制台显示正常**，属捕获假象，不是缺陷。
 
 ### 本批明确不做（及原因）
 - **影视素材库**（老友记/摩登家庭式）：版权不可碰，且与「软包装外贸」人群、场景错配；站内自有的业务语料才是差异点。
