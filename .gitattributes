@@ -1,0 +1,3 @@
+# cmd.exe 解析批处理按 CR 定位行边界：LF-only 的 .bat 在资源管理器双击时会解析错乱
+# （详见 README「8-4e」）。这里把它钉死：仓库内规范化为 LF、检出时一律还原为 CRLF。
+*.bat text eol=crlf
