@@ -24,16 +24,17 @@ param(
 #  AFTERWARDS. If anything else already owned 8000, python failed to bind
 #  (WinError 10013/10048) while the browser had already been opened - the
 #  user then saw whatever app owned 8000 instead of the learning site.
-#  New order: probe ports -> pick a bindable one -> serve -> wait until the
-#  server really answers 200 -> only then open the browser.
+#  New order: probe the port -> (if taken: STOP and ask) -> serve ->
+#  wait until the port really accepts -> only then open the browser.
 #  Default port is 8000 again, and the browser is opened at http://localhost:8000.
 #
 #  Why 8000 + localhost: localStorage is isolated per origin
 #  (scheme+host+port), so the address bar must stay exactly what it has always
 #  been or the learner's saved progress looks "gone" (it is still there, under
 #  the old origin). 8088 was tried and reverted for that reason.
-#  If 8000 is taken we still fall back automatically, but the script then warns
-#  loudly that the origin changed (progress will not show up) and how to migrate.
+#  Because a changed port silently hides that progress, this script does NOT
+#  switch ports on its own - it stops and asks. See the [STOP] branch below and
+#  the -AllowPortChange / -Port parameters.
 #
 #  The liveness probe deliberately uses 127.0.0.1 (not localhost): on this
 #  machine `localhost` resolves to ::1 first and that attempt stalls ~2.3s, so a
