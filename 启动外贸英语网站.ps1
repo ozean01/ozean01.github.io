@@ -103,7 +103,7 @@ if ($port -ne $preferredPort) {
   Write-Host ""
 }
 
-$url = "http://localhost:$port"
+$url = "http://127.0.0.1:$port"
 
 # ---------- 2) Locate Python ----------
 $pyCmd = Find-PythonCmd
@@ -124,26 +124,35 @@ Write-Host ("      Version: " + $pver)
 Write-Host ("      Site:    " + $root)
 Write-Host ""
 Write-Host ("  URL:  " + $url) -ForegroundColor Yellow
+Write-Host "        (if the browser does not open by itself, open that URL manually)" -ForegroundColor DarkGray
 if ($NoBrowser) {
   Write-Host "  (-NoBrowser: server only, browser will not be opened)" -ForegroundColor DarkYellow
 } else {
-  Write-Host "  Waiting for the server, then opening browser..." -ForegroundColor Green
+  Write-Host "  Waiting for the port, then opening browser..." -ForegroundColor Green
 }
 Write-Host ""
 Write-Host "  -------- Server log (close window to stop) --------" -ForegroundColor Cyan
 Write-Host ""
 
-# ---------- 3) Open the browser only after the server really answers ----------
+# ---------- 3) Open the browser only after the port really accepts ----------
+# Probe with a RAW TCP connect to 127.0.0.1: no DNS, no IPv6, no HTTP, no proxy.
+#
+# Why not "http://localhost + Invoke-WebRequest -TimeoutSec 2" (the first attempt):
+# on this machine `localhost` resolves to ::1 first and that attempt stalls, so a
+# single probe cost ~2.3s (measured) and EVERY probe tripped the 2s timeout. The
+# loop then exhausted itself and gave up SILENTLY - the server was up, but no
+# browser opened and nothing was printed. Now the wait is an instant TCP connect,
+# and the URL is always printed up front, so a failure can never be invisible.
 $opener = $null
 if (-not $NoBrowser) {
-  $opener = Start-Job -ArgumentList $url -ScriptBlock {
-    param($u)
-    for ($i = 0; $i -lt 60; $i++) {
-      try {
-        $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 2
-        if ($r.StatusCode -eq 200) { Start-Process $u; return }
-      } catch { }
-      Start-Sleep -Milliseconds 300
+  $opener = Start-Job -ArgumentList $url, $port -ScriptBlock {
+    param($u, $p)
+    for ($i = 0; $i -lt 100; $i++) {
+      $client = New-Object System.Net.Sockets.TcpClient
+      $up = $false
+      try { $client.Connect('127.0.0.1', $p); $up = $true } catch { } finally { $client.Close() }
+      if ($up) { Start-Process $u; return }
+      Start-Sleep -Milliseconds 200
     }
   }
 }
