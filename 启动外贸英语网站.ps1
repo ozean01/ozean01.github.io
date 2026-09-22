@@ -83,14 +83,23 @@ function Get-PortOwner([int]$Port) {
 }
 
 function Find-PythonCmd {
+  # Windows ships a "python.exe" Store stub in WindowsApps that opens the Store
+  # instead of running Python - never accept that one.
+  # The "--version" probe doubles as a liveness check, BUT a failed probe must
+  # not be reported as "Python not found": some sandboxes/EDRs block a child
+  # process from piping its stdout, which makes & python --version throw even
+  # though Python is installed and usable (observed on this machine). So on a
+  # probe failure we still accept the resolved command and let the real python
+  # error surface later, which is far more actionable than a wrong "not found".
   foreach ($cand in @("python","py")) {
     $cmd = Get-Command $cand -ErrorAction SilentlyContinue
-    if ($cmd) {
-      try {
-        $v = & $cand --version 2>&1
-        if ($LASTEXITCODE -eq 0 -or "$v" -match "\d\.") { return $cand }
-      } catch { }
-    }
+    if (-not $cmd) { continue }
+    if ("$($cmd.Source)" -match '\\WindowsApps\\') { continue }
+    try {
+      $v = & $cand --version 2>&1
+      if ($LASTEXITCODE -eq 0 -or "$v" -match "\d\.") { return $cand }
+    } catch { }
+    return $cand
   }
   return $null
 }
@@ -185,8 +194,7 @@ if (-not $pyCmd) {
   Write-Host "  Install Python: https://www.python.org/downloads/" -ForegroundColor Yellow
   Write-Host "  Fallback: double-click index.html (browse only)" -ForegroundColor DarkYellow
   Write-Host ""
-  Write-Host "Press any key to close..."
-  $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+  if ($interactive -and (-not $NoBrowser)) { Write-Host "Press any key to close..."; $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") }
   exit 1
 }
 
@@ -240,5 +248,6 @@ if ($opener) {
 Write-Host ""
 Write-Host "  -------- Server stopped --------" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Press any key to close..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+# Only hold the window open when a human is actually there to close it;
+# otherwise a double-clicked-then-scripted run would hang forever.
+if ($interactive -and (-not $NoBrowser)) { Write-Host "Press any key to close..."; $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") }
