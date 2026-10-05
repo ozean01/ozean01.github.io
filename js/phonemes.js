@@ -226,8 +226,12 @@
     const rows = HIGH_RISK.map(function (g) {
       const ws = g.pick.map(findWord).filter(Boolean);
       const chips = ws.map(function (x) {
-        return '<button class="hr-word" data-action="ph-say" data-w="' + esc(x.w) + '" title="' +
-          esc(x.ipa + "  " + x.cn) + '">' + esc(x.w) + '<span class="hr-ipa">' + esc(x.ipa) + "</span></button>";
+        return '<span class="hr-item">' +
+          '<button class="hr-word" data-action="ph-say" data-w="' + esc(x.w) + '" title="' +
+            esc(x.ipa + "  " + x.cn) + '">' + esc(x.w) + '<span class="hr-ipa">' + esc(x.ipa) + "</span></button>" +
+          '<button class="hr-shadow" data-action="ph-shadow" data-w="' + esc(x.w) +
+            '" title="跟读：先听标准音，留空跟你读，录下自己再回放对比" aria-label="跟读 ' + esc(x.w) + '">🎤</button>' +
+        "</span>";
       }).join("");
       return `
       <div class="hr-card">
@@ -239,15 +243,68 @@
       </div>`;
     }).join("");
 
+    const P = (window.Player && window.Player.repPref) || { n: 2, gap: 1.5 };
+    const repCtl = `
+        <div class="hr-rep">
+          <span class="hr-rep-label">🔁 跟读设置</span>
+          <label>复读 <select data-action="ph-rep-n" aria-label="复读次数">${repOptions(P.n)}</select> 次</label>
+          <label>跟读窗口 <select data-action="ph-rep-gap" aria-label="每轮之间的跟读窗口秒数">${gapOptions(P.gap)}</select> 秒</label>
+          <span class="field-note" style="margin:0">🎤 = 听完后录下自己、回放与原声对比。<b>本页不打分</b>——识别不等于发音，单词级评分不可靠，A/B 对照才是诚实的上限。</span>
+        </div>`;
+
     return `
     <details class="hr-box" open>
       <summary><b>🚨 先练这 ${HIGH_RISK.length} 组（真会出事故的）</b>
         <span class="hr-sub">业务员分不清 /θ/ /s/ 通常不是不懂口型，而是没练——所以每组都配了你自己的行业词，点词即朗读</span></summary>
       <div class="hr-body">
+        ${repCtl}
         <div class="hr-grid">${rows}</div>
         <div class="field-note" style="margin-top:10px">下面还有一个 <b>${PHONEMES.length} 个音素的完整表</b>（默认折叠）——那是<b>参考/查询</b>用的，从头背没有意义。日常先把上面这 ${HIGH_RISK.length} 组练顺。</div>
       </div>
     </details>`;
+  }
+
+  /* 复读次数/间隔的下拉选项：**优先由 Player 的夹取函数派生**，不在这里手写范围与步长。
+     为什么带一份本地兜底：player.js 若因加载顺序/失败而缺席，下拉框仍要存在（设置项消失
+     是最难发现的一类回归）；而真正的写入一律经过 Player.setRepPref，故兜底不会造成两处口径。
+     口径常量集中在 REP_BOUNDS，与 Player 的 clampRepeat / clampGap 同值（test-shadow.js 守）。
+     用整数循环推进，不用 0.5 累加浮点——累加会漂移，`c === cur` 的选中判断会时灵时不灵。 */
+  const REP_BOUNDS = { nMin: 1, nMax: 5, gapMin: 0.5, gapMax: 5, gapStep: 0.5 };
+  function roundHalf(v) { return Math.round(v * 2) / 2; }
+  function clampN(v) {
+    const b = REP_BOUNDS;
+    if (window.Player && window.Player.clampRepeat) return window.Player.clampRepeat(v);
+    const n = parseInt(v, 10);
+    if (!(n >= b.nMin)) return b.nMin;
+    return n > b.nMax ? b.nMax : n;
+  }
+  function clampG(v) {
+    const b = REP_BOUNDS;
+    if (window.Player && window.Player.clampGap) return window.Player.clampGap(v);
+    const g = parseFloat(v);
+    if (!(g >= b.gapMin)) return b.gapMin;
+    return g > b.gapMax ? b.gapMax : roundHalf(g);
+  }
+  function optionsFrom(clamp, gen, cur) {
+    let out = "";
+    for (let i = 0; ; i++) {
+      const v = gen(i);
+      if (v === null) break;
+      const c = clamp(v);
+      out += '<option value="' + c + '"' + (c === cur ? " selected" : "") + ">" + c + "</option>";
+    }
+    return out;
+  }
+  function repOptions(cur) {
+    return optionsFrom(clampN, function (i) {
+      return i <= REP_BOUNDS.nMax - REP_BOUNDS.nMin ? REP_BOUNDS.nMin + i : null;
+    }, cur);
+  }
+  function gapOptions(cur) {
+    return optionsFrom(clampG, function (i) {
+      const v = REP_BOUNDS.gapMin + i * REP_BOUNDS.gapStep;
+      return v <= REP_BOUNDS.gapMax + 1e-9 ? roundHalf(v) : null;
+    }, cur);
   }
 
   /* ---------------- 朗读 / 送进单词卡 ---------------- */
@@ -265,7 +322,110 @@
     const boot = window.FTE_BOOT;
     const rate = (boot && boot.progress && boot.progress.rate) || 1;
     /* 逐词连读，中间用逗号拉开停顿，方便跟读 */
-    window.Player.speak(list.map(function (x) { return x.w; }).join(", "), { rate: rate });
+    if (window.Player.repeat) {
+      window.Player.repeat(list.map(function (x) { return x.w; }).join(", "), { rate: rate });
+    } else {
+      window.Player.speak(list.map(function (x) { return x.w; }).join(", "), { rate: rate });
+    }
+  }
+
+  /* ---------------- 🎤 词级跟读（P10） ----------------
+     闭环：复读 N 次（每次之间留 gap 秒给你跟读）→ 自动开录 → 自动停 → 回放你自己的 →
+     再放一遍标准音做 A/B 对照。三段都复用既有实现：Player.repeat / startRecording /
+     stopRecording / speak；本页**不打分**（识别≠发音，单词级评分不可靠）。
+
+     ⚠️ 状态与边界：
+       · 一次只允许一条跟读链（S.shadow 令牌），再点即打断上一条，不会两条录音并行；
+       · 麦克风不可用（file:// / 微信内置浏览器 / 未授权）→ **明说**并降级为"只听标准音"，
+         不假装录上了；
+       · blob URL 在下一轮或换页时 revoke，避免一直占内存；
+       · `mediaRecorder` 或 `Player.canRecord` 任一缺失即走降级分支。 */
+  function shadowWord(w) {
+    const P = window.Player;
+    if (!P || !w) return;
+    S.shadow = (S.shadow || 0) + 1;
+    const my = S.shadow;
+    const alive = function () { return S.shadow === my; };
+    const toast = function (m) {
+      const t = window.TutorEnv && window.TutorEnv.toast;
+      if (t) t(m); else console.log(m);
+    };
+    const boot = window.FTE_BOOT;
+    const rate = (boot && boot.progress && boot.progress.rate) || 1;
+
+    const canRec = !!(P.canRecord && P.canRecord() && P.startRecording && P.stopRecording);
+    const rep = (P.repeat && P.repeatPref) ? P.repeatPref : { n: 1, gap: 0.5 };
+
+    paintShadow(w, "听着…");
+    const play = (opts) => {
+      if (!P.speak) return;
+      P.speak(w, Object.assign({ rate: rate }, opts || {}));
+    };
+
+    /* 降级：只能听，不能录 —— 不静默失败，把原因和出口讲清楚 */
+    if (!canRec) {
+      play();
+      toast("麦克风不可用（需 https/localhost + 授权；微信内置浏览器受限）——已只播放标准发音");
+      paintShadow(w, "");
+      return;
+    }
+
+    const rehearse = (P.repeat)
+      ? P.repeat(w, { rate: rate, n: rep.n, gap: rep.gap, onDone: afterRehearse })
+      : (play(), setTimeout(afterRehearse, 800));
+    S.shadowRep = rehearse;
+
+    function afterRehearse() {
+      if (!alive()) return;
+      paintShadow(w, "录音中… 跟读");
+      P.startRecording().then(function () {
+        if (!alive()) { P.stopRecording(); return; }
+        S.shadowTimer = setTimeout(function () {
+          if (!alive()) return;
+          P.stopRecording().then(function (url) {
+            if (!alive() || !url) { paintShadow(w, ""); return; }
+            if (S.shadowUrl) { try { URL.revokeObjectURL(S.shadowUrl); } catch (e) { /* ignore */ } }
+            S.shadowUrl = url;
+            const a = new Audio(url);
+            paintShadow(w, "回放你的 →");
+            a.onended = function () {
+              if (!alive()) return;
+              paintShadow(w, "对比标准音 →");
+              play({ onend: function () { if (alive()) paintShadow(w, ""); } });
+            };
+            a.onerror = function () { if (alive()) paintShadow(w, ""); };
+            a.play().catch(function () { if (alive()) paintShadow(w, ""); });
+          });
+        }, Math.max(1200, rep.gap * 1000));
+      }).catch(function (err) {
+        if (!alive()) return;
+        const name = (err && err.message) || "denied";
+        toast(name === "no-media"
+          ? "此环境不支持录音（需 https/localhost），已改为只听标准音"
+          : "麦克风未授权或不可用，已改为只听标准音");
+        play();
+        paintShadow(w, "");
+      });
+    }
+  }
+
+  /* 把"当前在跟读哪个词 / 进行到哪一步"写在词旁边（局部 DOM 更新，不整页 render） */
+  function paintShadow(w, stage) {
+    const els = document.querySelectorAll('.hr-shadow[data-w="' + w.replace(/"/g, '\\"') + '"]');
+    for (let i = 0; i < els.length; i++) {
+      els[i].classList.toggle("on", !!stage);
+      els[i].setAttribute("aria-busy", stage ? "true" : "false");
+    }
+    const host = document.querySelector(".hr-rep");
+    if (host) {
+      let s = host.querySelector(".hr-rep-stage");
+      if (!s) {
+        s = document.createElement("span");
+        s.className = "hr-rep-stage";
+        host.appendChild(s);
+      }
+      s.textContent = stage ? "🎤 " + w + "：" + stage : "";
+    }
   }
 
   function sendToFlash(ipa) {
@@ -374,6 +534,7 @@
     if (act === "ph-group") { S.group = id || "all"; S.open = null; S.fullOpen = true; render(); return; }
     if (act === "ph-more") { S.open = (S.open === id) ? null : id; render(); return; }
     if (act === "ph-say") { speakWord(el.getAttribute("data-w") || ""); return; }
+    if (act === "ph-shadow") { shadowWord(el.getAttribute("data-w") || ""); credit(60); return; }
     if (act === "ph-play") {
       const p = PHONEMES.filter(function (q) { return q.ipa === id; })[0];
       if (p) { speakPhonemeWords(p); credit(60); }
@@ -391,11 +552,37 @@
       return;
     }
   });
+  /* 复读设置用 change（select 不触发 click）——同样是**事件委托**，不写内联 onchange：
+     CSP 与 tools/test-immerse-weekly.js 的内联处理器扫描都盯着这一点。
+     改完只更新既有输入框的值，**不整页 render()**（否则正在跑的那一轮跟读会被打断）。 */
+  if (typeof document !== "undefined") document.addEventListener("change", function (e) {
+    const el = e.target && e.target.closest ? e.target.closest("[data-action]") : null;
+    if (!el) return;
+    const act = el.getAttribute("data-action");
+    if (act !== "ph-rep-n" && act !== "ph-rep-gap") return;
+    const P = window.Player;
+    if (!P || !P.setRepPref) return;
+    const pre = P.repPref || { n: 2, gap: 1.5 };
+    const v = parseFloat(el.value);
+    const next = (act === "ph-rep-n") ? P.setRepPref(v, pre.gap) : P.setRepPref(pre.n, v);
+    paintRepCtl(next);
+  });
+
+  /* 把夹取后的有效值回写到两个下拉框（用户在 Player 夹取过的值上看到的应是真的生效值） */
+  function paintRepCtl(pref) {
+    const map = { "ph-rep-n": pref.n, "ph-rep-gap": pref.gap };
+    Object.keys(map).forEach(function (a) {
+      const el = document.querySelector('[data-action="' + a + '"]');
+      if (el) el.value = String(map[a]);
+    });
+  }
+
   /* 供自动化测试/诊断使用（不影响运行时）。放在文件末尾：
      PHONEMES / INVENTORY / SKIP 均为 const，声明前引用会触发 TDZ。 */
   window.Phonemes._t = {
     tokenize: tokenize, INVENTORY: INVENTORY, SKIP: SKIP,
     PHONEMES: PHONEMES, buildIndex: buildIndex, NAMES: NAMES,
-    HIGH_RISK: HIGH_RISK, findWord: findWord, highRiskHtml: highRiskHtml
+    HIGH_RISK: HIGH_RISK, findWord: findWord, highRiskHtml: highRiskHtml,
+    repOptions: repOptions, gapOptions: gapOptions, shadowWord: shadowWord, REP_BOUNDS: REP_BOUNDS
   };
 })();

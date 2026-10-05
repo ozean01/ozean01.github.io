@@ -30,6 +30,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-mysay.js"],   gate: true,  label: "说我想说：拆句/实词/接线" },
   { cmd: "node", args: ["tools/test-immerse-weekly.js"], gate: true, label: "全英模式 + 本周新料：清单↔CSS 对账 / 越界守卫 / 接线 / ISO 周轮换" },
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
+  { cmd: "node", args: ["tools/test-shadow.js"],  gate: true,  label: "词级跟读 P10：复读次数/间隔夹取 + onDone 只一次 + 接线" },
   { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
   /* P1（门禁时钟解耦）+ P3（活跃日台账）+ P0′（注入复现）——第一阶段补的三道门禁 */
   { cmd: "node", args: ["tools/test-activedays.js"], gate: true, label: "活跃日台账 P3：旗舰路径记账 / 撤销删键 / 历史迁移 / 受控时钟" },

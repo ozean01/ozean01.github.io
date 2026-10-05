@@ -357,6 +357,91 @@
     if (current) current.stop();
   };
 
+  /* ---------------- 复读次数 / 间隔（P10 · 词级跟读） ----------------
+     由来：一轮外部素材评估（发音纠正器 corrector.justsong.cn 的「复读次数 / 复读间隔 /
+     发音延时 / 超时」）指出——站内已有录音回放、A-B 对照与原声波形，但**录音只做在句子层**，
+     单词只能点一次朗读；而 `phonemes.js` 早就有「练一个音」的粒度（10 组高危音 + 行业例词），
+     却缺「听几遍 → 跟读 → 听自己」这一环。故补两件东西：① 复读次数的偏好；
+     ② `Player.repeat()` —— 把「读 N 次、每次之间留出跟读窗口」做成**唯一实现**。
+
+     ⚠️ 三条边界（越界就是重复造实现 or 破坏既有链式播放）：
+       ① **绝不动 `Player.speak` 的 `onend` 语义**。「连听本单元 / 自动连播 / A-B 复读 /
+          五阶段闯关 / AI 陪练的 VAD 循环」都靠 `onend` 逐句推进，把 onend 乘上复读次数
+          会让它们一句播 N 遍、连播重复触发。复读因此走**独立入口** `Player.repeat()`，
+          回调名另取 `onDone`，只在**最后一轮**结束后调一次。
+       ② **只认最后一条朗读链**：每轮之间用 `seq` 令牌递增，中途 `Player.speak` 或
+          `Player.repeat` 被再次调用时，旧链自动失效（避免"停了又自己往下读"——
+          与「连听本单元」同一套 gen 令牌纪律）。
+       ③ **间隔下限 500ms**：低于此值不能算"跟读窗口"，只是把同一个词连读两遍。 */
+
+  const REPEAT_KEY = "fte-rep";
+  /* 偏好形状 {n, gap}：n = 复读次数 1–5，gap = 每轮之间的跟读窗口秒数 0.5–5（步长 0.5）。
+     非法值一律回落默认，不抛错、不写坏存储。 */
+  function clampRepeat(v) {
+    const n = parseInt(v, 10);
+    if (!(n >= 1)) return 1;
+    return n > 5 ? 5 : n;
+  }
+  function clampGap(v) {
+    const g = parseFloat(v);
+    if (!(g >= 0.5)) return 0.5;
+    return g > 5 ? 5 : Math.round(g * 2) / 2;
+  }
+  Player.clampRepeat = clampRepeat;
+  Player.clampGap = clampGap;
+  Player.repPref = (function () {
+    const D = { n: 2, gap: 1.5 };
+    try {
+      const raw = localStorage.getItem(REPEAT_KEY);
+      if (!raw) return D;
+      const o = JSON.parse(raw) || {};
+      return { n: clampRepeat(o.n), gap: clampGap(o.gap) };
+    } catch (e) { return D; }
+  })();
+  Player.setRepPref = function (n, gap) {
+    const next = { n: clampRepeat(n), gap: clampGap(gap) };
+    Player.repPref = next;
+    try { localStorage.setItem(REPEAT_KEY, JSON.stringify(next)); } catch (e) { /* 隐私模式：本次生效 */ }
+    return next;
+  };
+
+  let repSeq = 0;
+
+  /* 读 text 共 n 次，每次读完停 gap 秒（留给你跟读），最后一轮读完调 onDone。
+     返回 {stop} 句柄；自带 seq 令牌，被后来的朗读/复读打断即自行失效。 */
+  Player.repeat = function (text, opts) {
+    const o = opts || {};
+    const n = clampRepeat(o.n === undefined ? Player.repPref.n : o.n);
+    const gap = clampGap(o.gap === undefined ? Player.repPref.gap : o.gap);
+    const my = ++repSeq;
+    let done = 0;
+    let timer = null;
+    const alive = function () { return my === repSeq; };
+
+    function round() {
+      if (!alive()) return;
+      if (done >= n) {
+        if (o.onDone) o.onDone();
+        return;
+      }
+      done++;
+      /* 每轮都重新走统一入口，音源被切换也能生效（与 Player.speak 同一口径） */
+      if (Player.speak) Player.speak(text, { rate: o.rate });
+      timer = setTimeout(round, gap * 1000);
+    }
+    round();
+
+    return {
+      stop: function () {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (my === repSeq) repSeq++;          /* 让后续定时器与 onDone 都失效 */
+        Player.stop();
+      },
+      total: n,
+      gap: gap
+    };
+  };
+
   /* ---------------- 录音（跟读回放对比） ---------------- */
   let mediaRecorder = null;
   let chunks = [];
