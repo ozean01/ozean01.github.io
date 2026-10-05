@@ -28,8 +28,12 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-write.js"],   gate: true,  label: "写作二稿闭环：对比算法 / 教学守卫 / 渲染时机" },
   { cmd: "node", args: ["tools/test-mail.js"],    gate: true,  label: "真实业务语料：结构 / 真实性守卫 / 转义与接线" },
   { cmd: "node", args: ["tools/test-mysay.js"],   gate: true,  label: "说我想说：拆句/实词/接线" },
+  { cmd: "node", args: ["tools/test-immerse-weekly.js"], gate: true, label: "全英模式 + 本周新料：清单↔CSS 对账 / 越界守卫 / 接线 / ISO 周轮换" },
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
   { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
+  /* P1（门禁时钟解耦）+ P3（活跃日台账）+ P0′（注入复现）——第一阶段补的三道门禁 */
+  { cmd: "node", args: ["tools/test-activedays.js"], gate: true, label: "活跃日台账 P3：旗舰路径记账 / 撤销删键 / 历史迁移 / 受控时钟" },
+  { cmd: "node", args: ["tools/x-repro-injection.js"], gate: true, label: "注入复现 P0′：5 个历史未转义出口现在必须全部挡住" },
   { cmd: "node", args: ["tools/test-placement.js"],gate: true, label: "水平自测 v2：基线落日期并锁定 / 分项定级 / 复测排期" },
   { cmd: "node", args: ["tools/test-home.js"],    gate: true,  label: "首页 P1：导航↔路由双向对账 / 旧机制未复活" },
   { cmd: "node", args: ["tools/test-urgent.js"],  gate: true,  label: "场景急救：每个场景都能给出话 / 架构冻结守卫" },
@@ -44,6 +48,8 @@ const JOBS = [
   { cmd: "node", args: ["tools/check-single-source.js"], gate: true, label: "单一数据源：小程序数据可由网页版重生成" },
   { cmd: "node", args: ["tools/test-doc-numbers.js"], gate: true, label: "文档数字对账：README 的数量宣称必须与实测数据一致" },
   { cmd: "node", args: ["tools/audit-input.js"],  gate: true,  label: "可理解输入量：总量下限 / 每词复现次数分布 / 每单元输入密度（重算 report-input.json）" },
+  { cmd: "node", args: ["tools/export-roundtrip.js"], gate: true, label: "导出/导入往返 P0′：7 类数组记录保型 / 合法数据不误伤 / 注入被净化 / 迁移落盘" },
+  { cmd: "node", args: ["tools/check-tracked.js"], gate: false, label: "版本库一致性：index.html 的脚本必须已被 git 跟踪（发布前必须绿）" },
   { cmd: "node", args: ["tools/audit-count.js"],  gate: false, label: "全站数字统计（重算 report-count.json）" },
   { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, label: "IPA / 难度审计（重算 report-ipa.csv）" },
 ];

@@ -20,6 +20,13 @@
   const KEY = "fte-board-v1";
   const U = function () { return window.ASRUtil || {}; };
   const esc = function (s) { const f = U().esc; return f ? f(s) : String(s == null ? "" : s); };
+  /* P0′（安全）：属性位专用转义。esc() 的来源是 app.js 的 esc，**已含 &quot;**；
+     这里的兜底实现（ASRUtil 缺失时）也必须带上引号，否则 href="…" 里的引号会破出属性。 */
+  const escAttr = function (s) {
+    const f = U().esc;
+    const base = f ? f(s) : String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return String(base).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  };
   function toast(m) { const f = U().toast; if (f) f(m); }
   function getProgress() { const f = U().getProgress; return f ? f() : {}; }
   function saveProgress() { const f = U().saveProgress; if (f) f(); }
@@ -167,14 +174,14 @@
     const labels = (t.labels || []).map(function (l) { return '<span class="board-label" style="background:' + LABEL(l) + '22;color:' + LABEL(l) + ';border-color:' + LABEL(l) + '55">' + esc(l) + '</span>'; }).join("");
     const due = t.due ? '<span class="board-due">⏰ ' + esc(t.due) + '</span>' : "";
     const actions = t.status === "todo"
-      ? '<button class="board-act" data-b="start" data-id="' + t.id + '">▶ 开始</button> <a class="board-act board-go" href="' + t.href + '">去练 →</a>'
+      ? '<button class="board-act" data-b="start" data-id="' + t.id + '">▶ 开始</button> <a class="board-act board-go" href="' + escAttr(t.href) + '">去练 →</a>'
       : t.status === "doing"
-        ? '<button class="board-act board-done" data-b="done" data-id="' + t.id + '">✓ 完成</button> <button class="board-act" data-b="back" data-id="' + t.id + '">↩ 移回待办</button> <a class="board-act board-go" href="' + t.href + '">去练 →</a>'
+        ? '<button class="board-act board-done" data-b="done" data-id="' + t.id + '">✓ 完成</button> <button class="board-act" data-b="back" data-id="' + t.id + '">↩ 移回待办</button> <a class="board-act board-go" href="' + escAttr(t.href) + '">去练 →</a>'
         : '<button class="board-act" data-b="redo" data-id="' + t.id + '">↺ 再练一次</button>';
     return `
     <div class="board-card" draggable="true" data-id="${t.id}" data-status="${t.status}">
       <div class="board-card-labels">${labels}${due}</div>
-      <a class="board-card-title" href="${t.href}">${esc(t.title)}</a>
+      <a class="board-card-title" href="${escAttr(t.href)}">${esc(t.title)}</a>
       <div class="board-card-actions">${actions}</div>
     </div>`;
   }
@@ -256,7 +263,8 @@
     const doing = tasks.filter(function (t) { return t.status === "doing"; }).length;
     const rows = tasks.map(function (t) {
       const mk = t.status === "done" ? "✅" : (t.status === "doing" ? "🔄" : "⬜");
-      return '<a class="wk-row' + (t.status === "done" ? " done" : "") + '" href="' + t.href + '">' +
+      /* P0′（安全）：t.href 属于属性位，必须转义（安全审计实测它可被导入的备份注入） */
+      return '<a class="wk-row' + (t.status === "done" ? " done" : "") + '" href="' + escAttr(t.href) + '">' +
         '<span class="wk-mk">' + mk + "</span>" +
         '<span class="wk-t">' + esc(t.title) + "</span>" +
         '<span class="wk-min">' + (t.min || DEFAULT_MIN) + " 分</span></a>";

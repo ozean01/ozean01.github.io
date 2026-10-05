@@ -48,8 +48,23 @@ const PAYLOAD = '<img src=x onerror=alert(1)> & "q" \'a\'';
 const sub = read("js/subtitle.js");
 const toastBody = bodyOf(sub, "function toastMsg(msg, isHtml) {");
 check("subtitle.js 的 toastMsg 能定位", !!toastBody);
-check("toastMsg 默认走 esc，只有显式 isHtml 才按 HTML 渲染",
-  !!toastBody && /isHtml\s*\?\s*msg\s*:\s*esc\(msg\)/.test(toastBody), toastBody ? toastBody.replace(/\s+/g, " ").slice(0, 70) : "");
+/* P0′ 起契约收紧为 isHtml === true（严格等于）：任何"真值"（对象/字符串/数字）一律按转义处理。
+   由来：调用点曾把 info 对象当 isHtml 传 → 真值 → 词库命中分支走未转义 innerHTML（实测可注入）。 */
+check("toastMsg 默认走 esc，只有 isHtml === true 才按 HTML 渲染",
+  !!toastBody && /isHtml\s*===\s*true\s*\?\s*msg\s*:\s*esc\(msg\)/.test(toastBody), toastBody ? toastBody.replace(/\s+/g, " ").slice(0, 90) : "");
+/* 三个已知的"可控字符串进 innerHTML"出口在 P0′ 里都补了转义，且做法必须在源码里可见，
+   防止后续重构把它们改回去（渲染点级断言，与 js/export.js 的 sanitizeProgress 形成纵深）。 */
+const writeJs = read("js/write.js");
+const boardJs = read("js/board.js");
+check("P0′：write.js 作品集的 wc 数字位走 esc", /esc\(String\(w\.wc\)\)/.test(writeJs));
+check("P0′：write.js 的 indep.rate（title 属性位）走 esc", /esc\(String\(w\.indep\.rate\)\)/.test(writeJs));
+check("P0′：board.js 的属性位转义 escAttr 存在且用于 t.href",
+  /(function escAttr\(|escAttr\s*=\s*function\s*\()/.test(boardJs) && /escAttr\(t\.href\)/.test(boardJs));
+check("P0′：app.js 的 toast 换行分支先转义再插 <br>", /t\.innerHTML\s*=\s*esc\(text\)\.replace\(\/\\n\/g,\s*"<br>"\)/.test(read("js/app.js")));
+const exportJs = read("js/export.js");
+check("P0′：js/export.js 具备字段级净化 sanitizeProgress", /function sanitizeProgress\(/.test(exportJs) && /sanitizeProgress\(/.test(exportJs));
+check("P0′：导入写入路径确实经过净化（两处 setItem 都要走）",
+  (exportJs.match(/sanitizeProgress\(stripSecrets\(/g) || []).length === 2);
 
 /* ============ ③ index.html 的 CSP 与脚本形态 ============ */
 const html = read("index.html");

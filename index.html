@@ -221,6 +221,13 @@
       <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎若要英音，请把上面的发音人改成 <code>en-GB-SoniaNeural</code>；Google 在线音源固定美音。）</p>
     </div>
     <div class="field">
+      <label>🌐 全英模式（隐藏与英文并排的中文）</label>
+      <label class="step-toggle" title="词条释义与例句译文、对话台词、字幕中文、SOP 与来信注释等「英文旁边的译文」会被隐藏；单词卡背面、测验题与选项、易错点正确说法、AI 翻译一律不隐藏">
+        <input type="checkbox" id="setImmerse"> 打开后全站默认只给英文（右下角浮标可随时看中文）
+      </label>
+      <p class="field-note">只隐藏<b>与英文并排的译文</b>：词条中文释义与例句译文 / 对话中文台词 / 字幕中文轨 / SOP 中文 / 场景急救中文 / 真实来信注释 / 易错点例句译文 / AI 对练话题中文。<br>下面这些地方<b>刻意不隐藏</b>——它们是判分依据或答案面：单词卡背面的释义、测验题干与选项、易错点的正确说法、AI 对话里你主动点的「翻译」、四维实战参考句的中文。<br>右下角浮标点一下即<b>临时显示中文</b>（换页自动收回全英，不改变本偏好）。字幕页另有自己的四档位（全部 / 英语 / 隐藏 / 中文），两者互不冲突。</p>
+    </div>
+    <div class="field">
       <label>默认朗读语速：<b id="setRateVal">1.0×</b></label>
       <div class="rate-wrap">
         <span>0.5×</span>
@@ -259,6 +266,16 @@
       </div>
       <input type="file" id="dataImportFile" accept=".json,application/json" hidden>
       <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>（掌握词、单词卡两条线、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、偏好设置等）；换电脑或换浏览器时导入即可续学。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
+    </div>
+    <div class="field">
+      <label>📱 在微信里打开 · 分享给同事</label>
+      <div class="field-note" style="line-height:1.85">
+        本站是纯静态站点，<b>不用下载、不用注册</b>——把链接发出去，对方点开就能学。<br>
+        · <b>微信内直接打开</b>：课程、单词卡、测验、听写、搜索、实操 SOP 全部可用；但微信内置浏览器对语音有限制，<b>发音朗读与跟读评测可能无声或不可用</b>。点右上角 <b>⋯</b> → 「在浏览器中打开」即可解锁全部功能（含语音）。<br>
+        · <b>iPhone</b>：用 Safari 打开 → 分享 → 「添加到主屏幕」，之后像 App 一样离线打开。<br>
+        · <b>安卓</b>：用 Chrome 打开 → 菜单 → 「安装应用 / 添加到主屏幕」。<br>
+        · <b>换设备续学</b>：学习进度只存在本浏览器、不会自动同步；用上面「⬇️ 导出进度备份 / ⬆️ 导入备份」搬运即可。
+      </div>
     </div>
     <div class="field" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-outline btn-sm" data-action="settings-close">关闭</button>
@@ -308,6 +325,12 @@
 <script src="js/sources.js" defer></script>
 <script src="js/subtitle.js" defer></script>
 <script src="js/material.js" defer></script>
+<!-- 🌐 全英模式（显示偏好）+ 📅 本周新料（每周投料节律）。
+     两者都必须排在 app.js 之前：app.js 启动时会对它们做 _need() 完整性校验。
+     immerse.js 只往 <html> 上加一个 class，不写任何学习数据；
+     weekly.js 只算 ISO 周数并把来源链接带进「素材投料口」。 -->
+<script src="js/immerse.js" defer></script>
+<script src="js/weekly.js" defer></script>
 <script src="js/mysay.js" defer></script>
 <script src="js/today.js" defer></script>
 <script src="js/urgent.js" defer></script>

@@ -252,7 +252,11 @@ check("第三步给出平行任务原文", ind.indexOf(T.parallelTask({ scen: "c
 check("第三步说明「工具介入过的样本不能证明你独立能做到」", /不能证明你独立能做到/.test(ind));
 const indDone = T.indepHtml({ scen: "cold", d2done: true, indepDone: true, indep: { at: Date.now(), text: d2, wc: 13, rate: 50 } }, kw);
 check("完成独立稿后显示词数与要点覆盖", /13 词/.test(indDone) && /要点覆盖 50%/.test(indDone));
-check("完成态写明「只有这一栏能被当作能力证据」", /只有这一栏能被当作能力证据/.test(indDone));
+/* P5 改口径：独立稿是"最接近能力证据的一栏"，但**仍属自我声明的过程留痕**——
+   因为存在 4 类绕过路径（usedAI 硬编码、独立稿只比 trim 后字符串、站外 AI 无法检出、不填即不算）。
+   断言因此从"能被当作能力证据"改为"写明它是自我声明"，同时保住"这一栏最接近证据"的排序含义。 */
+check("完成态写明独立稿是「自我声明」的过程留痕（不是被评定的能力证据）",
+  /自我声明/.test(indDone) && /过程留痕/.test(indDone) && /能力证据/.test(indDone));
 check("完成态可回看与重做", /ws-indep-view/.test(indDone) && /ws-indep-reset/.test(indDone));
 
 /* ---- 教学守卫与接线 ---- */

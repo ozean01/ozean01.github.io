@@ -23,7 +23,14 @@ const UNITS = [
   { id: 2, title: "开发新客户与展会英语", icon: "🏢", dialogues: [{ lines: [] }], vocab: [] },
   { id: 3, title: "询盘与报价", icon: "💰", dialogues: [], vocab: [] }
 ];
-const TODAY = (function () { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()); })();
+/* 当日日期串。**必须用全站唯一的补零实现**（tools/lib/clock.js 的 dateStr）：
+   此前这里手写 `String(d.getDate())`，只给月份补零、日期没补 ——
+   于是每月 1–9 日产出 "2026-10-5" 这种非法串，被 js/today.js:189-191 的
+   dayGap 正则 ^(\d{4})-(\d{2})-(\d{2})$ 拒收，导致 todayStr 格式断言与两条
+   中断回归断言在日历相关的日子**假红**（而生产端 js/app.js:3827 一直是补零的）。
+   同一文件下方 ydStr() 也曾只补月份、已修 —— 两处现在共用同一个实现，不再各写一份。 */
+const clock = require("./lib/clock.js")();
+const TODAY = clock.today();
 const DAY = 86400000;
 
 function freshProgress() {
@@ -66,11 +73,11 @@ let PLACEMENT = null;          /* 水平自测推荐的起点单元 */
 let GOAL_ID = "all";           /* 工作目标 id */
 let LAST_DATE = TODAY;         /* 最后一次练习日期（中断回归用） */
 let RETEST = null;             /* 复测排期状态（placement 提供） */
-/* n 天前的日期字符串（构造「中断了几天」的场景）。月与日都要补零——
-   只补月份时，回看落在个位数日期上会产出 "2026-09-1" 这种非法串，被 dayGap 拒掉。 */
+/* n 天前的日期字符串（构造「中断了几天」的场景）。月与日都要补零，且与 TODAY 同源——
+   只补月份时，回看落在个位数日期上会产出 "2026-09-1" 这种非法串，被 dayGap 拒掉。
+   （历史教训：本函数曾与 TODAY 各写一份补零逻辑，TODAY 那份漏了「日」，于是每月 1–9 日假红。） */
 function ydStr(n) {
-  const d = new Date(Date.now() - n * DAY);
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return clock.daysAgo(n);
 }
 const CREDITED = [];
 const pctOf = function (u) { return u.id === 1 ? 40 : 0; };
@@ -202,7 +209,9 @@ check("时长合计 20 分钟（复用站内 20 分钟模板）",
   steps.reduce(function (a, s) { return a + s.min; }, 0) === 20,
   steps.reduce(function (a, s) { return a + s.min; }, 0) + " 分钟");
 check("第 2 步指向当前（未完成）单元 U1", steps[1].href === "#/unit/1", steps[1].href);
-check("第 2 步依据里带掌握度与完成阈值", /40%/.test(steps[1].why) && /80%/.test(steps[1].why), steps[1].why);
+/* P4 改口径：进度语境不再说"掌握"（它是自评标记，与 FSRS 零耦合） */
+check("P4：第 2 步依据里带自评标记百分比与完成阈值", /40%/.test(steps[1].why) && /80%/.test(steps[1].why), steps[1].why);
+check("P4：第 2 步依据不再把自评标记叫「已掌握」", !/已掌握/.test(steps[1].why), steps[1].why);
 
 /* ---------------- ③′ P2 个人化：工作目标 + 水平自测起点 ---------------- */
 check("未设目标时第 3 步依据用单元对话数", /段对话可以跟/.test(steps[2].why), steps[2].why);
@@ -298,6 +307,93 @@ check("stageOf 把 U1 归到第一阶段", (H.stageOf(1) || {}).idx === 1);
 check("stageOf 把 U3 归到第二阶段", (H.stageOf(3) || {}).idx === 2);
 check("stageOf 对未知单元返回 null", H.stageOf(999) === null);
 check("todayStr 形如 YYYY-MM-DD", /^\d{4}-\d{2}-\d{2}$/.test(H.todayStr()), H.todayStr());
+
+/* ---------------- 🌙 明日锚点（P6） ----------------
+   守两件容易被改坏的事：
+     ① 判据必须来自**真实数据**（到期词优先、否则继续当前单元），且不承诺效果、不催作业；
+     ② .ics 必须用 UTC 基础格式 YYYYMMDDTHHMMSSZ —— 写成带本地偏移的格式会被部分客户端拒绝。 */
+(function () {
+  const DAY = 86400000;
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const tomorrow3 = t0.getTime() + DAY + 3 * 3600000;
+  PROGRESS.flash = { "1-0": { due: tomorrow3, reps: 1, stability: 1 } };
+  PROGRESS.learned = {}; PROGRESS.done = {};
+  const p1 = H.planTomorrow();
+  check("P6：明天有到期词时，第一件事是清到期词", /清掉 1 个到期词/.test(p1.first), p1.first);
+  /* 日界是**左闭右开** [明天00:00, 后天00:00)：独立验证抓到过右闭版本把"后天 00:00 整"
+     算进明天（到期数虚高 1）。 */
+  (function () {
+    const ds = H.planTomorrow().at.getTime();
+    const probe = function (t) { return H.dueWithin({ flash: { x: { due: t } } }, ds, ds + DAY); };
+    check("P6：明天 00:00:00.000 计入（左闭）", probe(ds) === 1);
+    check("P6：今天 23:59:59.999 不计入", probe(ds - 1) === 0);
+    check("P6：后天 00:00:00.000 不计入（右开）", probe(ds + DAY) === 0);
+    check("P6：明天 23:59:59.999 计入", probe(ds + DAY - 1) === 1);
+  })();
+  PROGRESS.flash = {}; PROGRESS.learned = {}; PROGRESS.done = {};
+  const p2 = H.planTomorrow();
+  check("P6：明天无到期词时，第一件事指向具体单元（不是空话）", /开始|继续/.test(p2.first) && p2.first.length > 6, p2.first);
+  check("P6：第一件事里带「约 N 分钟」的诚实估计", /约 \d+ 分钟/.test(p1.first + p2.first), p1.first + " / " + p2.first);
+
+  const ics = H.icsText({ at: new Date(t0.getTime() + DAY), first: p1.first });
+  check("P6：.ics 含 VCALENDAR/VEVENT 与 30 分钟前提醒",
+    /BEGIN:VCALENDAR/.test(ics) && /BEGIN:VEVENT/.test(ics) && /TRIGGER:-PT30M/.test(ics) && /END:VCALENDAR/.test(ics));
+  check("P6：.ics 的 DTSTART/DTEND 是 UTC 基础格式 YYYYMMDDTHHMMSSZ",
+    /DTSTART:\d{8}T\d{6}Z/.test(ics) && /DTEND:\d{8}T\d{6}Z/.test(ics),
+    (ics.match(/DTSTART:[^\r\n]*/) || [])[0]);
+  check("P6：.ics 用 CRLF 分隔行（RFC 5545 要求）", ics.indexOf("\r\n") !== -1 && ics.indexOf("\n\n") === -1);
+  check("P6：.ics 不承诺效果、不催作业（只陈述要做什么）",
+    !/坚持|变流利|不要放弃|必须|打卡/.test(ics), (ics.match(/DESCRIPTION:[^\r\n]*/) || [])[0]);
+  check("P6：icsStamp 把本地时间转成 UTC 戳且长度为 16",
+    /^\d{8}T\d{6}Z$/.test(H.icsStamp(Date.now())), H.icsStamp(Date.now()));
+})();
+
+/* ---------------- 🌙 明日锚点（P6） ----------------
+   守的是两件容易被改坏的东西：
+     ① 判据：明天第一件事必须来自**真实数据**（到期词优先、否则继续当前单元），
+        不是一句空话；而且**不承诺效果、不催作业**（日历里不得出现"坚持/变流利"这类话）。
+     ② 格式：.ics 必须用 UTC 的 YYYYMMDDTHHMMSSZ，带 BEGIN/END 与 30 分钟前提醒；
+        写成带本地偏移的格式会被部分日历客户端直接拒绝。 */
+(function () {
+  const DAY = 86400000;
+  /* 明天 03:00 到期一张词 → 必须走"清到期词"分支 */
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const tomorrow3 = t0.getTime() + DAY + 3 * 3600000;
+  PROGRESS.flash = { "1-0": { due: tomorrow3, reps: 1, stability: 1 } };
+  PROGRESS.learned = {}; PROGRESS.done = {};
+  const p1 = H.planTomorrow();
+  check("P6：明天有到期词时，第一件事是清到期词", /清掉 1 个到期词/.test(p1.first), p1.first);
+  check("P6：due 计数只算「明天」窗口（今天已到期不计入）",
+    H.dueWithin({ flash: { a: { due: Date.now() - DAY }, b: { due: tomorrow3 } } },
+      H.planTomorrow().at.getTime(), H.planTomorrow().at.getTime() + DAY) === 1);
+  /* 边界：日界是**左闭右开** [明天00:00, 后天00:00)
+     —— 独立验证抓到过右闭版本把"后天 00:00 整"算进明天（明天到期数虚高 1）。 */
+  (function () {
+    const ds = H.planTomorrow().at.getTime();
+    const probe = function (t) { return H.dueWithin({ flash: { x: { due: t } } }, ds, ds + DAY); };
+    check("P6：明天 00:00:00.000 计入（左闭）", probe(ds) === 1);
+    check("P6：今天 23:59:59.999 不计入", probe(ds - 1) === 0);
+    check("P6：后天 00:00:00.000 不计入（右开）", probe(ds + DAY) === 0);
+    check("P6：明天 23:59:59.999 计入", probe(ds + DAY - 1) === 1);
+  })();
+  /* 明天没有到期词且全新用户 → 走"从第 N 单元开始"分支，且必须指向真实单元标题 */
+  PROGRESS.flash = {}; PROGRESS.learned = {}; PROGRESS.done = {};
+  const p2 = H.planTomorrow();
+  check("P6：明天无到期词时，第一件事指向具体单元（不是空话）", /开始|继续/.test(p2.first) && p2.first.length > 6, p2.first);
+  check("P6：第一件事里带「约 N 分钟」的诚实估计", /约 \d+ 分钟/.test(p1.first + p2.first), p1.first + " / " + p2.first);
+
+  const ics = H.icsText({ at: new Date(t0.getTime() + DAY), first: p1.first });
+  check("P6：.ics 含 VCALENDAR/VEVENT 与 30 分钟前提醒",
+    /BEGIN:VCALENDAR/.test(ics) && /BEGIN:VEVENT/.test(ics) && /TRIGGER:-PT30M/.test(ics) && /END:VCALENDAR/.test(ics));
+  check("P6：.ics 的 DTSTART/DTEND 是 UTC 基础格式 YYYYMMDDTHHMMSSZ",
+    /DTSTART:\d{8}T\d{6}Z/.test(ics) && /DTEND:\d{8}T\d{6}Z/.test(ics),
+    (ics.match(/DTSTART:[^\r\n]*/) || [])[0]);
+  check("P6：.ics 用 CRLF 分隔行（RFC 5545 要求）", ics.indexOf("\r\n") !== -1 && ics.indexOf("\n\n") === -1);
+  check("P6：.ics 不承诺效果、不催作业（只陈述要做什么）",
+    !/坚持|变流利|不要放弃|必须|打卡/.test(ics), (ics.match(/DESCRIPTION:[^\r\n]*/) || [])[0]);
+  check("P6：icsStamp 把本地时间转成 UTC 戳且长度为 16",
+    /^\d{8}T\d{6}Z$/.test(H.icsStamp(Date.now())), H.icsStamp(Date.now()));
+})();
 check("totalMin 完整模式为 20", H.totalMin(allSteps, false) === 20);
 check("totalMin 精简模式只算前 2 步（9 分钟）", H.totalMin(allSteps, true) === 9, H.totalMin(allSteps, true) + "");
 

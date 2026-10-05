@@ -864,19 +864,31 @@
     const info = lookupWord(word);
     const d = diff(word);
     let msg;
-    if (info) msg = "「" + word + "」" + (info.ipa ? " " + info.ipa : "") + " · " + (info.pos || "") + " \n" + info.cn + "\n" + (info.ex || "") + (info.exCn ? "\n" + info.exCn : "") + (info.unit ? "\n（来自 " + info.unit + "）" : "");
-    else msg = "「" + word + "」不在本站课程词库，难度：[" + d.label + "]。\n可到 <a href='#/units'>单元词汇</a> 找同源词，或到外部词典查释义后加入单词卡。";
-    toastMsg(msg, info);
+    /* P0′（安全）：这里此前把 `info`（一个**对象**）当 isHtml 传给了 toastMsg → 真值 → 按 HTML 渲染，
+       而 msg 里含用户可控的 word（来自字幕文件的 data-w）→ 转义极性装反。
+       现在：词库命中的长释义**一律走转义**（长文本本来也不需要 HTML）；
+       只有未命中时那条由本站构造、内含 #/units 链接的固定文案才显式声明按 HTML 渲染。
+       注意：**不要在调用方预转义 word**（会被出口二次转义成 &amp;lt;）——
+       渲染决策统一由出口用 isHtml === true 表达。 */
+    if (info) {
+      msg = "「" + word + "」" + (info.ipa ? " " + info.ipa : "") + " · " + (info.pos || "") + " \n" + info.cn + "\n" + (info.ex || "") + (info.exCn ? "\n" + info.exCn : "") + (info.unit ? "\n（来自 " + info.unit + "）" : "");
+      toastMsg(msg, false);
+    } else {
+      msg = "「" + word + "」不在本站课程词库，难度：[" + d.label + "]。\n可到 <a href='#/units'>单元词汇</a> 找同源词，或到外部词典查释义后加入单词卡。";
+      toastMsg(msg, true);
+    }
   }
 
   let toastTimer = null;
-  /* P0-1（安全）：toast 唯一渲染出口。默认**转义**，只有明确传 isHtml 时才按 HTML 渲染
-     （目前仅「点词查意」需要里面那个 #/units 链接）。
-     此前载入字幕时把**用户文件名**直接拼进 innerHTML，恶意命名的 .srt 即可执行脚本。 */
+  /* P0′（安全·第二版）：toast 唯一渲染出口。**默认转义**，只有「全部片段都由本站构造」时
+     才允许显式传 html:true（目前只有「点词查意」那条含 #/units 链接的固定文案）。
+     历史：此处曾把 info 对象当 isHtml 传（真值）→ 词库命中分支走未转义 innerHTML；
+     而调用方把 esc(word) 的结果再交给被转义的出口，会双重转义成 "&amp;lt;"。
+     所以口径定为：**调用方传原始值，出口决定怎么渲染**，不要在调用方预转义再声明 HTML。 */
   function toastMsg(msg, isHtml) {
     const t = document.getElementById("toast");
     if (t) {
-      t.innerHTML = isHtml ? msg : esc(msg);
+      t.innerHTML = isHtml === true ? msg : esc(msg);
       t.hidden = false; t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
       clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 6500);
     }

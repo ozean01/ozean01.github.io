@@ -61,6 +61,246 @@
     return { due: due, total: total };
   }
 
+  /* ---------------- 明天会发生什么（P6 · 明日锚点） ----------------
+     为什么需要它（评估发现 G-03）：站内所有回访钩子（中断回归 / 复测提醒 / 本周新料）
+     **都是 pull 型**——只有用户自己打开 #/today 才看得到；而 sw.js 没有 push 监听，
+     纯静态站也确实做不了推送。于是"回来的决定"完全没有着力点。
+     但**离开的那一刻**是用户还在场、且不需要任何后端的唯一位置：现在那里只给了两个
+     "再干点别的"链接（口语测评 / 说我想说），没有一句关于明天的话。
+     本区块做三件小事，都复用站内既有数据，不新增存储键、不新增导航/路由/第 6 步：
+       ① 一句可被验证的"明天第一件事"（到期词数 / 当前单元）
+       ② 生成一个**日历提醒**（.ics，本地生成，不上传任何东西）
+       ③ 一段可复制的提醒文本（剪贴板不可用时的兜底）
+
+     纪律（沿用中断回归的克制口径，不做"催作业"）：
+       · 只陈述事实，不加"别放弃""要坚持"这类话；
+       · **不承诺效果**（日历里只写"5 分钟起步"，不写"坚持 30 天口语变流利"）；
+       · 不做人格判断，也不把明天说成义务。 */
+  function dueWithin(prog, fromTs, toTs) {
+    /* 区间语义：**[fromTs, toTs) 左闭右开**。调用方传 [明天 00:00, 后天 00:00) →
+       "今天 23:59:59.999"不算、"明天 00:00:00.000"算、"后天 00:00:00.000"**不算**。
+       （独立验证抓到过一个 off-by-one：右闭版本把"后天 00:00 整"也算进明天，
+        会让明天的到期数虚高 1；而原先用 `fromTs - 1` 补左边界是掩盖问题，现已去掉。） */
+    const flash = (prog && prog.flash) || {};
+    let n = 0;
+    Object.keys(flash).forEach(function (id) {
+      const f = flash[id];
+      if (!f || typeof f.due !== "number") return;
+      if (f.due >= fromTs && f.due < toTs) n++;
+    });
+    return n;
+  }
+  /* 明天的 00:00 → 后天的 00:00（本地时区；用本地日界而不是"24 小时后"，
+     否则 23:00 打开时会算成"明天到期的很少"） */
+  function tomorrowWindow() {
+    const a = new Date(); a.setHours(0, 0, 0, 0);
+    const b = new Date(a.getTime()); b.setDate(b.getDate() + 1);
+    const c = new Date(a.getTime()); c.setDate(c.getDate() + 2);
+    return { start: b.getTime(), end: c.getTime(), dayStart: b };
+  }
+  function planTomorrow() {
+    const boot = E();
+    const prog = boot.progress || {};
+    const units = (boot.DATA && boot.DATA.units) || [];
+    const w = tomorrowWindow();
+    const due = dueWithin(prog, w.start, w.end);
+    const u = startUnit(units, prog);
+    const first = due > 0
+      ? "先清掉 " + due + " 个到期词（约 4 分钟）"
+      : (isNewbie(prog) ? "从 " + (u.title || "第 1 单元") + " 开始（约 5 分钟）"
+                        : "继续 " + (u.title || "当前单元") + "（约 5 分钟）");
+    return { due: due, unit: u, first: first, at: w.dayStart };
+  }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  /* 本地时间 → .ics 的 UTC 时间戳（YYYYMMDDTHHMMSSZ）。日历客户端只认这一种，
+     写成带偏移的本地格式在部分客户端会被拒绝。 */
+  function icsStamp(ms) {
+    const d = new Date(ms);
+    return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + "T" +
+      pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + "Z";
+  }
+  function icsText(plan) {
+    /* 定在明天 20:00，时长 20 分钟（与站内 20 分钟模板一致）。默认 20:00 是"下班后"，
+       不写死成工作时间，也不假装知道用户的作息——用户可在日历里改。 */
+    const at = new Date(plan.at.getTime()); at.setHours(20, 0, 0, 0);
+    const end = new Date(at.getTime() + 20 * 60000);
+    const line = plan.first;
+    return [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//softpackaging-english//today//CN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      "UID:fte-" + icsStamp(at) + "@local",
+      "DTSTAMP:" + icsStamp(Date.now()),
+      "DTSTART:" + icsStamp(at.getTime()),
+      "DTEND:" + icsStamp(end.getTime()),
+      "SUMMARY:" + "外贸英语 · 明天这一件",
+      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。",
+      "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:外贸英语 · 30 分钟后开始", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n") + "\r\n";
+  }
+  function tomorrowAnchor() {
+    const plan = planTomorrow();
+    const note = plan.due > 0
+      ? "今天练过的词会在明天到期；先把它们过一遍，比学新词更划算。"
+      : "明天没有到期的词，所以第一件事是往前学一点。";
+    return '<div class="td-tomorrow">' +
+      '<b>🌙 明天第一件事</b>' +
+      '<span class="td-tm-main">' + esc(plan.first) + "</span>" +
+      '<span class="td-tm-note">' + esc(note) + "</span>" +
+      '<div class="td-tm-ops">' +
+      '<button class="btn btn-outline btn-sm" data-action="td-tm-ics">📅 加到日历（本地生成）</button>' +
+      '<button class="btn btn-soft btn-sm" data-action="td-tm-copy">📋 复制提醒</button>' +
+      "</div>" +
+      '<span class="field-note">日历文件在你本机生成，不上传；不想被提醒就不点。' +
+      "如果你中途停了几天，站内只会把事实写出来、不会催你补作业。</span>" +
+      "</div>";
+  }
+  function copyTomorrow() {
+    const plan = planTomorrow();
+    /* 时长只在 plan.first 里出现一次（它已带"约 N 分钟"），
+       此前这里又拼了一句"（约 5 分钟…）"，复制出来会变成"（约 4 分钟）（约 5 分钟…）"自相冲突。 */
+    const txt = "【外贸英语】明天第一件事：" + plan.first + "，做完一步就算数";
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function () { toast("📋 已复制，明天看到就照着做"); },
+          function () { toast(txt); });
+        return;
+      }
+    } catch (e) { /* 落到下面的兜底 */ }
+    toast(txt);
+  }
+  function downloadTomorrowIcs() {
+    const plan = planTomorrow();
+    try {
+      const blob = new Blob([icsText(plan)], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "外贸英语-明天这一件.ics";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast("📅 已生成日历文件；导入后你会在明天 20:00 收到提醒");
+    } catch (e) {
+      toast("生成日历文件失败：" + (e && e.message ? e.message : "浏览器不支持下载"));
+    }
+  }
+
+  /* ---------------- 明天会发生什么（P6 · 明日锚点） ----------------
+     为什么需要它（评估发现 G-03）：站内所有回访钩子（中断回归 / 复测提醒 / 本周新料）
+     都是 pull 型——只有用户自己打开 #/today 才看得到；而 sw.js 没有 push 监听，
+     纯静态站也确实做不了推送。但**离开的那一刻**是用户还在场、且不需要后端的唯一位置：
+     现在那里只给了两个"再干点别的"链接，没有一句关于明天的话。
+     本区块做三件小事，复用站内既有数据，不新增存储键、不新增导航/路由/第 6 步：
+       ① 一句可被验证的"明天第一件事"（到期词数 / 当前单元）
+       ② 生成一个日历提醒（.ics，本地生成，不上传任何东西）
+       ③ 一段可复制的提醒文本（剪贴板不可用时的兜底）
+     纪律（沿用中断回归的克制口径）：只陈述事实、不承诺效果、不做人格判断。 */
+  function dueWithin(prog, fromTs, toTs) {
+    /* 区间语义：**[fromTs, toTs) 左闭右开**。调用方传 [明天 00:00, 后天 00:00) →
+       "今天 23:59:59.999"不算、"明天 00:00:00.000"算、"后天 00:00:00.000"**不算**。
+       （独立验证抓到过 off-by-one：右闭版本会把"后天 00:00 整"算进明天，让到期数虚高 1。） */
+    const flash = (prog && prog.flash) || {};
+    let n = 0;
+    Object.keys(flash).forEach(function (id) {
+      const f = flash[id];
+      if (!f || typeof f.due !== "number") return;
+      if (f.due >= fromTs && f.due < toTs) n++;
+    });
+    return n;
+  }
+  /* 明天的 00:00 → 后天的 00:00（本地时区；用本地日界而不是"24 小时后"，
+     否则 23:00 打开时会算成"明天到期的很少"） */
+  function tomorrowWindow() {
+    const a = new Date(); a.setHours(0, 0, 0, 0);
+    const b = new Date(a.getTime()); b.setDate(b.getDate() + 1);
+    const c = new Date(a.getTime()); c.setDate(c.getDate() + 2);
+    return { start: b.getTime(), end: c.getTime(), dayStart: b };
+  }
+  function planTomorrow() {
+    const boot = E();
+    const prog = boot.progress || {};
+    const units = (boot.DATA && boot.DATA.units) || [];
+    const w = tomorrowWindow();
+    const due = dueWithin(prog, w.start, w.end);
+    const u = startUnit(units, prog);
+    const first = due > 0
+      ? "先清掉 " + due + " 个到期词（约 4 分钟）"
+      : (isNewbie(prog) ? "从 " + (u.title || "第 1 单元") + " 开始（约 5 分钟）"
+                        : "继续 " + (u.title || "当前单元") + "（约 5 分钟）");
+    return { due: due, unit: u, first: first, at: w.dayStart };
+  }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  /* 本地时间 → .ics 的 UTC 时间戳（YYYYMMDDTHHMMSSZ）。日历客户端只认这一种，
+     写成带偏移的本地格式在部分客户端会被拒绝。 */
+  function icsStamp(ms) {
+    const d = new Date(ms);
+    return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + "T" +
+      pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + "Z";
+  }
+  function icsText(plan) {
+    /* 定在明天 20:00，时长 20 分钟（与站内 20 分钟模板一致）。
+       刻意不写"坚持 30 天口语变流利"这类效果承诺——日历里只写要做的那一件事。 */
+    const at = new Date(plan.at.getTime()); at.setHours(20, 0, 0, 0);
+    const end = new Date(at.getTime() + 20 * 60000);
+    const line = plan.first;
+    return [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//softpackaging-english//today//CN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      "UID:fte-" + icsStamp(at) + "@local",
+      "DTSTAMP:" + icsStamp(Date.now()),
+      "DTSTART:" + icsStamp(at.getTime()),
+      "DTEND:" + icsStamp(end.getTime()),
+      "SUMMARY:" + "外贸英语 · 明天这一件",
+      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。",
+      "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:外贸英语 · 30 分钟后开始", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n") + "\r\n";
+  }
+  function tomorrowAnchor() {
+    const plan = planTomorrow();
+    const note = plan.due > 0
+      ? "今天练过的词会在明天到期；先把它们过一遍，比学新词更划算。"
+      : "明天没有到期的词，所以第一件事是往前学一点。";
+    return '<div class="td-tomorrow">' +
+      '<b>🌙 明天第一件事</b>' +
+      '<span class="td-tm-main">' + esc(plan.first) + "</span>" +
+      '<span class="td-tm-note">' + esc(note) + "</span>" +
+      '<div class="td-tm-ops">' +
+      '<button class="btn btn-outline btn-sm" data-action="td-tm-ics">📅 加到日历（本地生成）</button>' +
+      '<button class="btn btn-soft btn-sm" data-action="td-tm-copy">📋 复制提醒</button>' +
+      "</div>" +
+      '<span class="field-note">日历文件在你本机生成，不上传；不想被提醒就不点。' +
+      "如果你中途停了几天，站内只会把事实写出来、不会催你补作业。</span>" +
+      "</div>";
+  }
+  function copyTomorrow() {
+    const plan = planTomorrow();
+    /* 时长只在 plan.first 里出现一次（它已带"约 N 分钟"）——
+       此前这里又拼了一句"（约 5 分钟…）"，复制出来会变成"（约 4 分钟）（约 5 分钟…）"自相冲突。 */
+    const txt = "【外贸英语】明天第一件事：" + plan.first + "，做完一步就算数";
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function () { toast("📋 已复制，明天看到就照着做"); },
+          function () { toast(txt); });
+        return;
+      }
+    } catch (e) { /* 落到下面的兜底 */ }
+    toast(txt);
+  }
+  function downloadTomorrowIcs() {
+    const plan = planTomorrow();
+    try {
+      const blob = new Blob([icsText(plan)], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "外贸英语-明天这一件.ics";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast("📅 已生成日历文件；导入后你会在明天 20:00 收到提醒");
+    } catch (e) {
+      toast("生成日历文件失败：" + (e && e.message ? e.message : "浏览器不支持下载"));
+    }
+  }
+
   /* ---------------- 当我所在的阶段 ---------------- */
   function stageOf(unitId) {
     const fn = E().pathStagesData;
@@ -230,7 +470,7 @@
         sub: nextUnit.title, min: 5, href: "#/unit/" + nextUnit.id,
         why: (fresh && placed && nextUnit.id === placed)
           ? ("按你的水平自测结果，从这里开始（U" + placed + "）")
-          : ("当前进度停在 U" + nextUnit.id + "（已掌握 " + unitPctVal + "%，达 " + threshold + "% 即算完成）"),
+          : ("当前进度停在 U" + nextUnit.id + "（已自评标记 " + unitPctVal + "%，达 " + threshold + "% 即算完成）"),
         auto: false
       },
       {
@@ -458,6 +698,9 @@
 
     // ⚠️ 这个模板字符串里绝不能出现块注释符号：模板会把注释原样渲染成页面上的可见文字。
     // 真机浏览时曾在「本周」区下方漏出一整段说明文字。需要说明就写在这里（模板之外）。
+    //
+    // 📅 「本周新料」的位置（P9）：放在**五步清单与连听之下**。它是「每周一条投料节律」，
+    //    不是今天必须做的一步——放上面会把「首屏只让人做一个决定」这条设计原则挤掉。
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs">今日</div>
@@ -470,7 +713,7 @@
         <span>🔥 连续 <b>${st.streak}</b> 天</span>
         <span>⏱ 今天 <b>${st.today}</b> 分</span>
         <span>📚 累计 <b>${st.totalMin}</b> 分</span>
-        <span>✅ 已掌握 <b>${totalLearned}</b> 词</span>
+        <span>✅ 已自评标记 <b>${totalLearned}</b> 词</span>
       </div>
     </section>
 
@@ -494,7 +737,7 @@
           '<em>不需要补完，做完这两步就算今天回来了。</em></span></div>' +
         '<div class="td-cb-row"><i>③</i><span><b>这次明确不补做</b>：不补那 ' + cb.gapDays +
           ' 天的作业，也不熬夜还债。连续打卡会从今天重新算（回到 1 天），' +
-          '但<b>已掌握的词与 FSRS 排期不会清零</b>——进度不会倒退。</span></div>' +
+          '但<b>已自评标记的词与 FSRS 排期不会清零</b>——进度不会倒退。</span></div>' +
         '<div class="td-cb-row"><i>④</i><span><b>如果同一个阻力已经连续出现三次</b>：改条件——' +
           '换时间盒、把任务缩小、换环境或换时段，而不是再逼自己一次。</span></div>' +
         '</div>';
@@ -524,6 +767,8 @@
 
     ${listenHtml()}
 
+    ${(window.Weekly && window.Weekly.html) ? window.Weekly.html() : ""}
+
     ${weekHtml
       ? '<details class="td-week" open><summary><b>📅 本周</b>' +
         '<span class="td-week-sub">只读视图 · 计划源已统一到「今日」，不再另设看板</span></summary>' +
@@ -535,6 +780,16 @@
         '<div class="td-finish-ops"><a class="btn btn-outline btn-sm" href="#/speaking">📡 看看口语水平</a>' +
         '<a class="btn btn-soft btn-sm" href="#/mysay">🗣 再多说一段也行</a></div></div>'
       : ""}
+
+    ${tomorrowAnchor()}
+
+    <div class="td-migrate">
+      <b>🔄 换电脑 / 换手机？</b>
+      <span>学习进度只存在本浏览器（本站没有后端，不上传也不同步）。要接着学，就先把进度带走：</span>
+      <button class="btn btn-outline btn-sm" data-action="data-export">⬇️ 导出进度</button>
+      <button class="btn btn-outline btn-sm" data-action="data-import">⬆️ 在新设备导入</button>
+      <span class="field-note">在微信里打开 / 装到桌面 / 分享给同事的办法见 ⚙ 设置页「📱 在微信里打开」。</span>
+    </div>
 
     <details class="td-why-box">
       <summary>为什么是这五步？</summary>
@@ -556,6 +811,14 @@
     if (!act || act.indexOf("td-") !== 0) return;
 
     if (act === "td-short") { S.short = !S.short; render(); return; }
+
+    /* 🌙 明日锚点（P6）：两件都不需要联网或后端 */
+    if (act === "td-tm-ics") { downloadTomorrowIcs(); return; }
+    if (act === "td-tm-copy") { copyTomorrow(); return; }
+
+    /* 🌙 明日锚点（P6）：两件都不需要联网或后端 */
+    if (act === "td-tm-ics") { downloadTomorrowIcs(); return; }
+    if (act === "td-tm-copy") { copyTomorrow(); return; }
 
     /* 🎧 连听本单元（P7）：全部走局部 DOM 更新，不 render()，避免每读一句就滚回顶部 */
     if (act === "td-listen-play") {
@@ -618,6 +881,9 @@
     listenItems: listenItems, LISTEN_SCOPES: LISTEN_SCOPES, listenUnit: listenUnit,
     /* 中断回归 + 复测到期：AI 无法自动判定的部分是「态度」，但这两者都是**可算的**
        （日期差 / 排期锚点），所以必须有测试盯着，见 tools/test-today.js。 */
-    comeback: comeback, retestDue: retestDue, dayGap: dayGap
+    comeback: comeback, retestDue: retestDue, dayGap: dayGap,
+    /* 🌙 明日锚点（P6）：判据必须可被测试盯着 —— 它决定"明天第一件事"是什么，
+       以及 .ics 的时间戳格式（日历客户端只认 UTC 的 YYYYMMDDTHHMMSSZ）。 */
+    planTomorrow: planTomorrow, icsText: icsText, icsStamp: icsStamp, dueWithin: dueWithin
   };
 })();

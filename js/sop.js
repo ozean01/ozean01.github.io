@@ -416,14 +416,34 @@
     "报价单必写有效期与交期；PI 必写付款方式、交期、有效期与银行账户。缺一项，后面就要靠邮件扯皮补。"
   ];
 
+  /* 单单一致核对器的字段表。
+     `req` = **该字段按业务惯例出现在哪些单据上**（缺这层信息会把"CO 上本来就没有毛重"
+     误报成"缺项"，那正是假警报的来源）。
+     与本表对应的**门禁**：tools/test-sop.js 会从下面 DOC_RULES 的文本里抠出被点名的字段，
+     断言它们在本表里都有实现 —— 规则说了、工具没做，门禁就红。
+     由来（评估发现 I-07）：铁律第 7 条点名「船名航次、提单号、装船日期必须与提单一致」，
+     而本表原先只有 7 项、这三项**一个都没实现** → 工具会给出"已核对一致"的**假安全信号**，
+     而漏掉的恰是最容易卡清关的三项。 */
   var CONSIST_ROWS = [
     { k: "desc", label: "品名 Description" },
-    { k: "qty", label: "数量 Quantity" },
-    { k: "ctn", label: "箱数 Cartons" },
-    { k: "nw", label: "净重 N.W.(KGS)" },
-    { k: "gw", label: "毛重 G.W.(KGS)" },
-    { k: "cbm", label: "体积 CBM" },
-    { k: "mark", label: "唛头 Marks" }
+    { k: "qty", label: "数量 Quantity", req: ["ci", "pl", "bl"] },
+    { k: "unit", label: "计量单位 Unit", req: ["ci", "pl"] },
+    { k: "ctn", label: "箱数 Cartons / Packages", req: ["ci", "pl", "bl"] },
+    { k: "nw", label: "净重 N.W.(KGS)", req: ["ci", "pl", "bl"] },
+    { k: "gw", label: "毛重 G.W.(KGS)", req: ["ci", "pl", "bl"] },
+    { k: "cbm", label: "体积 CBM", req: ["ci", "pl", "bl"] },
+    { k: "mark", label: "唛头 Marks", req: ["ci", "pl", "bl"] },
+    /* ---- 铁律第 7 条点名的三项（原先完全缺失）---- */
+    { k: "vessel", label: "船名航次 Vessel / Voyage", req: ["bl", "ci"] },
+    { k: "blno", label: "提单号 B/L No.", req: ["bl", "ci"] },
+    { k: "shipdate", label: "装船日期 Shipped on Board", req: ["bl", "ci"] },
+    /* ---- 铁律第 5 条点名的 HS 编码 ---- */
+    { k: "hs", label: "HS 编码 HS Code", req: ["ci", "co"] },
+    /* ---- 铁律第 3 条点名的贸易术语 ---- */
+    { k: "incoterm", label: "贸易术语 Incoterms 2020", req: ["ci", "pl"] },
+    /* ---- 铁律第 4 条点名的币种与金额大小写 ---- */
+    { k: "currency", label: "币种 Currency", req: ["ci", "pl"] },
+    { k: "amountwords", label: "金额（数字与英文大写）", req: ["ci"] }
   ];
   var CONSIST_COLS = [
     { k: "ci", label: "商业发票 CI" },
@@ -431,6 +451,10 @@
     { k: "bl", label: "提单 B/L" },
     { k: "co", label: "原产地证 CO" }
   ];
+  /* 某字段在某单据上是否"按惯例应有"。未标 req 的字段视为四种单据都该有。 */
+  function consistReq(r, colKey) {
+    return !r.req || r.req.indexOf(colKey) !== -1;
+  }
 
   /* ================= 运输方式与报关 ================= */
   var SHIP_MODES = [
@@ -1299,9 +1323,12 @@
     var filledRows = 0;
     CONSIST_ROWS.forEach(function (r) {
       var vals = [];
+      var required = [];
       CONSIST_COLS.forEach(function (c) {
         var v = val("cs-" + r.k + "-" + c.k);
         if (v) vals.push({ col: c.label, raw: v, n: normal(v) });
+        /* 只对"按惯例应有"的单据要求填写：CO 上本来就没有毛重，不该报缺项 */
+        if (consistReq(r, c.k)) required.push(c);
       });
       if (!vals.length) return;
       filledRows++;
@@ -1313,8 +1340,8 @@
           detail: vals.map(function (v) { return v.col + "：" + v.raw; }).join(" ｜ ")
         });
       }
-      if (vals.length < CONSIST_COLS.length) {
-        var miss = CONSIST_COLS.filter(function (c) { return !val("cs-" + r.k + "-" + c.k); }).map(function (c) { return c.label; });
+      if (vals.length < required.length) {
+        var miss = required.filter(function (c) { return !val("cs-" + r.k + "-" + c.k); }).map(function (c) { return c.label; });
         problems.push({ field: r.label + "（缺项）", detail: "未填写：" + miss.join("、") + "——请确认这些单据上确实不需要该字段。", soft: true });
       }
     });
@@ -1827,11 +1854,14 @@
       var all = allSteps();
       return { done: doneCount(all), total: all.length };
     },
-    /* 供测试与其它模块使用（P5：把 SOP 英文接进练习引擎） */
+    /* 供测试与其它模块使用（P5：把 SOP 英文接进练习引擎；
+       第二阶段 P7：把「制单铁律」与「单单一致核对器」的字段表也暴露出来，
+       让门禁能断言"规则说了的字段，工具必须实现"） */
     _t: {
       allStepLines: allStepLines, extractWords: extractWords, toLines: toLines,
       sendToStage: sendToStage, sendToFlash: sendToFlash,
-      STAGES: STAGES, CHASE_LINES: CHASE_LINES
+      STAGES: STAGES, CHASE_LINES: CHASE_LINES,
+      DOC_RULES: DOC_RULES, CONSIST_ROWS: CONSIST_ROWS, CONSIST_COLS: CONSIST_COLS
     }
   };
 })();

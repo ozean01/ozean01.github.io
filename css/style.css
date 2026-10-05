@@ -1606,6 +1606,18 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
          cursor:pointer;font-size:12.5px;transition:.15s}
 .hr-word:hover{border-color:#b91c1c;color:#b91c1c}
 .hr-ipa{display:block;font-size:10.5px;color:var(--muted);margin-top:1px}
+/* ---- 词级跟读（P10）：一个词 = 朗读 + 🎤 跟读两个动作 ---- */
+.hr-item{display:inline-flex;align-items:stretch;gap:3px}
+.hr-shadow{padding:0 8px;border:1px dashed var(--line);border-radius:8px;background:var(--card);
+           cursor:pointer;font-size:12.5px;line-height:1;transition:.15s}
+.hr-shadow:hover{border-color:#b91c1c;background:#fff1f2}
+.hr-shadow.on{border-style:solid;border-color:#16a34a;background:#f0fdf4}
+.hr-rep{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 12px;
+        padding:9px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--surface-2)}
+.hr-rep-label{font-size:12.5px;font-weight:600}
+.hr-rep label{font-size:12.5px;color:var(--muted)}
+.hr-rep select{padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--card);font-size:12.5px}
+.hr-rep-stage{margin-left:auto;font-size:12.5px;color:var(--primary);font-weight:600}
 @media (max-width:520px){.hr-grid{grid-template-columns:1fr}}
 
 /* ============ 🎯 今日（js/today.js）============ */
@@ -1917,4 +1929,74 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 @media (max-width:640px){
   .ws-ledger-k{flex:0 0 100%}
 }
+
+/* ============ 🌐 全英模式（js/immerse.js）============
+   由来：字幕四档早就证明「中文该留到最后」（全部 → 英语 → 隐藏 → 中文），但那只是
+   **字幕页里的一个档位**；词条、对话、SOP、来信注释一律中英并排，想全英练的人无处可切。
+   这里把「全英」从字幕页档位提升为**全站显示偏好**：<html> 上一个 class，仅此而已。
+
+   ⚠️ 下面这份选择器清单与 js/immerse.js 的 ZH_SELECTORS 是**同一份清单的两处写法**，
+      增删必须同步——tools/test-immerse-weekly.js 会逐条对账，少一条就失败。
+
+   ⚠️ 只隐藏「与英文并排的译文」。**刻意不在这里**的：单词卡背面（.flash-face .cn，
+      那是「看英文想中文」的答案面）、测验题干与选项（判分依据）、易错点的正确说法、
+      AI 对话里用户主动点出来的翻译、四维实战参考句的中文提示——隐藏它们不是沉浸，
+      是让人做不了题、对不了答案。 */
+html.immerse-on:not(.immerse-peek) .word-row .cn,
+html.immerse-on:not(.immerse-peek) .word-row .ex b,
+html.immerse-on:not(.immerse-peek) .dlg-line .cn,
+html.immerse-on:not(.immerse-peek) .sub-zh,
+html.immerse-on:not(.immerse-peek) .sop-en-cn,
+html.immerse-on:not(.immerse-peek) .sop-ref-cn,
+html.immerse-on:not(.immerse-peek) .urg-cn,
+html.immerse-on:not(.immerse-peek) .mail-gloss-cn,
+html.immerse-on:not(.immerse-peek) .md-cn,
+html.immerse-on:not(.immerse-peek) .mk-excn,
+html.immerse-on:not(.immerse-peek) .drill-cn,
+html.immerse-on:not(.immerse-peek) .td-listen-cn{display:none}
+
+/* 「后悔药」浮标：全英模式下才出现，点一下临时显示中文（换页自动收回，不改偏好）。
+   刻意放右下角——toast 与「新版本待刷新」都在底部居中，避免叠在一起。 */
+.immerse-pill{position:fixed;right:16px;bottom:16px;z-index:280;
+  border:1px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
+  box-shadow:0 2px 10px rgba(15,23,42,.14);transition:var(--motion);
+  padding-bottom:calc(7px + env(safe-area-inset-bottom,0px))}
+.immerse-pill:hover{border-color:var(--primary);color:var(--primary)}
+.immerse-pill[hidden]{display:none}
+@media (max-width:640px){ .immerse-pill{right:12px;bottom:12px} }
+
+/* ============ 📅 本周新料（js/weekly.js）============
+   站内 19 单元是静态语料，「今日」再聪明也只是重组旧料；外部分享里被长期使用的全英站点
+   靠的正是「每天都更新」。本站没有内容团队，所以不生产新材料，只做**每周一条投料节律**：
+   一个业务主题 + 三个公开行业来源，一键送进「素材投料口」接四个既有引擎。
+   位置策略与「场景急救 / 连听本单元」一致：今日页内区块，不新增导航、不新增第 6 步。 */
+.td-weekly{margin-top:14px;padding:13px 15px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.td-weekly.done{border-color:#a7f3d0;background:var(--ok-soft)}
+.td-wk-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.td-wk-head b{font-size:14.5px}
+.td-wk-sub{font-size:12px;color:var(--muted);flex:1;min-width:200px}
+.td-wk-topic{margin-top:9px;font-size:14.5px}
+.td-wk-ic{margin-right:6px}
+.td-wk-why{margin-top:4px;font-size:12.5px;line-height:1.75;color:var(--muted)}
+.td-wk-ops{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.wk-panel .td-wk-head b{font-size:14px}
+
+/* 🔄 换设备搬进度（今日页）：进度只在 localStorage，跨设备不会自动同步——
+   入口藏在「设置弹窗」里等于没有，所以放到今日页底部一条常驻窄条上。 */
+.td-migrate{margin-top:14px;padding:11px 13px;border:1px dashed var(--line);border-radius:12px;
+  background:var(--surface);font-size:12.5px;line-height:1.7;color:var(--muted);
+  display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.td-migrate b{color:var(--ink)}
+.td-migrate .field-note{flex:1 0 100%}
+
+/* 🌙 明日锚点（P6）：离开时刻的一句"明天第一件事" + 本地生成日历 / 复制提醒。
+   刻意做得比 td-migrate 更轻（不是常驻大卡片），因为站内纪律是"不做成永远挂着的东西"。 */
+.td-tomorrow{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;
+  background:var(--card);display:flex;flex-direction:column;gap:6px}
+.td-tomorrow b{font-size:13.5px;color:var(--ink)}
+.td-tm-main{font-size:14px;font-weight:600;color:var(--ink);line-height:1.5}
+.td-tm-note{font-size:12.5px;color:var(--muted);line-height:1.7}
+.td-tm-ops{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
+.td-tomorrow .field-note{font-size:12px;color:var(--muted);line-height:1.7}
 

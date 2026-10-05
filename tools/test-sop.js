@@ -138,7 +138,48 @@ check("总览处说明了英文可直接拿去练", /不只看和复制/.test(ht
   check("事件分支已实现：" + a, new RegExp('act === "' + a + '"').test(html));
 });
 
-/* ---------------- ⑦ 架构冻结守卫 ---------------- */
+/* ---------------- ⑦ 制单铁律 ↔ 单单一致核对器：规则说了的，工具必须做（P7） ----------------
+   由来（评估发现 I-07）：铁律第 7 条点名「船名航次、提单号、装船日期必须与提单一致」，
+   而核对器的字段表原先只有 7 项、这三项一个都没实现 → 工具会给出"已核对一致"的
+   假安全信号，漏掉的恰是最容易卡清关的三项。本组断言把"规则文本"与"工具实现"锁在一起。 */
+const P7_ROWS = T.CONSIST_ROWS || [];
+const P7_RULES = T.DOC_RULES || [];
+check("_t 暴露了 CONSIST_ROWS / DOC_RULES（供门禁对账）", P7_ROWS.length > 0 && P7_RULES.length > 0,
+  "字段 " + P7_ROWS.length + " 项 · 铁律 " + P7_RULES.length + " 条");
+
+/* 铁律文本里被点名的关键字段 → 核对器必须有对应实现（用中英文关键词匹配，避免只认死字符串） */
+const P7_REQUIRED = [
+  { rule: 3, label: "贸易术语", keys: ["incoterm", "术语"] },
+  { rule: 4, label: "币种", keys: ["币种", "currency"] },
+  { rule: 4, label: "金额大小写", keys: ["大小写", "amount"] },
+  { rule: 5, label: "HS 编码", keys: ["hs"] },
+  { rule: 6, label: "单位", keys: ["单位", "unit"] },
+  { rule: 7, label: "船名航次", keys: ["船名", "航次", "vessel"] },
+  { rule: 7, label: "提单号", keys: ["提单号", "b/l no", "blno"] },
+  { rule: 7, label: "装船日期", keys: ["装船日期", "shipped"] }
+];
+const p7RowText = P7_ROWS.map(function (r) { return ((r.label || "") + " " + (r.k || "")).toLowerCase(); }).join(" | ");
+/* ⚠️ 防空转（独立验证抓到的漏洞）：若某条规则"不再点名"某字段，早期写法会静默跳过断言——
+   于是"删掉字段 + 顺手改规则措辞"就能让整套门禁全绿。现在：未命中也算失败，并统计执行条数。 */
+let p7Answered = 0;
+P7_REQUIRED.forEach(function (need) {
+  const ruleTxt = String(P7_RULES[need.rule - 1] || "");
+  const mentioned = need.keys.some(function (k) { return ruleTxt.toLowerCase().indexOf(k) !== -1; });
+  if (!mentioned) {
+    check("铁律第 " + need.rule + " 条的措辞里必须还能认出「" + need.label + "」（否则本组断言会静默失效）", false,
+      "规则原文：" + ruleTxt.slice(0, 40));
+    return;
+  }
+  p7Answered++;
+  const impl = need.keys.some(function (k) { return p7RowText.indexOf(k) !== -1; });
+  check("铁律第 " + need.rule + " 条点名的「" + need.label + "」在核对器里有实现", impl);
+});
+check("本组断言不得空转（实际执行条数 == 登记条数）", p7Answered === P7_REQUIRED.length,
+  p7Answered + "/" + P7_REQUIRED.length);
+check("核对器字段都有输入格渲染出口",
+  fs.readFileSync(path.join(ROOT, "js", "sop.js"), "utf8").indexOf('"cs-" + r.k + "-" + c.k') !== -1);
+
+/* ---------------- ⑧ 架构冻结守卫 ---------------- */
 const htmlSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const navBlock = (htmlSrc.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
 const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;

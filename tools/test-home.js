@@ -405,12 +405,12 @@ check("A2 全站「完成」判定仍收敛在 unitDone() 与 UNIT_DONE_PCT=80�
 /* ---- A3：口径串单一常量，title 与可见说明同源；且可见（不靠 title） ---- */
 const mBasisSrc = (appjs.match(/const UNIT_M_BASIS = [\s\S]{0,240}?;\n/) || [])[0] || "";
 check("A3 M 口径串是单一常量，且 80 由 UNIT_DONE_PCT 拼出（不写死第二个阈值）",
-  /const UNIT_M_BASIS = "已完成 = 该单元内已掌握词汇达 " \+ UNIT_DONE_PCT/.test(appjs));
+  /const UNIT_M_BASIS = "已完成 = 该单元内已自评标记的词汇达 " \+ UNIT_DONE_PCT/.test(appjs));
 check("A3 同一常量在渲染里出现两次：title 提示 + 可见说明（触屏端可读）",
   (ruCode.match(/\$\{esc\(UNIT_M_BASIS\)\}/g) || []).length === 2 &&
   /title="\$\{esc\(UNIT_M_BASIS\)\}"/.test(ruCode));
 check("A3 口径句在去 title 后的可见文本里仍在（触屏端不显示 title 是站内既有教训）",
-  unitsVisible2.indexOf("已完成 = 该单元内已掌握词汇达 80%") !== -1 &&
+  unitsVisible2.indexOf("已完成 = 该单元内已自评标记的词汇达 80%") !== -1 &&
   unitsVisible2.indexOf("每个单元只计一次") !== -1);
 check("A3 M 口径句不借用水平/难度口径词（无 CEFR / 等级 / 档位 / 基础 / 进阶 / 拔高）",
   mBasisSrc.length > 60 && !/CEFR|等级|档位|基础|进阶|拔高/.test(mBasisSrc));
@@ -428,7 +428,7 @@ const unitsAgg = (unitsVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).len
 const unitAgg = (unitVisible2.match(/已完成 \d+ \/ \d+ 单元/g) || []).length;
 check("A4 首页「能力」栏不含自评统计卡（已掌握单词 / 已完成单元）", homeSelfAssessCards === 0, "n=" + homeSelfAssessCards);
 check("A4 首页「能力」栏有且仅有 1 张「有产出证据的单元」", homeEvidenceCard === 1, "n=" + homeEvidenceCard);
-check("A4 自评进度仍可见（移到说明行，不作为能力证据）", /已掌握单词/.test(homeVisible) && /学完单元/.test(homeVisible));
+check("A4 自评进度仍可见（移到说明行，不作为能力证据）", /已自评标记的单词/.test(homeVisible) && /学完单元/.test(homeVisible));
 check("A4 首页路径区阶段徽标 = 3（= 3 个阶段，不是第 4 个页面级面）", psBadge === 3, "n=" + psBadge);
 check("A4 「全部课程」页聚合进度语句 = 1（本项新增处，且只有 1 处）", unitsAgg === 1, "n=" + unitsAgg);
 check("A4 单元页不含跨单元聚合进度语句（不新增第四处页面级面）", unitAgg === 0, "n=" + unitAgg);
@@ -443,7 +443,7 @@ check("B2 首页「当前进度卡」仍在（未被 M 复制或替换）",
   (homeVisible.match(/当前进度：/g) || []).length === 1);
 check("B3 「进度数据」历史快照仍在，且 M 不读它（M 必须实时计算）",
   /function renderTrendHtml/.test(appjs) && /recordSnapshot/.test(appjs) && !/recordSnapshot/.test(ruCode));
-check("B4 首页「单元掌握度」块仍在", homeVisible.indexOf("单元掌握度") !== -1);
+check("B4 首页「单元进度（自评标记）」块仍在（P4 改口径：不再叫掌握度）", homeVisible.indexOf("单元进度（自评标记）") !== -1);
 check("B5 单元页难度序仍在，且没被写进 M（M 里不含 sortIdx / 难度分量）",
   /站内从易到难第 /.test(appjs) && !/sortIdx|难度/.test(ruCode));
 check("B6 SOP 清单完成度仍是独立口径，未并入 M",

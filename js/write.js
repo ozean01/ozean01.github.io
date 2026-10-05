@@ -383,11 +383,11 @@
     <div class="card" style="margin-top:16px">
       <div class="chat-head"><span>📂 我的作品（${works.length}）</span></div>
       ${works.map(function (w, i) {
-        return '<div class="wb-item"><span class="wb-e" style="flex:1">' + esc((w.title || "")) + ' · ' + w.wc + " 词 · " + esc(String(new Date(w.t).toLocaleDateString())) +
-          (w.rate2 != null ? ' <span class="badge badge-ok">已改二稿 ' + w.rate1 + "%→" + w.rate2 + "%</span>" : "") +
+        return '<div class="wb-item"><span class="wb-e" style="flex:1">' + esc((w.title || "")) + ' · ' + esc(String(w.wc)) + " 词 · " + esc(String(new Date(w.t).toLocaleDateString())) +
+          (w.rate2 != null ? ' <span class="badge badge-ok">已改二稿 ' + esc(String(w.rate1)) + "%→" + esc(String(w.rate2)) + "%</span>" : "") +
           /* 含金量标注：有 AI 参与的稿子与关掉 AI 写出来的稿子不能等同看待 */
           (w.ai ? ' <span class="badge badge-muted" title="这一稿用过 AI（' + esc(w.ai.adopt || "未标注处理方式") + '）">🤖 有 AI 参与</span>' : "") +
-          (w.indep ? ' <span class="badge badge-ok" title="关掉 AI 独立完成，要点覆盖 ' + (w.indep.rate != null ? w.indep.rate + "%" : "—") + '">🔒 独立稿</span>' : "") +
+          (w.indep ? ' <span class="badge badge-ok" title="关掉 AI 独立完成，要点覆盖 ' + (w.indep.rate != null ? esc(String(w.indep.rate)) + "%" : "—") + '">🔒 独立稿</span>' : "") +
           '</span>' +
           '<button class="play-btn" data-action="ws-load" data-i="' + i + '" title="回顾">📖</button>' +
           '<button class="learn-toggle" data-action="ws-del" data-i="' + i + '" title="删除">✕</button></div>';
@@ -481,7 +481,7 @@
           '<button class="btn btn-ghost btn-sm" data-action="ws-indep-reset">↺ 重做一次</button>' +
         '</div>' +
         (s.indepView ? '<div class="ws-indep-text">' + nl2br(s.indep.text) + '</div>' : "") +
-        '<div class="ws-indep-note">只有这一栏能被当作能力证据——前两稿都有 AI 参与。' +
+        '<div class="ws-indep-note">这一栏是自我声明的独立稿：它比前两稿更有分量（不是 AI 代写），但仍属"过程留痕"，不是被评定的能力证据。' +
           '和上一次的独立稿比，才是「有没有长进」。</div>' +
         '</div>';
     }
@@ -643,7 +643,7 @@
         parallel: pt ? pt.text : "" };
       s.indepText = txt; s.indepDone = true; s.indepView = false;
       writeState(s);
-      toast("🔒 独立稿已留档——这一栏才是能力证据");
+      toast("🔒 独立稿已留档——这是最接近能力证据的一栏（自我声明的过程留痕）");
       creditProduce(txt, "独立稿太短也说明不了「离开工具我还会不会」——写完一整封再交。");
       render(); return;
     }

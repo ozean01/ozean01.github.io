@@ -253,6 +253,8 @@
       <p style="margin-top:8px;max-width:780px;color:var(--muted)">粘贴一篇英文文章、一个网页链接，或一段 YouTube/美剧字幕文本，拆成句子后，直接<b>送进站内已有的流水线</b>练（复用字幕点读 & 听说训练引擎）。数据默认只在本浏览器；网页正文抓取走 Jina Reader 文本端点（需联网），隐私要求高就直接<strong>粘贴正文</strong>，完全离线。</p>
     </div>
 
+    ${(window.Weekly && window.Weekly.panelHtml) ? window.Weekly.panelHtml() : ""}
+
     <div class="card" style="margin-top:8px;padding:16px 18px">
       <label style="font-weight:600;display:block;margin-bottom:6px">① 粘贴正文 / 文章链接 / 字幕文本</label>
       <textarea id="matSource" rows="7" spellcheck="false" placeholder="例如：\n• 粘贴一篇英文文章或商务邮件全文\n• 或贴一个网页链接（自动抓取正文）\n• 或贴 YouTube 视频字幕文本（用「字幕转录」工具复制过来）" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;outline:none;font-size:14px;line-height:1.7"></textarea>
@@ -294,6 +296,16 @@
     if (src && typeof S.raw === "string" && S.raw) src.value = S.raw;
     const title = document.getElementById("matTitle");
     if (title && typeof S.title === "string") title.value = S.title;
+    /* 📅 本周新料：从「今日」页点某个来源跳过来时，把链接预填进输入框，
+       用户只需再点一下「🌐 抓取网页正文」。取一次即清空（见 js/weekly.js takePending）。 */
+    if (window.Weekly && window.Weekly.takePending) {
+      const pend = window.Weekly.takePending();
+      if (pend && src) {
+        src.value = pend;
+        S.raw = pend;          // 离开再回来时输入框里还是这个链接
+        toast("📅 已填入本周来源链接，点「🌐 抓取网页正文」取回正文");
+      }
+    }
   }
 
   /* ---------------- 事件委托 ---------------- */

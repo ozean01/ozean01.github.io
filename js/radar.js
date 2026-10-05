@@ -1,7 +1,7 @@
 /* ============ 📡 口语水平概览（软包装外贸 · SpeakingRadar，模块 H） ============
    把「四维口语实战」（progress.eval4：term 术语发音 / flu 语调流利 / acc 应答准确性 / log 表达逻辑）
    与「自由表达分析」（fte-speech-v1：words / rate / fluency / ai.grammar / ai.expression）
-   聚合成一张【五维口语雷达】+ 一个【段位徽章】+ 最弱维度建议 + 导出图片（PNG）。
+   聚合成一张【五维口语雷达】+ 一个【站内练习分档】+ 最弱维度建议 + 导出图片（PNG）。
 
    诚实：这是【站内相对水平】（基于你在本站练过的成绩），不声称与官方 CEFR 口语量表对齐；
    数据少时明确提示"样本不足，多练几次更准"。纯静态 + canvas，零后端。 */
@@ -64,15 +64,22 @@
     return { dims: dims, overall: overall, nEval: e.length, nSpeech: s.length, n: n, minSamples: MIN_SAMPLES, enough: enough };
   }
 
-  /* 段位（站内相对，诚实标注） */
+  /* 站内练习分档（P5 改口径）。
+     ⚠️ 这里刻意不用「母语级 / 流利 / 熟练」这类水平量表语汇：
+       综合分是"可用维度的等权平均"，且缺失维度被排除而不是计零——
+       实测 3 条自由表达（无任何发音维度）就能算出 95 分，旧口径会直接给出「🏆 母语级」。
+       把这种聚合结果叫"母语级"，就是站点自己反对的"弱证据包装成强结论"（见本文件 P1-6）。
+       所以改成 A–E 的练习分档，并在提示里写明它衡量的是"站内练习表现"。
+       图标刻意只用单个字母（🅰/🅱…）：成对的 regional indicator（🇨🇩🇪）在部分平台
+       会被渲染成国旗或豆腐块，"半对旗帜"跨平台不可预期。 */
   function rank(v) {
     if (v == null) return null;
-    if (v >= 85) return { name: "母语级", ic: "🏆", cls: "r5", desc: "表达已接近自然母语，可挑战更高强度的真实商务场景" };
-    if (v >= 72) return { name: "流利", ic: "🚀", cls: "r4", desc: "能流畅表达，进一步打磨语调、词域与临场逻辑" };
-    if (v >= 60) return { name: "熟练", ic: "💪", cls: "r3", desc: "基本能开口，重点补齐最弱维度与行业术语" };
-    if (v >= 45) return { name: "进阶", ic: "🌱", cls: "r2", desc: "有基础，建议按「今日任务 + 场景对练」每日开口" };
-    if (v >= 25) return { name: "基础", ic: "📘", cls: "r1", desc: "先从高频句型和场景对话打底，再开口" };
-    return { name: "起步", ic: "🐣", cls: "r0", desc: "建议从最基础的单元与跟读开始，建立信心" };
+    if (v >= 85) return { name: "A 档 · 站内练习", ic: "🅰", cls: "r5", desc: "在站内练过的材料上表现稳定；这是练习分档，不是水平等级" };
+    if (v >= 72) return { name: "B 档 · 站内练习", ic: "🅱", cls: "r4", desc: "站内练习表现良好，可继续打磨语调、词域与临场逻辑" };
+    if (v >= 60) return { name: "C 档 · 站内练习", ic: "🆑", cls: "r3", desc: "基本能开口，重点补齐最弱维度与行业术语" };
+    if (v >= 45) return { name: "D 档 · 站内练习", ic: "🆃", cls: "r2", desc: "有基础，建议按「今日任务 + 场景对练」每日开口" };
+    if (v >= 25) return { name: "E 档 · 站内练习", ic: "🅴", cls: "r1", desc: "先从高频句型和场景对话打底，再开口" };
+    return { name: "未入档", ic: "🐣", cls: "r0", desc: "建议从最基础的单元与跟读开始，建立信心" };
   }
 
   /* ---------------- 渲染 ---------------- */
@@ -88,7 +95,7 @@
     return `
     <div class="page-head">
       <h2>📡 口语水平概览</h2>
-      <div class="en">把你练过的「四维口语实战」+「自由表达分析」聚合成一张五维雷达 + 段位</div>
+      <div class="en">把你练过的「四维口语实战」+「自由表达分析」聚合成一张五维雷达 + 站内练习分档</div>
       <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--muted)">
         基于最近 ${n} 次成绩（四维 ${data.nEval} · 自由表达 ${data.nSpeech}）。<b>站内相对水平，非官方量表</b>；练得越多越准。
       </div>
@@ -121,8 +128,8 @@
         <div class="card">
           <div class="rd-score">${data.overall == null ? "—" : data.overall}<span>/100</span></div>
           <div class="rd-rank ${rk ? rk.cls : ""}">${rk ? rk.ic + " " + rk.name : "未评定"}</div>
-          <div class="rd-rank-desc">${rk ? esc(rk.desc) : (data.enough ? "先多练几次，就能评定你的口语段位。" : "样本不足（已 " + data.n + " / " + data.minSamples + " 次有效测评）——先多练几次再评段位，避免拿一次成绩当水平。")}</div>
-          <div class="rd-disclaimer">⚠️ 本段位为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。${data.enough ? "" : "<b>当前样本 " + data.n + " / " + data.minSamples + "，综合分与段位暂不给出。</b>"}</div>
+          <div class="rd-rank-desc">${rk ? esc(rk.desc) : (data.enough ? "先多练几次，就会出现你的站内练习分档。" : "样本不足（已 " + data.n + " / " + data.minSamples + " 次有效测评）——先多练几次再给分档，避免拿一次成绩当水平。")}</div>
+          <div class="rd-disclaimer">⚠️ 本<b>站内练习分档</b>为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。${data.enough ? "" : "<b>当前样本 " + data.n + " / " + data.minSamples + "，综合分与练习分档暂不给出。</b>"}</div>
           <canvas id="radarCanvas" width="560" height="420"></canvas>
           <div class="rd-actions">
             <button class="btn btn-primary btn-sm" data-radar="export">⬇️ 导出口语雷达图</button>
@@ -218,7 +225,7 @@
     c.fillText("📡 软包装外贸英语 · 口语水平雷达", src.width / 2, 44);
     const rk = rank(data.overall);
     c.font = "600 15px 'Segoe UI','Microsoft YaHei',sans-serif"; c.fillStyle = "#2563eb";
-    c.fillText("段位：" + (rk ? rk.name : "未评定") + " · 综合评分：" + (data.overall == null ? "—" : data.overall + "/100"), src.width / 2, 74);
+    c.fillText("站内练习分档：" + (rk ? rk.name : "未评定") + " · 综合评分：" + (data.overall == null ? "—" : data.overall + "/100"), src.width / 2, 74);
     /* 复用雷达绘制逻辑：临时把数据画到缩放后的中心区域 */
     c.save();
     c.translate((src.width - 560) / 2, 88);

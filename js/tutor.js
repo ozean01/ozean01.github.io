@@ -673,7 +673,7 @@
             return `<div class="wb-item">
               <span class="wb-e" style="flex:1">${esc(r.en)}</span>
               <button class="play-btn" data-action="review-play" data-i="${i}" title="朗读复述">🔊</button>
-              <button class="learn-toggle" data-action="review-del" data-i="${i}" title="已掌握，移除">✓</button>
+              <button class="learn-toggle" data-action="review-del" data-i="${i}" title="已掌握该错句，移除">✓</button>
             </div>`;
           }).join("")
         : '<div class="empty" style="padding:16px"><div class="e-icon">📌</div>还没有错句。可点 AI 回复上的「➕ 今日错题」，或聊完后让 AI 提炼本场错句。</div>'}

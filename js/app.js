@@ -64,6 +64,8 @@
   _need("听音源 sources.js", !!window.Sources);
   _need("字幕 subtitle.js", !!window.Subtitle);
   _need("素材投料口 material.js", !!window.MaterialImport);
+  _need("全英模式 immerse.js", !!window.Immerse);
+  _need("本周新料 weekly.js", !!window.Weekly);
   _need("说我想说 mysay.js", !!window.MySay);
   _need("今日 today.js", !!window.Today);
   _need("场景急救 urgent.js", !!window.Urgent);
@@ -343,14 +345,17 @@
   }
   function recordUnits() { return dedupeUnits(DATA.units); }   // ③ 所有「进度计数」的统一输入
 
-  /* ---- M 的口径（P1-C2）----
-     M = 已完成单元数：单元内已掌握词汇达 UNIT_DONE_PCT(=80%)，或用户手动「标记为已完成」；
+  /* ---- M 的口径（P1-C2；第二阶段 P4 改口径）----
+     M = 已完成单元数：单元内**已自评标记**的词汇达 UNIT_DONE_PCT(=80%)，或用户手动「标记为已完成」；
      每个单元只计一次。
      判定一律复用 unitDone()（上），**不在展示处另写一套判定式**——「口径唯一」是这个数字
      能被信任的前提。同一句话既作 M 行的可见说明（触屏端也读得到），又作它的 title 提示，
      两处同源故必然逐字一致。 */
-  const UNIT_M_BASIS = "已完成 = 该单元内已掌握词汇达 " + UNIT_DONE_PCT +
-    "%，或已手动标记完成；与首页「已完成单元」同一口径，每个单元只计一次。";
+  /* ⚠️「已自评标记」不是"已掌握"：全站唯一写点是词汇行上的 ✓ 按钮（toggle-learn），
+     与 FSRS 记忆状态零耦合（js/flashcards.js 的 isLearned 在生产代码里从未被调用）。
+     把自评叫"掌握"正是站点铁律里反对的"口径大于效度"，故口径串一律写「已自评标记」。 */
+  const UNIT_M_BASIS = "已完成 = 该单元内已自评标记的词汇达 " + UNIT_DONE_PCT +
+    "%，或已手动标记完成；与首页「已完成单元」同一口径，每个单元只计一次。（✓ 是自评标记，不是记忆状态）";
   /* 该单元已有几段对话把五阶段闯关走完（progress.stage 的 key 是「单元id-对话序号」） */
   function stageCleared(u, dlgIdx) {
     return ((progress.stage || {})[u.id + "-" + dlgIdx] || 0) >= STAGE_DONE_N;
@@ -442,7 +447,7 @@
     const t = document.getElementById("toast");
     const text = String(msg);
     /* 含换行的诊断文案用 innerHTML 渲染 <br>（内部为固定文本）；普通消息用 textContent 防注入 */
-    if (text.indexOf("\n") !== -1) t.innerHTML = text.replace(/\n/g, "<br>");
+    if (text.indexOf("\n") !== -1) t.innerHTML = esc(text).replace(/\n/g, "<br>");
     else t.textContent = text;
     t.hidden = false;
     t.classList.remove("show");
@@ -665,7 +670,7 @@
     { id: "learn",    icon: "📖", title: "学 · 记",     desc: "19 单元 · 单词卡 · 易错点 · 测验", href: "#/units", act: "" },
     { id: "write",    icon: "✍️", title: "写",          desc: "邮件场景写作 · 句型克隆", href: "#/write", act: "" },
     { id: "ops",      icon: "🧭", title: "实操",        desc: "四阶段 SOP · 单证 · 报关 · 风控 · 工具", href: "#/sop", act: "" },
-    { id: "progress", icon: "📊", title: "我的进步",     desc: "学习走势 · 掌握度 · 打卡 · 周报", href: "#/coach", act: "" }
+    { id: "progress", icon: "📊", title: "我的进步",     desc: "学习走势 · 单元进度(自评) · 打卡 · 周报", href: "#/coach", act: "" }
   ];
   /* 按「工作目标」筛选：每个目标推荐它最相关的区（per-zone filter），选一个后这些区被高亮 */
   const HOME_GOALS = [
@@ -783,7 +788,7 @@
       </div>`;
     }).join("");
     return `
-    <h3 class="section-title">📊 单元掌握度 <span class="sub">每单元已掌握词汇占比 ● 掌握 ${UNIT_DONE_PCT}% 即算完成</span></h3>
+    <h3 class="section-title">📊 单元进度（自评标记） <span class="sub">每单元「自己点 ✓ 标记」的词汇占比 ● 达 ${UNIT_DONE_PCT}% 即算完成 —— 这是自评进度，不是记忆状态</span></h3>
     <div class="card mastery-wrap">
       ${rows}
     </div>`;
@@ -871,13 +876,15 @@
       bars +
       '<div class="rf-insight">' + insight + '</div></div>';
     return `
-    <h3 class="section-title">🧠 记忆保持率 <span class="sub">FSRS 遗忘曲线估算 · 越接近 100% 记得越牢</span></h3>
+    <h3 class="section-title">🧠 记忆保持率 <span class="sub">按 FSRS 到期目标值估算 · 不是"你还记得多少"</span></h3>
     <div class="card mastery-wrap">
       <div class="sop-overall-a" style="margin-top:2px">
-        <span class="badge badge-ok">整体保持率 <b>${Math.round(avgR * 100)}%</b></span>
+        <span class="badge badge-ok" title="FSRS 把间隔排到「到期时保持率≈90%」这个目标上；因此按期复习时它落在 90–100% 区间，只有大量逾期才会掉下去">到期目标保持率 <b>${Math.round(avgR * 100)}%</b></span>
         <span class="badge badge-muted">未来 7 天到期 <b>${weekSum}</b> 词</span>
         <span class="badge badge-muted">未来 30 天到期 <b>${buckets.reduce(function (s, b) { return s + b.c; }, 0)}</b> 词</span>
-        <span class="sop-hint">保持率按 FSRS 遗忘曲线 R(t,S) 估算；低于 70% 说明该补复习了。</span>
+        <span class="sop-hint">这个数字测的是调度器的目标值，不是你的记忆：FSRS 会把间隔排到"到期时约 90%"，
+          所以按期复习时它落在 90–100% 区间，只有大量逾期才会往下掉。要看"有没有真的在进步"，
+          请用它旁边的到期负载与下面的学习趋势。</span>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <div class="progressbar" style="max-width:320px"><i class="${rCls === "bad" ? "" : "full"}" style="width:${Math.round(avgR * 100)}%;background:${avgR >= 0.85 ? "var(--ok)" : avgR >= 0.7 ? "var(--accent)" : "var(--bad)"}"></i></div>
@@ -977,8 +984,8 @@
     const retCls = cur.retention >= 85 ? "badge-ok" : cur.retention >= 70 ? "badge-warn" : "badge-bad";
     const badges =
       '<div class="sop-overall-a" style="margin-top:2px">' +
-      '<span class="badge badge-ok">已掌握 <b>' + cur.learned + '</b> 词</span>' +
-      '<span class="badge ' + retCls + '">保持率 <b>' + cur.retention + '%</b></span>' +
+      '<span class="badge badge-ok">已自评标记 <b>' + cur.learned + '</b> 词</span>' +
+      '<span class="badge ' + retCls + '" title="FSRS 到期目标值：按期复习时落在 90–100%，只有大量逾期才会掉">到期目标保持率 <b>' + cur.retention + '%</b></span>' +
       '<span class="badge badge-muted">7 天到期 <b>' + (cur.due7 || 0) + '</b></span>' +
       '<span class="badge badge-muted">完成单元 <b>' + cur.done + '/' + DATA.units.length + '</b></span>' +
       '</div>';
@@ -996,8 +1003,8 @@
       '<div style="margin-top:8px"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:112px" role="img" aria-label="保持率走势">' +
       '<line x1="' + pad + '" y1="' + py(MAX) + '" x2="' + (W - pad) + '" y2="' + py(MAX) + '" stroke="var(--track)" stroke-dasharray="3 4"></line>' +
       '<polyline points="' + line + '" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
-      '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>' + esc(hist[0].day) + '</span><span>保持率 ' + MIN + '–' + MAX + '%</span><span>' + esc(hist[hist.length - 1].day) + '</span></div>' +
-      '<div class="field-note" style="margin-top:4px">图为最近 ' + hist.length + ' 天的整体保持率走势（FSRS 遗忘曲线估算，越低越需要复习）。</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>' + esc(hist[0].day) + '</span><span>到期目标值 ' + MIN + '–' + MAX + '%</span><span>' + esc(hist[hist.length - 1].day) + '</span></div>' +
+      '<div class="field-note" style="margin-top:4px">图为最近 ' + hist.length + ' 天的「到期目标保持率」走势（FSRS 排期的目标值，不是记忆测量；越低说明逾期越多）。</div>' +
       '</div></div>';
   }
 
@@ -1201,7 +1208,7 @@
           <div class="stat-card stat-p"><div class="stat-ic">${icon("flame")}</div><div class="num">${cs.streak}</div><div class="lbl">连续打卡（天）</div></div>
           <div class="stat-card stat-p"><div class="stat-ic">⏱</div><div class="num">${cs.today}</div><div class="lbl">今天练习（分钟） <a href="#/coach" style="color:inherit;text-decoration:none">→</a></div></div>
         </div>
-        <p class="field-note" style="margin:8px 0 0">已掌握单词 <b>${totalLearned()}</b>（自己点 ✓ 标记）· 学完单元 <b>${doneCount}/${recordUnits().length}</b>（词汇 ≥${UNIT_DONE_PCT}% 或自我标记）。这两项都是<b>进度</b>，不作为能力证据。</p>
+        <p class="field-note" style="margin:8px 0 0">已自评标记的单词 <b>${totalLearned()}</b>（自己点 ✓ 标记）· 学完单元 <b>${doneCount}/${recordUnits().length}</b>（词汇 ≥${UNIT_DONE_PCT}% 或自我标记）。这两项都是<b>进度</b>，不作为能力证据。</p>
       </div>
     </section>
 
@@ -1251,7 +1258,7 @@
     const trend = renderTrendHtml();
     return `
     <details class="home-collapse">
-      <summary><b>📊 我的进度数据</b><span class="hc-sub">学习趋势 · 本周回顾 · 单元掌握度 · 记忆保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
+      <summary><b>📊 我的进度数据</b><span class="hc-sub">学习趋势 · 本周回顾 · 单元进度（自评） · 到期目标保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
       <div class="hc-body">
         ${trend ? '<h3 class="section-title">📈 学习趋势 <span class="sub">保持率 · 最近走势</span></h3>' + trend : ""}
         ${weekReviewHtml()}
@@ -1389,8 +1396,8 @@
     const e = outcomeEvidence(u);
     if (!e) return "";
     if (e.done) {
-      return '<div class="uc-out-ev ok" style="margin-top:6px;font-size:12.5px;color:var(--ok,#1a7f37)">✅ 已留痕：' +
-        esc(e.label) + (e.strong ? "（含关掉 AI 写的独立稿）" : "") + "</div>";
+      return '<div class="uc-out-ev ok" style="margin-top:6px;font-size:12.5px;color:var(--ok,#1a7f37)">✅ 有留痕（过程痕迹，非能力证据）：' +
+        esc(e.label) + (e.strong ? "（含关掉 AI 写的独立稿：最接近能力证据的一栏）" : "") + "</div>";
     }
     return '<div class="uc-out-ev" style="margin-top:6px;font-size:12.5px;color:var(--muted)">⬜ 尚未留痕：还没有在「' +
       esc(e.label) + "」留下产出。完成进度 ≠ 具备这项能力。</div>";
@@ -1441,7 +1448,7 @@
       ${du ? '<div class="uc-diffline">' + diffHtml +
         '<span class="uc-sort">站内从易到难第 ' + du.sortIdx + '/' + DATA.units.length + '</span></div>' : ""}
       <div class="uc-meta">
-        <div class="progressbar" title="已掌握词汇占比。掌握 ${UNIT_DONE_PCT}% 即算本单元完成"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
+        <div class="progressbar" title="已自评标记的词汇占比。达 ${UNIT_DONE_PCT}% 即算本单元完成（自评进度，不是记忆状态）"><i class="${done ? "full" : ""}" style="width:${pct}%"></i></div>
         <span class="pct">${pct}%</span>
         ${done ? '<span class="badge badge-ok">✓ 已完成</span>' : (pct === 0 ? '<span class="badge badge-muted">从这里开始</span>' : '<span class="badge badge-muted">继续学习</span>')}
         ${unitRefType(u) ? '<span class="badge uc-ref" title="' + esc(unitRefType(u).note) + '">' + unitRefType(u).icon + " " + esc(unitRefType(u).label) + " · 可跳读</span>" : ""}
@@ -1616,7 +1623,7 @@
       tabHtml = `
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-            <b>词汇表（${words.length}）· 已掌握 ${learnedN}</b>
+            <b>词汇表（${words.length}）· 已自评标记 ${learnedN}</b>
             <button class="btn btn-soft btn-sm" data-action="play-all-words" data-id="${u.id}">🔊 朗读全部词汇</button>
           </div>
           ${words.map(function (w) { return wordRowHtml(w, hl); }).join("")}
@@ -2001,7 +2008,7 @@
         <button class="play-btn" data-action="play-word" data-id="${w.id}" title="朗读单词">🔊</button>
         <button class="play-btn" data-action="play-sentence" data-id="${w.id}" title="朗读例句">▶</button>
         <button class="learn-toggle ${learned ? "learned" : ""}" data-action="toggle-learn" data-id="${w.id}"
-          title="${learned ? "已掌握，点击取消" : "标记为已掌握"}">${learned ? "✓" : "☆"}</button>
+          title="${learned ? "已自评标记，点击取消" : "标记为已自评"}">${learned ? "✓" : "☆"}</button>
       </span>
     </div>`;
   }
@@ -3833,9 +3840,57 @@
       c.lastDate = t; c.today = 0;
     }
     c.today += (n || 1); c.total += (n || 1);
+    /* P3：当天一有分钟数就记进活跃日台账（全站时长的唯一入口在这里，
+       所以「今日」五步清单、写作/句型、看板 都会自动获得热力图与徽章） */
+    activeDaysMark();
     if (++coachSinceSave >= 10) { coachSinceSave = 0; saveProgress(); coachRefreshStats(); }
   }
   function coachCreditSecs() { coachAddSecs(1); }
+
+  /* ---------------- 活跃日台账（P3）：旗舰路径也要记账 ----------------
+     问题（评估发现）：progress.coachDays 的唯一写入点是 coachPersist()，而它只被 #/coach 的
+     20 分钟计时器调用。于是**只走「今日」五步清单的用户**（听产品话、走默认路径的那批人）
+     热力图永远全空、首个徽章永不解锁、周报里没有数据 —— 恰恰是核心用户拿不到反馈。
+     修法（只加台账，不加功能、不加导航/路由/第 6 步）：
+       · activeDays：日期 → 当日活跃分钟。写点就在 coachAddSecs()，因为它是全站时长的唯一入口。
+       · 撤销打勾会走 creditMin(-step.min)（js/today.js:617）→ 分钟可能减到 0 → **必须删键**，
+         否则徽章用 Object.keys().length 会把"被完全撤销的日子"算成活跃日（假解锁）。
+       · 历史迁移：首次运行时用 coachDays ∪ studioDays 回填一次并**落盘**，老用户历史不丢；
+         此后手动删掉的那天不会被再次回填复活。
+       · coachDays 保持原义（#/coach 计时器分钟），读取端一律优先 activeDays、缺失时取较大值。 */
+  function activeDaySet() {
+    const p = progress;
+    if (!p.activeDays) p.activeDays = {};
+    if (!p.activeDaysInit) {
+      const seed = {};
+      const merge = function (srcObj) {
+        if (!srcObj || typeof srcObj !== "object") return;
+        for (const k in srcObj) if (Object.prototype.hasOwnProperty.call(srcObj, k) && srcObj[k]) seed[k] = 1;
+      };
+      merge(p.coachDays); merge(p.studioDays); merge(p._backfill);
+      for (const k in seed) if (!p.activeDays[k]) p.activeDays[k] = 1;
+      p.activeDaysInit = true;
+      try { saveProgress(); } catch (e) { /* 存储不可用：本次会话仍可用 */ }
+    }
+    return p.activeDays;
+  }
+  function activeDaysMark() {
+    const t = coachToday();
+    const set = activeDaySet();
+    const c = progress.coach || {};
+    const sd = (progress.studioDays && progress.studioDays[t]) || null;
+    const studioMin = (sd && ((sd.patterns || 0) + (sd.write || 0)) > 0) ? 1 : 0;
+    const min = Math.max(0, Math.floor((c.today || 0) / 60)) + studioMin;
+    if (min > 0) {
+      if (!(set[t] >= min)) set[t] = min;      /* 只增不减，避免撤销一个动作就把整天抹掉 */
+    } else {
+      delete set[t];                            /* 分钟被撤销到 0 → 当天不算活跃（防徽章假解锁） */
+    }
+    /* 徽章评定：此前 coachCheckBadges() 的唯一调用点是 coachPersist()（只被 #/coach 计时器触发）
+       → 只走「今日」清单的用户**首个徽章永不解锁**（独立验证发现）。这里补上。 */
+    try { coachCheckBadges(); } catch (e) { /* 徽章失败不影响记账 */ }
+    return t;
+  }
 
   /* 今日「写作 / 句型」任务：接入打卡（练了就把时长计入连续天数、并把任务进度记下来）。
      目标：句型 10 句 / 写作 1 篇（每天自动重置）。 */
@@ -3858,6 +3913,7 @@
     if (kind === "patterns") progress.studioDays[t].patterns += 1;
     else if (kind === "write") progress.studioDays[t].write += 1;
     coachAddSecs(secs || 120);   // 一次完成约记 2 分钟，计入连续打卡/今日时长
+    activeDaysMark();            // 写作/句型也算当日活跃（分钟为 0 时也要留下这一天的痕迹）
     saveProgress();
     coachRefreshStats();
   }
@@ -3877,7 +3933,14 @@
   function localWeekReport() {
     const sd = progress.studioDays || {};
     let patterns = 0, write = 0, practicedDays = 0;
-    for (let k = 0; k < 7; k++) { const day = weekDayStr(k); const r = sd[day]; if (r) { patterns += r.patterns || 0; write += r.write || 0; if ((r.patterns || 0) + (r.write || 0) > 0) practicedDays++; } }
+    /* P3：把"今天练过没有"的口径统一到活跃日台账 —— 此前只读 studioDays，
+       于是只走「今日」五步清单的用户，本周自测仍显示"0 天"（与周报各算各的）。 */
+    const ad = activeDaySet();
+    for (let k = 0; k < 7; k++) {
+      const day = weekDayStr(k); const r = sd[day];
+      if (r) { patterns += r.patterns || 0; write += r.write || 0; }
+      if ((ad[day] && ad[day] >= 1) || (r && ((r.patterns || 0) + (r.write || 0)) > 0)) practicedDays++;
+    }
     const hist = loadHistory().slice(-30);
     const last = hist[hist.length - 1];
     const weekAgo = weekDayStr(6);
@@ -3918,8 +3981,8 @@
       "本周练习天数：" + r.practicedDays + " 天\n" +
       "本周完成：句型 " + r.patterns + " 句 · 写作 " + r.write + " 篇\n" +
       "\n▍能力（说得怎么样 · 结果）\n" +
-      "已掌握词汇：" + r.learned + (r.delta != null ? "（本周 +" + r.delta + "）" : "") + "\n" +
-      "整体保持率：" + ret + "（较上周 " + retChg + "）\n" +
+      "已自评标记：" + r.learned + (r.delta != null ? "（本周 +" + r.delta + "）" : "") + "\n" +
+      "到期目标保持率：" + ret + "（较上周 " + retChg + "）\n" +
       "\n▍结论\n" + r.conclusion + "\n" +
       "\n（提示：坚持是过程、能力是结果，两者不等价——练了多少天不等于说得更好。）";
   }
@@ -3952,7 +4015,7 @@
         </div>
       </div>
       <div class="prog-note">⚠️ 左边是<b>过程</b>，右边才是<b>结果</b>——练了很多天不等于说得更好，某周练得少也不代表退步。
-        判断有没有长进请看右边；想看口语的<b>直接证据</b>（四维分 / 五维雷达 / 段位）请到
+        判断有没有长进请看右边；想看口语的<b>直接证据</b>（四维分 / 五维雷达 / 站内练习分档）请到
         <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a>。</div>
       <div class="ws-feed" style="margin-top:10px"><b>结论：</b>${esc(r.conclusion)}</div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
@@ -4001,7 +4064,11 @@
     { id: "session", icon: "✅", title: "完成一轮训练", desc: "完成一次 20 分钟训练", ok: function (s) { return !!s.sessionDone; } }
   ];
   function coachBadgeStats() {
-    const days = progress.coachDays ? Object.keys(progress.coachDays).length : 0;
+    /* P3：只数「真的练过」的日子（值 >= 1）。
+       此前用 Object.keys().length：撤销打勾会把分钟减到 0 而键仍留着，徽章会假解锁。 */
+    const set = activeDaySet();
+    let days = 0;
+    for (const k in set) if (Object.prototype.hasOwnProperty.call(set, k) && set[k] >= 1) days++;
     return {
       days: days,
       streak: (progress.coach && progress.coach.streak) || 0,
@@ -4023,13 +4090,15 @@
     coachRefreshBadges();
   }
   function coachHeatmapHtml() {
-    const days = progress.coachDays || {};
+    /* P3：读活跃日台账（含旗舰路径）。缺失的历史分钟用 coachDays 兜底（取较大值，不丢信息）。 */
+    const days = activeDaySet();
+    const legacy = progress.coachDays || {};
     const end = new Date(); end.setHours(0, 0, 0, 0);
     const cells = [];
     for (let i = 83; i >= 0; i--) {
       const d = new Date(end); d.setDate(end.getDate() - i);
       const key = d.getFullYear() + "-" + coachPad(d.getMonth() + 1) + "-" + coachPad(d.getDate());
-      const m = days[key] || 0;
+      const m = Math.max(days[key] || 0, legacy[key] || 0);
       const cls = m >= 40 ? "l4" : m >= 20 ? "l3" : m >= 10 ? "l2" : m >= 1 ? "l1" : "l0";
       const wd = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
       const tip = key + " · " + m + " 分钟（周" + wd + "）";
@@ -4057,13 +4126,15 @@
 
   /* ---- 周报：近 7 天汇总 + 文本导出 ---- */
   function coachWeekMin() {
-    const days = progress.coachDays || {};
+    /* P3：周报也读活跃日（否则只走今日清单的用户周报恒为 0） */
+    const days = activeDaySet();
+    const legacy = progress.coachDays || {};
     const end = new Date(); end.setHours(0, 0, 0, 0);
     let sum = 0, best = 0, bestDay = "", cnt = 0;
     for (let i = 0; i < 7; i++) {
       const d = new Date(end); d.setDate(end.getDate() - i);
       const key = d.getFullYear() + "-" + coachPad(d.getMonth() + 1) + "-" + coachPad(d.getDate());
-      const m = days[key] || 0;
+      const m = Math.max(days[key] || 0, legacy[key] || 0);
       if (m > 0) { cnt++; sum += m; }
       if (m > best) { best = m; bestDay = key; }
     }
@@ -4071,8 +4142,9 @@
   }
   function coachReportText() {
     const s = coachStats(), w = coachWeekMin();
-    const days = progress.coachDays || {};
-    const totalDays = Object.keys(days).length;
+    const days = activeDaySet();
+    let totalDays = 0;
+    for (const k in days) if (Object.prototype.hasOwnProperty.call(days, k) && days[k] >= 1) totalDays++;
     const unlocked = progress.coachBadges || [];
     const L = [];
     L.push("【软包装外贸英语 · AI 口语陪练打卡周报】");
@@ -4129,7 +4201,7 @@
           ${r.text ? '<button class="btn btn-outline btn-sm" data-action="coach-weekly-clear">清空</button>' : ""}
         </span>
       </div>
-      <p class="coach-report-muted" style="margin:4px 0 8px">依据本周口语陪练记录 · AI 分析「已掌握表达 / 高频语法错误 / 常想不起来的词 / 不自然句子 / 下周 3 个主题 / 每日计划」。${hasKey ? "" : "（需先在「AI 陪练 → 模型设置」填写 API Key）"}</p>
+      <p class="coach-report-muted" style="margin:4px 0 8px">依据本周口语陪练记录 · AI 分析「已掌握的表达 / 高频语法错误 / 常想不起来的词 / 不自然句子 / 下周 3 个主题 / 每日计划」。${hasKey ? "" : "（需先在「AI 陪练 → 模型设置」填写 API Key）"}</p>
       ${r.text
         ? (fresh ? '<div class="coach-report">' + esc(r.text) + "</div>" : '<div class="coach-report">' + esc(r.text) + '<div class="coach-report-muted" style="margin-top:6px">⚠️ 这是上一周（' + esc(r.wk) + '）的报告。</div></div>')
         : '<div class="coach-report-muted">还没有生成报告。先到「AI 陪练」聊几次，积累本周记录后回来点「✨ 生成本周学习报告」。</div>'}
@@ -4301,7 +4373,7 @@
     <div class="prog-note" style="margin-top:12px;margin-bottom:0">
       📌 <b>先说清楚这一页是什么</b>：它记的是<b>坚持</b>——练了多少天、累计多少分钟、热力图与徽章。
       <b>它不代表能力</b>：连续打卡 100 天不等于说得更好，徽章也只证明你来了。
-      想看<b>能力证据</b>（四维分 / 五维雷达 / 段位）请到
+      想看<b>能力证据</b>（四维分 / 五维雷达 / 站内练习分档）请到
       <a href="#/speaking" style="color:var(--primary);font-weight:700">📡 口语测评</a>；
       想证明自己进步了，那里才是该看的数字。
     </div>
@@ -4420,6 +4492,9 @@
     const azureVoice = document.getElementById("setAzureVoice");
     const azurePA = document.getElementById("setAzurePA");
     const setLocalASR = document.getElementById("setLocalASR");
+    /* 🌐 全英模式：显示偏好，与「听力口音」同一节奏——弹窗里只暂存，点「保存」才落库。
+       它是 js/immerse.js 的偏好（键 fte-immerse），不写进 progress，也不影响任何学习数据。 */
+    const setImmerse = document.getElementById("setImmerse");
     /* P2-2：离线识别**不做无凭证的承诺**。模型不随站分发，所以这项在多数环境里不可用；
        现场探测一次，不可用就禁用开关、清掉已勾选状态并写明原因，而不是让用户勾了却毫无效果。 */
     if (setLocalASR && window.LocalASR && window.LocalASR.probe) {
@@ -4479,6 +4554,7 @@
       azureVoice.value = progress.azureVoice || "en-US-JennyNeural";
       if (azurePA) azurePA.checked = progress.azurePA !== false;
       if (setLocalASR) setLocalASR.checked = !!progress.localASR;
+      if (setImmerse) setImmerse.checked = !!(window.Immerse && window.Immerse.on());
       voiceSel.value = progress.voice || "";
       rateRange.value = progress.rate || 1;
       rateVal.textContent = (progress.rate || 1).toFixed(1) + "×";
@@ -4503,6 +4579,8 @@
         progress.rate = parseFloat(rateRange.value) || 1;
         saveProgress();
         syncPlayerSettings();
+        /* 全英模式与发音设置无关，走它自己的键（fte-immerse）；失败也只是本次不生效 */
+        if (setImmerse && window.Immerse) window.Immerse.set(!!setImmerse.checked);
       } catch (err) {
         console.error("保存发音设置失败：", err);
       } finally {
@@ -4617,6 +4695,10 @@
     getUnit: getUnit,
     pathStagesData: pathStagesData,
     coachToday: coachToday,
+    /* 活跃日台账（P3）：日期 → 当日活跃分钟。热力图 / 徽章 / 周报 / 本周自测 全部读它。 */
+    activeDaySet: activeDaySet,
+    activeDaysMark: activeDaysMark,
+    coachAddSecs: coachAddSecs,
     /* 最后一次练习日期（YYYY-MM-DD）：供「今日」识别**中断回归**。
        原先只有 coachStats 的累计值，看不出「中间停了几天」——而中断后的处理方式
        和学习本身一样重要（补作业 / 熬夜还债是最容易让人彻底放弃的做法）。 */
