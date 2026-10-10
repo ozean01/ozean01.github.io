@@ -5,8 +5,9 @@
      - 跨域（TTS / LLM / 汇率等外部 API）：一律不拦截，交给浏览器直连
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v90";   /* 第一阶段（P0'/P1/P2/P3）+ 第二阶段（P4 口径 / P5 段位措辞 / P6 明日起点 / P7 单单一致字段）
+const CACHE = "fte-v91";   /* 第一阶段（P0'/P1/P2/P3）+ 第二阶段（P4 口径 / P5 段位措辞 / P6 明日起点 / P7 单单一致字段）
                               + P8 字幕精听三件套 + P9 全英模式·本周新料·进度搬运 + P10 词级跟读（复读次数与间隔）
+                              + 听音源新增 A 档「教材/点读」来源（新概念英语点读，仅外链引用、不搬运内容；改 js/sources.js · README.md）
                               都改了 PRECACHE 内的文件（含 js/app.js · js/player.js · js/phonemes.js · js/storage-keys.js · css/style.css），
                               按本站纪律必须 +1，否则老用户会一直吃到旧缓存 */
 
