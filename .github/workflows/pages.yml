@@ -45,8 +45,12 @@ jobs:
         env:
           FTE_NO_WRITE: "1"
 
-      - name: Single-source drift check
-        run: node tools/check-single-source.js
+      # ▲ 与 ci.yml 同一决策（Lead，2026-10-11 修复）：小程序端是**兄弟目录**，不在本仓库内，
+      #   而 check-single-source.js 已收紧为默认 strict（测不了 = 失败）→ 这里不带参数会 100% 常红。
+      #   本次推送就是这样：Test & Audit 绿、Deploy 红（test job 挂在这一步）。
+      #   取舍：本机（不在 CI 里）跑不带参数仍是严格模式，会真比较两份数据。
+      - name: Single-source drift check (CI 无小程序兄弟目录 → --allow-missing)
+        run: node tools/check-single-source.js --allow-missing
 
       # 发布前固定动作（P1-D 新增 tools/prepush-check.js，S10-F11）：
       # 工作区干净 + sw.js 的 CACHE 相对 HEAD 已升版 + 基线一致 + 无未跟踪的 npm test 依赖。
