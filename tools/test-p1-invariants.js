@@ -121,5 +121,31 @@ check("词级跟读必须复用既有评测引擎与诚实口径（evaluateSpeec
 check("模型就绪时必须默认打开离线识别，并尊重用户的明确关闭（localASROff）",
   /localASROff/.test(appSrc));
 
+/* ---------- 7. 跟读必须与「识别」解耦：火狐也能练（2026-10-11 第二次使用反馈） ----------
+   反馈：「用火狐发现 语块卡 · 短语 也没有跟读以及评测功能」「一定要 Edge 才可以吗」。
+   事实：火狐**完全不支持** SpeechRecognition；Chrome 的识别走 Google、国内不可达。
+   所以"跟读"必须有一条**不依赖识别**的路径（听→跟读→录音→A/B 回放），否则火狐用户
+   连练发音的入口都没有。这条守卫防止以后又被改回"没有识别就没有跟读"。 */
+check("app.js 必须有不依赖识别的跟读实现（shadowRun）——火狐没有 SpeechRecognition",
+  /function shadowRun/.test(appSrc) && /Player\.startRecording/.test(appSrc));
+check("跟读必须同时提供「评测」（需要识别）且两者分离（shadow-eval 独立存在）",
+  /function shadowEval/.test(appSrc) && /case "shadow-eval"/.test(appSrc));
+check("三个实际学习面都必须有跟读入口：单元词汇 / 短语 / 语块卡（至少 3 处 data-action=\"shadow\"）",
+  (appSrc.match(/data-action="shadow"/g) || []).length >= 3);
+check("评测不可用时必须写明两条出路（本地离线识别 / Edge），不能只报失败",
+  /本地离线识别/.test(appSrc) && /Edge/.test(appSrc));
+
+/* ---------- 8. 启动脚本：自动优先 Edge + 保持 ASCII-only ---------- */
+const bootSrc = read("start-site.ps1");
+check("start-site.ps1 必须保持 ASCII-only（Windows PowerShell 5.1 按 ANSI 读取，中文会破引号）",
+  (function () {
+    const buf = fs.readFileSync(path.join(ROOT, "start-site.ps1"));
+    for (let i = 0; i < buf.length; i++) if (buf[i] > 127) return false;
+    return true;
+  })());
+check("start-site.ps1 必须支持 -Browser 且 auto 模式优先 Edge（评测需要能用的识别服务）",
+  /\[ValidateSet\('auto', 'edge', 'chrome', 'firefox', 'default'\)\]/.test(bootSrc) &&
+  /Resolve-BrowserExe/.test(bootSrc) && /Resolve-BrowserExe 'edge'/.test(bootSrc));
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

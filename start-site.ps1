@@ -9,7 +9,18 @@ param(
   # Advanced/explicit: use this port instead of 8000. Note that the port is part
   # of the origin, so this also hides progress saved under another port.
   # (Also makes the port policy testable without racing a foreign app for 8000.)
-  [int]$Port = 0
+  [int]$Port = 0,
+  # Which browser to open. 'auto' (default) prefers Edge when installed, then
+  # falls back to the system default browser.
+  #
+  # Why prefer Edge: pronunciation SCORING needs speech recognition, and
+  #   - Chrome  : uses Google's servers -> unreachable from mainland China;
+  #   - Firefox : does NOT implement the Web Speech recognition API at all;
+  #   - Edge    : uses Azure -> reachable, so scoring works out of the box.
+  # Practice without scoring (listen -> repeat -> record -> A/B playback) works
+  # in ANY browser -- Firefox included. That path needs no recognition.
+  [ValidateSet('auto', 'edge', 'chrome', 'firefox', 'default')]
+  [string]$Browser = 'auto'
 )
 
 # =====================================================================
@@ -226,13 +237,50 @@ Write-Host ""
 # and the URL is always printed up front, so a failure can never be invisible.
 $opener = $null
 if (-not $NoBrowser) {
-  $opener = Start-Job -ArgumentList $url, $port -ScriptBlock {
-    param($u, $p)
+  # ---------- 2b) Resolve the browser BEFORE starting the job ----------
+  # The job below runs in its own scope, so the executable path must be resolved
+  # here and passed in. Resolution is a plain file-existence check (no registry,
+  # no admin rights).
+  function Resolve-BrowserExe([string]$which) {
+    switch ($which) {
+      'edge'    { $c = @((Join-Path ${env:ProgramFiles} 'Microsoft\Edge\Application\msedge.exe'),
+                         (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe')) }
+      'chrome'  { $c = @((Join-Path ${env:ProgramFiles} 'Google\Chrome\Application\chrome.exe'),
+                         (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
+                         (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')) }
+      'firefox' { $c = @((Join-Path ${env:ProgramFiles} 'Mozilla Firefox\firefox.exe'),
+                         (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')) }
+      default   { return $null }
+    }
+    foreach ($p in $c) { if ($p -and (Test-Path $p)) { return $p } }
+    return $null
+  }
+  $openExe = $null
+  $openWhy = "system default browser"
+  if ($Browser -eq 'auto') {
+    $openExe = Resolve-BrowserExe 'edge'
+    if ($openExe) { $openWhy = "Edge (found; best for pronunciation scoring)" }
+    else { $openWhy = "system default browser (Edge not found)" }
+  } elseif ($Browser -ne 'default') {
+    $openExe = Resolve-BrowserExe $Browser
+    if ($openExe) { $openWhy = "$Browser (requested)" }
+    else { $openWhy = "system default browser ($Browser was requested but not found)" }
+  }
+  Write-Host ("  Browser: " + $openWhy) -ForegroundColor Cyan
+  Write-Host "  Tip: SCORING needs speech recognition -> Edge (Azure, works in CN) or the local offline model." -ForegroundColor DarkGray
+  Write-Host "       Practice WITHOUT scoring (listen/repeat/record/A-B playback) works in any browser, Firefox included." -ForegroundColor DarkGray
+  Write-Host "       Override: start-site.ps1 -Browser edge|chrome|firefox|default   (default: auto)" -ForegroundColor DarkGray
+  Write-Host ""
+  $opener = Start-Job -ArgumentList $url, $port, $openExe -ScriptBlock {
+    param($u, $p, $exe)
     for ($i = 0; $i -lt 100; $i++) {
       $client = New-Object System.Net.Sockets.TcpClient
       $up = $false
       try { $client.Connect('127.0.0.1', $p); $up = $true } catch { } finally { $client.Close() }
-      if ($up) { Start-Process $u; return }
+      if ($up) {
+        if ($exe) { Start-Process $exe $u } else { Start-Process $u }
+        return
+      }
       Start-Sleep -Milliseconds 200
     }
   }

@@ -1679,6 +1679,9 @@
               <span class="p">${hlText(p.p, hl)}</span>
               <span class="pc">${hlText(p.cn, hl)}</span>
               <button class="play-btn" data-action="play-text" data-text="${esc(p.p + ". " + p.ex)}" title="朗读">▶</button>
+              <button class="play-btn" data-action="shadow" data-text="${esc(p.p)}" title="跟读短语（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
+              <button class="play-btn" data-action="shadow" data-text="${esc(p.ex)}" title="跟读例句（不需要语音识别）">🎙句</button>
+              <button class="play-btn" data-action="shadow-eval" data-text="${esc(p.p)}" title="评测短语：需要语音识别（本地离线模型 / Edge / Chrome+代理）">🎯</button>
               <div style="grid-column:1/-1;font-size:13px;color:var(--muted)">${hlText(p.ex, hl)}<br><b>${hlText(p.exCn, hl)}</b></div>
             </div>`;
           }).join("")}
@@ -2052,7 +2055,8 @@
       <span class="actions">
         <button class="play-btn" data-action="play-word" data-id="${w.id}" title="朗读单词">🔊</button>
         <button class="play-btn" data-action="play-sentence" data-id="${w.id}" title="朗读例句">▶</button>
-        <button class="play-btn" data-action="word-shadow" data-id="${w.id}" title="跟读并评分：先听原声 → 你读一次 → 给词形命中分（本机离线识别时不联网）">🎤</button>
+        <button class="play-btn" data-action="shadow-eval" data-text="${esc(w.v.w)}" title="评测单词：需要语音识别（本地离线模型 / Edge / Chrome+代理）">🎯</button>
+        <button class="play-btn" data-action="shadow" data-text="${esc(w.v.w)}" title="跟读（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
         <button class="learn-toggle ${learned ? "learned" : ""}" data-action="toggle-learn" data-id="${w.id}"
           title="${learned ? "已自评标记，点击取消" : "标记为已自评"}">${learned ? "✓" : "☆"}</button>
       </span>
@@ -2165,6 +2169,133 @@
           State.wordShadowRec = rec;
           if (!rec) { done(""); toast("识别启动失败：请在「发音设置」开启「优先本地识别」，或改用 Edge 打开。"); }
         }).catch(function (err) { done(""); const m = Player.recErrorText(err); if (m) toast(m); });
+      }
+    });
+  }
+
+  /* ============ 🎤 跟读（**不需要**语音识别）+ 可选评分（2026-10-11 使用反馈）============
+     反馈原文：「用火狐发现 语块卡 · 短语 也没有跟读以及评测功能」「一定要 Edge 才可以吗」。
+     事实：**火狐完全不支持 `SpeechRecognition`**（不是被墙，是它没实现这个 API），
+          所以一切"评测"入口在火狐里都被灰掉；Chrome 的实现走 Google、国内不可达。
+     但**跟读本身不需要识别**：听标准音 → 留空档跟读 → 录下自己 → 回放 → 再听标准音做 A/B 对比。
+     这条闭环本来就是站内音素页 P10 的实现，本轮提成**全站通用**，并与"评分"解耦：
+       · 🎤 跟读：任何浏览器可用（含火狐），不联网、不需要识别；
+       · 🎯 评测：仅在识别可用时追加（本地离线模型 / Edge / Chrome+代理），不可用时**明说原因与出路**。
+     实现复用既有能力（Player.repeat / startRecording / stopRecording / speak），不改任何既有语义。 */
+  function shadowBoxFor(el) {
+    const anchor = el.closest(".word-row, .phrase-row, .flash-card, .dict-row") || el.parentElement || el;
+    let box = anchor.nextElementSibling;
+    if (!box || !box.classList || !box.classList.contains("shadow-out")) {
+      box = document.createElement("div");
+      box.className = "field-note shadow-out";
+      box.style.margin = "6px 0 10px";
+      box.hidden = true;
+      anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    }
+    return box;
+  }
+  function micMsg(err) {
+    const m = Player.recErrorText ? Player.recErrorText(err) : "";
+    return m || "麦克风未授权或不可用";
+  }
+  /* A/B 之后的收尾：给出"要不要评分"的出口；不可用时把话说清楚 */
+  function afterShadowCompare(text, label) {
+    const sup = !!(Player.recognitionSupported && Player.recognitionSupported());
+    const enc = esc(text);
+    return '🎤 <b>' + label + '</b>：A/B 对比完成（先回放你的 → 再放标准音）。' +
+      (sup
+        ? ' 想拿<b>评分</b>：<button class="btn btn-soft btn-sm" data-action="shadow-eval" data-text="' + enc + '">🎯 评测一次</button>' +
+          '<span style="color:var(--muted)">（ASR 转写的词形命中分，不是声学发音分）</span>'
+        : '<div style="margin-top:4px;color:var(--muted)">当前浏览器<b>不支持语音识别评分</b>：' +
+          '火狐没有这个 API；Chrome 的识别走 Google、国内不可达。想评分走两条路：' +
+          '①「发音设置」开启<b>本地离线识别</b>（首次约 1–2 分钟准备，之后不联网）；② 装 <b>Edge</b>。' +
+          '<b>不评分也能练</b>——上面的回放对比就是最直接的纠音手段。</div>') +
+      '<div style="margin-top:6px"><button class="btn btn-outline btn-sm" data-action="shadow" data-text="' + enc + '">🔁 再读一次</button></div>';
+  }
+  function shadowRun(el) {
+    const P = window.Player;
+    if (!P) return;
+    const text = String(el.getAttribute("data-text") || "").trim();
+    if (!text) return;
+    const box = shadowBoxFor(el);
+    const out = function (html) { box.hidden = false; box.innerHTML = html; };
+    const label = esc(text.length > 46 ? text.slice(0, 46) + "…" : text);
+    const rate = (window.FTE_BOOT && FTE_BOOT.progress && FTE_BOOT.progress.rate) || 1;
+    const rep = (P.repeat && P.repeatPref) ? P.repeatPref : { n: 1, gap: 0.5 };
+    const canRec = !!(P.canRecord && P.canRecord() && P.startRecording && P.stopRecording);
+    State.shadow = (State.shadow || 0) + 1;
+    const my = State.shadow;
+    const alive = function () { return State.shadow === my; };
+
+    if (!canRec) {
+      out('🎤 <b>' + label + '</b>：此环境不能录音（需要 <code>http://localhost</code> 或 https + 麦克风授权）。已只播放标准发音。');
+      P.speak(text, { rate: rate });
+      return;
+    }
+    out('🎤 <b>' + label + '</b>：先听标准音，随后留出的空档里<b>跟着读一遍</b>…');
+    const afterRehearse = function () {
+      if (!alive()) return;
+      out('🎤 <b>' + label + '</b>：<b>录音中</b>…对着麦克风读一遍');
+      P.startRecording().then(function () {
+        if (!alive()) { P.stopRecording(); return; }
+        setTimeout(function () {
+          if (!alive()) return;
+          P.stopRecording().then(function (url) {
+            if (!alive()) return;
+            if (!url) { out('🎤 <b>' + label + '</b>：录音失败，请检查麦克风权限。'); return; }
+            if (State.shadowUrl) { try { URL.revokeObjectURL(State.shadowUrl); } catch (e) { /* ignore */ } }
+            State.shadowUrl = url;
+            const a = new Audio(url);
+            out('🎤 <b>' + label + '</b>：<b>① 回放你的</b> → 接着自动放标准音…');
+            a.onended = function () {
+              if (!alive()) return;
+              out('🎤 <b>' + label + '</b>：<b>② 标准音</b>（对比重音 / 连读 / 尾音）…');
+              P.speak(text, { rate: rate, onend: function () { if (alive()) out(afterShadowCompare(text, label)); } });
+            };
+            a.onerror = function () { if (alive()) out(afterShadowCompare(text, label)); };
+            a.play().catch(function () { if (alive()) out(afterShadowCompare(text, label)); });
+          });
+        }, Math.max(1200, rep.gap * 1000));
+      }).catch(function (err) {
+        if (!alive()) return;
+        out('🎤 <b>' + label + '</b>：' + esc(micMsg(err)) + '，已改为只播放标准音。');
+        P.speak(text, { rate: rate });
+      });
+    };
+    if (P.repeat) State.shadowRep = P.repeat(text, { rate: rate, n: rep.n, gap: rep.gap, onDone: afterRehearse });
+    else P.speak(text, { rate: rate, onend: afterRehearse });
+  }
+  /* 🎯 评测（需要识别）：说一遍 → 转写 → 词形命中分。src 用于显示"是本地还是在线识别"。 */
+  function shadowEval(el) {
+    const text = String(el.getAttribute("data-text") || "").trim();
+    if (!text) return;
+    const box = shadowBoxFor(el);
+    const out = function (html) { box.hidden = false; box.innerHTML = html; };
+    const label = esc(text.length > 46 ? text.slice(0, 46) + "…" : text);
+    const local = !!(window.Player.localASROn && Player.localASROn() && !Player.localASRBroken);
+    if (State.shadowRec) { try { State.shadowRec.stop(); } catch (e) { /* ignore */ } State.shadowRec = null; }
+    out('🎯 <b>' + label + '</b>：先听一遍，然后跟读一次…（' + (local ? '本地离线识别' : '在线识别') + '）');
+    Player.speak(text, {
+      rate: 0.95,
+      onend: function () {
+        Player.micRequest().then(function () {
+          const rec = Player.recognize({
+            lang: "en-US", maxMs: 3000,
+            onError: function (err) {
+              const m = micMsg(err);
+              out('🎯 <b>' + label + '</b>：这次没拿到识别结果（' + esc(m) + '）。' +
+                '<div style="margin-top:4px">可执行的路：①「发音设置」开启<b>本地离线识别</b>（不联网、任何浏览器含火狐）；' +
+                '② 用 <b>Edge</b> 打开（识别走 Azure，国内可达）；③ <b>不评分也能练</b>：点 🎤 做 A/B 回放对比。</div>');
+            },
+            onEnd: function (txt) {
+              State.shadowRec = null;
+              if (!txt) { out('🎯 <b>' + label + '</b>：没有识别到语音，请靠近麦克风、在安静环境重读一次。'); return; }
+              out(evalResultHtml(text, txt));
+            }
+          });
+          State.shadowRec = rec;
+          if (!rec) out('🎯 <b>' + label + '</b>：识别不可用（火狐没有该 API；Chrome 需代理）。点 🎤 可做不需要识别的 A/B 跟读。');
+        }).catch(function (err) { out('🎯 ' + esc(micMsg(err))); });
       }
     });
   }
@@ -2331,6 +2462,8 @@
               ${card.kind === "phrase" ? '<span class="fs-badge">🧩 短语</span>' : ""}
             </span>
             <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="flash-say" title="朗读">🔊</button>
+            <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="shadow" data-text="${esc(card.kind === "frame" ? (card.ex || card.w) : (card.kind === "mistake" ? card.cn : card.w))}" title="跟读（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
+            ${card.ex && card.kind !== "frame" && card.kind !== "mistake" ? '<button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="shadow" data-text="' + esc(card.ex) + '" title="跟读例句（不需要语音识别）">🎙句</button>' : ""}
             <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : (card.kind === "frame" ? "先说完整句，再翻面核对骨架块" : (prod ? "先说出英文，再翻面核对" : "点击卡片查看释义"))}</div>
           </div>
           <div class="flash-face flash-back">
@@ -3529,6 +3662,9 @@
       case "play-word": playWord(id); break;      case "play-sentence": playSentence(id); break;
       /* 词级跟读评测（真实使用反馈新增）：看词的地方也能开口并拿词形命中分 */
       case "word-shadow": startWordShadow(id, el); break;
+      /* 2026-10-11 使用反馈：跟读（不需要识别，火狐也能用）与评测（需要识别）分开 */
+      case "shadow": shadowRun(el); break;
+      case "shadow-eval": shadowEval(el); break;
       case "atrisk-flash": {
         const rb = document.getElementById("atriskReinforce");
         startAtRiskFlash(!!(rb && rb.checked));
