@@ -174,7 +174,8 @@ check("作品集列表显示「已改二稿 x%→y%」", /已改二稿/.test(src
 const htmlSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const navBlock = (htmlSrc.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
 const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
-check("架构冻结：导航仍为 16 项", navCount === 16, "n=" + navCount);
+/* 16 → 17：术语速查（#/glossary）为有意新增（原 16 项是「写作功能未加导航项」的对照基线）。 */
+check("架构冻结：导航仍为 17 项（术语速查 +1）", navCount === 17, "n=" + navCount);
 check("本功能未新增路由", !/#\/draft/.test(htmlSrc) && !/"draft"/.test(fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")));
 
 /* ---------------- ⑦ AI 留痕与「先自己写」纪律（P7） ----------------

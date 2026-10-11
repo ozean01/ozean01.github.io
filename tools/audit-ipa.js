@@ -15,10 +15,21 @@
       - 命中高频白名单（商务基础词）→ lvl:'high'
       - 其余 → lvl:'common'
    说明：本次为离线、无外部词典条件下实现的近合格版本；后续若引入 ECDICT/ipa-dict，
-   可直接把本脚本的数据源替换为词典文件并对齐（见评估文档 P0-5）。 */
+   可直接把本脚本的数据源替换为词典文件并对齐（见评估文档 P0-5）。
+
+   ▲ P1-D（S10-F13）：只读模式。命中环境变量 `FTE_NO_WRITE=1` 或参数 `--no-write` 时，
+     本脚本**只计算并打印，不写任何文件**（输出里会写明「只读模式：未写盘」）。
+     动机：tools/report-ipa.csv 与 tools/data-lvl-patch.js 都是**被跟踪**文件，
+     跑一次 npm test 就会被重写 → 污染工作区（审计期尤其致命）。
+     默认行为不变：独立运行 / `npm run audit` 仍然生成两份产物。
+     ⚠️ 需 Lead 接线：在 tools/test-all.js 给 audit-count / audit-ipa / audit-input 三个 job 设 FTE_NO_WRITE=1。
+*/
 "use strict";
 const fs = require("fs");
 const path = require("path");
+
+/* P1-D：只读开关（环境变量或命令行参数，二者任一命中即只读） */
+const READ_ONLY = process.env.FTE_NO_WRITE === "1" || process.argv.indexOf("--no-write") !== -1;
 
 const JSDIR = path.join(__dirname, "..", "js");
 const FILES = ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js"];
@@ -92,12 +103,18 @@ words.forEach(function (x) {
 /* ---------------- 写出 ---------------- */
 let csv = "\ufeffID,Unit,Word,IPA,Issue\n";
 ipaIssues.forEach(function (i, n) { csv += i.id + "," + i.u + "," + i.w + ',"' + i.ipa + '","' + i.by + '"\n'; });
-fs.writeFileSync(OUT, csv, "utf8");
 
 let js = "/* 词频难度补丁（脚本生成，仅作参考；如需应用请用 audit-lvl 或手动合并到各 data*.js 条目\n" +
   "   {w, ipa, pos, cn, ex, exCn} 中加 lvl 字段） */\n";
 js += "window.FTE_LVL_PATCH = " + JSON.stringify(patch) + ";\n";
-fs.writeFileSync(PATCH, js, "utf8");
+
+if (READ_ONLY) {
+  /* P1-D：只计算不落盘 —— 报告内容照样在上面组装，只是不写文件 */
+  console.log("（只读模式：未写盘）跳过写入 " + OUT + " 与 " + PATCH);
+} else {
+  fs.writeFileSync(OUT, csv, "utf8");
+  fs.writeFileSync(PATCH, js, "utf8");
+}
 
 const lv = { tech: 0, high: 0, common: 0 };
 patch.forEach(function (p) { lv[p.lvl]++; });
@@ -108,5 +125,9 @@ console.log("难度分布：tech " + lv.tech + " / high " + lv.high + " / common
 const dist = {};
 ipaIssues.forEach(function (i) { dist[i.by] = (dist[i.by] || 0) + 1; });
 Object.keys(dist).forEach(function (k) { console.log("  - '" + k + "': " + dist[k]); });
-console.log("\n报告：" + OUT);
-console.log("难度补丁：" + PATCH);
+console.log(READ_ONLY
+  ? "\n报告未写入（只读模式：未写盘）：" + OUT
+  : "\n报告：" + OUT);
+console.log(READ_ONLY
+  ? "难度补丁未写入（只读模式：未写盘）：" + PATCH
+  : "难度补丁：" + PATCH);

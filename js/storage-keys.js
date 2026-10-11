@@ -32,7 +32,7 @@
       { key: "fte-history-v1", kind: "progress", owner: "app.js", backup: true, note: "每日学习效果快照（学习走势曲线）" },
       { key: "fte-home-favs", kind: "pref", owner: "app.js", backup: true, note: "首页收藏到常用" },
       { key: "fte-home-goal", kind: "pref", owner: "app.js", backup: true, note: "工作目标（个人化「今日」的依据）" },
-      { key: "fte-onboarded", kind: "pref", owner: "app.js", backup: true, note: "首次上手横幅已处理" },
+      { key: "fte-onboarded", kind: "pref", owner: "app.js", backup: true, note: "顶部提示横幅已处理：逗号分隔的标记集合，ob=导流、wx=微信内提示；旧值 \"1\" 读作 ob（P0-13 向后兼容）" },
       { key: "fte-placement", kind: "progress", owner: "app.js", backup: true, note: "水平自测起点单元" },
       { key: "fte-placement-bank", kind: "progress", owner: "app.js", backup: true, note: "水平自测的固定题库（同一用户复测用同一套题，分数才可比）" },
       { key: "fte-placement-v2", kind: "progress", owner: "placement.js", backup: true, note: "水平自测 v2 基线（分项定级 + 复测排期）" },
@@ -57,7 +57,7 @@
       { key: "fte-subtitle-mode", kind: "pref", owner: "subtitle.js", backup: true, note: "字幕四档位选择" },
       { key: "fte-sub-notes-v1", kind: "progress", owner: "subtitle.js", backup: true, note: "字幕逐句笔记（按 文件名+起始秒 定位，换字幕不串位）" },
       { key: "fte-tutor-fill", kind: "pref", owner: "tutor.js", backup: true, note: "AI 陪练场景预填/临时输入" },
-      { key: "fte-trace-v1", kind: "progress", owner: "entry-trace.js", backup: true, note: "入口离开/主线进入的只读行为记录" },
+      { key: "fte-trace-v1", kind: "progress", owner: "entry-trace.js", backup: false, note: "入口离开/主线进入的只读行为记录" },
       { key: "fte-trace-off", kind: "pref", owner: "entry-trace.js", backup: true, note: "行为记录开关（关闭标记）" },
       { key: "fte-tutor-cfg", kind: "secret", owner: "tutor.js / eval4.js / speech.js", backup: false, note: "AI 陪练服务商配置，含 API Key —— 绝不导出" }
     ]

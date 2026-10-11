@@ -62,9 +62,16 @@ check("P0′：board.js 的属性位转义 escAttr 存在且用于 t.href",
   /(function escAttr\(|escAttr\s*=\s*function\s*\()/.test(boardJs) && /escAttr\(t\.href\)/.test(boardJs));
 check("P0′：app.js 的 toast 换行分支先转义再插 <br>", /t\.innerHTML\s*=\s*esc\(text\)\.replace\(\/\\n\/g,\s*"<br>"\)/.test(read("js/app.js")));
 const exportJs = read("js/export.js");
-check("P0′：js/export.js 具备字段级净化 sanitizeProgress", /function sanitizeProgress\(/.test(exportJs) && /sanitizeProgress\(/.test(exportJs));
-check("P0′：导入写入路径确实经过净化（两处 setItem 都要走）",
-  (exportJs.match(/sanitizeProgress\(stripSecrets\(/g) || []).length === 2);
+check("P0′：js/export.js 具备字段级净化 sanitizeProgress", /function sanitizeProgress\(/.test(exportJs));
+/* ▲ P0 第三批 · α 组（P0-08）改法 —— S11-N-3：原第 66-67 行只做**正则计数**
+     `(exportJs.match(/sanitizeProgress\(stripSecrets\(/g) || []).length === 2`，
+   于是"净化前缀写错 / 白名单整体不命中 / 净化被摘掉"时它仍可能全绿 ——
+   它证明的只是"源码里出现过这个字样两次"，不是"导入的坏值真的被净化"。
+   现在保留一条**结构下限**（字样必须还在），真正的判据放到 ⑥ 的**行为验证**：
+   在 vm + localStorage 桩里真跑 importProgress，喂坏类型值，断言写盘产物已被净化。 */
+check("P0′：导入写入路径在源码里确实调用了 sanitizeProgress(stripSecrets(...))（结构下限，行为见 ⑥）",
+  (exportJs.match(/sanitizeProgress\(stripSecrets\(/g) || []).length >= 2,
+  "n=" + (exportJs.match(/sanitizeProgress\(stripSecrets\(/g) || []).length);
 
 /* ============ ③ index.html 的 CSP 与脚本形态 ============ */
 const html = read("index.html");
@@ -143,6 +150,12 @@ check("progress 里的 azureKey 被声明为敏感字段", !!(reg.secretFields &
 const store = {};
 let captured = null;
 const elStub = { click: function () { }, setAttribute: function () { }, appendChild: function () { }, removeChild: function () { }, style: {} };
+const domListeners = {};
+function FileReaderStub() { }
+FileReaderStub.prototype.readAsText = function (file) {
+  this.result = file && file._text;
+  if (typeof this.onload === "function") this.onload();
+};
 const sandbox = {
   console: console,
   setTimeout: function () { }, clearTimeout: function () { },
@@ -152,7 +165,7 @@ const sandbox = {
     removeItem: function (k) { delete store[k]; }
   },
   document: {
-    addEventListener: function () { },
+    addEventListener: function (t, fn) { (domListeners[t] = domListeners[t] || []).push(fn); },
     getElementById: function () { return null; },
     createElement: function () { return elStub; },
     body: { appendChild: function () { }, removeChild: function () { } }
@@ -160,7 +173,11 @@ const sandbox = {
   Blob: function (parts) { captured = parts.join(""); },
   URL: { createObjectURL: function () { return "blob:test"; }, revokeObjectURL: function () { } },
   FTE_DATA: { site: { name: "测试站" }, units: [{ id: 1 }] },
-  ASRUtil: { toast: function () { } }
+  ASRUtil: { toast: function () { } },
+  /* ⑥ 行为验证用：走 export.js 真实的 importProgress 路径需要这三个桩 */
+  FileReader: FileReaderStub,
+  confirm: function () { return true; },
+  location: { reload: function () { } }
 };
 sandbox.window = sandbox;
 const ctx = vm.createContext(sandbox);
@@ -202,10 +219,110 @@ if (pack) {
   check("备份声明了自己覆盖了多少类记录", typeof pack.keyCount === "number" && pack.keyCount >= 7, "keyCount=" + pack.keyCount);
 }
 
-/* 导入侧：不得把凭据写回 */
+/* ============ ⑥ 导入侧：真跑 importProgress，断言坏类型值真的被净化（行为验证）============
+   ▲ P0 第三批 · α 组（P0-08）改法 —— S11-N-3（N-2 之所以没被拦下的直接原因）：
+   原实现在这一节只做源码正则（/!isSecretKey\(k\)/、/stripSecrets\(PROG_KEY,\s*merged\)/），
+   而上面 ⑤ 的导出侧却是真跑 —— 导入侧是整条备份链路里**唯一没有行为门禁**的一段，
+   偏偏它也是当时唯一还带着真缺陷的一段（S11-N-2：净化 prefix 错位使白名单在部分键上永不命中）。
+   现在复用同一个 vm + localStorage 桩，通过 export.js 自己注册的 change 监听器，
+   喂一份**被篡改过的备份 JSON**，再断言写盘产物：
+     · 数字位（coach.streak / writes[].wc / tasks[].min）里的字符串必须被净化为 0；
+     · URL 位（tasks[].href）里的坏值必须被净化为 "#"；
+     · str 文本位按契约原样保留（渲染层另走 esc），证明净化没有"一刀切"误伤；
+     · 布尔位 learned.* 保留 true/false（历史事故：被当数字吃成 0 → 进度看起来全丢）；
+     · 凭据键/字段（fte-tutor-cfg / progress.azureKey）不得被写回。
+   验收：把 export.js 的净化故意摘掉（writeOne 或进度键写入路径），本节必须变红。 */
+const BAD = '<img src=x onerror=alert(1)>';
+const BAD_SECRET = "SECRET-AZURE-KEY";
+const BAD_TUTOR = "SECRET-TUTOR-KEY";
+
+Object.keys(store).forEach(function (k) { delete store[k]; });
+/* 先放一份"当前进度"进去，让导入走**合并分支**（mergeObject）而不是直通分支 */
+store["fte-progress-v1"] = JSON.stringify({
+  schema: 1, learned: { c: true }, coach: { streak: 5, today: 60, total: 3600 }, azureKey: BAD_SECRET
+});
+
+const evilPack = {
+  _tag: "soft-packaging-fte",
+  _version: 1,
+  exportedAt: "2026-01-01T00:00:00.000Z",
+  data: {}
+};
+evilPack.data["fte-progress-v1"] = {
+  schema: 99,
+  learned: { a: true, b: false },
+  coach: { streak: BAD, today: BAD, total: BAD },
+  writes: [{ t: 1, wc: BAD, rate1: BAD, text: BAD }],
+  azureKey: BAD_SECRET,
+  azureRegion: "eastasia"
+};
+evilPack.data["fte-board-v1"] = {
+  week: "2026-W01",
+  tasks: [{ id: "a", title: "正常标题", href: BAD, min: BAD, status: "todo", due: "2026-01-02" }]
+};
+evilPack.data["fte-tutor-cfg"] = { apiKey: BAD_TUTOR };
+evilPack.data["fte-sop-v1"] = { checks: { s1: 1 } };
+
+const changeHandlers = domListeners["change"] || [];
+check("⑥ 行为验证：export.js 注册了 change 监听（导入入口存在）", changeHandlers.length > 0,
+  "n=" + changeHandlers.length);
+
+let importThrew = null;
+try {
+  changeHandlers.forEach(function (fn) {
+    fn({ target: { id: "dataImportFile", files: [{ _text: JSON.stringify(evilPack) }] } });
+  });
+} catch (e) { importThrew = e; }
+check("⑥ 行为验证：importProgress 在 vm 沙箱里真跑完（不抛错）",
+  !importThrew, importThrew ? String(importThrew && importThrew.message) : "");
+
+let imported = null;
+try { imported = JSON.parse(store["fte-progress-v1"]); } catch (e) { imported = null; }
+check("⑥ 行为验证：导入真的写回了 fte-progress-v1", !!imported);
+if (imported) {
+  check("⑥ 进度键：坏类型 coach.streak（字符串）被净化成 0",
+    !!(imported.coach) && imported.coach.streak === 0, "coach=" + JSON.stringify(imported.coach));
+  check("⑥ 进度键：坏类型 coach.today / coach.total 被净化成 0",
+    !!(imported.coach) && imported.coach.today === 0 && imported.coach.total === 0);
+  check("⑥ 进度键：坏类型 writes[0].wc / rate1 被净化成 0",
+    Array.isArray(imported.writes) && imported.writes[0] &&
+    imported.writes[0].wc === 0 && imported.writes[0].rate1 === 0,
+    "writes=" + JSON.stringify(imported.writes));
+  check("⑥ 进度键：str 文本位 writes[0].text 原样保留（净化只做类型收窄，不误伤文本）",
+    Array.isArray(imported.writes) && imported.writes[0] && imported.writes[0].text === BAD);
+  check("⑥ 进度键：布尔位 learned.* 保留 true/false（不得被当数字吃成 0）",
+    !!(imported.learned) && imported.learned.a === true && imported.learned.b === false && imported.learned.c === true,
+    "learned=" + JSON.stringify(imported.learned));
+  check("⑥ 进度键：导入不把 azureKey 写回（字段级凭据剥离）",
+    imported.azureKey === undefined);
+}
+
+let board = null;
+try { board = JSON.parse(store["fte-board-v1"]); } catch (e) { board = null; }
+check("⑥ 独立键：fte-board-v1 真的被写回（restKeys → writeOne 路径）", !!board);
+if (board) {
+  const task = (board.tasks || [])[0] || {};
+  check("⑥ 独立键：URL 位 t.href 的坏值被净化成 \"#\"（白名单前缀命中）",
+    task.href === "#", "href=" + JSON.stringify(task.href));
+  check("⑥ 独立键：数字位 t.min 的坏值被净化成 0", task.min === 0, "min=" + JSON.stringify(task.min));
+  check("⑥ 独立键：文本位 t.title 原样保留（没被净化误伤）", task.title === "正常标题");
+}
+
+check("⑥ 导入侧：凭据键 fte-tutor-cfg 不被写回 localStorage", store["fte-tutor-cfg"] === undefined);
+check("⑥ 导入侧：凭据明文没有落进任何写回的键",
+  JSON.stringify(store).indexOf(BAD_SECRET) === -1 && JSON.stringify(store).indexOf(BAD_TUTOR) === -1);
+check("⑥ 导入侧：数字位 / URL 位上都不再是注入串",
+  [imported && imported.coach && imported.coach.streak,
+   imported && imported.writes && imported.writes[0] && imported.writes[0].wc,
+   imported && imported.writes && imported.writes[0] && imported.writes[0].rate1,
+   board && board.tasks && board.tasks[0] && board.tasks[0].href,
+   board && board.tasks && board.tasks[0] && board.tasks[0].min
+  ].every(function (v) { return typeof v === "number" || v === "#"; }));
+
+/* 结构下限（保留）：导入循环仍必须跳过凭据键、仍必须由注册表生成导出清单 */
 const exportSrc = read("js/export.js");
-check("导入循环跳过凭据键", /!isSecretKey\(k\)/.test(exportSrc));
-check("导入不把 azureKey 写回进度", /stripSecrets\(PROG_KEY,\s*merged\)/.test(exportSrc));
+check("导入循环跳过凭据键（结构）", /!isSecretKey\(k\)/.test(exportSrc));
+check("导入不把 azureKey 写回进度（结构）", /stripSecrets\(PROG_KEY,\s*merged\)/.test(exportSrc));
 check("导出清单由注册表生成（不再手写 EXTRA_KEYS）", /window\.FTE_STORAGE/.test(exportSrc) && !/EXTRA_KEYS/.test(exportSrc));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");

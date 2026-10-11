@@ -24,6 +24,16 @@ Expand-Archive -Path $zip -DestinationPath $tmp -Force
 Move-Item (Join-Path $tmp 'vosk-model-small-en-us-0.15') (Join-Path $root 'models') -Force
 Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 
+Write-Host "== [3/3] Packing model into tar.gz (vosk-browser downloads a tar.gz, NOT a directory) =="
+# P1 离线识别修复（真机定位）：vosk-browser 的 worker 走 downloadAndExtract(url)：
+#   fetch(url) -> downloaded.tar.gz -> ArchiveHelper.Extract(stripFirstComponent=true)
+# 所以 createModel() 必须收到 .tar.gz；传解压目录会 404，且库层不把错误变成 rejection（静默挂住）。
+$archive = Join-Path $root 'models\vosk-model-small-en-us-0.15.tar.gz'
+if (Test-Path $archive) { Remove-Item $archive -Force }
+& tar.exe -czf $archive -C (Join-Path $root 'models') 'vosk-model-small-en-us-0.15'
+if (-not (Test-Path $archive)) { throw "tar.gz packing failed: $archive" }
+Write-Host ("   -> " + $archive)
+
 Write-Host ""
 Write-Host "Done. Enable 'local offline recognition' in the pronunciation settings, then"
 Write-Host "use the review buttons in the 4-dimension speaking page -- fully offline now."

@@ -12,8 +12,17 @@
 
    做法：读 index.html 的每个 `<script src>`，逐个问 git "这个文件被跟踪了吗"。
     · 未跟踪 → exit 1（并逐个列出，告诉你该 `git add` 哪些）
-    · git 不可用 / 不在 git 仓库 → exit 78（SKIP，**不显示成功** —— 见下方 V-05 教训）
+    · git 不可用 / 不在 git 仓库 → **exit 1（失败，不是跳过）** —— 见下方 V-05 / S10-F2 教训
+    · tools/test-all.js 缺失（工具链结构变了）→ **exit 1（失败，不是跳过）**
    运行：node tools/check-tracked.js   （在 外贸英语/ 目录下）
+
+   ⚠️ P0 第三批 · α 组（P0-08）改法 —— S10-F2：本门禁原先在"测不了"时**退出 78 / 0 的 SKIP**
+   （非 git 目录 exit 78、test-all.js 缺失 exit 0），而 SKIP 在 test-all 里被当成"通过"渲染，
+   于是"什么都没测"照样全绿。这与 check-single-source 的 SKIP→绿 是同一类假绿（S10-F3）。
+   现在三种"测不了"的输入一律 **exit 1**，并把"怎么办"写在输出里 —— 宁可在异地/CI 里显式红，
+   也不给一个读起来像成功的假绿。
+   ⚠️ 验证"是否被跟踪"只用 `git rm --cached` / `git add` 这类**只动索引**的手段；
+   绝不要用 `git checkout -- <文件>`（会把工作区未提交改动一起回滚，本站已有踩坑记录）。
 
    ⚠️ 第二轮加固（本轮补）：本门禁原先**只查 index.html**，于是漏掉了同一类事故里更隐蔽的
    一处 —— **"被 npm test 自己依赖的工具脚本/模块"没被跟踪**。
@@ -36,18 +45,37 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+let html;
+try {
+  html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+} catch (e) {
+  console.error("❌ 读不到 index.html（工作目录不对或文件缺失）：" + path.join(ROOT, "index.html"));
+  console.error("   " + (e && e.message));
+  console.error("   怎么办：确认在 外贸英语/ 目录下运行本脚本；若文件确实丢失，先把 index.html 恢复到工作区。");
+  process.exit(1);
+}
 
 function git(args) {
   return spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
 }
 
-/* ---------- 0. 前置：git 可用且在仓库内 ---------- */
+/* ---------- 0. 前置：git 可用且在仓库内（不满足 = 失败，不是跳过） ---------- */
 const probe = git(["rev-parse", "--is-inside-work-tree"]);
+if (probe.error) {
+  console.error("❌ 找不到可执行的 git（" + probe.error.message + "）——本门禁**不跳过**，按失败处理。");
+  console.error("   为什么不能跳过：它守的是「改了没提交 → 线上 404 / 功能静默缺失」，");
+  console.error("   在拿不到 git 判定时它等于没跑，而「没跑」被读成「通过」正是假绿的来源（S10-F2）。");
+  console.error("   怎么办：安装 git 并确保它在 PATH 上；或在有 git 的机器/CI 上跑本门禁。");
+  process.exit(1);
+}
 if (probe.status !== 0 || String(probe.stdout).trim() !== "true") {
-  console.log("⏭ SKIP：当前目录不在 git 工作树内（无法判定跟踪状态）。");
-  console.log("   注意：SKIP **不是**成功 —— 请不要把本行读成「门禁通过」。");
-  process.exit(78);
+  console.error("❌ 当前目录不在 git 工作树内：" + ROOT);
+  console.error("   本门禁**不跳过**，按失败处理（SKIP 被读成成功 = 假绿，见 S10-F2/F3）。");
+  console.error("   怎么办（任选其一）：");
+  console.error("     ① 在真实检出里运行：`git rev-parse --is-inside-work-tree` 应输出 true；");
+  console.error("     ② 若这是一份没有 .git 的拷贝，先在该目录 `git init && git add -A` 再重跑；");
+  console.error("     ③ 核对工作目录是否写错（当前 = " + ROOT + "）。");
+  process.exit(1);
 }
 
 /* ---------- 1. 取出 index.html 里全部本地脚本引用 ---------- */
@@ -79,7 +107,7 @@ console.log("引用本地脚本：" + srcs.length + " 个 · 已跟踪 " + ok.le
 
 if (missing.length) {
   console.log("\n❌ 引用了**磁盘上也不存在**的脚本（站点会 404）：");
-  missing.forEach(function (s) { console.log("   - " + s); });
+  missing.forEach(function (s) { console.log("   - " + s + "   →  先创建该文件并 `git add " + s + "`；若已废弃，请从 index.html 删掉这条 <script>"); });
 }
 if (onDiskOnly.length) {
   console.log("\n❌ 以下 " + onDiskOnly.length + " 个脚本**存在但未被 git 跟踪** —— `git commit -am` 不会带上它们，");
@@ -108,8 +136,8 @@ console.log("✅ 全部已跟踪（不会被 `git commit -am` 漏掉）。");
    却被第一版解析器当成了真依赖，于是解析出 tools/lib/lib/clock.js（不存在）→ 门禁假红。
    所以先用 stripComments() 去掉块注释与行注释（保留换行，行号不漂）。
 
-   exit 78（SKIP）的边界：test-all.js 本身不在（说明目录结构变了）时**不显示成功**，
-   与本文件第 0 节同一口径 —— 宁可显式跳过，也不给一个假绿的"✅"。 */
+   test-all.js 本身不在（说明目录结构变了）时按 **exit 1 失败**处理，与本文件第 0 节同一口径 ——
+   宁可显式变红，也不给一个读起来像通过的假绿"✅"（P0 第三批 α 组按 S10-F2 收紧了此处）。 */
 const TOOLS = path.join(ROOT, "tools");
 const TEST_ALL = path.join(TOOLS, "test-all.js");
 
@@ -158,10 +186,11 @@ const toolDeps = collectToolDeps();
 
 console.log("\n======== 门禁依赖跟踪状态（npm test 的工具脚本/模块）========");
 if (!toolDeps) {
-  console.log("⏭ SKIP：未找到 tools/test-all.js（目录结构变了？）——本节未执行。");
-  console.log("   注意：SKIP **不是**成功。test-all.js 与 0 号那节已通过，故整体仍为 exit 0，");
-  console.log("   但请人工确认「被 npm test 依赖的文件」是否也都在版本库里。");
-  process.exit(0);
+  console.error("❌ 未找到 tools/test-all.js（" + TEST_ALL + "）——本节**不跳过**，按失败处理。");
+  console.error("   为什么不能跳过：这一节守的是「npm test 依赖的工具脚本/模块没被提交」——");
+  console.error("   它不跑，就等于把「干净克隆后 npm test 直接报错」这类事故放行（S10-F2 的同类假绿）。");
+  console.error("   怎么办：核对 tools/ 目录是否完整；若目录结构确实改了，请同步更新本脚本的入口路径。");
+  process.exit(1);
 }
 
 const depMissing = [], depUntracked = [], depOk = [];

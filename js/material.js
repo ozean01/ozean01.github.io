@@ -17,7 +17,9 @@
   window.MaterialImport._t = { splitSentences: splitSentences, isMostlyEnglish: isMostlyEnglish, fetchText: fetchText, extractWords: extractWords };
 
   /* 会话状态：本次导入的原始文本、标题、拆出的句子 */
-  const S = window.MaterialImport._state = { raw: "", title: "", sentences: [], parsed: false, error: "" };
+  /* P1-C · fetchedUrl：记住"框里那段链接的正文已经取回来了"，供「📌 拆成句子」判断，
+     避免拿上一次抓取的正文去拆这一次的链接（S01 的投料口顺序陷阱）。 */
+  const S = window.MaterialImport._state = { raw: "", title: "", sentences: [], parsed: false, error: "", fetchedUrl: "" };
 
   const E = function () { return window.TutorEnv || {}; };
   const esc = function (s) { const ev = E().esc || window.FTE_BOOT.esc; return ev ? ev(s) : String(s == null ? "" : s); };
@@ -49,6 +51,38 @@
   }
 
   function isYouTube(url) { return /youtube\.com|youtu\.be/i.test(url || ""); }
+
+  /* ---------------- P1-C · 输入的是链接还是文本 ----------------
+     为什么要有它（S01 实测的"顺序陷阱"）：投料口有两个独立按钮（抓取 / 拆句），
+     用户把链接贴进来直接点「📌 拆成句子」时，原来会走到「输入的内容太少」这条错路上——
+     其实是**还没抓取**，不是内容少。这里给一个明确的判据：
+       · 带协议的完整链接（http/https）        → 是链接
+       · 省略协议的裸域名（example.com/a/b）    → 也是链接（抓取时补 https://）
+       · 任何含空白的多词文本（正文）           → 不是链接，走拆句
+     旧判据 `!/^https?:\/\//i.test(url) && !/^https?:\/\//i.test("https://" + url)` 的第二项
+     对任何非空输入恒为真 → 整个条件恒假 → 校验永远不触发（已修）。 */
+  function looksLikeUrl(v) {
+    const s = String(v == null ? "" : v).trim();
+    if (!s || /\s/.test(s)) return false;
+    if (/^https?:\/\/[^\s/]+/i.test(s)) return true;
+    if (/^[^\s/]+\.[a-z]{2,}(?:[/?#]\S*)?$/i.test(s)) return true;
+    return false;
+  }
+  /* 链接 = 必须先抓取才能拆句。未抓取时把「📌 拆成句子」置灰并就地说明下一步点哪里。 */
+  function syncParseLinkState() {
+    const box = document.getElementById("matSource");
+    const btn = document.getElementById("matParse");
+    const hint = document.getElementById("matParseHint");
+    const v = String(box ? box.value : (S.raw || "")).trim();
+    const isLink = looksLikeUrl(v);
+    const ready = !isLink || S.fetchedUrl === v;
+    if (btn) btn.disabled = !ready;
+    if (hint) {
+      hint.textContent = ready
+        ? (isLink ? "✓ 这段链接的正文已取回，可以「📌 拆成句子」了。" : "粘贴的是文本，直接点「📌 拆成句子」。")
+        : "⚠️ 这段看起来是网页链接，正文还没取回来：先点它左边的「🌐 抓取网页正文」，取回后这里会自动解锁；不想联网就把正文粘贴进框里。";
+    }
+  }
 
   /* ---------------- 文本清理：去掉 Markdown/图片/导航等噪音 ---------------- */
   function cleanText(raw) {
@@ -261,10 +295,14 @@
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <input type="text" id="matTitle" value="${esc(S.title)}" placeholder="给这段材料起个标题（可选）" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;outline:none">
         <button class="btn btn-soft btn-sm" data-action="mat-fetch">🌐 抓取网页正文</button>
-        <button class="btn btn-primary btn-sm" data-action="mat-parse">📌 拆成句子</button>
+        <button class="btn btn-primary btn-sm" id="matParse" data-action="mat-parse"${(() => {
+          /* P1-C · 贴的是链接且还没抓取时，「拆成句子」先置灰——不让用户踩「内容太少」那条错路 */
+          const t = String(S.raw || "").trim();
+          return (looksLikeUrl(t) && S.fetchedUrl !== t) ? " disabled" : "";
+        })()}>📌 拆成句子</button>
         <button class="btn btn-outline btn-sm" data-action="mat-clear">🗑 清空</button>
       </div>
-      <div class="field-note" style="margin-top:8px">粘贴的是链接时，点「🌐 抓取网页正文」获取正文；粘贴的是文本，直接「📌 拆成句子」。YouTube 视频请用字幕转录工具复制<b>英文台词文本</b>粘贴（是<a href="#/sources">真实听音源</a>的延伸，从任意材料练）。</div>
+      <div class="field-note" style="margin-top:8px" id="matParseHint">粘贴的是链接时，<b>先</b>点「🌐 抓取网页正文」（左边那个）取回正文，再点「📌 拆成句子」；粘贴的是文本，直接「📌 拆成句子」。YouTube 视频请用字幕转录工具复制<b>英文台词文本</b>粘贴（是<a href="#/sources">真实听音源</a>的延伸，从任意材料练）。</div>
       ${S.error ? '<div class="sop-hint" style="margin-top:8px">⚠️ ' + esc(S.error) + "</div>" : ""}
     </div>
 
@@ -306,6 +344,10 @@
         toast("📅 已填入本周来源链接，点「🌐 抓取网页正文」取回正文");
       }
     }
+    /* P1-C · 边输边判：链接没抓取时「📌 拆成句子」保持置灰并给出下一步（不整页重渲染，
+       否则每敲一个字焦点都会丢）。 */
+    if (src) src.addEventListener("input", syncParseLinkState);
+    syncParseLinkState();
   }
 
   /* ---------------- 事件委托 ---------------- */
@@ -315,20 +357,32 @@
     if (title) S.title = title.value.trim();
 
     if (act === "mat-clear") {
-      S.raw = ""; S.title = ""; S.sentences = []; S.error = ""; S.parsed = false;
+      S.raw = ""; S.title = ""; S.sentences = []; S.error = ""; S.parsed = false; S.fetchedUrl = "";
       render();
       return;
     }
     if (act === "mat-fetch") {
       const url = (src ? src.value : "").trim();
-      if (!url) { toast("请先粘贴一个网页链接"); return; }
-      if (!/^https?:\/\//i.test(url) && !/^https?:\/\//i.test("https://" + url)) { toast("请粘贴完整的 http(s) 链接（例如 https://…）"); return; }
+      if (!url) {
+        S.error = "还没有可抓取的内容：先把网页链接（或正文文本）粘贴进上面的输入框。";
+        render();
+        return;
+      }
+      /* P1-C · 修掉恒假判断：原来 `!A && !B` 里的 B 对任何非空输入都成立 → 校验永不触发。
+         现在用 looksLikeUrl 真判一次，不合格时给**就地**的三段式提示（发生了什么 / 为什么 / 现在点哪里），
+         不再用 3 秒后消失的 toast 当唯一出口。 */
+      if (!looksLikeUrl(url)) {
+        S.error = "这不像一个网页地址：「" + url.slice(0, 60) + "」。抓取需要以 http:// 或 https:// 开头的完整链接（例如 https://example.com/article），省略协议时至少要是一个域名。如果你手上是正文文字，直接点右边的「📌 拆成句子」；隐私要求高就粘贴正文，全程不联网。";
+        render();
+        return;
+      }
       const target = /^https?:\/\//i.test(url) ? url : "https://" + url;
       S.error = "";
       toast("🌐 正在抓取正文（脚本阅读器，需联网，稍等几秒）…");
       fetchText(target).then(function (text) {
         if (!text || text.length < 40) throw new Error("抓取结果过短，可能该页面不支持自动抓取");
         S.raw = text;
+        S.fetchedUrl = url;             // P1-C · 记住这段链接的正文已取回
         if (!S.title) S.title = target.replace(/^https?:\/\//, "").slice(0, 40);
         S.sentences = splitSentences(text);
         S.parsed = true;
@@ -336,18 +390,31 @@
         toast("✓ 抓到正文，已拆出 " + S.sentences.length + " 句");
         render();
       }).catch(function (err) {
-        S.error = "抓取失败（" + (err && err.message ? err.message : "网络/跨域") + "）。可直接把正文粘贴到框里，无需联网。";
+        S.error = "抓取失败（" + (err && err.message ? err.message : "网络/跨域") + "）：这一步没联网成功。可直接把正文粘贴到框里，无需联网——粘贴后点「📌 拆成句子」。";
         render();
       });
       return;
     }
     if (act === "mat-parse") {
       const text = (src ? src.value : "").trim();
-      if (!text) { toast("请先粘贴正文或链接"); return; }
+      if (!text) {
+        S.error = "还没有可拆的内容：先粘贴英文正文或网页链接。";
+        render();
+        return;
+      }
+      /* P1-C · 顺序陷阱：贴的是链接时，正文必须先取回来。以前这里会走
+         `docs = S.raw`（可能是空的或上一次的正文）→ 报「输入的内容太少」，
+         把"还没抓取"误诊成"内容太少"。现在分开说，并指出该点哪个按钮。 */
+      if (looksLikeUrl(text) && S.fetchedUrl !== text) {
+        S.error = "你贴的是一段网页链接，正文还没取回来——所以现在没有可拆的句子（不是内容太少）。现在点它左边的「🌐 抓取网页正文」；取回后这里会自动解锁。也可以把正文直接粘贴进框里（替换掉链接），再点「📌 拆成句子」。";
+        render();
+        return;
+      }
       /* 若粘贴的是链接且已抓到全文，用全文；否则直接把输入内容当文本拆句 */
-      const docs = /^https?:\/\//i.test(text) ? S.raw : text;
-      if (!docs || docs.length < 40) { S.error = "输入的内容太少，无法拆句（至少需要一两句完整的英文）"; render(); return; }
+      const docs = looksLikeUrl(text) ? S.raw : text;
+      if (!docs || docs.length < 40) { S.error = "输入的内容太少，无法拆句（至少需要一两句完整的英文）。"; render(); return; }
       S.raw = docs;
+      S.fetchedUrl = "";               // P1-C · 框里已是正文，不再与任何链接绑定
       S.sentences = splitSentences(docs);
       S.parsed = true;
       if (!S.title) S.title = "导入素材";

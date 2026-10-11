@@ -102,10 +102,17 @@ sandbox.globalThis = sandbox;
 sandbox.self = sandbox;
 const ctx = vm.createContext(sandbox);
 
-const scripts = [];
-const re = /<script\s+src="(js\/[^"]+)"/g;
+/* ▲ P0 第三批 · α 组（P0-08）：脚本清单改成**从 index.html 全量解析**（原正则写死 `js/` 前缀，
+   一旦脚本换目录/加前缀就会静默少测）。外链（CDN vendor）另行计数、不参与注入复测。 */
+const ALL_SCRIPT_TAGS = [];
+const reTag = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
 let m;
-while ((m = re.exec(html)) !== null) scripts.push(m[1]);
+while ((m = reTag.exec(html)) !== null) ALL_SCRIPT_TAGS.push(m[1]);
+const isExternal = function (s) { return /^https?:\/\//i.test(s) || s.startsWith("//"); };
+const EXPECTED_SCRIPTS = ALL_SCRIPT_TAGS.filter(function (s) { return !isExternal(s); })
+  .map(function (s) { return s.replace(/^\.\//, "").split("?")[0].split("#")[0]; });
+const EXTERNAL_COUNT = ALL_SCRIPT_TAGS.length - EXPECTED_SCRIPTS.length;
+const scripts = EXPECTED_SCRIPTS.slice();
 const loadFail = [];
 /* app.js 必须在最后加载：它在加载期就会渲染一次 #/today。
    为了让「污染过的 localStorage 被读到」这一场景真实成立，
@@ -132,7 +139,26 @@ scripts.forEach(function (rel) {
   catch (e) { loadFail.push(rel + " → " + (e && e.message)); }
 });
 console.log("脚本加载：" + (scripts.length - loadFail.length) + "/" + scripts.length +
+  (EXTERNAL_COUNT ? ("（另 " + EXTERNAL_COUNT + " 个外链 <script src> 不在本门禁范围）") : "") +
   (loadFail.length ? "  失败：" + loadFail.join("; ") : ""));
+
+/* ---------------- 判定前：加载失败 / 计数对不上 ⇒ 直接失败 ----------------
+   ▲ P0 第三批 · α 组（P0-08）改法 —— S10-F4：原先 loadFail 只打印，退出码只看 hits。
+   页面渲染为空时 5 个注入点全部落进"未命中" → 全绿 —— 门禁从"证明挡住了"退化成"什么都没测"。
+   现在：任一脚本加载失败，或实际加载数 ≠ index.html 的同源 `<script src>` 数，
+   都在做注入判定**之前** exit 1（结论不可信，不给绿）。 */
+const LOADED_OK = scripts.length - loadFail.length;
+const COUNT_OK = LOADED_OK === EXPECTED_SCRIPTS.length &&
+  EXPECTED_SCRIPTS.length + EXTERNAL_COUNT === ALL_SCRIPT_TAGS.length;
+if (loadFail.length || !COUNT_OK) {
+  console.error("❌ 脚本未按 index.html 的真实清单全部加载成功，注入复测结论**不可信**：");
+  console.error("   index.html 的 <script src> 共 " + ALL_SCRIPT_TAGS.length + " 个（同源 " +
+    EXPECTED_SCRIPTS.length + " 个 / 外链 " + EXTERNAL_COUNT + " 个），实际加载成功 " + LOADED_OK + " 个");
+  if (loadFail.length) console.error("   加载失败：" + loadFail.join("; "));
+  if (!COUNT_OK) console.error("   计数不符：解析出的同源脚本数与加载清单不一致（解析器坏了？）");
+  console.error("   处理：先修好加载/解析再复跑；本门禁在「什么都没测」时不再给绿。");
+  process.exit(1);
+}
 
 function renderPage(hash) {
   ctx.location.hash = hash;

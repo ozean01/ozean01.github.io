@@ -2,6 +2,20 @@ name: Test & Audit
 
 # 每次 push / PR 及手动触发时，跑数据与算法的门禁测试 + 单一数据源漂移检查。
 # 本站零构建、无运行时依赖，直接 node 运行脚本即可，无需 npm install。
+#
+# ▲ P1-D（S10-F13 的 CI 侧部分）：三个审计脚本（audit-count / audit-ipa / audit-input）在被
+#   tools/test-all.js 调用时会重写**被跟踪**的 tools/report-*.json / report-ipa.csv /
+#   data-lvl-patch.js，把工作区弄脏（report-input.json 还带 generatedAt 时间戳，每跑必变）。
+#   现在统一给这些步骤设 `FTE_NO_WRITE=1`：脚本只计算、只打印，不写盘 —— CI 不再产生无意义的
+#   工作区改动，也让"跑测试"这件事在任何机器上都是只读的。默认行为不变：
+#   本地 `node tools/audit-count.js` / `npm run audit` 仍然生成报告。
+#
+#   ▲ 未采用的建议（记录在此，避免以后再讨论一遍）：S10-F13 建议在 CI 里跑完审计后加
+#     `git diff --exit-code -- tools/report-*.* …`，把"报告与数据是否同步"变成信号。
+#     本批次采用更保守的做法：CI 侧一律只读（不写盘 → 无需 diff）。
+#     代价（诚实说明）：report-ipa.csv / data-lvl-patch.js 与数据的同步**没有**机器检查，
+#     只有 report-count.json 的 4 个数字被 tools/test-doc-numbers.js 实时对账。
+#     是否补一条"同步门禁"属于产品取舍，见 P1-D 改动记录的「需 Lead 拍板」。
 on:
   push:
   pull_request:
@@ -25,9 +39,25 @@ jobs:
 
       - name: Run tests (audit + assertions)
         run: node tools/test-all.js
+        env:
+          FTE_NO_WRITE: "1"
 
-      - name: Single-source drift check
-        run: node tools/check-single-source.js
+      # ▲ P1 决策（Lead，2026-10-10）：单一数据源检查在本仓库的 CI 里**必须显式传 --allow-missing**。
+      #   为什么：小程序端是**兄弟目录** `../外贸英语小程序/`，并不在本仓库内，
+      #   因此 CI checkout 出来的工作区**永远**没有 `外贸英语小程序/utils/data.js`。
+      #   而 P0-08 已把 check-single-source.js 的默认行为收紧为 strict（测不了 = 失败），
+      #   所以不加这个参数，CI 会 100% 常红 —— 那等于把门禁变成噪声。
+      #   取舍（诚实说明）：CI 里这条检查实际只验证"源数据可读、生成器可跑"，**漂移检查只在本地有效**；
+      #   本机跑 `node tools/check-single-source.js`（不带参数）仍然是严格模式，会真比较两份数据。
+      #   要让它恢复成真检查，需要把小程序端纳入本仓库（或把生成物提交进来）—— 这是产品决策，未做。
+      - name: Single-source drift check (strict locally; CI has no mini-program sibling dir)
+        run: node tools/check-single-source.js --allow-missing
+
+      # 预缓存清单 ↔ CACHE 版本 ↔ 基线一致性的发布前固定动作（P1-D 新增；与 pages.yml 同步）。
+      - name: Pre-push release check
+        run: node tools/prepush-check.js
 
       - name: Build data reports (fresh count/IPA)
         run: node tools/audit-count.js && node tools/audit-ipa.js
+        env:
+          FTE_NO_WRITE: "1"

@@ -122,6 +122,23 @@
       return opts.voice || Player.voiceByName(Player.defaultVoiceName) || accentVoice() || preferredVoice;
     }
 
+    /* P1-B：浏览器语音这一路切不过去时**不静默**。
+       本函数也是 Azure/Google 失败后的回退出口（那时 Player.engine 仍是 azure/google），
+       所以这里显式按 "native" 问能力：回退后到底还是不是用户选的口音，由本机人声说了算。
+       只报一次（每句都报会刷屏）；UI 未接线时 lastAccentIssue 仍可被查询到。 */
+    let accentNoted = false;
+    function noteAccentOnce(v) {
+      if (accentNoted) return;
+      accentNoted = true;
+      const cap = Player.accentCapability(Player.accent, "native");
+      if (cap.supported && cap.effectiveAccent === cap.accent) { Player.lastAccentIssue = null; return; }
+      Player.lastAccentIssue = {
+        at: Date.now(), accent: cap.accent, engine: "native",
+        voice: (v && v.name) || "", reason: cap.reason || ("实际听到的是 " + cap.effectiveAccent)
+      };
+      if (Player.onAccentUnsupported) Player.onAccentUnsupported(Player.lastAccentIssue);
+    }
+
     function speakNext() {
       if (stopped) return;
       if (idx >= total) {
@@ -131,6 +148,7 @@
       const u = new SpeechSynthesisUtterance(parts[idx]);
       const v = pickVoice();
       if (v) u.voice = v;
+      noteAccentOnce(v);
       u.rate = clampRate(opts.rate || 1);
       u.pitch = 1;
       u.volume = 1;
@@ -151,7 +169,12 @@
   };
 
   /* ---------------- 音源二：Google 在线高音质 TTS ---------------- */
-  const GOOGLE_TTS = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=";
+  /* P1-B：口音要真的传下去。英音发 tl=en-GB；美音保持既有的 tl=en（Google 对 en 的默认即美音），
+     不动一条本来就能用的路径。
+     ⚠️ 这个接口**不回报实际音色**，所以 Player.accentCapability() 对 Google 一律给 verified:false ——
+     只能说「已按英音请求」，不能说「已切到英音」，更不能由 UI 假装切了。 */
+  const GOOGLE_TTS = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=";
+  function googleTl(a) { return ((a || Player.accent) === "uk") ? "en-GB" : "en"; }
 
   Player.googleSupported = function () { return !!window.Audio; };
 
@@ -192,7 +215,7 @@
       }
       const chunk = parts[idx];
       audio = new Audio();
-      audio.src = GOOGLE_TTS + encodeURIComponent(chunk);
+      audio.src = GOOGLE_TTS + googleTl(Player.accent) + "&q=" + encodeURIComponent(chunk);
       audio.playbackRate = clampRate(opts.rate || 1);
       /* 在线音源可能被拦截（返回登录页/非音频内容）而不触发 onerror，
          这里用「已加载到真实音频时长」加上超时双重判定，确保失败时必然回退。 */
@@ -241,6 +264,49 @@
      质量与 Google 在线语音同档甚至更自然，且是正规接口：浏览器用 Key 直接跨域调用 Azure Speech REST。
      失败时自动回退浏览器语音，保证能听到。 */
   Player.azure = { key: "", region: "", voice: "en-US-JennyNeural" };
+  /* P1-B：Azure 口音人声映射与「生效发音人」的唯一推导处。
+     改前 azureFetchSSML 把 xml:lang 写死 en-US、voice 取 Player.azure.voice（出厂默认
+     en-US-JennyNeural），于是「选英音 + Azure 引擎」= 设置面板显示英音、耳朵听到美音（静默失效）。
+     现在：us → en-US-*，uk → en-GB-*，且 xml:lang 由 voice 的 locale 前缀推导——两者永不打架。
+     优先级（与函数头声明的全站口径一致）：单次 opts.voice > 手动指定发音人 > 口音开关 > 自动优选。 */
+  Player.AZURE_DEFAULT_VOICE = "en-US-JennyNeural";
+  const AZURE_ACCENT_VOICE = { us: "en-US-JennyNeural", uk: "en-GB-SoniaNeural" };
+  Player.AZURE_ACCENT_VOICE = AZURE_ACCENT_VOICE;
+  /* 口音取值：与 accentVoice() 同一口径 —— 显式传入优先，其次 Player.accent，最后美音。 */
+  function accentWant(a) { return ((a || Player.accent) === "uk") ? "uk" : "us"; }
+  /* 从 Azure 发音人名里取 locale（en-GB-SoniaNeural → en-GB）。取不到返回 ""，由调用方兜底。 */
+  function langOfVoice(name) {
+    const m = String(name || "").match(/^([a-z]{2})-([A-Za-z]{2})/);
+    return m ? (m[1] + "-" + m[2]) : "";
+  }
+  function accentOfLang(lang) {
+    const s = String(lang || "").toLowerCase();
+    if (s.indexOf("en-gb") === 0) return "uk";
+    if (s.indexOf("en-us") === 0) return "us";
+    return "";
+  }
+  /* 「手动指定发音人」= 填了、且**不是出厂默认值**。
+     为什么用默认值当哨兵：app.js（不在本组范围）在未填写时也会回填 en-US-JennyNeural
+     （app.js:232 / :4586），所以「非空」不能当作「手动指定」的判据，否则口音开关永远被它压住。 */
+  Player.azureManualVoice = function () {
+    const v = (Player.azure && Player.azure.voice) ? String(Player.azure.voice).trim() : "";
+    if (!v || v === Player.AZURE_DEFAULT_VOICE) return "";
+    return v;
+  };
+  /* 本次朗读真正会用的 Azure 人声与 xml:lang。导出供 UI/测试查询，避免「看起来切了」。 */
+  function azurePlan(opts) {
+    const o = opts || {};
+    const want = accentWant(o.accent);
+    const oneShot = o.voice ? String(o.voice).trim() : "";
+    const manual = Player.azureManualVoice();
+    let voice, source;
+    if (oneShot) { voice = oneShot; source = "opts.voice"; }
+    else if (manual) { voice = manual; source = "manual"; }
+    else { voice = AZURE_ACCENT_VOICE[want] || Player.AZURE_DEFAULT_VOICE; source = "accent"; }
+    const lang = langOfVoice(voice) || (want === "uk" ? "en-GB" : "en-US");
+    return { requested: want, voice: voice, lang: lang, source: source, effective: accentOfLang(lang) };
+  }
+  Player.azurePlan = azurePlan;
   Player.azureSupported = function () {
     return !!(window.Audio && Player.azure && Player.azure.key && Player.azure.region);
   };
@@ -248,13 +314,15 @@
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   }
   function azureRatePct(rate) { return Math.round((clampRate(rate) - 1) * 100); }
-  function azureFetchSSML(chunk, rate) {
+  function azureFetchSSML(chunk, rate, opts) {
     const a = Player.azure;
     const region = String(a.region).replace(/[^A-Za-z0-9]/g, "");
     const url = "https://" + region + ".tts.speech.microsoft.com/cognitiveservices/v1";
-    const p = azureRatePct(rate);
-    const ssml = '<speak version="1.0" xml:lang="en-US"><voice name="' + a.voice + '">' +
-      '<prosody rate="' + (p >= 0 ? "+" : "") + p + '%">' + azureXmlEscape(chunk) + '</prosody></voice></speak>';
+    const pct = azureRatePct(rate);
+    /* P1-B：口音真正生效的地方——xml:lang 与 voice 都按 azurePlan 走，不再写死 en-US/Jenny。 */
+    const plan = azurePlan(opts);
+    const ssml = '<speak version="1.0" xml:lang="' + plan.lang + '"><voice name="' + plan.voice + '">' +
+      '<prosody rate="' + (pct >= 0 ? "+" : "") + pct + '%">' + azureXmlEscape(chunk) + '</prosody></voice></speak>';
     return fetch(url, {
       method: "POST",
       headers: {
@@ -294,7 +362,7 @@
       if (stopped) return;
       if (idx >= total) { if (opts.onend) opts.onend(); return; }
       const chunk = parts[idx];
-      azureFetchSSML(chunk, opts.rate).then(function (url) {
+      azureFetchSSML(chunk, opts.rate, opts).then(function (url) {
         if (stopped) return;
         audio = new Audio();
         audio.src = url;
@@ -320,7 +388,11 @@
     if (!a || !a.key || !a.region) return Promise.reject(new Error("请先填写 Azure 订阅 Key 和 Region"));
     const region = String(a.region).replace(/[^A-Za-z0-9]/g, "");
     const url = "https://" + region + ".tts.speech.microsoft.com/cognitiveservices/v1";
-    const ssml = '<speak version="1.0" xml:lang="en-US"><voice name="en-US-JennyNeural">Hello, testing the voice.</voice></speak>';
+    /* P1-B：连通性自检也必须按当前口音试，否则「测试通过」证明不了英音这条路能用。
+       cfg.voice 为出厂默认值时同样按「未手动指定」处理（app.js:4640 总会回填默认值）。 */
+    const cfgVoice = (a.voice && a.voice !== Player.AZURE_DEFAULT_VOICE) ? a.voice : "";
+    const plan = azurePlan({ voice: cfgVoice, accent: Player.accent });
+    const ssml = '<speak version="1.0" xml:lang="' + plan.lang + '"><voice name="' + plan.voice + '">Hello, testing the voice.</voice></speak>';
     return fetch(url, {
       method: "POST",
       headers: {
@@ -344,6 +416,97 @@
         return true;
       });
     });
+  };
+
+  /* ---------------- 口音能力查询（P1-B） ----------------
+     由来（S05 · D1）：Azure 路径的 SSML 写死 en-US、Google 路径无口音参数，而设置面板照旧显示
+     「当前：英音」——**人声可切、实际没切**，是最容易让学员学到错东西的一种失败：他会以为
+     这就是英音。所以本组把「到底切没切」做成一个可查询、可测试的返回值，UI 照它说话：
+       · 引擎做不到（如本机没装 en-GB 人声）→ supported:false + 中文 reason；
+       · 请求发下去了但无法验证（Google 在线接口不回报音色）→ verified:false，不得宣称「已切」；
+       · 手动指定了发音人 → 以手动为准，effectiveAccent 如实回报（不等同 requested）。
+     返回 { requested, accent, engine, supported, verified, effectiveVoice, effectiveAccent, reason }。 */
+  Player.lastAccentIssue = null;
+  /* UI 可注入：口音确实没切过去时被调用一次（与 Player.onEngineFallback 同一套「由 app 注入」的模式）。 */
+  Player.onAccentUnsupported = null;
+
+  const ENGINE_LABEL = { native: "浏览器语音", google: "Google 在线", azure: "Azure 神经人声" };
+  const ACCENT_LABEL = { us: "美音", uk: "英音" };
+
+  Player.accentCapability = function (a, engineOverride) {
+    const want = accentWant(a);
+    let engine = engineOverride || Player.engine;
+    if (engine !== "azure" && engine !== "google") engine = "native";
+    const out = {
+      requested: want, accent: want, engine: engine,
+      supported: false, verified: false,
+      effectiveVoice: "", effectiveAccent: "", reason: ""
+    };
+
+    if (engine === "azure") {
+      const p = azurePlan({ accent: want });
+      out.supported = true;          /* Azure 由本站选 voice + xml:lang，一定能切 */
+      out.verified = true;
+      out.effectiveVoice = p.voice;
+      out.effectiveAccent = p.effective || "other";
+      if (p.source === "manual" && p.effective && p.effective !== want) {
+        out.reason = "已手动指定发音人 " + p.voice + "（" + p.lang + "），手动优先，口音开关不生效";
+      }
+      return out;
+    }
+
+    if (engine === "google") {
+      /* 能传参数（tl=en-GB），但拿不到「实际是什么音色」的回报——只能说请求已按口音发出。 */
+      out.supported = true;
+      out.verified = false;
+      out.effectiveAccent = want;
+      out.effectiveVoice = "Google 在线人声（tl=" + googleTl(want) + "）";
+      out.reason = "Google 在线接口按 tl=" + googleTl(want) + " 请求，服务端不保证音色，本机无法验证";
+      return out;
+    }
+
+    /* native：要看本机装了哪套人声；手动指定发音人时同样以手动为准 */
+    const manual = Player.voiceByName(Player.defaultVoiceName);
+    if (manual && manual.lang) {
+      out.supported = true;
+      out.verified = true;
+      out.effectiveVoice = manual.name;
+      out.effectiveAccent = accentOfLang(manual.lang) || "other";
+      if (out.effectiveAccent !== want) {
+        out.reason = "已手动指定发音人 " + manual.name + "（" + manual.lang + "），手动优先，口音开关不生效";
+      }
+      return out;
+    }
+    const v = accentVoice(want);
+    if (v) {
+      out.supported = true;
+      out.verified = true;
+      out.effectiveVoice = v.name;
+      out.effectiveAccent = accentOfLang(v.lang) || "other";
+      return out;
+    }
+    out.reason = "本机没装" + ACCENT_LABEL[want] + "人声，会回退默认发音人（可在系统「语音」里装语音包，" +
+      "或在设置里手动指定一个" + ACCENT_LABEL[want] + "发音人）";
+    return out;
+  };
+
+  /* 给 UI 一句话结论（可直接塞进设置面板的说明行）。UI 未接线时，Player.lastAccentIssue
+     仍会记下真实的失败，不静默。 */
+  Player.accentHint = function (a, engineOverride) {
+    const cap = Player.accentCapability(a, engineOverride);
+    const label = ACCENT_LABEL[cap.accent];
+    const engName = ENGINE_LABEL[cap.engine] || cap.engine;
+    if (!cap.supported) {
+      return "⚠️ 当前音源（" + engName + "）切不到" + label + "：" + cap.reason;
+    }
+    if (cap.effectiveAccent && cap.effectiveAccent !== cap.accent) {
+      const got = ACCENT_LABEL[cap.effectiveAccent] || "其他英语口音";
+      return "⚠️ 实际听到的是" + got + "（" + cap.effectiveVoice + "）：" + cap.reason;
+    }
+    if (!cap.verified) {
+      return "ℹ️ 已按" + label + "请求（" + cap.effectiveVoice + "）：" + cap.reason;
+    }
+    return "✅ 已切到" + label + "（" + cap.effectiveVoice + "，" + engName + "）";
   };
 
   /* ---------------- 统一入口 ---------------- */
@@ -585,14 +748,92 @@
   /* ---------------- 语音识别评测（逐词打分） ---------------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  Player.recognitionSupported = function () { return !!SR; };
+  Player.recognitionSupported = function () { return !!(SR || (window.LocalASR && localASROn())); };
   /* 浏览器语音识别（依赖 Google 服务）。国内无法直连时，请改用系统语音输入（Web Speech、软键盘听写）。 */
   Player.recognitionHint = "语音识别依赖 Google 服务。若你开了 VPN/代理仍报错，多为 Chrome 未走代理：请在 Chrome 设置 → 系统 → 开启「使用系统代理」(或让 VPN 全局接管)，或切换其他能连通 Google 的网络。若始终不可用，可用系统语音听写（光标放输入框后按 Win+H 说话）作为兜底。";
+
+  /* ============ 本地离线识别优先（真实使用反馈修复，2026-10-11）============
+     用户反馈：「单词及句子我只能听系统播放……跟读及评分这个功能缺失」。
+     实测根因不是麦克风不行，而是**全站跟读评分默认走浏览器识别（Chrome = Google 服务器）**，
+     国内不可达 → 即使找到入口，说完也只会得到识别失败。
+     本机若已放好 vosk 小模型（`models/vosk-model-small-en-us-0.15/`，约 67 MB，仅本机安装、
+     `.gitignore` 排除、不随站分发），就走**完全离线的本地识别**：不联网、不受墙影响。
+     开关沿用「发音设置 → 优先本地识别」（`progress.localASR`）；Lead 在模型就绪时会默认打开。 */
+  function localASROn() {
+    try {
+      if (!window.LocalASR) return false;
+      const raw = localStorage.getItem("fte-progress-v1");
+      if (!raw) return false;
+      const p = JSON.parse(raw);
+      return !!(p && p.localASR);
+    } catch (e) { return false; }
+  }
+  Player.localASROn = localASROn;
+
+  /* 本地识别：录音 → vosk 转写 → 回调。maxMs 为最长录音（默认 2.5 秒，够一个词/短句）。
+     ★ P1-使用反馈加固（2026-10-11）：**必须有硬超时**。离线模型是 67MB 的 WASM，
+       实测在无头浏览器里出现过"创建模型后长时间不回调"的情况——若没有超时，
+       用户点 🎤 会永远停在"请跟读…"（比报错更糟：用户以为是自己读得不对）。
+       超时或失败后标记 localASRBroken，后续调用不再让用户白等。 */
+  Player.localASRBroken = false;
+  Player.localASRFirstDone = false;
+  function recognizeLocal(opts) {
+    const maxMs = opts.maxMs || 2500;
+    /* ★ 首次调用给足时间：第一次要**下载 39MB 压缩包 + 解包到 IndexedDB + 建模型**，
+       本机实测（headless）150 秒仍未完成；真实浏览器通常更快，但一次成功之后就吃缓存。
+       之后的调用若还不返回，说明链路有问题，25 秒就够判断——不让用户反复白等。 */
+    const hardMs = opts.hardMs || (Player.localASRFirstDone ? 25000 : 180000);
+    let stopped = false, handle = null, pendingStop = false, settled = false;
+    const settle = function (fn) {
+      if (settled) return; settled = true;
+      clearTimeout(recTimer); clearTimeout(hardTimer);
+      fn();
+    };
+    const finish = function (text) {
+      settle(function () {
+        stopped = true;
+        Player.localASRFirstDone = true;
+        if (opts.onResult) opts.onResult(text || "", true);
+        if (opts.onEnd) opts.onEnd(text || "");
+      });
+    };
+    const fail = function (msg) {
+      settle(function () {
+        stopped = true;
+        Player.localASRBroken = true;
+        if (opts.onError) opts.onError(new Error(msg));
+      });
+    };
+    Player.micRequest().then(function () {
+      if (stopped) return;
+      handle = window.LocalASR.record(function (mono) {
+        window.LocalASR.transcribe(mono).then(finish).catch(function (e) {
+          fail("local-asr-failed: " + ((e && e.message) || "识别失败"));
+        });
+      });
+      if (pendingStop) { try { handle && handle.stop(); } catch (e) { /* ignore */ } }
+    }).catch(function (e) { fail(String((e && e.message) || e)); });
+    const recTimer = setTimeout(function () {
+      if (handle) { try { handle.stop(); } catch (e) { /* ignore */ } } else { pendingStop = true; }
+    }, maxMs);
+    const hardTimer = setTimeout(function () {
+      try { handle && handle.stop(); } catch (e) { /* ignore */ }
+      fail("本地离线识别超时（模型加载或转写未在 " + Math.round(hardMs / 1000) + " 秒内完成）。" +
+        "可改用在线识别：设置里取消「优先本地识别」后用 Edge 打开（Edge 的识别国内可达）。");
+    }, hardMs);
+    return {
+      stop: function () { clearTimeout(recTimer); clearTimeout(hardTimer); try { handle && handle.stop(); } catch (e) { /* ignore */ } }
+    };
+  }
 
   /* 开始一次实时识别。opts: { lang, onResult(text,isFinal), onEnd(text), onError(err), retries }
      返回 { stop() }。对 no-speech / 一过性 network 错误自动重试（VPN 场景常见）。 */
   Player.recognize = function (opts) {
     opts = opts || {};
+    /* P1-使用反馈修复：**离线优先**。本机模型在场且开关打开时，一次都不碰 Google 服务器
+       （这正是国内 Chrome 下"跟读评分不可用"的根因）。识别器不可用时再退回浏览器识别。 */
+    /* 本地识别连续失败后不再让用户白等（localASRBroken），直接走浏览器识别 */
+    if (window.LocalASR && localASROn() && !Player.localASRBroken) return recognizeLocal(opts);
     if (!Player.recognitionSupported()) {
       if (opts.onError) opts.onError(new Error("unsupported"));
       return null;
@@ -748,17 +989,31 @@
     });
   };
 
-  /* 将语音识别/麦克风错误码翻译成可操作的提示（空字符串表示无需提示，如用户主动停止） */
+  /* 将语音识别/麦克风错误码翻译成可操作的提示（空字符串表示无需提示，如用户主动停止）
+     P0-13：指引必须**按环境分支**。改前这两条只写了桌面用户能做的动作——
+     「点浏览器地址栏左侧的麦克风图标」在微信内置浏览器里根本没有地址栏，
+     「python -m http.server 8000」手机用户物理上跑不了。桌面文案**逐字保留**（口径不变、
+     九种错误码一个不少），只在手机 / 微信内换成当场能做的动作。 */
+  function isWx() { return !!(window.FTE_ENV && window.FTE_ENV.wechat); }
+  function isMobile() { return !!(window.FTE_ENV && window.FTE_ENV.mobile); }
   Player.recErrorText = function (err) {
     const e = String(err && err.message ? err.message : err).toLowerCase();
     const map = {
-      "not-allowed": "麦克风权限被拒绝：请点击浏览器地址栏左侧的麦克风图标，选择「允许」后重试",
+      "not-allowed": isWx()
+        ? "麦克风权限被拒绝：微信内没有地址栏，请点右上角 ⋯ →「在浏览器中打开」，在浏览器里允许麦克风后重试"
+        : (isMobile()
+          ? "麦克风权限被拒绝：请点浏览器地址栏/菜单里的锁形图标 →「网站设置 / 权限」→ 允许麦克风后重试"
+          : "麦克风权限被拒绝：请点击浏览器地址栏左侧的麦克风图标，选择「允许」后重试"),
       "service-not-allowed": "语音服务被拒绝：请在浏览器设置中允许本网站使用麦克风，然后刷新页面重试",
       "network": "语音识别网络错误：Chrome 语音服务依赖 Google，若你已开 VPN/代理仍失败，多为 Chrome 未走代理（建议 Chrome→设置→系统→开启「使用系统代理」），或以干净环境重试",
       "no-speech": "没有听到声音：请靠近麦克风、保持环境安静后重试",
       "audio-capture": "未检测到麦克风设备：请检查麦克风连接与系统设置",
       "aborted": "",
-      "no-media": "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8000）打开页面",
+      "no-media": isWx()
+        ? "当前环境不支持麦克风：微信内置浏览器不带录音能力，请点右上角 ⋯ →「在浏览器中打开」再试"
+        : (isMobile()
+          ? "当前环境不支持麦克风：请用手机浏览器（Chrome / Safari）打开本站，并允许麦克风权限后重试"
+          : "当前环境不支持麦克风：建议通过本地服务器（python -m http.server 8000）打开页面"),
       "denied": "无法使用麦克风：请在浏览器设置中允许麦克风权限后重试",
       "unsupported": "当前浏览器不支持语音识别（Web Speech 仅 Chrome/Edge 完整支持），建议使用 Chrome / Edge"
     };

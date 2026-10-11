@@ -128,9 +128,54 @@ const T = function (set, name) { return set[String(name).replace(/^--/, "")]; };
     check("P2-5 暗色 " + p[0] + " 对 " + p[1] + " ≥4.5:1", r >= 4.5, r.toFixed(2) + ":1");
   });
 
+/* ---------- P0-11 全量文本色对比度（现场计算，含硬编码 hex） ----------
+   背景：P2-5 只断言**若干 token 名**。实测有 62 处 `color:#hex` 绕过 token，
+   暗色下前景不换、底色变深，比值掉到 2.06–2.91:1（WCAG 1.4.3 硬违规），
+   而门禁结构上看不见这些「使用层」声明。
+   现在改为扫描 css/style.css 里**所有** `color:` 声明（硬编码 hex 与 var() 一视同仁），
+   在浅色与暗色两套主题下现场算比值，逐条打印违规行号与比值。 */
+const CC = require("./contrast-check.js");
+const ccCss = fs.readFileSync(path.join(ROOT, "css/style.css"), "utf8");
+const CC_A = CC.analyze(ccCss);
+const ccBad = CC_A.rows.filter(function (r) { return (r.light < 4.5 || r.dark < 4.5) && !CC.WL.has(CC.wlKey(r)); });
+const ccWl = CC_A.rows.filter(function (r) { return (r.light < 4.5 || r.dark < 4.5) && CC.WL.has(CC.wlKey(r)); });
+check("P0-11：style.css 全部 color 声明（" + CC_A.rows.length + " 条）在浅色/暗色下均 ≥4.5:1",
+  ccBad.length === 0,
+  ccBad.length ? "违规 " + ccBad.length + " 条" : "现场核算 0 违规");
+ccBad.sort(function (a, b) { return a.line - b.line; }).forEach(function (r) {
+  console.log("     ✗ css/style.css:" + r.line + "  " + r.decl + "  浅 " + r.light.toFixed(2) +
+    ":1 / 暗 " + r.dark.toFixed(2) + ":1  " + r.sel);
+});
+check("P0-11：白名单只放行「非文本 / 背景静态不可解析」，且每条都写明理由",
+  CC.WHITELIST.length > 0 &&
+  CC.WHITELIST.every(function (w) { return w.length === 3 && String(w[2] || "").length > 8; }) &&
+  CC.WHITELIST.every(function (w) { return /对比|实测|非正文|浮层|渐变|图标/.test(w[2]); }),
+  "白名单 " + CC.WHITELIST.length + " 条，本轮命中 " + ccWl.length + " 条");
+/* 语义词色 token 必须在暗色块里被覆盖，否则等于没修 */
+const DARK_BLOCK = css.slice(css.indexOf("@media (prefers-color-scheme: dark)"));
+["--primary-text", "--ok-text", "--bad-text", "--accent-text", "--tech-text", "--navy-text",
+  "--on-ok", "--on-bad", "--on-accent", "--bad-soft-2", "--accent-soft-2"].forEach(function (k) {
+    check("P0-11：暗色块覆盖了 " + k, new RegExp("\\" + k + "\\s*:").test(DARK_BLOCK || ""));
+  });
+check("P0-11：语义文本 token 在浅色 :root 里齐全",
+  ["--primary-text", "--ok-text", "--bad-text", "--accent-text", "--tech-text"].every(function (k) {
+    return new RegExp("\\" + k + "\\s*:").test(css.slice(0, css.indexOf("@media")));
+  }));
+/* 反向验证：把已修的暗色 token 故意改回违规值，核算必须变红 */
+const SABOTAGE = ccCss.replace("--primary-text:#93c5fd;", "--primary-text:#6d28d9;");
+check("P0-11：反向验证（把 --primary-text 改回 #6d28d9 后必须算出违规）",
+  SABOTAGE !== ccCss && CC.analyze(SABOTAGE).rows.some(function (r) {
+    return (r.light < 4.5 || r.dark < 4.5) && !CC.WL.has(CC.wlKey(r));
+  }));
+
 /* ============ P2-6 横向溢出与版本单一来源 ============ */
+/* P0 批次调整：判定改为「顺序无关」。
+   原因（第二期 S07 真机实测）：把 overflow-x:auto 直接写在 <table> 上会被浏览器忽略
+   （实测 computed overflow-x: visible），正确写法是 `display:block;overflow-x:auto` + 内部元素 min-width。
+   原断言写死了 `.dg-lines{overflow-x:auto`（要求 overflow 是第一条声明），修正后的写法会被误判为失败。
+   现在只要求该声明块里**存在** overflow-x:auto——仍守得住「没有滚动容器」这个真退化。 */
 check("P2-6：单证明细行与单证表格有独立横向滚动容器",
-  /\.dg-lines\{overflow-x:auto/.test(css) && /\.dg-doc table\.sop-table\{display:block;overflow-x:auto/.test(css));
+  /\.dg-lines\{[^}]*overflow-x:auto[^}]*\}/.test(css) && /\.dg-doc table\.sop-table\{display:block;overflow-x:auto/.test(css));
 check("P2-6：版本号单一来源（pwa-init 里的 FTE_VERSION）", /window\.FTE_VERSION = "\d+\.\d+\.\d+"/.test(pwa));
 const ver = (pwa.match(/window\.FTE_VERSION = "([^"]+)"/) || [])[1];
 check("P2-6：FTE_VERSION 与 package.json 的 version 一致", ver === pkg.version, ver + " vs " + pkg.version);

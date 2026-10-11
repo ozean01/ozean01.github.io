@@ -9,6 +9,15 @@
      ③ 自动排期第 7 / 30 / 90 天复测，并在到期时提示（见 today.js）；
      ④ 保留分项历史，显示**与上次相比逐项的变化**，而不是给一个平均等级。
 
+   P1-A（S04 S1）· 口径诚实化：这里的 A1–C2 档位**从头到尾都是用户自己点的**
+   （setSkill 由点击直接写入，6 道词义题只映射站内单元序号、不产出 CEFR），
+   所以它不是测评结果，而是**自评定位（自陈）**。本批做的三件事：
+     · 界面与文案统一改成「自评定位（自陈，非测评）」，档位旁写明"这是你给自己的估计"；
+     · **没有产出证据（证据理由 + 量表自评）就不允许选 B1 及以上**——没有证据的
+       「我会 C2」是自我声明，不是能力证据；
+     · 自评档与 5 维量表方向矛盾（如自评 B2 而量表平均 < 1 分）时，显式提示复核。
+   仍然**不新增量表、不改题库**，只改口径与校验。
+
    刻意不做的事（避免形式主义）：
      · 不做 4 技能 × 5 维 = 20 格的评分矩阵——原方案自己也承认「评分维度超载」；
        这里只对**你自己选的那一项重点**做 5 维 0–2 评分，并要求写一行证据理由。
@@ -158,6 +167,47 @@
     return { comparable: comparable, from: prev, to: cur };
   }
 
+  /* ---------------- 自评档位的证据门槛（P1-A · S04 S1） ----------------
+     这里的档位全部由用户点选（setSkill 直接写入），所以它是**自陈**而不是测评。
+     没有产出证据的「我会 B2」不构成能力声明，因此 B1 及以上设一道门槛。
+     证据口径（保守，只认用户自己写下来的东西）：
+       ① 本次记录写了非空的「证据理由」（cur.evidence），且
+       ② 已经用 5 维量表给自己评过分（至少 1 维）。
+     A1 / A2 不设门槛——低档位不构成「证明我能做什么」的声明。 */
+  var LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  function levelIdx(id) { return LEVEL_ORDER.indexOf(String(id == null ? "" : id)); }
+  function needsEvidence(levelId) { return levelIdx(levelId) >= 2; }   /* B1 及以上 */
+  function ratedDims(cur) {
+    var n = 0, total = 0;
+    RUBRIC.forEach(function (d) {
+      var v = cur && cur.rubric ? cur.rubric[d.id] : undefined;
+      if (typeof v === "number") { total += v; n++; }
+    });
+    return { n: n, total: total };
+  }
+  function hasEvidence(cur) {
+    if (!cur) return false;
+    if (!String(cur.evidence || "").trim()) return false;
+    return ratedDims(cur).n > 0;
+  }
+  /* 自评档位里最高的那个 B1+ 项（用于一致性提示） */
+  function topSelfRated(cur) {
+    var top = null;
+    SKILLS.forEach(function (s) {
+      var id = cur && cur.skills ? cur.skills[s.id] : null;
+      if (!id || !needsEvidence(id)) return;
+      if (!top || levelIdx(id) > levelIdx(top.level)) top = { skill: s, level: id };
+    });
+    return top;
+  }
+
+  /* P1-A：B1 及以上的**交互写入**必须先有产出证据。
+     注意：门槛刻意**放在点击处理器里**而不是 setSkill 内部——tools/test-placement.js
+     的既有契约要求 setSkill 是「直接写入」的纯 setter（第 84-91 行用它在无证据状态下
+     造数据）。用户能走到的写入路径只有点击，所以把门设在那里既满足「无产出证据不得选
+     B1 以上」，又不改动被门禁钉住的 API 语义。 */
+  function canPickLevel(cur, levelId) { return !needsEvidence(levelId) || hasEvidence(cur); }
+
   function setSkill(skillId, levelId) {
     var rec = load();
     if (!rec) return null;
@@ -244,10 +294,19 @@
 
   /* ---------------- 渲染 ---------------- */
   function levelChips(skill, cur) {
+    var ev = hasEvidence(cur);
     return LEVELS.map(function (L) {
       var on = cur && cur.skills && cur.skills[skill.id] === L.id;
+      /* P1-A：B1 及以上在无证据时**禁用**（不是静默忽略点击，而是当场说明原因） */
+      var locked = needsEvidence(L.id) && !ev;
+      var title = L.id + " · " + L.desc +
+        (locked
+          ? "｜选不了：" + L.id + " 及以上需要先留下产出证据（设为重点 → 做 5 维量表 → 填证据理由）。没有证据的档位只是自我声明。"
+          : "｜这是你给自己的估计（自陈），不是测评结果。");
       return '<button class="pl-lv' + (on ? " on" : "") + '" data-action="pl-skill" data-skill="' + skill.id +
-        '" data-level="' + L.id + '" title="' + esc(L.id + " · " + L.desc) + '">' + L.id + "</button>";
+        '" data-level="' + L.id + '"' +
+        (locked ? ' disabled aria-disabled="true" style="opacity:.45;cursor:not-allowed"' : "") +
+        ' title="' + esc(title) + '">' + L.id + "</button>";
     }).join("");
   }
 
@@ -256,6 +315,7 @@
     var L = null;
     LEVELS.forEach(function (x) { if (x.id === lv) L = x; });
     var isFocus = cur && cur.focus === skill.id;
+    var ev = hasEvidence(cur);
     return '<div class="pl-skill">' +
       '<div class="pl-skill-h">' +
         '<span class="pl-skill-t">' + skill.icon + " <b>" + skill.label + "</b></span>" +
@@ -265,7 +325,8 @@
       "</div>" +
       '<div class="pl-task"><span class="pl-task-k">任务</span>' + esc(skill.task) + "</div>" +
       '<div class="pl-check"><span class="pl-task-k">检查点</span>' + esc(skill.check) + "</div>" +
-      (L ? '<div class="pl-lvdesc"><b>' + L.id + "</b> " + esc(L.desc) + "</div>" : "") +
+      (L ? '<div class="pl-lvdesc"><b>' + L.id + "</b> " + esc(L.desc) + ' <i>（你的自评 · 自陈，不是测评结果）</i></div>' : "") +
+      (!ev ? '<div class="pl-lvdesc" style="color:var(--muted)">🔒 还没留下产出证据，<b>B1 及以上暂时选不了</b>——先「☆ 设为重点」，做完这个任务给自己评 5 维，并写下证据理由。</div>' : "") +
       '<div class="pl-go"><a href="' + skill.href + '">▶ 现在就去练这一项</a></div>' +
     "</div>";
   }
@@ -288,12 +349,28 @@
     }).join("");
     var total = 0, n = 0;
     RUBRIC.forEach(function (d) { var v = cur.rubric ? cur.rubric[d.id] : undefined; if (typeof v === "number") { total += v; n++; } });
+    /* P1-A：自评档与量表分**方向矛盾**时显式提示复核（S04 S1 建议）。
+       两者都是自陈，但一个说"我能到 B2+"、另一个说"这次任务没完成"，方向相反时
+       不能并排放着让用户自己猜——那是把两种互相打架的自陈都当成结论。 */
+    var warn = "";
+    var top = topSelfRated(cur);
+    if (top && n) {
+      var avgRub = total / n;
+      if (avgRub < 1) {
+        warn = '<div class="pl-lvdesc" style="margin-top:8px;color:var(--bad-text,#c33)">⚠️ 你在「' + esc(top.skill.label) + '」上自评 <b>' + top.level +
+          '</b>，但本次 5 维量表已评维度的平均只有 <b>' + avgRub.toFixed(1) + '/2</b>（= 未完成 / 依赖提示）。<b>请复核</b>：要么把档位调低，要么在证据理由里写清凭什么能到 ' + top.level + '。</div>';
+      } else if (n < RUBRIC.length) {
+        warn = '<div class="pl-lvdesc" style="margin-top:8px;color:var(--muted)">⚠️ 你已自评 <b>' + top.level + '</b>（B1 及以上），但量表只评了 <b>' + n + "/" + RUBRIC.length +
+          '</b> 维——<b>建议先评完</b>再下这个结论，否则这个档位只有你自己的声明支撑。</div>';
+      }
+    }
     return '<div class="pl-rubric">' +
       '<div class="pl-rubric-h"><b>🎯 本次重点：' + focus.icon + " " + focus.label + "</b>" +
-        "<span>量表只描述这一次任务中的表现，<b>总分只用于你一个人的纵向比较</b>，不用于给别人贴标签。</span></div>" +
+        "<span>量表只描述这一次任务中的表现，<b>总分只用于你一个人的纵向比较</b>，不用于给别人贴标签；它同样是自评。</span></div>" +
       rows +
       '<div class="pl-rtotal">已评 ' + n + "/" + RUBRIC.length + " 维 · 合计 <b>" + total + "</b> / " + (RUBRIC.length * 2) +
         (n === RUBRIC.length ? "" : "（未评完）") + "</div>" +
+      warn +
       '<div class="pl-ev"><label for="plEvidence">证据理由（必填：凭什么给这个分？）</label>' +
         '<input id="plEvidence" type="text" maxlength="400" placeholder="例：录音第 40 秒起有 3 次长停顿，客户需要我重复一次才听懂…" value="' +
         esc(cur.evidence || "") + '">' +
@@ -318,6 +395,11 @@
       '<div class="pl-history-h"><b>📈 与上次相比（' + esc(v.prev.at) + " → " + esc(v.cur.at) + "）</b>" +
         "<span>逐项比，<b>不取平均</b>——四项差异大是正常的，分别追踪。</span></div>" +
       (lines || added ? (lines + added) : '<div class="pl-delta same">四项定级与上次相同（' + v.same + " 项）。") +
+      /* P1-A（S04 S3 最低限度）：复测刻意要求换任务，那么两次档位差里就同时含
+         「任务难度差异」与「能力变化」，数据层分不开——必须写在箭头旁边。 */
+      '<div class="pl-note" style="margin-top:6px">⚠️ 上面这些 ▲/▼ 是<b>自评档位</b>的变化。复测要求换主题、换任务，' +
+        '所以两次的<b>任务难度不同</b>：档位差里同时含任务难度差异与能力变化，<b>不能直接读作能力变化量</b>。' +
+        '请把它读成「这次有没有达到目标档」，而不是「进步了 N 级」。</div>' +
       '<div class="pl-history-all">全部记录：' + rec.history.map(function (h) {
         return '<span class="pl-hchip">' + esc(h.at) + " · 答对 " + h.score + "/" + h.total + "</span>";
       }).join("") + "</div>" +
@@ -333,11 +415,15 @@
     var base = rec.baselineAt;
     return '<div class="card pl-card" style="max-width:640px;margin-top:16px">' +
       '<div class="pl-head">' +
-        '<b>🧭 诊断：四项分别定级</b>' +
+        '<b>🧭 自评定位：四项分别定级（自陈，非测评）</b>' +
         '<span class="pl-lock">📌 基线日期 <b>' + esc(base) + "</b> · 已锁定，不会被以后的结果覆盖</span>" +
       "</div>" +
-      '<div class="pl-note">CEFR 描述的是<b>在具体情境中能完成什么语言任务</b>，不是 App 积分、也不是词汇量。' +
-        '先按下面四项任务各做一次、<b>第一版不要查词也不要让 AI 代写</b>，再回来定级。' +
+      '<div class="pl-note">⚠️ <b>这一页的 A1–C2 是你自己点的，不是测评结果</b>：6 道词义题只给出站内起点单元，' +
+        '从不产出 CEFR 档；这里的档位没有任何评分或分界依据。请把它当作<b>自评定位（自陈）</b>——' +
+        '用来选定练习重点与复测锚点，不能当作等级认定，也不能对外证明。' +
+        'CEFR 描述的是<b>在具体情境中能完成什么语言任务</b>，不是 App 积分、也不是词汇量。' +
+        '先按下面四项任务各做一次、<b>第一版不要查词也不要让 AI 代写</b>，再回来定级；' +
+        '<b>没有留下产出证据（做 5 维量表 + 写证据理由）之前，B1 及以上选不了</b>。' +
         "四项差异很大时<b>分别定级，不要强行取平均</b>。" +
         "量表<b>总分只用于你一个人的纵向比较</b>，不用于给别人贴标签。</div>" +
       SKILLS.map(function (s) { return skillRow(s, cur); }).join("") +
@@ -381,7 +467,8 @@
           "<b>先别做本页的四项定级任务</b>——它要求第一版不查词、不让 AI 代写，零基础做不出来只会把自己误定成最低级，" +
           "反而打击信心。等你把前 3 个单元过完再回来测。</p>" +
         '<p class="pl-notfor-foot">顺带说清另一条：本站把 <b>🔥 坚持（练了多少）</b>与 <b>📈 能力（说得怎么样）</b>分栏显示，' +
-          "打卡天数不等于口语变好；这里的分项定级才是能力证据。</p>" +
+          "打卡天数不等于口语变好。但也要说清：<b>本页的档位同样不是能力证据——它是你给自己打的分（自陈）</b>；" +
+          "本站目前能拿出的能力证据是「四维口语实战」的评测留痕与有产出物的单元，不是这里的档位。</p>" +
       "</div></details>";
   }
 
@@ -409,7 +496,22 @@
     var act = el.getAttribute("data-action");
     if (!act || act.indexOf("pl-") !== 0) return;
 
-    if (act === "pl-skill") { setSkill(el.getAttribute("data-skill"), el.getAttribute("data-level")); refresh(); return; }
+    if (act === "pl-skill") {
+      /* P1-A：无产出证据不得选 B1 以上（S04 S1 验收项）。
+         按钮在无证据时已 disabled，这里是第二道防线（防 DOM 过期 / 键盘触发）。 */
+      var sid = el.getAttribute("data-skill"), lid = el.getAttribute("data-level");
+      var curNow = currentEntry(load());
+      if (!canPickLevel(curNow, lid)) {
+        var t2 = document.getElementById("plEvSaved");
+        if (t2) t2.textContent = "B1 及以上需要先留下产出证据";
+        if (window.FTE_BOOT && window.FTE_BOOT.toast) {
+          window.FTE_BOOT.toast("🔒 B1 及以上是「我能做到」的声明：请先「☆ 设为重点」→ 做一次这个任务 → 填 5 维量表与证据理由，再回来定级。");
+        }
+        refresh(); return;
+      }
+      setSkill(sid, lid);
+      refresh(); return;
+    }
     if (act === "pl-focus") { setFocus(el.getAttribute("data-skill")); refresh(); return; }
     if (act === "pl-score") {
       var dim = el.getAttribute("data-dim"), v = parseInt(el.getAttribute("data-v"), 10);

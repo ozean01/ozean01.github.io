@@ -14,7 +14,10 @@
 <body>
 <h1>Phase 2 冒烟</h1>
 <p>下面是一个 <b>375×667</b> 的 iframe，用真实像素触发站点的 <code>max-width:720px</code> 媒体查询。
-   它按顺序点开 ☰ 与设置弹窗，读取真实计算样式与属性，不做任何静态推断。</p>
+   它按顺序点开 ☰ 与设置弹窗，读取真实计算样式与属性，不做任何静态推断；
+   最后**逐条切换全部 23 条路由**扫横向溢出（判定口径固定为
+   <code>documentElement.scrollWidth - documentElement.clientWidth</code>，<b>不用 window.innerWidth</b>——
+   整页被撑宽时它会一起变大而把缺陷掩盖掉）。</p>
 <iframe id="fr" src="../index.html#/today"></iframe>
 <div id="log">运行中…</div>
 <script>
@@ -22,6 +25,43 @@ var results = [];
 function t(name, cond, info) { results.push({ name: name, ok: !!cond, info: info == null ? "" : String(info) }); }
 var fr = document.getElementById("fr");
 var W, D;
+/* 全路由横向溢出扫描用的路由清单。
+   来源：js/app.js 的 parseHash()（view 白名单 + MERGED_ALIAS），与 S07 报告全路由扫描的 23 条一致。
+   ⚠️ 新增路由时同步这里；清单腐化会让扫描出现「漏测」，比误报更危险。 */
+var ROUTES = ["#/today", "#/home", "#/units", "#/units/placement", "#/sop", "#/quiz", "#/flash",
+  "#/tutor", "#/speak", "#/speaking", "#/coach", "#/glossary", "#/phonemes", "#/phonemes/listen",
+  "#/material", "#/mistakes", "#/mysay", "#/write", "#/patterns", "#/speech", "#/board",
+  "#/sources", "#/eval4"];
+/* P0-C：横向溢出的**唯一**判定口径 = documentElement.scrollWidth - documentElement.clientWidth。
+   **绝不要用 window.innerWidth 当基准**：真机实测整页被撑宽时它会一起变大
+   （320px 下报 348、#/sop 切到「单证生成」后报 565），任何以它为准的检查都会报 0 假绿。 */
+function overflowInfo(w, d) {
+  var de = d.documentElement;
+  return { over: de.scrollWidth - de.clientWidth, scrollWidth: de.scrollWidth, clientWidth: de.clientWidth, innerWidth: w.innerWidth };
+}
+/* 找越界元素时，跳过「本来就在横向滚动容器里」的节点
+   （例：.dg-lines 内的 thead/td 超出的是**容器**而不是视口，属于预期）。 */
+function insideScroller(el, d, w) {
+  for (var p = el.parentElement; p && p !== d.body; p = p.parentElement) {
+    var ox = w.getComputedStyle(p).overflowX;
+    if (ox === "auto" || ox === "scroll" || ox === "hidden") return true;
+  }
+  return false;
+}
+function overflowingEls(d, w) {
+  var de = d.documentElement, cw = de.clientWidth, bad = [], els = d.body.querySelectorAll("*");
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i], r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    if (r.right > cw + 1 || r.left < -1) {
+      if (insideScroller(el, d, w)) continue;
+      var cls = String(el.className || "").split(" ")[0];
+      bad.push(el.tagName + (cls ? "." + cls : "") + "(右缘 " + Math.round(r.right) + ")");
+      if (bad.length >= 6) break;
+    }
+  }
+  return bad;
+}
 function whenReady(cb) {
   var w = fr.contentWindow, d = fr.contentDocument;
   if (w && d && w.FTE_BOOTED) return cb(w, d);
@@ -32,7 +72,11 @@ setTimeout(function () {
     W = w; D = d;
     var verEl = d.getElementById("appVersion");
     t("应用已启动（FTE_BOOTED）", !!w.FTE_BOOTED);
-    t("页脚版本为 v1.8.0", verEl && verEl.textContent.indexOf("v1.8.0") === 0, verEl ? verEl.textContent : "missing");
+    /* P0-C（真机实测）：版本号单一来源是 window.FTE_VERSION（js/pwa-init.js）。
+       这里以前硬写 v1.8.0，站点升到 1.11.0 之后这条断言就恒假——已腐化。 */
+    t("页脚版本与 window.FTE_VERSION 一致",
+      !!w.FTE_VERSION && !!verEl && verEl.textContent.indexOf("v" + w.FTE_VERSION) === 0,
+      "FTE_VERSION=" + w.FTE_VERSION + " 页脚=" + (verEl ? verEl.textContent.slice(0, 32) : "missing"));
     t("iframe 命中窄屏媒体查询", w.matchMedia("(max-width:720px)").matches);
 
     var nav = d.getElementById("mainNav"), tog = d.getElementById("navToggle");
@@ -48,8 +92,9 @@ setTimeout(function () {
       if (h > 0) { n++; if (h < minH) minH = h; }
     });
     t("导航项触控高度 ≥44px", minH >= 44, "实测最小 " + (minH === 999 ? "n/a" : minH.toFixed(1) + "px") + " / 可见项 " + n);
-    var de = d.documentElement;
-    t("375px 无横向溢出", de.scrollWidth <= de.clientWidth + 1, "scroll=" + de.scrollWidth + " client=" + de.clientWidth);
+    /* P0-C：原来这里只测「☰ 之后的 #/today 那一刻」，且判定式用 de.scrollWidth <= de.clientWidth + 1，
+       真机上同一 iframe 里 375px 实际溢出 38px（#/home 的 .path-stage）而这条仍是绿的——假绿。
+       现在改成：遍历全部 23 条路由，逐条按 documentElement.clientWidth 判定，见 sweepRoutes()。 */
     if (tog) tog.click();
 
     var sb = d.getElementById("settingsBtn");
@@ -85,12 +130,58 @@ setTimeout(function () {
               return el.textContent.replace(/\s/g, "").indexOf("已掌握单词") !== 0;
             }));
           t("首页保留了「练得多不等于说得好」说明", home && home.textContent.indexOf("练得多不等于说得好") >= 0);
-          render();
+          sweepRoutes();
         }, 500);
-      }).catch(function () { t("可调用 LocalASR.probe()", false); render(); });
+      }).catch(function () { t("可调用 LocalASR.probe()", false); sweepRoutes(); });
     }, 700);
   });
 }, 900);
+
+/* 逐条路由扫横向溢出（P0-C）。每条路由一条断言，失败时把越界元素一起打出来。 */
+function sweepRoutes() {
+  var i = 0;
+  function next() {
+    if (i >= ROUTES.length) { sweepSopDoc(); return; }
+    var route = ROUTES[i++];
+    W.location.hash = route;
+    setTimeout(function () {
+      var m = overflowInfo(W, D);
+      var els = m.over > 0 ? overflowingEls(D, W) : [];
+      t("窄屏无横向溢出 " + route, m.over <= 0,
+        "scrollWidth=" + m.scrollWidth + " clientWidth=" + m.clientWidth + " 溢出=" + m.over + "px" +
+        (els.length ? " 越界：" + els.join("、") : "") + " ｜ innerWidth=" + m.innerWidth + "（仅对照，不作基准）");
+      next();
+    }, 450);
+  }
+  next();
+}
+
+/* #/sop 的「单证生成」11 列录入表：真机实测改前把文档撑到 565（溢出 190px）。
+   表格盒上的 overflow 会被浏览器忽略，必须 display:block 之后 overflow-x 才生效。 */
+function sweepSopDoc() {
+  W.location.hash = "#/sop";
+  setTimeout(function () {
+    var all = D.querySelectorAll("#app button, #app [role=tab]"), tab = null;
+    for (var i = 0; i < all.length; i++) {
+      if ((all[i].textContent || "").indexOf("单证生成") >= 0) { tab = all[i]; break; }
+    }
+    if (!tab) { t("可切到「单证生成」标签页", false, "未找到该标签按钮"); render(); return; }
+    tab.click();
+    setTimeout(function () {
+      var m = overflowInfo(W, D);
+      var els = m.over > 0 ? overflowingEls(D, W) : [];
+      t("单证生成（11 列录入表）不推动整页", m.over <= 0,
+        "scrollWidth=" + m.scrollWidth + " clientWidth=" + m.clientWidth + " 溢出=" + m.over + "px" +
+        (els.length ? " 越界：" + els.join("、") : ""));
+      var tbl = D.querySelector(".dg-lines"), cs = tbl ? W.getComputedStyle(tbl) : null;
+      t(".dg-lines 是真正的滚动容器（先 display:block，overflow-x 才生效）",
+        !!cs && cs.display === "block" && cs.overflowX === "auto",
+        cs ? ("display=" + cs.display + " overflow-x=" + cs.overflowX + " clientW=" + tbl.clientWidth + " scrollW=" + tbl.scrollWidth) : "missing");
+      render();
+    }, 700);
+  }, 900);
+}
+
 function render() {
   var pass = results.filter(function (r) { return r.ok; }).length;
   document.getElementById("log").innerHTML = results.map(function (r) {

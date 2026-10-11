@@ -140,6 +140,92 @@
     input.click();
   }
 
+  /* ---------- P1-C · 导入失败的就地错误块（S09：错误恢复必须可行动）----------
+     由来：导入失败原先只有一句 3 秒 toast（js/app.js 的最短展示时长一到就消失），
+     用户看完只知道自己错了，不知道**下一步点哪里**——这是"不可行动的错误恢复"。
+     参照站内正面模板（js/eval4.js 的就地错误块），改成**就地三段式**：
+       ① 发生了什么（用户看得懂的现象，不是异常栈）
+       ② 为什么（最可能的两个原因，含"很可能只是选错了文件"）
+       ③ 现在点这里（按钮叫什么名字、在哪个页面；需要重新导出时导出按钮在哪）
+     块就插在用户刚点的那个「⬆️ 导入 / 在新设备导入」按钮后面（设置页与今日页各有一个，
+     优先插到**可见**的那个旁边），带 role="alert" 让读屏软件也能念出来。
+     不使用 innerHTML 拼接用户可控内容：文件内容相关的报错一律先转义。 */
+  var IMPORT_ERR_ID = "dataImportErr";
+  var IMPORT_ERR = {
+    json: {
+      what: "这个文件不是本站的备份（内容不是有效的 JSON）。",
+      why: "最常见的原因是选错了文件——PDF、Word、或微信里改过后缀的图片都不是备份；其次才是文件在传输 / 编辑时被截断。",
+      fix: "旁边那个「⬆️ 导入备份」（今日页底部叫「⬆️ 在新设备导入」）再点一次，重选本站导出的 .json 文件。若备份本身已经损坏：回到旧设备，在「⬇️ 导出进度备份」（今日页底部「🔄 换电脑 / 换手机？」区块，或 ⚙ 设置页「📦 学习数据」）重新导出一份，再传过来。"
+    },
+    format: {
+      what: "这份文件能打开，但不是本站的进度备份。",
+      why: "它缺少本站的备份标识或进度数据（可能选到了别的 App 的 JSON、或者备份是从站外手工拼出来的）。",
+      fix: "重选那份文件名以「外贸英语-学习备份-」开头的 .json；没有的话回到旧设备点「⬇️ 导出进度备份」（今日页底部「🔄 换电脑 / 换手机？」区块，或 ⚙ 设置页「📦 学习数据」）重新导出一份。"
+    },
+    storage: {
+      what: "备份读出来了，但写不进这台设备的浏览器存储。",
+      why: "浏览器存储已满，或当前处于无痕 / 隐私模式（该模式不允许写入持久存储）。",
+      fix: "退出无痕模式重开本站，或在浏览器设置里清理一些站点数据后，再点「⬆️ 导入备份」重选同一个文件。"
+    },
+    read: {
+      what: "浏览器没能读完这个文件。",
+      why: "移动端文件选择器给的是临时文件，选完太久或文件在传输中被移动时会失效。",
+      fix: "点「⬆️ 导入备份」重新选一次；仍失败就把这个 .json 先存到「文件 / 下载」目录（不要放在微信临时目录），再用系统浏览器（Safari / Chrome）打开本站导入。"
+    }
+  };
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function clearImportError() {
+    try {
+      var old = document.getElementById(IMPORT_ERR_ID);
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+    } catch (e) { /* ignore */ }
+  }
+  /* 优先返回**可见**的那个导入按钮：设置页与今日页各有一个，DOM 顺序里设置页在前，
+     若直接取第一个，错误块会被插进看不见的设置面板（等于又回到"没有出口"）。 */
+  function importErrorAnchor() {
+    try {
+      if (typeof document.querySelectorAll !== "function") return null;
+      var list = document.querySelectorAll('[data-action="data-import"]');
+      var i;
+      for (i = 0; i < list.length; i++) { if (isVisible(list[i])) return list[i]; }
+      if (list.length) return list[0];
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  /* 可见性判据：`getClientRects().length` 对定位元素（含 fixed 祖先）也成立，
+     offsetParent 作为兜底。设置页那个面板带 hidden，隐藏时两者都不成立。 */
+  function isVisible(el) {
+    try { if (el.getClientRects && el.getClientRects().length) return true; } catch (e) { /* ignore */ }
+    return el.offsetParent !== null;
+  }
+  function showImportError(kind, detail) {
+    var m = IMPORT_ERR[kind] || IMPORT_ERR.json;
+    toast("⚠️ " + m.what);   // toast 保留，但不再是唯一出口（就地块才是）
+    try {
+      clearImportError();
+      var anchor = importErrorAnchor();
+      var file = document.getElementById("dataImportFile");
+      var host = (anchor && anchor.parentNode) || (file && file.parentNode);
+      if (!host || typeof document.createElement !== "function") return;
+      var box = document.createElement("div");
+      box.id = IMPORT_ERR_ID;
+      box.className = "sop-hint";
+      box.setAttribute("role", "alert");
+      box.setAttribute("data-import-error", kind);
+      box.style.marginTop = "8px";
+      box.style.lineHeight = "1.7";
+      box.innerHTML = "<b>⚠️ " + escHtml(m.what) + "</b><br>" +
+        "<b>为什么：</b>" + escHtml(m.why) + (detail ? "（" + escHtml(detail) + "）" : "") + "<br>" +
+        "<b>现在点这里：</b>" + escHtml(m.fix);
+      if (anchor && anchor.nextSibling) host.insertBefore(box, anchor.nextSibling);
+      else host.appendChild(box);
+      if (box.scrollIntoView) box.scrollIntoView({ block: "nearest" });
+    } catch (e) { /* 就地块只是增强：DOM 操作失败时上面的 toast 仍说明了原因 */ }
+  }
+
   function mergeObject(oldV, newV) {
     /* 逐字段后写胜：计数类取较大值，其余以导入值为准 */
     var out = {};
@@ -323,11 +409,13 @@
     reader.onload = function () {
       var pack;
       try { pack = JSON.parse(String(reader.result)); } catch (e) {
-        toast("这不是有效的 JSON 备份文件");
+        /* P1-C · 就地错误块（不再只有 3 秒 toast）：JSON 引擎的报错里可能带回用户文件片段，
+           交给 showImportError 统一转义后再拼进 HTML。 */
+        showImportError("json");
         return;
       }
       if (!pack || pack._tag !== FILE_TAG || !pack.data || !pack.data[PROG_KEY]) {
-        toast("备份文件格式不符（缺少本站标识或进度数据）");
+        showImportError("format");
         return;
       }
       var incoming = pack.data[PROG_KEY];
@@ -367,7 +455,7 @@
         localStorage.setItem(PROG_KEY, JSON.stringify(sanitizeProgress(stripSecrets(PROG_KEY, merged))));
         restKeys.forEach(function (key) { if (!writeOne(key, pack.data[key])) failed++; });
       } catch (e) {
-        toast("写入失败（浏览器存储可能已满）：" + e.message);
+        showImportError("storage", e.message);
         return;
       }
       toast(failed
@@ -375,7 +463,7 @@
         : "✅ 导入完成，正在刷新…");
       setTimeout(function () { location.reload(); }, 900);
     };
-    reader.onerror = function () { toast("读取文件失败"); };
+    reader.onerror = function () { showImportError("read"); };
     reader.readAsText(file, "utf-8");
   }
 

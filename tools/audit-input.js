@@ -11,11 +11,20 @@
      · 目标参考：Nation 的词汇习得经验值——一个词在**不同语境**中出现 ≥3 次才算初步掌握。
 
    门槛：总输入量不得低于 FLOOR（下限只能上调，不能下调）。这条门禁的作用是
-   防止将来删内容时把输入量悄悄削掉而没人发现。 */
+   防止将来删内容时把输入量悄悄削掉而没人发现。
+
+   ▲ P1-D（S10-F13）：只读模式。命中环境变量 `FTE_NO_WRITE=1` 或参数 `--no-write` 时，
+     本脚本**只计算并打印，不写任何文件**（输出里会写明「只读模式：未写盘」）——
+     注意本脚本的 report-input.json 带 generatedAt 时间戳，每次运行内容都不同，
+     跑一次 npm test 就把被跟踪文件改脏。默认行为不变（独立运行仍写报告）。
+     ⚠️ 需 Lead 接线：在 tools/test-all.js 给 audit-count / audit-ipa / audit-input 三个 job 设 FTE_NO_WRITE=1。 */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+
+/* P1-D：只读开关（环境变量或命令行参数，二者任一命中即只读） */
+const READ_ONLY = process.env.FTE_NO_WRITE === "1" || process.argv.indexOf("--no-write") !== -1;
 
 const ROOT = path.join(__dirname, "..");
 const WEB_JS = path.join(ROOT, "js");
@@ -137,11 +146,16 @@ const report = {
   totals: totals, totalInput: totalInput, sentences: sentenceTexts.length,
   vocab: total, occurrences: occ, perUnit: perUnit
 };
-try {
-  fs.writeFileSync(path.join(ROOT, "tools", "report-input.json"), JSON.stringify(report, null, 2));
-  console.log("\n报告已写入: tools/report-input.json");
-} catch (e) {
-  check("写出 report-input.json", false, e.message);
+if (READ_ONLY) {
+  /* P1-D：只读模式下不写盘，也**不**把"没写"判成失败（写盘不是本门禁要守的属性） */
+  console.log("\n（只读模式：未写盘）跳过写入 tools/report-input.json；以下门槛照常判定。");
+} else {
+  try {
+    fs.writeFileSync(path.join(ROOT, "tools", "report-input.json"), JSON.stringify(report, null, 2));
+    console.log("\n报告已写入: tools/report-input.json");
+  } catch (e) {
+    check("写出 report-input.json", false, e.message);
+  }
 }
 
 check("输入量不低于下限（防止删内容悄悄缩水）", totalInput >= FLOOR, totalInput + " ≥ " + FLOOR);

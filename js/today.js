@@ -23,6 +23,11 @@
   const S = window.Today._state = { short: false };
 
   const KEY = "fte-today-v1";
+  /* P1-C · .ics 的 DESCRIPTION 里要带站点位置（S12：日历是站外唯一能留下入口的地方）。
+     地址口径与 index.html 的 canonical 一致（线上站点：https://ozean01.github.io/）。
+     ⚠️ 只在这里声明一次：本文件的 icsText/planTomorrow 各有一份历史副本（重复函数声明合法），
+     但同一个作用域里重复声明 const 会直接 SyntaxError。 */
+  const SITE_URL = "https://ozean01.github.io/#/today";
 
   const E = function () { return window.FTE_BOOT || {}; };
   function esc(s) { const f = E().esc; return f ? f(s) : String(s == null ? "" : s); }
@@ -132,8 +137,11 @@
       "DTSTAMP:" + icsStamp(Date.now()),
       "DTSTART:" + icsStamp(at.getTime()),
       "DTEND:" + icsStamp(end.getTime()),
+      /* P1-C · S12：「只响一次」等于回到 pull 型——加日重复（30 天）才有回访作用。
+         随用户生活节律走：每天 20:00，20 分钟一场，30 天后自然停（不写"永久"，也不催）。 */
+      "RRULE:FREQ=DAILY;COUNT=30",
       "SUMMARY:" + "外贸英语 · 明天这一件",
-      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。",
+      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。\\n站内练习入口：" + SITE_URL,
       "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:外贸英语 · 30 分钟后开始", "END:VALARM",
       "END:VEVENT", "END:VCALENDAR"
     ].join("\r\n") + "\r\n";
@@ -249,8 +257,11 @@
       "DTSTAMP:" + icsStamp(Date.now()),
       "DTSTART:" + icsStamp(at.getTime()),
       "DTEND:" + icsStamp(end.getTime()),
+      /* P1-C · S12：与上面那份 icsText 副本同口径——只响一次的日历等于没有回访，
+         补日重复 30 天；DESCRIPTION 里补站点入口（日历客户端可点）。 */
+      "RRULE:FREQ=DAILY;COUNT=30",
       "SUMMARY:" + "外贸英语 · 明天这一件",
-      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。",
+      "DESCRIPTION:" + line + "\\n20 分钟不够也没关系，做完第一步就算数。\\n站内练习入口：" + SITE_URL,
       "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:外贸英语 · 30 分钟后开始", "END:VALARM",
       "END:VEVENT", "END:VCALENDAR"
     ].join("\r\n") + "\r\n";
@@ -463,6 +474,9 @@
       {
         key: "flash", icon: "🔁", title: "复习到期词", min: 4, href: "#/flash",
         why: d.due > 0 ? ("FSRS 到期 " + d.due + " 词") : (d.total > 0 ? "今天没有到期的，进度良好" : "还没建卡，先学几个新词"),
+        /* P1-C · 完成口径（S01）：每一步在 UI 上写明「怎么才算完成、怎么才记账」，
+           不再让用户自己猜。四步是**自报**：点「✓ 完成」才计入打卡。 */
+        credit: "自报：做完点「✓ 完成」才计入打卡",
         auto: false
       },
       {
@@ -471,6 +485,7 @@
         why: (fresh && placed && nextUnit.id === placed)
           ? ("按你的水平自测结果，从这里开始（U" + placed + "）")
           : ("当前进度停在 U" + nextUnit.id + "（已自评标记 " + unitPctVal + "%，达 " + threshold + "% 即算完成）"),
+        credit: "自报：做完点「✓ 完成」才计入打卡（进度按上面的自评标记百分比算）",
         auto: false
       },
       {
@@ -478,17 +493,24 @@
         why: plan
           ? ("你的目标「" + plan.label + "」→ 建议练「" + plan.scene + "」场景")
           : (dlgN > 0 ? ("U" + nextUnit.id + " 有 " + dlgN + " 段对话可以跟" + (stageN > 0 ? "（已闯关 " + stageN + " 段）" : "")) : "用五阶段闯关练一段"),
+        credit: "自报：练完点「✓ 完成」才计入打卡（站内不核对录音）",
         auto: false
       },
       {
         key: "write", icon: "✍️", title: "写 1 篇", min: 4, href: "#/write",
+        /* P1-C · 完成口径（S01）：写作那一步**不是**自报，是站内按词数自动判定
+           （js/write.js 的 MIN_PROD_WORDS = 40：不足 40 词仍然保存作品，但不记账）。
+           只写「保存即自动记账」会与那条口径冲突，所以在依据与 credit 里都写明词数门槛。 */
         why: "今日写作 " + goal.write.done + "/" + goal.write.target +
-          (plan ? " · 推荐场景「" + plan.write + "」" : "（保存即自动记账）"),
+          (plan ? " · 推荐场景「" + plan.write + "」" : "") +
+          " · 保存且 ≥40 词才自动记账",
+        credit: "自动：保存且 ≥40 词（一封最短完整回信）才记账；不足 40 词仍保存作品，但不计入打卡",
         auto: true, done: writeDone
       },
       {
         key: "review", icon: "⚠️", title: "复盘错题", min: 2, href: "#/mistakes",
         why: wrongN > 0 ? ("累计错词 " + wrongN + " 条") : "还没有错题，先看高频易错点避坑",
+        credit: "自报：看完点「✓ 完成」才计入打卡",
         auto: false
       }
     ];
@@ -686,12 +708,13 @@
           <div class="td-t"><span class="td-ic">${s.icon}</span><b>${esc(s.title)}</b>${
             s.sub ? '<span class="td-sub">' + esc(s.sub) + "</span>" : ""}<span class="td-min">${s.min} 分钟</span></div>
           <div class="td-why">${esc(s.why)}</div>
+          <div class="td-why" data-credit="1">记账口径：${esc(s.credit || "")}</div>
         </div>
         <div class="td-ops">
           <a class="btn btn-primary btn-sm" href="${s.href}">▶ 去做</a>
           ${s.auto
-            ? '<span class="td-auto" title="保存写作后自动记账">' + (d ? "已自动记账" : "自动记账") + "</span>"
-            : '<button class="td-tick' + (d ? " on" : "") + '" data-action="td-tick" data-key="' + s.key + '" title="' + (d ? "取消完成（会退回时长）" : "标记完成（计入打卡）") + '">' + (d ? "↺ 撤销" : "✓ 完成") + "</button>"}
+            ? '<span class="td-auto" title="保存且 ≥40 词后由站内自动记账">' + (d ? "已自动记账" : "自动记账") + "</span>"
+            : '<button class="td-tick' + (d ? " on" : "") + '" data-action="td-tick" data-key="' + s.key + '" title="' + (d ? "取消完成（会退回时长）" : "自报完成（计入打卡）") + '">' + (d ? "↺ 撤销" : "✓ 完成") + "</button>"}
         </div>
       </div>`;
     }).join("");
@@ -701,6 +724,13 @@
     //
     // 📅 「本周新料」的位置（P9）：放在**五步清单与连听之下**。它是「每周一条投料节律」，
     //    不是今天必须做的一步——放上面会把「首屏只让人做一个决定」这条设计原则挤掉。
+    //
+    // 🚨 P1-C · 「场景急救」的位置（S09 实测：首屏 14 个区块，急救排在五步清单**之前**）：
+    //    急救是「客户五分钟后打来」的逃生口，但它**不是今天要做的那一步**——排在清单之前时，
+    //    首屏第一个可点的东西变成了 15 个场景 chip，把「只让人做一个决定」挤掉（且与
+    //    js/urgent.js 自述的「不打断当天进度」、本文件「一屏一决策」自相矛盾）。
+    //    现在它**后移到五步清单之下**，并保持 js/urgent.js 自带的默认折叠形态（details 未展开，
+    //    入口文案仍是「🚨 客户马上要谈什么？」）——功能一个都不删，只是不再抢首屏。
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs">今日</div>
@@ -755,8 +785,6 @@
         '系统会跟上次逐项对比。</div>';
     })()}
 
-    ${(window.Urgent && window.Urgent.html) ? window.Urgent.html() : ""}
-
     <section class="td-list-head">
       <b>今天的清单</b>
       <span class="td-count">${doneN} / ${steps.length} 完成 · 约 ${totalMin(steps, S.short)} 分钟</span>
@@ -764,6 +792,10 @@
     </section>
 
     <section class="td-list">${rows}</section>
+
+    <div class="field-note" data-credit-legend="1">记账口径：五步各自写明了怎么才算完成——四步由你自己点「✓ 完成」（自报，点了才计入打卡），写作那一步由站内按词数自动判定。连听与场景急救只做练习，<b>不计入打卡</b>；打卡只记上面那五步。</div>
+
+    ${(window.Urgent && window.Urgent.html) ? window.Urgent.html() : ""}
 
     ${listenHtml()}
 

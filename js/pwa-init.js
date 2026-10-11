@@ -17,6 +17,30 @@
      会断言它与 package.json 的 version 逐字一致。SW 的 CACHE 是缓存失效用的代号，不是版本号。 */
   window.FTE_VERSION = "1.11.0";
 
+  /* 运行环境判定只在这里做一次（P0-13）。为什么放本文件：它是**第一个**加载的脚本
+     （见 index.html 的 script 顺序），且不依赖任何其它模块，所以 js/player.js 与
+     js/app.js 都能安全地读它。为什么必须只有一处：三处各写一套正则，迟早会漂移，
+     而「我在不在微信里」决定了错误提示里能不能让用户去点地址栏、去开终端。 */
+  var UA = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
+  window.FTE_ENV = {
+    ua: UA,
+    /* 微信内置浏览器（X5 / WKWebView 都带这一节 UA） */
+    wechat: /MicroMessenger/i.test(UA),
+    mobile: /Android|iPhone|iPad|iPod|Mobile|HarmonyOS|MiuiBrowser|MicroMessenger|WeChat/i.test(UA)
+  };
+
+  /* 刷新指引按环境分支（P0-13）：原先只写「按 Ctrl+F5（Mac 为 Cmd+Shift+R）」——
+     手机上没有这个键，而这条文案恰恰是全站最关键的兜底提示。桌面文案逐字保留。 */
+  function refreshGuide() {
+    if (window.FTE_ENV.wechat) {
+      return "请点右上角 <b>⋯</b> →「在浏览器中打开」，再重新加载一次（微信内置浏览器常常拿不到新脚本）；";
+    }
+    if (window.FTE_ENV.mobile) {
+      return "请<b>下拉刷新</b>这个页面（或用浏览器菜单里的「重新加载 / 刷新」按钮）；";
+    }
+    return "请先按 <b>Ctrl+F5</b>（Mac 为 <b>Cmd+Shift+R</b>）强制刷新一次；";
+  }
+
   var lastError = "";
 
   /* 错误留痕：只记录、不弹窗（非致命错误不该打断学习） */
@@ -53,7 +77,7 @@
       '<p>页面骨架已加载，但负责渲染的脚本没有跑完。最常见的原因有两个：</p>' +
       '<p>① <b>网络中断或加载不完整</b>——本站的全部功能都来自 40 多个本地脚本文件，缺一个就起不来；' +
       '② <b>浏览器缓存里留着旧版本</b>——升级过程中外壳与脚本可能对不上。</p>' +
-      '<p>请先按 <b>Ctrl+F5</b>（Mac 为 <b>Cmd+Shift+R</b>）强制刷新一次；仍然失败时，检查网络后重试。' +
+      '<p>' + refreshGuide() + '仍然失败时，检查网络后重试。' +
       '若你已把本站「添加到主屏 / 安装为应用」，可以先删掉再重新打开一次。</p>' +
       (lastError ? '<p style="color:var(--muted,#666);font-size:13px">技术信息：' + lastError.replace(/</g, "&lt;") + "</p>" : "") +
       '<p><button class="btn btn-primary btn-sm" id="bootRetry">🔄 重新加载</button></p>' +

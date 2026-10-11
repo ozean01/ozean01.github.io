@@ -601,9 +601,18 @@
         const a = b.getAttribute("data-accent");
         if (window.Player && window.Player.setAccent) window.Player.setAccent(a);
         applyModeDom();
-        const has = !window.Player || !window.Player.hasAccent || window.Player.hasAccent(a);
-        if (!has) toastMsg(a === "uk" ? "⚠️ 本机未找到英音人声，已回退默认发音人（可在设置里装英音语音包）" : "⚠️ 本机未找到美音人声，已回退默认发音人");
-        else toastMsg(a === "uk" ? "🇬🇧 已切到英音 —— 建议同一句再切回美音对照一遍" : "🇺🇸 已切到美音（站内标准口音）");
+        /* P1-B 接线：不再只用 hasAccent()（它只看本机原生人声，Azure/Google 下会假报「已切到英音」）。
+           改用 Player.accentCapability()：supported=false 报原因；verified=false 只说"已按英音请求"。 */
+        const cap = (window.Player && window.Player.accentCapability) ? window.Player.accentCapability(a) : null;
+        if (cap) {
+          if (!cap.supported) toastMsg("⚠️ " + (cap.reason || "当前引擎切不到该口音，已保持默认发音"));
+          else if (!cap.verified) toastMsg(a === "uk" ? "🇬🇧 已按英音请求（服务端音色不保证，请以实际听到的为准）" : "🇺🇸 已按美音请求（服务端音色不保证）");
+          else toastMsg(a === "uk" ? "🇬🇧 已切到英音 —— 建议同一句再切回美音对照一遍" : "🇺🇸 已切到美音（站内标准口音）");
+        } else {
+          const has = !window.Player || !window.Player.hasAccent || window.Player.hasAccent(a);
+          if (!has) toastMsg(a === "uk" ? "⚠️ 本机未找到英音人声，已回退默认发音人（可在设置里装英音语音包）" : "⚠️ 本机未找到美音人声，已回退默认发音人");
+          else toastMsg(a === "uk" ? "🇬🇧 已切到英音 —— 建议同一句再切回美音对照一遍" : "🇺🇸 已切到美音（站内标准口音）");
+        }
       });
     });
     document.querySelectorAll("#app [data-pl]").forEach(function (b) {

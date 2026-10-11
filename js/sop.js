@@ -107,7 +107,7 @@
         {
           k: "s1d", cn: "填写内部生产计划单",
           note: "字段建议：序号、客户型号、工厂型号、数量、膜结构与厚度、宽幅或袋型尺寸、印刷色数与版辊、颜色与光泽、内盒、外箱、每箱数量、备注（细节与注意事项）。一张单让车间不用再问业务。",
-          en: "The internal production sheet covers the film structure, printing colours, bag size, cartons and packing details.",
+          en: "The internal production sheet covers the film structure, printing colors, bag size, cartons and packing details.",
           enCn: "内部生产计划单涵盖膜结构、印刷色数、袋型尺寸、外箱与包装细节。"
         },
         {
@@ -315,7 +315,7 @@
     "膜结构 Film structure（如 PET12/AL7/PE80）",
     "厚度与宽幅 Thickness / Width",
     "袋型或规格 Bag type / Size",
-    "印刷色数 Printing colours",
+    "印刷色数 Printing colors",
     "包装方式 Packing（卷装 / 内盒 / 外箱）",
     "每箱数量 PCS per carton",
     "包装尺寸 Carton size",
@@ -1002,7 +1002,7 @@
     return card("📜", "合同风险与争议解决", risk,
       "签合同先看三块：违约与救济（谁来赔、赔多少、怎么赔）、争议解决（先协商→仲裁还是诉讼、在哪、适用哪国法）、以及通知与保密。仲裁通常比在外国法院诉讼更可控。") +
       card("🧪", "产品认证与市场合规", comp,
-      "认证没有一个标志走天下：CE 管欧盟、UKCA 管英国、FCC/UL 管美国；软包装还要盯食品接触的迁移限量（EU 1935/2004、美国 FDA 21 CFR）。务必让供应商提供对应批次的 CoA、MSDS 与第三方检测报告，而不是一句『合规』了事。");
+      "合规没有『一个标志走天下』：CE/UKCA 不适用于食品接触软包装，FCC/UL 也管不到它；软包装要看 EU 10/2011（框架 1935/2004）的迁移限量与美国 FDA 21 CFR。务必让供应商提供对应批次的 CoA、MSDS、DoC 与第三方检测报告，而不是一句『合规』了事。");
   }
 
   function termsHtml() {
@@ -1110,7 +1110,7 @@
     { code: "3901.90", en: "Polymers of ethylene, in primary forms", cn: "初级形态乙烯聚合物" },
     { code: "3208.90", en: "Paints/varnishes in non-aqueous medium (ink/gum)", cn: "非水介质油漆/清漆/油墨基料" },
     { code: "3215.19", en: "Printing ink, other than black", cn: "其它印刷油墨" },
-    { code: "7607.11 / 7607.19", en: "Aluminium foil (rolls)", cn: "铝箔（卷）" },
+    { code: "7607.11 / 7607.19", en: "Aluminum foil (rolls)", cn: "铝箔（卷）" },
     { code: "3920.49 / 3920.99", en: "Oriented / other plastic film", cn: "定向/其它塑料薄膜" },
     { code: "3809.10", en: "Finishing agents / carriers for dyeing", cn: "染整助剂/载体（水性助剂）" },
     { code: "3912.39", en: "Cellulose ethers (in primary forms) — coating agent", cn: "纤维素醚（涂布助剂）" }

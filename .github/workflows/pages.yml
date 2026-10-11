@@ -1,7 +1,17 @@
 name: Deploy to GitHub Pages
 
-# 推送到 main（或手动触发）时，把本站静态文件发布到 GitHub Pages。
-# 本站纯静态、零构建，无需打包，直接上传站点根目录即可。
+# 推送到 main（或手动触发）时，先跑门禁、再发布本站静态文件到 GitHub Pages。
+#
+# ▲ P1-D（S10-F8）改法 —— 本节修两个问题：
+#   ① 「部署与测试互不依赖」：原实现是 pages.yml 与 ci.yml 两条独立 workflow，
+#      任何 push（哪怕 ci 红）都会照常上线。现在把测试并进**同一条** workflow，
+#      由 deploy 用 `needs: test` 依赖它 —— 门禁不绿就一个字节都不上传。
+#      （不用 workflow_run：那需要在默认分支上、且跨 workflow 拿不到同一次 push 的
+#       checkout 语义，权限也更绕；needs 在同一 workflow 内是原子的、可 review 的。）
+#   ② 「上传整个仓库根」：原实现 `path: "."` 会把 tools/（53 个脚本 + 报告 JSON/CSV）、
+#      154 KB 的 README.md、.github/、package.json、start-site.ps1、启动外贸英语网站.bat
+#      全部变成公开 URL。现在改为**显式白名单**先拷进 _site/，再上传 _site/，
+#      并对「站点必需文件是否齐」「是否混入不该发布的东西」双向断言 + 体积/文件数哨兵。
 on:
   push:
     branches: [main]
@@ -9,28 +19,131 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # ---------- 门禁：与 ci.yml 同一套（zero-build，直接 node 跑脚本） ----------
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: ""
+
+      # P1-D：FTE_NO_WRITE=1 让三个审计脚本只计算、不写盘（CI 里本来也不该产生 diff）。
+      # 默认行为不变：本地独立运行 node tools/audit-*.js 仍会生成报告。
+      - name: Run tests (audit + assertions)
+        run: node tools/test-all.js
+        env:
+          FTE_NO_WRITE: "1"
+
+      - name: Single-source drift check
+        run: node tools/check-single-source.js
+
+      # 发布前固定动作（P1-D 新增 tools/prepush-check.js，S10-F11）：
+      # 工作区干净 + sw.js 的 CACHE 相对 HEAD 已升版 + 基线一致 + 无未跟踪的 npm test 依赖。
+      # 在 CI 里这一条同时是"测试有没有污染工作区"的信号（配合上面的 FTE_NO_WRITE=1）。
+      - name: Pre-push release check
+        run: node tools/prepush-check.js
+
+  # ---------- 发布：只有 test 绿才会跑到这里 ----------
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Upload site (site root = repo root)
+
+      # 显式白名单：站点运行所需的全部文件 + 第三方许可声明。
+      # 站点本体 = index.html · sw.js · manifest.webmanifest · icon.svg · apple-touch-icon.png
+      #            · og-image.png（og:image/twitter:image 指向它）· css/ · js/（含 js/vendor/）· icons/
+      - name: Stage site (explicit allowlist)
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          for p in index.html sw.js manifest.webmanifest icon.svg apple-touch-icon.png \
+                   og-image.png css js icons THIRD_PARTY_NOTICES.md; do
+            test -e "$p" || { echo "::error::发布白名单里的 $p 不存在"; exit 1; }
+            cp -R "$p" _site/
+          done
+          echo "── 发布集合（白名单拷贝结果）──"
+          find _site -type f | sort
+
+      # 正向断言：站点必需文件一个都不能少（防止白名单写漏 -> 线上 404）
+      - name: Verify required site files present
+        run: |
+          set -euo pipefail
+          for f in index.html sw.js manifest.webmanifest icon.svg apple-touch-icon.png og-image.png \
+                   css/style.css js/app.js js/pwa-init.js js/data.js js/storage-keys.js \
+                   js/vendor/vosk.js icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png; do
+            test -f "_site/$f" || { echo "::error::发布集合缺少站点必需文件：$f"; exit 1; }
+          done
+          # index.html 引用的每个本地 <script src> / <link href> 都必须在发布集合里
+          grep -oE '(src|href)="(js|css|icons)/[^"]+"' _site/index.html | sed -E 's/.*="([^"]+)"/\1/' | sort -u | while read -r r; do
+            test -f "_site/$r" || { echo "::error::index.html 引用了未发布的本站资源：$r"; exit 1; }
+          done
+          echo "✅ 发布集合完整"
+
+      # 反向断言：不该发布的东西一个都不能混进去（tools/ 报告、.github/、启动脚本、大模型）
+      - name: Verify nothing non-site leaked
+        run: |
+          set -euo pipefail
+          for bad in tools .github models package.json package-lock.json README.md start-site.ps1 \
+                     .git .gitignore node_modules; do
+            test ! -e "_site/$bad" || { echo "::error::发布集合混入不该发布的内容：$bad"; exit 1; }
+          done
+          # ① 白名单文件类型：站点运行只要这些（.ps1/.bat/.txt/.map/.zip… 一律不许出现）
+          bad=$(find _site -type f ! -name '*.html' ! -name '*.css' ! -name '*.js' ! -name '*.json' \
+                  ! -name '*.webmanifest' ! -name '*.svg' ! -name '*.png' ! -name '*.md' | sort)
+          if [ -n "$bad" ]; then
+            echo "::error::发布集合含白名单外的文件类型："
+            echo "$bad"
+            exit 1
+          fi
+          # ② 文档类型：只允许第三方许可/来源声明（首页与站点运行都不链接任何 .md）
+          badmd=$(find _site -type f -name '*.md' \
+                    ! -path '_site/THIRD_PARTY_NOTICES.md' ! -path '_site/js/vendor/README.md' | sort)
+          if [ -n "$badmd" ]; then
+            echo "::error::发布集合里出现白名单外的文档（只允许 THIRD_PARTY_NOTICES.md 与 js/vendor/README.md）："
+            echo "$badmd"
+            exit 1
+          fi
+          echo "✅ 发布集合无多余内容"
+
+      # 体积/文件数哨兵：models/（约 67.6 MB）一旦误提交/误拷入就会在这里炸掉
+      - name: Site size sentinel
+        run: |
+          set -euo pipefail
+          files=$(find _site -type f | wc -l)
+          bytes=$(du -sb _site | cut -f1)
+          echo "站点文件数：$files · 体积：$bytes B ($(( bytes / 1024 / 1024 )) MB)"
+          test "$files" -le 200 || { echo "::error::发布集合文件数 $files > 200，疑似混入大目录（models/？）"; exit 1; }
+          test "$bytes" -le 26214400 || { echo "::error::发布集体积 $bytes B > 25 MB，疑似混入大资产"; exit 1; }
+
+      - name: Upload site (staged _site/ only)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: "_site"
+
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@v4

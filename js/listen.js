@@ -6,13 +6,23 @@
   "use strict";
 
   /* 每组 {a, b} 为一对最小音对；note 说明两个音素的差异（中文），用于答错后讲解 */
+
+  /* P1-B：/ɪ/ vs /iː/ 的统一口径，与 js/phonemes.js:29 对齐——「不是把 /iː/ 读短，而是另一个音」。
+     改前这 6 条把时长（「短促 / 拖长」）当成唯一区分线索，既与音素课自相矛盾，也会教出错的音：
+     时长只是伴随特征，且受后接辅音清浊影响（seat 的 /iː/ 明显短于 seed 的 /iː/）。
+     所以先讲音质（舌位/肌肉紧张度），时长只作附注；集中成一个常量，6 组说法永远一致。 */
+  var IE_NOTE = "/ɪ/ 与 /iː/ 是两个不同的音，不是长短之分：/ɪ/ 舌位略低略后、肌肉放松；/iː/ 舌前部抬高、肌肉紧张、嘴角向两侧展开。时长只是伴随特征（受后接辅音清浊影响），别当唯一线索。";
+  function ieNote(a, b, tail) {
+    return IE_NOTE + "（" + a + " 是松 /ɪ/，" + b + " 是紧 /iː/" + (tail || "") + "）";
+  }
+
   var PAIRS = [
-    { a: "ship", b: "sheep", note: "短音 /ɪ/ vs 长音 /iː/：ship 读得短促，sheep 拖长。" },
-    { a: "chip", b: "cheap", note: "短音 /ɪ/ vs 长音 /iː/：chip 短促，cheap 拖长。" },
-    { a: "live", b: "leave", note: "短音 /ɪ/ vs 长音 /iː/：live 短，leave 长（动词“离开”）。" },
-    { a: "fill", b: "feel", note: "短音 /ɪ/ vs 长音 /iː/：fill 短，feel 长。" },
-    { a: "slip", b: "sleep", note: "短音 /ɪ/ vs 长音 /iː/：slip 短（滑倒），sleep 长（睡觉）。" },
-    { a: "this", b: "these", note: "短音 /ɪ/ vs 长音 /iː/：this 短，these 长。" },
+    { a: "ship", b: "sheep", note: ieNote("ship", "sheep") },
+    { a: "chip", b: "cheap", note: ieNote("chip", "cheap") },
+    { a: "live", b: "leave", note: ieNote("live", "leave", "，指动词「离开」") },
+    { a: "fill", b: "feel", note: ieNote("fill", "feel") },
+    { a: "slip", b: "sleep", note: ieNote("slip", "sleep", "，slip 是「滑倒」") },
+    { a: "this", b: "these", note: ieNote("this", "these") },
     { a: "bad", b: "bed", note: "开口音 /æ/ vs /e/：bad 嘴张更大（坏的），bed 更收（床）。" },
     { a: "man", b: "men", note: "开口音 /æ/ vs /e/：man 单数（男人），men 复数。" },
     { a: "pen", b: "pan", note: "/e/ vs /æ/：pen 笔，pan 平底锅；先听清元音再选。" },
@@ -20,7 +30,7 @@
     { a: "cap", b: "cup", note: "/æ/ vs /ʌ/：cap 帽子，cup 杯子。" },
     { a: "very", b: "worry", note: "/v/ vs /w/：非常 vs 担忧；v 是齿唇音，w 是双唇音。" },
     { a: "vest", b: "west", note: "/v/ vs /w/：背心 vs 西方；v 上齿碰下唇。" },
-    { a: "light", b: "right", note: "/l/ vs /r/：光 vs 右；l 舌尖抵上齿龈，r 舌尖卷起。" },
+    { a: "light", b: "right", note: "/l/ vs /r/：光 vs 右；l 舌尖抵上齿龈；r 的舌形有两种、都算对——舌尖上卷（retroflex）或舌尖下收、舌体抬起（bunched），共同点是双唇略圆、咽部收窄。" },
     { a: "collect", b: "correct", note: "/l/ vs /r/：收集 vs 正确；注意两个词中间的音素。" },
     { a: "sink", b: "think", note: "/s/ vs /θ/：下沉 vs 思考；th 是把舌尖放齿间。" },
     { a: "sick", b: "thick", note: "/s/ vs /θ/：生病 vs 厚；th 舌尖放齿间。" },

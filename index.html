@@ -127,6 +127,7 @@
           <a href="#/mysay" data-nav="mysay">🗣 说我想说（写你想说的话→地道英文）</a>
           <a href="#/material" data-nav="material">📥 素材（导入 · 逐句精听）</a>
           <a href="#/sources" data-nav="sources">🎧 真实商务听音源（泛听）</a>
+          <a href="#/glossary" data-nav="glossary">🔍 专业术语速查（术语库）</a>
         </div>
       </details>
       <details class="nav-group" data-group="progress">
@@ -157,7 +158,7 @@
        它存在的意义是「加载中不至于白屏」，同时配合 js/pwa-init.js 给出可读的失败提示。 -->
   <div id="bootFallback" class="boot-skeleton">
     <div class="page-head"><h2>⏳ 正在加载…</h2></div>
-    <p class="sop-hint">正在准备课程与语音模块。若这条提示长时间不消失，请检查网络后按 Ctrl+F5 强制刷新。</p>
+    <p class="sop-hint">正在准备课程与语音模块。若这条提示长时间不消失，请检查网络后刷新页面（<b>桌面</b>：Ctrl+F5 / Mac 为 Cmd+Shift+R；<b>手机</b>：下拉刷新，或在浏览器菜单里点「重新加载」）。</p>
   </div>
 </main>
 
@@ -243,7 +244,7 @@
     <div class="field">
       <label>🔍 数据去向（P0-4 · 逐项如实列出）</label>
       <div class="field-note" style="line-height:1.85">
-        <b>本站不接收任何数据</b>：学习记录（掌握词、单词卡、成绩、作品、打卡）全部只写本机 localStorage，站点没有后端、没有埋点。<br>
+        <b>本站不接收任何数据</b>：学习记录（掌握词、单词卡、成绩、作品、打卡）全部只写本机 localStorage，站点没有后端、<b>不向任何服务器发送你的数据</b>；站内另有一项<b>只存在本机、可随时关闭的粗略使用计数</b>（记什么 / 存在哪 / 是否外发 / 怎么关，见本表最后一段）。<br>
         下面这些是<b>你主动使用某个联网功能</b>时才会发生的上行：<br>
         · <b>发音朗读（浏览器语音）</b>：在本机合成，不出网。<br>
         · <b>发音朗读（Google 在线音源）</b> → <code>translate.google.com</code>：发送<b>被朗读的英文文本</b>。<br>
@@ -253,7 +254,9 @@
         · <b>AI 陪练 / 写作批改 / 四维 AI 判分 / 说我想说</b>：发送<b>对话与写作文本</b>到你选择的 <code>Base URL</code>（默认 <code>api.deepseek.com</code>；选 🖥 本地 Ollama 时一步都不出本机）。<br>
         · <b>汇率查询</b> → <code>cdn.jsdelivr.net</code>：只取公开汇率表，不发送任何个人信息。<br>
         · <b>素材投料口 · 粘贴网页链接</b> → <code>r.jina.ai</code>：发送<b>你粘贴的那个网址</b>以取回正文（学习数据与 Key 都不会带上）。<br>
-        关掉对应功能即可停止对应上行；本站不会在你没点的时候主动联网。
+        关掉对应功能即可停止对应上行；本站不会在你没点的时候主动联网。<br>
+        <b>另有一项只写在本机、不外发、可随时关闭的记录</b>（<code>fte-trace-v1</code>）：记什么——你从非主线入口（场景急救「接着说」/ 搜索结果 / 看板任务卡 / 写作区单元 chip / 首次上手横幅等）点进主线单元的<b>次数与单元号</b>，以及进入主线单元页的<b>次数</b>；时间戳按 <b>15 分钟粒度</b>吸附。只记次数、单元号与来源粗类，<b>不记</b>你看了哪个词条 / 句子 / 场景文本，也<b>不记</b>答对答错。存在哪里——<b>仅本机 localStorage</b>；是否外发——<b>否</b>（本站没有上报接口）；<b>已从备份中排除</b>——「⬇️ 导出进度备份」生成的 JSON 里<b>不含它</b>。<br>
+        　<b>怎么关</b>（任选其一，随时可停）：浏览器控制台执行 <code>FTE_TRACE.disable()</code>；或写入 <code>localStorage.setItem("fte-trace-off","1")</code>；或用 <code>index.html?traceOff=1</code> 打开本次页面。重新开启用 <code>FTE_TRACE.enable()</code>。界面开关尚未接入，待后续版本补上。
       </div>
     </div>
     <div class="field">
@@ -265,7 +268,7 @@
         <button class="btn btn-outline btn-sm" data-action="data-csv-wrong">❗ 错题 CSV</button>
       </div>
       <input type="file" id="dataImportFile" accept=".json,application/json" hidden>
-      <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>（掌握词、单词卡两条线、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、偏好设置等）；换电脑或换浏览器时导入即可续学。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
+      <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>（掌握词、单词卡两条线、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、偏好设置等）；换电脑或换浏览器时导入即可续学。<b>不含</b>上面「🔍 数据去向」说明的站内行为计数 <code>fte-trace-v1</code>（该项只写在本机、不随备份外流）。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
     </div>
     <div class="field">
       <label>📱 在微信里打开 · 分享给同事</label>
@@ -301,6 +304,7 @@
 <script src="js/data-deep.js" defer></script>
 <script src="js/data-meeting.js" defer></script>
 <script src="js/data-mnemonic.js" defer></script>
+<script src="js/data-glossary.js" defer></script>
 <script src="js/lvl-map.js" defer></script>
 <script src="js/difficulty-map.js" defer></script>
 <!-- 单元用途句（「什么时候用」）。必须放在最后一个外部脚本之前加载：
@@ -323,6 +327,7 @@
 <script src="js/export.js" defer></script>
 <script src="js/asr-local.js" defer></script>
 <script src="js/sources.js" defer></script>
+<script src="js/glossary.js" defer></script>
 <script src="js/subtitle.js" defer></script>
 <script src="js/material.js" defer></script>
 <!-- 🌐 全英模式（显示偏好）+ 📅 本周新料（每周投料节律）。
@@ -348,7 +353,9 @@
 <!-- 入口离开 / 主线进入 只读行为记录（P1-D 前置）：app.js 执行时就要读 window.FTE_TRACE
      的两个挂点，标签必须排在它前面。纯记录，不渲染任何东西、不新增页面/导航/路由。
      关闭：FTE_TRACE.disable() / localStorage 写入 "fte-trace-off" / 地址栏 ?traceOff=1 /
-     直接删掉下面这一行。 -->
+     直接删掉下面这一行。P0-09：同一组关闭方式已写进设置页「🔍 数据去向」表（用户可见），
+     且 fte-trace-v1 在 js/storage-keys.js 已登记为 backup:false，不再随「导出进度备份」外流；
+     上述用户可见说明与本块注释需保持同步。 -->
 <script src="js/entry-trace.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>

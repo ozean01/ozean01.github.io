@@ -14,11 +14,21 @@
   const esc = function (s) { const f = U().esc; return f ? f(s) : String(s == null ? "" : s); };
 
   /* ---------------- 数据聚合 ---------------- */
+  /* P1-A · 来源标记与仪器分桶（S04 V3 / V5 增量 3）
+     每条记录带 dimSrc：哪个维度是由**哪台仪器**给出的。
+       · "asr"    —— 浏览器语音识别**转写**后逐词对齐（跟读词形命中 / 词形完整度）
+       · "llm"    —— 同一个模型的一次提示词判断（应答相关性 / 表达逻辑 / 语法 / 表达）
+       · "azure"  —— Azure 官方音素模型（官方发音总分 / 音素准确率 / 官方流利度）
+       · "speech" —— 自由表达页的**纯文本统计**（去重词数 / 填充词，无 AI）
+     聚合规则：**一根轴只吃同仪器的记录**；不同仪器、不同量表的分数绝不放进同一个 avg。
+     历史记录（本批之前写入、没有 dimSrc/src）按「未知来源」处理：**不计入任何能力轴**，
+     只在界面上报数——它们的 `acc` 可能是 Azure 音素准确率，也可能是 LLM 应答准确性，
+     就地平均会把两种构念混成一列（这正是 S04 V3 的构念碰撞）。 */
   function eval4Records() {
     try {
       const p = U().getProgress ? U().getProgress() : {};
       if (!Array.isArray(p.eval4)) return [];
-      return p.eval4.filter(function (r) { return r && typeof r.term === "number"; });
+      return p.eval4.filter(function (r) { return r && typeof r === "object"; });
     } catch (e) { return []; }
   }
   function speechRecords() {
@@ -26,15 +36,45 @@
     catch (e) { return []; }
   }
   function avg(nums) { const v = nums.filter(function (n) { return typeof n === "number" && isFinite(n); }); return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null; }
+  /* 某个维度的仪器来源；null = 未知来源（不计入能力轴） */
+  function dimSource(rec, key) {
+    if (!rec) return null;
+    if (rec.dimSrc && typeof rec.dimSrc === "object" && typeof rec.dimSrc[key] === "string") return rec.dimSrc[key];
+    /* 兜底：只认显式打了 src:"azure" 的记录；其余历史记录一律视为未知来源 */
+    if (rec.src === "azure" && (key === "azPron" || key === "azAcc" || key === "azFlu" || key === "azComp")) return "azure";
+    return null;
+  }
+  const EVAL4_DIMS = ["term", "flu", "acc", "log"];
+  /* 按「维度 + 仪器」取均值 */
+  function avgBy(records, key, inst) {
+    return avg(records.filter(function (r) { return dimSource(r, key) === inst; }).map(function (r) { return r[key]; }));
+  }
+  /* 「有效测评条数」的口径（P1-A）：带来源标记 + 至少一个已测维度非空 */
+  function isValidEval4(r) {
+    return EVAL4_DIMS.some(function (k) { return dimSource(r, k) != null && typeof r[k] === "number" && isFinite(r[k]); });
+  }
+  function isUnknownSource(r) {
+    return !EVAL4_DIMS.some(function (k) { return dimSource(r, k) != null; });
+  }
+  function isValidSpeech(r) {
+    return (typeof r.fluency === "number" && isFinite(r.fluency)) ||
+      (typeof r.uniq === "number" && isFinite(r.uniq)) ||
+      !!(r.ai && ((typeof r.ai.grammar === "number" && isFinite(r.ai.grammar)) ||
+        (typeof r.ai.expression === "number" && isFinite(r.ai.expression))));
+  }
 
-  /* 生成 5 维（每个 0-100，可为 null=未测）。recent：取最近 N 条。 */
+  /* 生成 5 维（每个 0-100，可为 null=未测）。recent：取最近 N 条。
+     每根轴只由一个仪器喂数；跨仪器的量只出现在 extras（不进雷达、不进综合分）。 */
   function compute(recentN) {
-    const e = eval4Records().slice(0, recentN || 10);
-    const s = speechRecords().slice(0, recentN || 10);
-    const eTerm = avg(e.map(function (r) { return r.term; }));
-    const eFlu = avg(e.map(function (r) { return r.flu; }));
-    const eAcc = avg(e.map(function (r) { return r.acc; }));
-    const eLog = avg(e.map(function (r) { return r.log; }));
+    const N = recentN || 10;
+    const e = eval4Records().slice(0, N);
+    const s = speechRecords().slice(0, N);
+    const eTerm = avgBy(e, "term", "asr");
+    const eFlu = avgBy(e, "flu", "asr");
+    const eAcc = avgBy(e, "acc", "llm");
+    const eLog = avgBy(e, "log", "llm");
+    /* 自由表达页只有一条写入线（fte-speech-v1），仪器来源由存储键确定：
+       fluency / uniq 是纯文本统计（instrument "speech"），ai.* 是一次 LLM 判断（"llm"）。 */
     const sFlu = avg(s.map(function (r) { return r.fluency; }));
     const gGram = avg(s.filter(function (r) { return r.ai; }).map(function (r) { return r.ai.grammar; }));
     const gExpr = avg(s.filter(function (r) { return r.ai; }).map(function (r) { return r.ai.expression; }));
@@ -46,22 +86,47 @@
     let vocab = null;
     if (uniq != null && uniq > 0) vocab = Math.round(Math.min(100, Math.max(20, uniq * 2.2)));
 
+    /* Azure 三分数：**不进雷达轴**，独立成块。它是另一套量表（官方音素模型），
+       与站内 ASR 词形分、LLM 内容分不可换算、不可平均（S04 V3/V5）。 */
+    const azPron = avgBy(e, "azPron", "azure");
+    const azAcc = avgBy(e, "azAcc", "azure");
+    const azFlu = avgBy(e, "azFlu", "azure");
+    const azCount = e.filter(function (r) { return r && r.src === "azure"; }).length;
+
     const dims = [
-      { key: "pron", label: "术语发音", val: eTerm, from: "四维", href: "#/eval4", tip: "跟读标准句 + Azure 音素级最准" },
-      { key: "flu", label: "语调·流利", val: avg([eFlu, sFlu]), from: "四维/自由表达", href: "#/eval4", tip: "重读实义词、轻读虚词、控制填充词" },
-      { key: "gram", label: "语法", val: gGram, from: "自由表达(AI)", href: "#/speech", tip: "用 AI 判语法/表达，回读更自然版本" },
-      { key: "vocab", label: "词汇量(估算)", val: vocab, from: "自由表达", href: "#/speech", tip: "多说、多用去重词，扩大表达面" },
-      { key: "expr", label: "表达·逻辑", val: avg([eAcc, eLog, gExpr]), from: "四维/自由表达", href: "#/eval4", tip: "先认可 → 给理由 → 给方案 → 承诺" }
+      { key: "pron", label: "跟读词形命中", val: eTerm, from: "跟读 · 浏览器 ASR 转写", href: "#/eval4", tip: "参考句里的术语词有没有被你读的词形对上——这是词形命中，不是发音的声学评分（识别≠发音）" },
+      { key: "flu", label: "词形完整度", val: eFlu, from: "跟读 · 同一份 ASR 对齐", href: "#/eval4", tip: "漏读/多读/近似造成的词形完整度；与上一轴同源，不构成独立的流利度测量" },
+      { key: "gram", label: "语法", val: gGram, from: "自由表达 · AI 单次判断", href: "#/speech", tip: "用 AI 判语法/表达，回读更自然版本" },
+      { key: "vocab", label: "词汇量(估算)", val: vocab, from: "自由表达 · 去重词数", href: "#/speech", tip: "多说、多用去重词，扩大表达面；这只是去重词数折算，不是词汇量测量" },
+      { key: "expr", label: "应答·逻辑", val: avg([eAcc, eLog, gExpr]), from: "AI 单次判断（四维应答 + 自由表达）", href: "#/eval4", tip: "先认可 → 给理由 → 给方案 → 承诺；同一模型的提示词判断，不是多方印证" }
     ];
+    /* 跨仪器 / 不同量表的量：只在这里单列，不进雷达轴、不进综合分 */
+    const extras = [
+      { label: "自由表达流畅（启发式）", val: sFlu, from: "自由表达 · 纯文本统计", tip: "含填充词密度与语速的启发式估算，与「跟读词形完整度」不是同一台仪器" },
+      { label: "Azure 官方发音总分", val: azPron, from: "Azure 音素模型", tip: "官方加权分（脚本式朗读），与站内跟读词形分是两套量表" },
+      { label: "Azure 音素准确率", val: azAcc, from: "Azure 音素模型", tip: "音素与母语者的接近程度——不是四维里的「应答准确性」，两者不共用字段、不平均" },
+      { label: "Azure 官方流利度", val: azFlu, from: "Azure 音素模型", tip: "Azure 依据静默停顿给出的流利度，与站内启发式流利度不可比" }
+    ];
+
     const have = dims.filter(function (d) { return d.val != null; });
-    /* P1-6：**综合分与段位需要最小样本量**。
-       综合分是「可用维度的等权平均」，此前 1 条记录就能评出「母语级」——弱证据被包装成强结论。
-       要求至少 MIN_SAMPLES 次有效测评（四维 / 自由表达合计），否则不给综合分、不评段位。 */
-    const n = e.length + s.length;
+    /* P1-A：样本门计的是**有效测评条数**，不是记录条数（S04 V5 增量 1）。
+       一条记录算「有效测评」= 它带来源标记且至少一个已测维度非空；
+       同时还要求**至少 MIN_DIMS 个不同维度**测到——只录 3 段自由说话、不做跟读、
+       不配 Key，过去能凑够 3 条记录直接拿 A 档，那是把弱证据包装成强结论。 */
+    const validEval4 = e.filter(isValidEval4).length;
+    const validSpeech = s.filter(isValidSpeech).length;
+    const nValid = validEval4 + validSpeech;
+    const nUnknown = e.filter(isUnknownSource).length;
     const MIN_SAMPLES = 3;
-    const enough = n >= MIN_SAMPLES;
+    const MIN_DIMS = 3;
+    const enough = nValid >= MIN_SAMPLES && have.length >= MIN_DIMS;
     const overall = (have.length && enough) ? Math.round(have.reduce(function (a, d) { return a + d.val; }, 0) / have.length) : null;
-    return { dims: dims, overall: overall, nEval: e.length, nSpeech: s.length, n: n, minSamples: MIN_SAMPLES, enough: enough };
+    return {
+      dims: dims, extras: extras, overall: overall,
+      nEval: e.length, nSpeech: s.length, n: nValid, nValid: nValid,
+      validEval4: validEval4, validSpeech: validSpeech, nUnknown: nUnknown,
+      azCount: azCount, minSamples: MIN_SAMPLES, minDims: MIN_DIMS, enough: enough
+    };
   }
 
   /* 站内练习分档（P5 改口径）。
@@ -86,7 +151,7 @@
   function render() {
     const data = compute(10);
     const hasData = data.dims.some(function (d) { return d.val != null; });
-    app.innerHTML = pageHeadHtml(data) + (hasData ? bodyHtml(data) : emptyHtml());
+    app.innerHTML = pageHeadHtml(data) + (hasData ? bodyHtml(data) : emptyHtml(data));
     if (hasData) drawRadar("radarCanvas", data);
   }
 
@@ -97,7 +162,11 @@
       <h2>📡 口语水平概览</h2>
       <div class="en">把你练过的「四维口语实战」+「自由表达分析」聚合成一张五维雷达 + 站内练习分档</div>
       <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--muted)">
-        基于最近 ${n} 次成绩（四维 ${data.nEval} · 自由表达 ${data.nSpeech}）。<b>站内相对水平，非官方量表</b>；练得越多越准。
+        最近 ${n} 条记录（四维 ${data.nEval} · 自由表达 ${data.nSpeech}），其中带来源标记的<b>有效测评 ${data.nValid} 条</b>。<b>站内相对水平，非官方量表</b>；练得越多越准。
+      </div>
+      <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--muted)">
+        每根轴只由<b>一台仪器</b>喂数：跟读两轴来自 ASR 转写、语法与应答·逻辑来自 AI 判断、词汇量来自去重词数统计。
+        不同仪器（含 Azure 音素级分）<b>不平均</b>，另有来源不明或没打来源标记的历史记录不计入这些轴。
       </div>
       <div class="en" style="margin-top:4px;font-size:12.5px;color:var(--primary)">
         这一页是<b>能力证据</b>（说得怎么样），与「计划·打卡·手册」记的<b>坚持</b>（练了多少）是两回事——打卡天数不能代替它。
@@ -105,31 +174,41 @@
     </div>`;
   }
 
-  function emptyHtml() {
+  function emptyHtml(data) {
+    /* P1-A：旧记录（无来源标记）全部被排除时，不能只说「还没有口语成绩」——
+       用户明明练过。这里要明确说清它们为什么不计入，以及怎么让它们重新变得可解释。 */
+    const legacy = data && data.nUnknown
+      ? '<div class="field-note" style="margin-top:12px;text-align:left">ℹ️ 检测到 <b>' + data.nUnknown +
+        '</b> 条旧成绩（本批之前写入，没有来源标记）。它们当中的「准确率」可能来自 Azure 音素模型、也可能来自 AI 内容判断，' +
+        '两者不是同一个构念，因此<b>不进入任何能力轴</b>——这不是把你的成绩丢掉，而是不让无法解释的数字冒充能力证据。' +
+        '做一轮新的「四维口语实战」或「自由表达分析」，就会留下带来源标记的成绩。</div>'
+      : "";
     return `
     <div class="card sp-empty">
       <div class="e-icon" style="font-size:40px">📡</div>
-      <h3>还没有口语成绩</h3>
+      <h3>${data && data.nUnknown ? "还没有可解释的口语成绩" : "还没有口语成绩"}</h3>
       <p>先从下面任意一项开始，练几轮后这里就能画出你的口语雷达：</p>
       <div class="rd-cta">
         <a class="btn btn-primary" href="#/eval4">🎯 四维口语实战（跟读+应答）</a>
         <a class="btn btn-outline" href="#/speech">🎙️ 自由表达分析（说一段）</a>
         <a class="btn btn-ghost" href="#/tutor">🤖 AI 陪练（场景对练）</a>
       </div>
+      ${legacy}
     </div>`;
   }
 
   function bodyHtml(data) {
     const rk = rank(data.overall);
     const worst = data.dims.slice().sort(function (a, b) { return (a.val == null ? 101 : a.val) - (b.val == null ? 101 : b.val); })[0];
+    const extrasHave = (data.extras || []).filter(function (x) { return x.val != null; });
     return `
     <div class="rd-wrap">
       <div class="rd-left">
         <div class="card">
           <div class="rd-score">${data.overall == null ? "—" : data.overall}<span>/100</span></div>
           <div class="rd-rank ${rk ? rk.cls : ""}">${rk ? rk.ic + " " + rk.name : "未评定"}</div>
-          <div class="rd-rank-desc">${rk ? esc(rk.desc) : (data.enough ? "先多练几次，就会出现你的站内练习分档。" : "样本不足（已 " + data.n + " / " + data.minSamples + " 次有效测评）——先多练几次再给分档，避免拿一次成绩当水平。")}</div>
-          <div class="rd-disclaimer">⚠️ 本<b>站内练习分档</b>为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。${data.enough ? "" : "<b>当前样本 " + data.n + " / " + data.minSamples + "，综合分与练习分档暂不给出。</b>"}</div>
+          <div class="rd-rank-desc">${rk ? esc(rk.desc) : (data.enough ? "先多练几次，就会出现你的站内练习分档。" : "样本不足（有效测评已 " + data.nValid + " / " + data.minSamples + " 条、已测维度 " + data.dims.filter(function (d) { return d.val != null; }).length + " / " + data.minDims + " 个）——先多练几轮再给分档，避免拿一次成绩当水平。")}</div>
+          <div class="rd-disclaimer">⚠️ 本<b>站内练习分档</b>为<b>站内相对水平</b>（基于你在本站练过的成绩归一），不与官方 CEFR 口语量表对齐；样本少时会偏差，练得越多越真实。${data.enough ? "" : "<b>当前有效测评 " + data.nValid + " / " + data.minSamples + " 条，综合分与练习分档暂不给出。</b>"}</div>
           <canvas id="radarCanvas" width="560" height="420"></canvas>
           <div class="rd-actions">
             <button class="btn btn-primary btn-sm" data-radar="export">⬇️ 导出口语雷达图</button>
@@ -150,6 +229,16 @@
               </div>`;
             }).join("")}
           </div>
+          ${data.nUnknown ? '<p class="field-note" style="margin-top:8px">ℹ️ 另有 <b>' + data.nUnknown + '</b> 条记录没有来源标记（本批之前的旧成绩），<b>不计入上面的轴</b>：它们当中「准确率」可能来自 Azure 音素模型、也可能来自 AI 内容判断，把两者平均会让这一列数字无法解释。再做一轮练习就会留下带来源标记的新成绩。</p>' : ""}
+        </div>
+        <div class="card">
+          <h3>另计 · 不并入上面的轴</h3>
+          <p class="rd-dim-meta" style="margin-bottom:8px">下面这些量来自<b>另一台仪器</b>或另一套量表，与雷达轴不同刻度，因此单列、不平均、不参与综合分。</p>
+          ${extrasHave.length ? extrasHave.map(function (x) {
+            return '<div class="rd-dim"><div class="rd-dim-head"><b>' + esc(x.label) + '</b><span>' + Math.round(x.val) + '/100</span></div>' +
+              '<div class="rd-dim-meta">来源：' + esc(x.from) + ' · ' + esc(x.tip) + '</div></div>';
+          }).join("") : '<p class="rd-dim-meta">暂无（练一次跟读或自由表达就会出现）。</p>'}
+          ${data.azCount ? "" : '<p class="rd-dim-meta" style="margin-top:6px">Azure 音素级分需在「四维口语实战」里配置 Azure Key 后单独评测；它与站内跟读词形分<b>不是同一个量表</b>。</p>'}
         </div>
         <div class="card">
           <h3>最该先补的：${esc(worst ? worst.label : "")}</h3>
@@ -234,7 +323,7 @@
     c.drawImage(tmp, 0, 0);
     c.restore();
     c.fillStyle = "#64748b"; c.font = "12px 'Segoe UI','Microsoft YaHei',sans-serif"; c.textAlign = "left";
-    c.fillText("站内相对水平，非官方 CEFR 量表。四维 " + data.nEval + " 次 · 自由表达 " + data.nSpeech + " 次。", 28, 600);
+    c.fillText("站内相对水平，非官方 CEFR 量表。四维 " + data.nEval + " 条 · 自由表达 " + data.nSpeech + " 条（有效测评 " + data.nValid + " 条）。", 28, 600);
     const url = src.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = url; a.download = "软包装外贸英语-口语雷达.png";

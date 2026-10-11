@@ -40,6 +40,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-urgent.js"],  gate: true,  label: "场景急救：每个场景都能给出话 / 架构冻结守卫" },
   { cmd: "node", args: ["tools/test-sop.js"],     gate: true,  label: "SOP 英文接入练习引擎：每句都有练习路径" },
   { cmd: "node", args: ["tools/test-assets.js"],  gate: true,  label: "静态资源接线：引用存在 + 预缓存完整" },
+  { cmd: "node", args: ["tools/test-glossary.js"],gate: true,  label: "术语速查 P11：数据完整 / 音标口径 / 不与课程词库重复 / 接线与渲染" },
   { cmd: "node", args: ["tools/test-security.js"], gate: true, label: "安全与数据可信：转义 / CSP / 备份全覆盖无凭据" },
   { cmd: "node", args: ["tools/test-term-score.js"], gate: true, label: "术语发音分口径：大小写 / 多词术语 / near / 不适用" },
   { cmd: "node", args: ["tools/test-honesty.js"], gate: true, label: "诚实性不变量：能力栏 / 快照 / 复测可比 / 样本门" },
@@ -48,11 +49,15 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-difficulty.js"], gate: true, label: "难度标定 P3-4：CEFR 命中数门限 / 条目量项 / 同形异义排除 / dom 收窄" },
   { cmd: "node", args: ["tools/check-single-source.js"], gate: true, label: "单一数据源：小程序数据可由网页版重生成" },
   { cmd: "node", args: ["tools/test-doc-numbers.js"], gate: true, label: "文档数字对账：README 的数量宣称必须与实测数据一致" },
-  { cmd: "node", args: ["tools/audit-input.js"],  gate: true,  label: "可理解输入量：总量下限 / 每词复现次数分布 / 每单元输入密度（重算 report-input.json）" },
+  { cmd: "node", args: ["tools/test-p0-content.js"], gate: true, label: "P0 内容不变量：术语/法规禁用串 · GA 卷舌 · #wsAi 渲染 · ESM 加载 · 冒烟页口径 · 零埋点措辞" },
+  { cmd: "node", args: ["tools/test-ai-prompt-inventory.js"], gate: true, label: "AI 调用点清单：FACT_GUARD 覆盖 / AIDisclosure 披露 / termCheck 默认 / 调用点与渲染点漂移" },
+  { cmd: "node", args: ["tools/test-ai-eval-cases.js"], gate: true, label: "AI 红队用例：83 条 anchor 引用 / 11 条链路提示词漂移 / 16 个判分器正反例（零依赖无网络）" },
+  { cmd: "node", args: ["tools/audit-input.js"],  gate: true,  env: { FTE_NO_WRITE: "1" }, label: "可理解输入量：总量下限 / 每词复现次数分布 / 每单元输入密度（只读：不写 report-input.json）" },
   { cmd: "node", args: ["tools/export-roundtrip.js"], gate: true, label: "导出/导入往返 P0′：7 类数组记录保型 / 合法数据不误伤 / 注入被净化 / 迁移落盘" },
-  { cmd: "node", args: ["tools/check-tracked.js"], gate: false, label: "版本库一致性：index.html 的脚本必须已被 git 跟踪（发布前必须绿）" },
-  { cmd: "node", args: ["tools/audit-count.js"],  gate: false, label: "全站数字统计（重算 report-count.json）" },
-  { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, label: "IPA / 难度审计（重算 report-ipa.csv）" },
+  { cmd: "node", args: ["tools/check-tracked.js"], gate: true, label: "版本库一致性：index.html 的脚本必须已被 git 跟踪（P0-08：已从 gate:false 升为硬门禁）" },
+  { cmd: "node", args: ["tools/audit-count.js"],  gate: false, env: { FTE_NO_WRITE: "1" }, label: "全站数字统计（P1-D：只读模式，不写 report-count.json）" },
+  { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, env: { FTE_NO_WRITE: "1" }, label: "IPA / 难度审计（P1-D：只读模式，不写 report-ipa.csv）" },
+  { cmd: "node", args: ["tools/test-p1-invariants.js"], gate: true, label: "P1 不变量：口音真话 · 分数构念分桶 · 记账口径 · 投料口校验 · .ics RRULE · 发布链 · 只读审计" },
 ];
 
 let failed = 0;
@@ -62,7 +67,7 @@ for (const job of JOBS) {
   const r = spawnSync(job.cmd, job.args, {
     cwd: ROOT,
     encoding: "utf8",
-    env: Object.assign({}, process.env, { FORCE_COLOR: "0" }),
+    env: Object.assign({}, process.env, { FORCE_COLOR: "0" }, job.env || {}),
   });
   const ok = r.status === 0;
   const banner = (ok ? "✅ " : "❌ ") + job.label + (job.gate ? "（门禁）" : "（报告）");

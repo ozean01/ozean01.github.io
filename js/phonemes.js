@@ -23,10 +23,15 @@
   /* ---------------- 音素表 ----------------
      口径：美式通用口音（General American），与站内 IPA 规范一致（e 而非 ɛ、ɡ U+0261、无 ɝ/ɚ）。
      tip 为教学近似描述，用来「知道舌头往哪放」，不等于声学定义。 */
+  /* P1-B（S05 · C1/C2/C4）：只有下面三条的**教学文案**被改写，音素条目数与音标数据一字未动——
+       · /ɪ/（S05 引 phonemes.js:29）—— 与 listen.js 的 /ɪ/ vs /iː/ 统一为「两个不同的音，不是长短」（音质/松紧优先，时长为伴随特征）
+       · /ŋ/（S05 引 phonemes.js:68）—— 「词尾不要拖出 /ɡ/」收窄为条件规则，并补词中 /ŋɡ/ 的反例（longer / stronger / finger / language）
+       · /r/（S05 引 phonemes.js:70）—— 补 bunched 舌形（舌尖上卷不是唯一正确舌形）
+     HIGH_RISK 区块里同类文案（/r/、/ŋ/ 两组）按同一口径改写，避免站内自相矛盾。 */
   const PHONEMES = [
     /* ---- 单元音 ---- */
     { ipa: "iː", type: "vowel", zh: "长音「衣」", tip: "舌前部抬高接近硬腭，嘴角向两侧展开，肌肉紧张，比 /ɪ/ 更长更紧。", contrast: ["ɪ"] },
-    { ipa: "ɪ", type: "vowel", zh: "短音「衣」", tip: "舌位比 /iː/ 略低略后，口型放松，短促——不是把 /iː/ 读短，而是另一个音。", contrast: ["iː", "i"] },
+    { ipa: "ɪ", type: "vowel", zh: "短音「衣」", tip: "舌位比 /iː/ 略低略后，口型放松，短促——不是把 /iː/ 读短，而是另一个音。首要区别是音质与松紧（不是长短）：时长只是伴随特征，还受后接辅音清浊影响（seat 的 /iː/ 比 seed 的短）。", contrast: ["iː", "i"] },
     { ipa: "i", type: "vowel", zh: "弱化「衣」（词尾 -y）", tip: "出现在非重读音节末，如 city /ˈsɪti/、quality。既不是紧 /iː/ 也不是松 /ɪ/，轻快带过即可。", contrast: ["iː", "ɪ"] },
     { ipa: "e", type: "vowel", zh: "「诶」前半", tip: "舌前部中高，口张开约一指宽，嘴角略展。站内统一用 e，不用英式 /ɛ/。", contrast: ["æ", "eɪ"] },
     { ipa: "æ", type: "vowel", zh: "大开口「哎」", tip: "舌前部放低，下颌明显下降，口型扁而大。中文没有这个音，最接近「啊」与「诶」之间。", contrast: ["e", "ʌ"] },
@@ -65,9 +70,9 @@
     { ipa: "dʒ", type: "consonant", zh: "塞擦（浊）「知」", tip: "同 /tʃ/ 但声带振动。packaging、damage、adjust 都是它。", contrast: ["tʃ", "j"] },
     { ipa: "m", type: "consonant", zh: "双唇鼻音", tip: "双唇闭合，气流从鼻腔出。", contrast: ["n"] },
     { ipa: "n", type: "consonant", zh: "齿龈鼻音", tip: "舌尖抵上齿龈，气流从鼻腔出。", contrast: ["ŋ", "m"] },
-    { ipa: "ŋ", type: "consonant", zh: "软腭鼻音", tip: "舌后部抵软腭，气流从鼻腔出。只出现在音节末（-ing、-ng），词尾不要拖出 /ɡ/。", contrast: ["n"] },
+    { ipa: "ŋ", type: "consonant", zh: "软腭鼻音", tip: "舌后部抵软腭，气流从鼻腔出。词末的 /ŋ/ 不加 /ɡ/（sing、thing、coating /ˈkoʊtɪŋ/、shipping）；但 ng 夹在词中、属比较级或词干时读 /ŋɡ/（longer、stronger、finger、language），别把 longer 读成 /ˈlɔːŋər/。", contrast: ["n"] },
     { ipa: "l", type: "consonant", zh: "齿龈边音", tip: "舌尖抵上齿龈，气流从舌两侧出。词尾的 l 要发「暗 l」：舌后部同时抬起（film、label）。", contrast: ["r"] },
-    { ipa: "r", type: "consonant", zh: "卷舌近音", tip: "舌尖卷起但不碰上腭，双唇略圆。美音核心特征：词尾的 r 必须发出来（buyer、order、container）。", contrast: ["l"] },
+    { ipa: "r", type: "consonant", zh: "卷舌近音", tip: "舌形有两种、都算对：① 舌尖上卷但不碰上腭（retroflex）；② 舌尖下收、舌体抬起（bunched）。共同点是双唇略圆、咽部收窄——别把第二种当成读错了。美音核心特征：词尾的 r 必须发出来（buyer、order、container）。", contrast: ["l"] },
     { ipa: "w", type: "consonant", zh: "圆唇半元音", tip: "双唇收圆前突后迅速滑向元音，声带振动。易与 /v/ 混淆。", contrast: ["v"] },
     { ipa: "j", type: "consonant", zh: "硬腭半元音「耶」", tip: "舌前部抬近硬腭后滑向元音。易与 /dʒ/ 混淆（yet ≠ jet）。", contrast: ["dʒ"] }
   ];
@@ -194,7 +199,7 @@
       pick: ["valid", "validity", "value proposition", "laminating adhesive", "solvent-based adhesive", "leverage"] },
     { key: "r", sym: "r", name: "词尾 /r/ —— 必须发出来", unit: 1,
       risk: "中文没有词尾 r。supplier 说成 supplia、buyer 说成 baia，客户听不出你在说谁。",
-      tip: "舌尖卷起但不碰上腭。词尾的 r 是美音的标志，不能吞。",
+      tip: "舌尖上卷不碰上腭，或舌尖下收、舌体抬起（bunched）——两种舌形都算对；共同点是双唇略圆、咽部收窄。词尾的 r 是美音的标志，不能吞。",
       pick: ["supplier", "buyer", "manufacturer", "exporter", "importer", "seller"] },
     { key: "l", sym: "l", name: "词尾暗 /l/ —— 别吞掉", unit: 11,
       risk: "film 说成 fim、sample 说成 sampo。「薄膜」和「样品」是每天都要说的词。",
@@ -208,9 +213,10 @@
       risk: "sample、tariff、contract、valid 都是高频词，口型开不够会影响辨识。",
       tip: "下颌明显下降，口型扁而大，介于「啊」与「诶」之间。",
       pick: ["sample", "tariff", "contract", "valid", "stand"] },
-    { key: "ng", sym: "ŋ", name: "/ŋ/ 鼻音（-ing）—— 别拖出 g", unit: 3,
-      risk: "coating 说成 coatin 或 coatingk。上胶量、复合、包装、运输全是 -ing 结尾。",
-      tip: "舌后部抵软腭，气流从鼻腔出；词尾不要多一个 /ɡ/。",
+    { key: "ng", sym: "ŋ", name: "/ŋ/ 鼻音 —— 词末别加 /ɡ/，词中该加的要加", unit: 3,
+      risk: "coating 说成 coatin 或 coatingk。上胶量、复合、包装、运输全是 -ing 结尾。" +
+        "但反过来一刀切也错：ng 夹在词中、属比较级或词干时要读 /ŋɡ/——longer 是 /ˈlɔːŋɡər/ 不是 /ˈlɔːŋər/，stronger、finger、language 同理。",
+      tip: "舌后部抵软腭，气流从鼻腔出。词末的 /ŋ/ 不加 /ɡ/（coating /ˈkoʊtɪŋ/、shipping、flexible packaging）；ng 在词中且属比较级或词干时读 /ŋɡ/（longer、stronger、finger、language）。",
       pick: ["coating weight", "laminating adhesive", "flexible packaging", "shipping", "tunneling"] },
     { key: "z", sym: "z", name: "词尾浊 /z/ —— 复数别读成 /s/", unit: 1,
       risk: "customs /ˈkʌstəmz/、terms /tɜːrmz/、Incoterms 读成 /s/ 会听起来像另一个词。",

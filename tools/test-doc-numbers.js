@@ -56,23 +56,61 @@ Object.keys(n).forEach(function (k) { console.log("  " + k.padEnd(10) + n[k]); }
 
 const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
 
-/* ---------- 断言：README 必须出现实测值（允许若干等价写法） ---------- */
-function claims(name, value, patterns) {
-  const hit = patterns.some(function (p) { return readme.indexOf(p) !== -1; });
-  check("README 的数量宣称与实测一致：" + name + " = " + value, hit,
-    hit ? "" : "未找到任一写法：" + patterns.join(" / "));
+/* ---------- 断言：README 的**每一处**站点总量宣称都必须与实测一致（P0-08 · M10 落地） ----------
+   ▲ 原实现用 readme.indexOf(p) !== -1 判定，只要**全文任意位置**命中一种等价写法就算通过：
+   M10 只改「· 798 词 /」与「站内 798 词」，别处「798 词汇」仍正确 → exit 0，
+   而 README 此时已自相矛盾（788 词 vs 798 词汇）。这里改成**逐处扫描**：
+   把"站点总量"专用的措辞全部抓出来（**刻意避开**每个单元自己的词数，如 U11 的 201 词 /
+   20 词 / 8 短语，以及历史章节里的旧值 768 / 691 / 848），要求每一处的数字都等于现场计算值；
+   某类措辞一处都不剩也算失败（防止整段被删）。顺带删掉原先把同一条件写两遍（a || a）的残留。
+   （补丁由 P0-08 α 组在站点副本上实测：正常 README exit 0、M5/M6/M10 全部 exit 1、词汇类 10 处零误报。） */
+function claimSites(name, value, patterns) {
+  const bad = [];
+  let total = 0;
+  patterns.forEach(function (re) {
+    const r = new RegExp(re.source, "g");
+    let m, hit = 0;
+    while ((m = r.exec(readme)) !== null) {
+      hit++; total++;
+      const got = Number(String(m[1]).replace(/,/g, ""));
+      if (got !== value) bad.push("「" + m[0].replace(/\s+/g, " ").slice(0, 46) + "」= " + got);
+    }
+    if (!hit) bad.push("找不到站点总量措辞：" + re.source);
+  });
+  check("README 的站点总量宣称逐处与实测一致：" + name + " = " + value + "（共 " + total + " 处）",
+    bad.length === 0, bad.join("；"));
 }
 
 const v = String(n.words), p = String(n.phrases), d = String(n.dialogues), f = String(n.frames), l = String(n.lines), u = String(n.units);
-claims("词汇", v, [v + " 词汇", v + " 词", v + " 个核心词汇", v + " 个"]);
-claims("短语", p, [p + " 条短语", p + " 短语", p + " 条"]);
-claims("对话", d, [d + " 段对话", d + " 段"]);
-claims("句型骨架", f, [f + " 句", f + " 条骨架", f + " 条"]);
-claims("单元数", u, [u + " 个单元", u + " 单元", u + " 个"]);
+claimSites("词汇（全站）", n.words, [
+  /(?<![A-Za-z0-9–-])(\d+)\s*词汇/,
+  /站内\s*(\d+)\s*词/,
+  /(\d+)\s*词\s*\/\s*\d+\s*短语\s*\/\s*\d+\s*段对话/,
+  /(\d+)\s*词\s*\/\s*\d+\s*段对话/,
+  /\d+\s*单元\s*\/\s*(\d+)\s*词/,
+  /(\d+)\s*条行业词/,
+  /已扩至\s*\**\s*(\d+)\s*个/,
+  /\|\s*词汇总量\s*\|\s*\d+\s*\|\s*\*\*(\d+)\*\*/
+]);
+claimSites("短语（全站）", n.phrases, [
+  /(\d+)\s*短语\s*\/\s*\d+\s*段对话/,
+  /(\d+)\s*条短语/
+]);
+claimSites("对话（全站）", n.dialogues, [
+  /\d+\s*短语\s*\/\s*(\d+)\s*段对话/,
+  /站内\s*\d+\s*词\s*\/\s*(\d+)\s*段对话/
+]);
+claimSites("句型骨架（全站）", n.frames, [
+  /(\d+)\s*句骨架/,
+  /(\d+)\s*句(?=·按功能分组)/
+]);
+claimSites("单元数（全站）", n.units, [
+  /(\d+)\s*个单元/,
+  /(\d+)\s*单元(?=[\s·/（(、，,])/
+]);
 
 /* 最容易被顺手改掉的那一行（全站合计） */
 check("README 的「全站合计」一行与实测一致",
-  readme.indexOf(v + " 词汇 / " + p + " 短语 / " + d + " 段对话") !== -1 ||
   readme.indexOf(v + " 词汇 / " + p + " 短语 / " + d + " 段对话") !== -1,
   "实测：" + v + " 词汇 / " + p + " 短语 / " + d + " 段对话");
 

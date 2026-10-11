@@ -213,50 +213,47 @@ check("outcomes.js 排在 app.js 之前（否则 app.js 读不到映射，断言
    问题不在那一次改动，而在于**每一次合法的缓存升档都会让它变红**——「测试红了但功能没问题」会
    诱导人改测试去迁就它，这正是测试腐烂的典型路径。所以这里改为**断言属性**，不assert字面量。
 
-   采用方案：②「预缓存清单指纹 ↔ CACHE 版本联动」＋ ①「版本不低于基线下限」两层。
-
    · 为什么它能捕获真缺陷：Service Worker 用 CACHE 名当缓存桶名。往 PRECACHE 里加了资源却没升
      CACHE，已安装的 PWA 会继续命中旧桶——新资源永远拿不到，而浏览器不报任何错，是最难自查的
      一类问题（本项就是这条链路的实例：outcomes.js 进预缓存时版本必须跟着动）。
-     做法：把「清单长什么样」的指纹与「它当时对应的最低版本」一起记下来。
-     指纹不变 ⇒ 版本只需 ≥ 基线（v74 / v80 这类合法升档一律放行，不会误报）；
-     指纹变了 ⇒ 版本必须 > 基线，即「清单既然改了，版本就必须跟着动」。
-   · 失效边界（诚实说明）：
+
+   ▲ P0 第三批 · α 组（P0-08）改法 —— S10-F1：原判据**已退化为恒真**。
+   原实现把「写死在本文件里的一个人工基线常量」当唯一依据，而基线一过期就变成恒真分支：
+   基线 minVersion=74，现实 CACHE=fte-v96 ⇒ 往 PRECACHE 里插任何一条都满足 "96 > 74"，
+   于是 M11（加资源不升版）实测 exit 0 —— 判据只能挡住"刷新基线之后的第一处遗漏"。
+
+   现在改为**两份依据、任一不过即失败、两份都取不到也失败**，不再留恒真分支：
+     依据 A（主，随仓库走）：tools/precache-baseline.json —— 最近一次被接受的
+        **PRECACHE 清单集合指纹** + 该指纹对应的 CACHE 版本。
+        指纹一致 ⇒ 版本 ≥ 基线；指纹不同 ⇒ 版本必须**严格大于**基线版本
+        （把"清单改了却忘了升档"变成红；M11 就是这样被拦下的）。
+     依据 B（辅，自动前进）：`git show HEAD:sw.js` 的清单指纹与 CACHE 版本。
+        git 不可用（无 .git / 无 HEAD / 无 git 命令）时自动跳过 B。
+     两份依据**同时**判定；若一侧的清单已变而另一侧没变，则按更严的一侧执行。
+     两者都取不到 ⇒ 显式失败（旧实现在这种情况下恰恰会走恒真分支）。
+
+   · 失效边界（诚实说明，与改前一致的部分不再重复）：
      1) 指纹覆盖的是**清单集合**，不是每个被预缓存文件的**内容**。改了 app.js 这类文件的内容却不升
-        版本（用户会拿到旧文件），这条检查发现不了——那需要对每个文件按内容建基线，会把每次正常改
-        代码都变成测试变红，代价大于收益，故不采用。test-assets.js 负责的是另一半（引用存在 + 清单完整）。
-     2) 它不校验版本的「历史单调性」（静态脚本读不到上一步的值），只能相对基线判断，故写了一个
-        基线下限：版本不得低于基线（防回退 / 防被改小）。
-     3) **基线必须与现实一致**，否则判据会退化成「恒真」的一次性守卫（见下面 PRECACHE_BASELINE 的
-        F2 说明）。 */
+        版本（用户会拿到旧文件），这条检查发现不了——test-assets.js 负责的是另一半（引用存在 + 清单完整）。
+     2) 基线文件是「最近一次被接受的清单」的**快照**：清单发生**合法**变更（同时升档）后必须
+        同步刷新它，否则它对"其后第二次改动"不再敏感。合法变更时本脚本会把新值打印出来供直接粘贴。
+        这是快照式判据的固有边界，**不会**退回恒真：本次 M11 之所以能被拦下，正是因为基线 = 现实。 */
 const preBlock = (sw.match(/const PRECACHE = \[([\s\S]*?)\];/) || [])[1] || "";
-const PRECACHE_BASELINE = {
-  /* 「基线」的含义（两个字段合起来才是判据）：
-       · sha256 / count = 最近一次被接受的合法变更当时的 **PRECACHE 清单集合指纹**（条目去空白 +
-         统一 "./" 前缀 + 排序后 join("\n") 再取 sha256；排序 ⇒ 纯调换顺序不算变更，增删才算）；
-       · minVersion     = 该指纹下 CACHE 的**最低合法版本**。
-     判据：指纹一致 ⇒ 要求 version ≥ minVersion（纯版本升档一律放行，不误报）；
-           指纹不同 ⇒ 要求 version >  minVersion（清单改了就必须跟着升档）。
-     何时需要刷新：清单发生**合法变更并随之升档**之后（mismatch 分支会把新值打印出来供直接复制）。
-
-     ⚠️ 刷新时机的硬规则（F2 的教训，务必遵守）：**必须在所有会改动 sw.js（清单或版本）的任务
-     都停下来之后**再刷新。反例就是 F2 本身：基线曾在 t7 的「清单 + 版本」变更**之前**被写成
-     840e5c97…/minVersion 73，而现实已经是 34703074…/fte-v74 —— 于是「指纹不同 ⇒ version > minVersion」
-     这一支变成 74 > 73 恒真：往 PRECACHE 里插一条资源而**不升版本**，断言照样 ALL PASS，
-     判据退化成一次性守卫（它只对「刷新之后的第一处遗漏」有效）。本文件里的这组值已在 t11 末尾、
-     即最后一个会改 sw.js 的任务（P1-D 前置把 js/entry-trace.js 加进预缓存、版本随之升到 fte-v74）
-     结束之后刷新为当时的现实，检测能力已恢复。
-
-     刷新后必须重跑变异测试复验（**在副本/镜像上做，绝不要碰真实 sw.js**）：
-       ① 往 PRECACHE 插一条新资源但**不升版本** → 断言必须转红；
-       ② 插同一条资源**并升版本** → 断言必须通过。 */
-  sha256: "34703074ab1f575c34fa40dc0fa8679db75ddeda083b51d7bc82346d344196fe",
-  count: 53,
-  /* 该指纹对应的 CACHE 版本：清单不变时要求 version >= minVersion；清单变了要求 version > minVersion。
-     当前值 = P1-D 前置新增 js/entry-trace.js（清单 sha256 34703074…、53 条）时的版本 fte-v74。 */
-  minVersion: 74
-};
+/* 「最近一次被接受的预缓存状态」现在存放在**仓库内的基线文件**里（tools/precache-baseline.json），
+   而不是写死在本文件中的常量——这样合法的清单变更会留下可 review 的 diff，也能被 CI 检出。 */
 function sha256Of(s) { return require("crypto").createHash("sha256").update(s).digest("hex"); }
+/* 从任意一份 sw.js 源码解析出 {fingerprint, count, version}；解析不出返回 null（取不到依据要显式失败）。 */
+function swFacts(src) {
+  const text = String(src || "");
+  const block = (text.match(/const PRECACHE = \[([\s\S]*?)\];/) || [])[1];
+  const raw = ((text.match(/const CACHE = "([^"]+)";/) || [])[1] || "").trim();
+  const ver = Number((raw.match(/^fte-v(\d+)$/) || [])[1] || NaN);
+  if (block === undefined || !Number.isFinite(ver)) return null;
+  const ents = [...block.matchAll(/"([^"]*)"/g)].map(function (m) { return m[1].trim(); })
+    .filter(function (s) { return !!s; });
+  if (!ents.length) return null;
+  return { fingerprint: sha256Of(ents.slice().sort().join("\n")), count: ents.length, version: ver, cache: raw };
+}
 const preEntries = [...preBlock.matchAll(/"([^"]*)"/g)]
   .map(function (m) { return m[1].trim(); })
   .filter(function (s) { return !!s; });
@@ -264,30 +261,81 @@ const preFingerprint = sha256Of(preEntries.slice().sort().join("\n"));
 const cacheRaw = ((sw.match(/const CACHE = "([^"]+)";/) || [])[1] || "").trim();
 const cacheVer = Number((cacheRaw.match(/^fte-v(\d+)$/) || [])[1] || NaN);
 
+/* ---- 依据 A：仓库内基线文件 ---- */
+const BASELINE_FILE = path.join(__dirname, "precache-baseline.json");
+let baselineWhy = "";
+const refBaseline = (function () {
+  let raw;
+  try { raw = JSON.parse(fs.readFileSync(BASELINE_FILE, "utf8")); }
+  catch (e) {
+    baselineWhy = (e && e.code === "ENOENT") ? "文件不存在" : ("读取/解析失败：" + (e && e.message));
+    return null;
+  }
+  if (!raw || !/^[0-9a-f]{64}$/.test(String(raw.sha256 || "")) || !Number.isFinite(Number(raw.minVersion))) {
+    baselineWhy = "字段不完整（需要 sha256=64 位十六进制 + minVersion 数字）";
+    return null;
+  }
+  return {
+    name: "仓库基线 tools/precache-baseline.json",
+    fingerprint: String(raw.sha256),
+    count: Number(raw.count) || 0,
+    version: Number(raw.minVersion),
+    cache: String(raw.cache || ("fte-v" + raw.minVersion))
+  };
+})();
+
+/* ---- 依据 B：git HEAD:sw.js（无需人工刷新，随提交自动前进） ---- */
+const { spawnSync } = require("child_process");
+let headWhy = "未取到";
+let refHead = null;
+const gitProbe = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: ROOT, encoding: "utf8" });
+if (gitProbe.error || gitProbe.status !== 0 || String(gitProbe.stdout || "").trim() !== "true") {
+  headWhy = gitProbe.error ? ("git 不可用：" + gitProbe.error.message) : "当前目录不在 git 工作树内";
+} else {
+  const show = spawnSync("git", ["show", "HEAD:sw.js"], { cwd: ROOT, encoding: "utf8" });
+  const facts = (show.status === 0 && !show.error) ? swFacts(show.stdout) : null;
+  if (show.error) headWhy = "git show 失败：" + show.error.message;
+  else if (show.status !== 0) headWhy = "HEAD 里没有 sw.js（尚无提交？）";
+  else if (!facts) headWhy = "HEAD:sw.js 里解析不出 PRECACHE / CACHE";
+  else { refHead = Object.assign({ name: "git HEAD:sw.js" }, facts); headWhy = ""; }
+}
+
+check("CACHE 版本存在且形如 fte-v<N>", Number.isFinite(cacheVer) && cacheVer > 0, cacheRaw || "（读不到）");
+check("仓库内基线文件可用（tools/precache-baseline.json）", !!refBaseline,
+  refBaseline
+    ? ("指纹 " + refBaseline.fingerprint.slice(0, 12) + " · " + refBaseline.count + " 条 · fte-v" + refBaseline.version)
+    : baselineWhy);
+check("取到至少一份预缓存比对依据（基线文件 / git HEAD；取不到即失败，不留恒真分支）",
+  !!(refBaseline || refHead),
+  "基线 " + (refBaseline ? "有" : "无") + " · git HEAD " +
+  (refHead ? ("fte-v" + refHead.version + " / " + refHead.count + " 条") : headWhy));
+
+[refBaseline, refHead].filter(Boolean).forEach(function (ref) {
+  const listUnchanged = preFingerprint === ref.fingerprint;
+  const ok = listUnchanged ? cacheVer >= ref.version : cacheVer > ref.version;
+  check((listUnchanged ? "预缓存清单与" : "预缓存清单较") + ref.name +
+    (listUnchanged ? "一致 ⇒ CACHE 版本 ≥ fte-v" + ref.version
+                   : "有变更 ⇒ CACHE 版本必须 > fte-v" + ref.version + "（否则已安装的 PWA 继续命中旧缓存桶）"),
+    ok,
+    (listUnchanged
+      ? ("指纹一致 " + preFingerprint.slice(0, 12))
+      : ("指纹 " + preFingerprint.slice(0, 12) + " ≠ 依据 " + ref.fingerprint.slice(0, 12))) +
+    " · 当前 " + cacheRaw + " · 清单 " + preEntries.length + " 条（依据 " + ref.count + " 条）");
+  if (!listUnchanged) {
+    console.log("  ↪ 清单相对「" + ref.name + "」已变更。合法变更请在**升完 CACHE 版本之后**同步刷新基线文件：");
+    console.log("     sha256: \"" + preFingerprint + "\", count: " + preEntries.length +
+      ", minVersion: " + (Number.isFinite(cacheVer) ? cacheVer : ref.version));
+  }
+});
+
+const VERSION_FLOOR = refBaseline ? refBaseline.version : (refHead ? refHead.version : NaN);
+check("CACHE 版本不低于基线版本（防回退 / 防被改小）",
+  Number.isFinite(cacheVer) && Number.isFinite(VERSION_FLOOR) && cacheVer >= VERSION_FLOOR,
+  Number.isFinite(VERSION_FLOOR) ? ("当前 " + cacheRaw + " ≥ 基线 fte-v" + VERSION_FLOOR) : "取不到基线下限");
 check("sw.js 预缓存清单含 ./js/outcomes.js（本项真实要验的属性，不得削弱）",
   preBlock.indexOf('"./js/outcomes.js"') !== -1);
-check("CACHE 版本存在且形如 fte-v<N>", Number.isFinite(cacheVer) && cacheVer > 0,
-  cacheRaw || "（读不到）");
-check("CACHE 版本不低于基线下限（防回退；不钉死具体版本，v74/v80 等合法升档一律放行）",
-  Number.isFinite(cacheVer) && cacheVer >= PRECACHE_BASELINE.minVersion,
-  "当前 " + cacheRaw + " ≥ 基线 fte-v" + PRECACHE_BASELINE.minVersion);
-const listUnchanged = preFingerprint === PRECACHE_BASELINE.sha256;
-check(listUnchanged
-  ? "预缓存清单与基线一致 ⇒ 版本 ≥ 基线即可（清单没动就不必升档）"
-  : "预缓存清单已变 ⇒ CACHE 必须同步升档（否则已安装的 PWA 会继续命中旧缓存桶）",
-  listUnchanged ? cacheVer >= PRECACHE_BASELINE.minVersion : cacheVer > PRECACHE_BASELINE.minVersion,
-  listUnchanged
-    ? "指纹一致 " + preFingerprint.slice(0, 12) + " · " + cacheRaw
-    : "指纹 " + preFingerprint.slice(0, 12) + " ≠ 基线 " + String(PRECACHE_BASELINE.sha256).slice(0, 12) +
-      " · " + cacheRaw + " 需 > fte-v" + PRECACHE_BASELINE.minVersion);
 check("index.html 的脚本都在预缓存清单里（新脚本忘了加进清单，离线就会缺文件）",
   scriptList.every(function (s) { return preEntries.indexOf("./" + s) !== -1; }));
-if (!listUnchanged) {
-  console.log("  ↪ 预缓存清单已变更。请在**升完 CACHE 版本之后**把本文件的基线刷新为下面这组值");
-  console.log("     （刷新必须与升档同时做，否则这条检查的失效边界会被打开）：");
-  console.log("     sha256: \"" + preFingerprint + "\",");
-  console.log("     count: " + preEntries.length + ", minVersion: " + (Number.isFinite(cacheVer) ? cacheVer : PRECACHE_BASELINE.minVersion));
-}
 check("缓存策略三段不变（precache+cache-first / stale-while-revalidate / 跨域不拦截）",
   /precache \+ cache-first/.test(sw) && /stale-while-revalidate/.test(sw) && /一律不拦截/.test(sw));
 
@@ -432,14 +480,22 @@ check("单元 16 断言块含口径句与产出凭证链接",
   u16Html.indexOf(items["16"].say) !== -1 && u16Html.indexOf("本站自述，不构成任何等级认定") !== -1 &&
   /href="#\/sop"[^>]*>凭证：/.test(u16Html));
 
-/* ---------------- ⑫ 内容资产未被触碰 ---------------- */
+/* ---------------- ⑫ 内容资产哈希（记录，不是门禁） ----------------
+   ▲ P0 第三批 · α 组（P0-08）改法 —— S10-F7：原末行是
+     `check("内容资产（js/data*.js）本次未修改（仅记录哈希，供人工比对基线）", true, …)`，
+   条件字面量 `true` 是一条**永远不会失败**的断言（M9 改 js/data.js 实测仍 exit 0），
+   但它的名字读起来像门禁，会误导后来者以为数据资产受保护。这里按 S10 建议改为
+   **只记录、不断言**：删掉那条恒真 check，保留哈希打印供人工比对。
+   为什么不改成"哈希基线常量、内容变了就红"：js/data*.js 正是多个在途批次（P0 内容勘误、
+   P11 术语库）正在**合法**修改的文件，把内容钉死会把正常内容变更变成误报；真要保护内容，
+   应另设"数据变更需随附勘误说明"的流程，而不是塞进这条口径门禁。 */
 const FROZEN = ["js/data.js", "js/data-mail.js", "js/data-incoterms.js", "js/data-meeting.js", "js/data-ops.js"];
 const crypto = require("crypto");
 const frozenNote = FROZEN.map(function (f) {
   const h = crypto.createHash("sha256").update(fs.readFileSync(path.join(ROOT, f))).digest("hex").slice(0, 8);
   return f + "=" + h;
 });
-check("内容资产（js/data*.js）本次未修改（仅记录哈希，供人工比对基线）", true, frozenNote.join(" "));
+console.log("ℹ️  内容资产哈希（仅供参考，**不是门禁**）：" + frozenNote.join(" "));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

@@ -1,0 +1,7 @@
+{
+  "note": "P0 第三批 α 组（P0-08）建立；P0 第四批 γ 组（P0-14）刷新：PRECACHE 移除 ./og-image.png（页面渲染路径从不加载，仅服务社交抓取），59 → 58 条，CACHE fte-v96 → fte-v97。P1-D（发布链与工程化）刷新：sw.js 只改了 fetch 的**缓存写入条件**（新增 cacheGate）与版本号，PRECACHE 清单集合与指纹不变（仍 58 条），按纪律先升 CACHE fte-v97 → fte-v98、再刷新本文件（cache/minVersion = fte-v98）。本文件是 PRECACHE 清单指纹 ↔ CACHE 版本的「最近一次被接受状态」。清单发生合法变更时必须**先升 CACHE 版本、再刷新这里**；tools/test-outcomes.js 会读取它并要求：清单一致 ⇒ 版本 ≥ minVersion，清单不同 ⇒ 版本 > minVersion。",
+  "sha256": "0287a522ce9aa07fd421ae93e7b6f8cb0ddcf6f7d05484854a82a5fddfcb0003",
+  "count": 58,
+  "cache": "fte-v98",
+  "minVersion": 98
+}

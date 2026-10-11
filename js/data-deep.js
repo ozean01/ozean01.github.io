@@ -55,7 +55,7 @@
         title: "膜材物性与工艺沟通",
         lines: [
           { sp: "A", en: "We need a pouch for coffee with a good oxygen barrier and low WVTR.", cn: "我们需要一个咖啡袋，隔氧要好、水蒸气透过率要低。" },
-          { sp: "B", en: "Then I'd suggest a PET/AL/PE structure with EVOH in the barrier layer.", cn: "那建议用 PET/AL/PE 结构，阻隔层用 EVOH。" },
+          { sp: "B", en: "Then I'd suggest a PET/AL/PE structure: the aluminum foil is the barrier layer. For a foil-free high-barrier option we'd use PET/EVOH/PE or PET/VMPET/PE.", cn: "那建议用 PET/AL/PE 结构，铝箔本身就是阻隔层。若要不含铝箔的高阻隔方案，我们会用 PET/EVOH/PE 或 PET/VMPET/PE。" },
           { sp: "A", en: "What about the heat seal window? Our form-fill-seal runs fast.", cn: "热封窗口如何？我们制袋充填封口跑得很快。" },
           { sp: "B", en: "The PE sealing layer gives a wide window and good hot tack.", cn: "PE 热封层窗口很宽、热粘强度也高。" },
           { sp: "A", en: "Good. Please also confirm the OTR and WVTR after lamination.", cn: "好。请同时确认复合后的氧透过率和水蒸气透过率。" }
@@ -86,7 +86,7 @@
     summary: "面向食品接触合规与售后客诉：迁移与符合性声明、不合格与追责、客诉处理五步（确认→调查→纠正→预防→关闭），以及常见的索赔与补偿表达。",
     vocab: [
       { w: "food contact compliance", ipa: "/ˈfuːd ˈkɑːntækt kəmˈplaɪəns/", pos: "n.", cn: "食品接触合规", ex: "Food contact compliance is confirmed by the relevant test report.", exCn: "食品接触合规由相关检测报告确认。" },
-      { w: "overall migration", ipa: "/ˌoʊvərˈɔːl maɪˈɡreɪʃn/", pos: "n.", cn: "总迁移量", ex: "The overall migration must stay below the legal limit.", exCn: "总迁移量必须低于法定限值。" },
+      { w: "overall migration", ipa: "/ˌoʊvərˈɔːl maɪˈɡreɪʃn/", pos: "n.", cn: "总迁移量（EU 术语：overall migration / OML）", ex: "The overall migration must stay below the legal limit.", exCn: "总迁移量必须低于法定限值。" },
       { w: "specific migration", ipa: "/spəˈsɪfɪk maɪˈɡreɪʃn/", pos: "n.", cn: "特定迁移量（指特定物质）", ex: "We check the specific migration of each monomer.", exCn: "我们检测每种单体的特定迁移量。" },
       { w: "compliance declaration", ipa: "/kəmˈplaɪəns ˌdekləˈreɪʃn/", pos: "n.", cn: "符合性声明（DoC）", ex: "A compliance declaration is attached to every food-grade order.", exCn: "每批食品级订单都附符合性声明。" },
       { w: "regulatory", ipa: "/ˌreɡjəˈlætɔːri/", pos: "adj.", cn: "法规的；合规的", ex: "The product meets all regulatory requirements in the EU.", exCn: "该产品满足欧盟所有法规要求。" },
