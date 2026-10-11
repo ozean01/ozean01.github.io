@@ -1665,8 +1665,8 @@
             <b>词汇表（${words.length}）· 已自评标记 ${learnedN}</b>
             <button class="btn btn-soft btn-sm" data-action="play-all-words" data-id="${u.id}">🔊 朗读全部词汇</button>
           </div>
-          <p class="field-note" style="margin:2px 0 10px">想练发音：点每个词后面的 <b>🎤</b> —— 先听原声，然后你跟读一次，立刻给<b>词形命中分</b>并标出读成了什么。
-            <b>本机已装离线识别模型时不联网也能评分</b>（离线识别默认开启，见「发音设置」）。</p>
+          <p class="field-note" style="margin:2px 0 10px">想练发音：点每个词后面的 <b>🎙</b> —— ① 听标准音 → ② <b>录音</b>（有电平表与「⏹ 我说完了」）→ ③ 回放你的 → ④ 再听标准音 → ⑤ 出对比与评分（音量、节奏，以及逐词命中）。
+            <b>本机已装离线识别模型时不联网也能评分</b>（离线识别默认开启，见「发音设置」）。点 <b>🎯</b> 可直接单独评测。</p>
           <div id="wordShadowOut" class="field-note" hidden style="margin:0 0 10px"></div>
           ${words.map(function (w) { return wordRowHtml(w, hl); }).join("")}
         </div>`;
@@ -2081,6 +2081,8 @@
           </div>
           <span class="side">
             <button class="play-btn" data-action="play-line" data-id="${u.id}" data-idx="${di}" data-li="${li}" title="朗读本句">▶</button>
+            <button class="play-btn" data-action="shadow" data-text="${esc(l.en)}" title="跟读本句（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比 → 给节奏与逐词反馈">🎙</button>
+            <button class="play-btn" data-action="shadow-eval" data-text="${esc(l.en)}" title="评测本句：需要语音识别（本机离线模型 / Edge / Chrome+代理）">🎯</button>
           </span>
         </div>`;
       }).join("")}
@@ -2173,17 +2175,26 @@
     });
   }
 
-  /* ============ 🎤 跟读（**不需要**语音识别）+ 可选评分（2026-10-11 使用反馈）============
-     反馈原文：「用火狐发现 语块卡 · 短语 也没有跟读以及评测功能」「一定要 Edge 才可以吗」。
-     事实：**火狐完全不支持 `SpeechRecognition`**（不是被墙，是它没实现这个 API），
-          所以一切"评测"入口在火狐里都被灰掉；Chrome 的实现走 Google、国内不可达。
-     但**跟读本身不需要识别**：听标准音 → 留空档跟读 → 录下自己 → 回放 → 再听标准音做 A/B 对比。
-     这条闭环本来就是站内音素页 P10 的实现，本轮提成**全站通用**，并与"评分"解耦：
-       · 🎤 跟读：任何浏览器可用（含火狐），不联网、不需要识别；
-       · 🎯 评测：仅在识别可用时追加（本地离线模型 / Edge / Chrome+代理），不可用时**明说原因与出路**。
-     实现复用既有能力（Player.repeat / startRecording / stopRecording / speak），不改任何既有语义。 */
+  /* ============ 🎤 跟读闭环（**不需要**语音识别就成立）+ 可选的逐词评分 ============
+     两轮真实反馈，同一句话：
+       第一次「单词及句子我只能听系统播放，我还需要跟读及评分以帮助我纠正发音，这个功能缺失」
+       第二次「跟读按钮放出的仍是系统声音，不是让我录音，也没有我的语音与标准语音之间的评测」
+     第二次说明第一次的修法没解决问题。真机复核后确认两个根因：
+       ① `Player.repeat()` 的跟读窗口从**开始朗读**算起而不是**读完**算起（见 player.js 的修复说明），
+          于是录音在系统朗读还没结束时就开录，麦克风把扬声器里的标准音一起录了进去 ——
+          用户回放"我的录音"听到的当然还是系统声音；
+       ② 离线识别的自检 `selfTest()` 走的是**解压目录**（vosk 只认 tar.gz），必然超时失败 →
+          「优先本地识别」被永久关掉 → 只能走 Chrome 的在线识别 → 国内不可达 → 没有评分。
+     因此本轮把闭环重做成**五步、每步在界面上看得见**：
+       ① 听标准音（第 k/N 遍）→ ② 录音中（实时电平表 + 计时 + 「⏹ 我说完了」）
+       → ③ 回放你的 → ④ 再放标准音 → ⑤ 对比与评分
+     三条口径：
+       · **开录前硬停一切 TTS**，保证录进去的只有你的声音；
+       · 评分**优先走本机离线识别**，而且复用刚录到的 PCM（不再让用户为评分重读一遍）；
+       · 没有识别能力时**照样给节奏/音量反馈**（这两项本来就不需要识别），
+         并把"要拿逐词分该怎么办"写清楚 —— 绝不假装评了分。 */
   function shadowBoxFor(el) {
-    const anchor = el.closest(".word-row, .phrase-row, .flash-card, .dict-row") || el.parentElement || el;
+    const anchor = el.closest(".word-row, .phrase-row, .flash-card, .dict-row, .dlg-line") || el.parentElement || el;
     let box = anchor.nextElementSibling;
     if (!box || !box.classList || !box.classList.contains("shadow-out")) {
       box = document.createElement("div");
@@ -2198,72 +2209,319 @@
     const m = Player.recErrorText ? Player.recErrorText(err) : "";
     return m || "麦克风未授权或不可用";
   }
-  /* A/B 之后的收尾：给出"要不要评分"的出口；不可用时把话说清楚 */
-  function afterShadowCompare(text, label) {
-    const sup = !!(Player.recognitionSupported && Player.recognitionSupported());
-    const enc = esc(text);
-    return '🎤 <b>' + label + '</b>：A/B 对比完成（先回放你的 → 再放标准音）。' +
-      (sup
-        ? ' 想拿<b>评分</b>：<button class="btn btn-soft btn-sm" data-action="shadow-eval" data-text="' + enc + '">🎯 评测一次</button>' +
-          '<span style="color:var(--muted)">（ASR 转写的词形命中分，不是声学发音分）</span>'
-        : '<div style="margin-top:4px;color:var(--muted)">当前浏览器<b>不支持语音识别评分</b>：' +
-          '火狐没有这个 API；Chrome 的识别走 Google、国内不可达。想评分走两条路：' +
-          '①「发音设置」开启<b>本地离线识别</b>（首次约 1–2 分钟准备，之后不联网）；② 装 <b>Edge</b>。' +
-          '<b>不评分也能练</b>——上面的回放对比就是最直接的纠音手段。</div>') +
-      '<div style="margin-top:6px"><button class="btn btn-outline btn-sm" data-action="shadow" data-text="' + enc + '">🔁 再读一次</button></div>';
+  function shadowHist(text) {
+    State.shadowHist = State.shadowHist || {};
+    if (!State.shadowHist[text]) State.shadowHist[text] = { n: 0, best: 0 };
+    return State.shadowHist[text];
   }
-  function shadowRun(el) {
+  function shadowRetryBtns(text, rate) {
+    const enc = esc(text);
+    return '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-primary btn-sm" data-action="shadow-retry" data-text="' + enc + '">🔁 再读一次（重新录音对比）</button>' +
+      (rate > 0.65 ? '<button class="btn btn-outline btn-sm" data-action="shadow-retry" data-rate="0.6" data-text="' + enc + '">🐢 0.6× 慢速再来</button>' : "") +
+      '</div>';
+  }
+  function shadowNoAsrHtml() {
+    return '<div style="line-height:1.75">当前的<b>逐词评测需要语音识别</b>，这台机器上暂时拿不到：' +
+      '① 火狐没有这个 API；② Chrome 的识别走 Google、国内通常不可达。<br>两条能立刻解决的路：<br>' +
+      '· <b>开启本机离线识别</b>：右上角 <b>⚙ 发音设置</b> → 勾选「优先本地识别」' +
+      '（本机已放好 vosk 模型时，首次约 1–2 分钟准备，之后不联网、不受墙影响）；<br>' +
+      '· 或<b>用 Edge 打开</b>本站（Edge 的识别走 Azure，国内可达）。<br>' +
+      '上面「节奏 / 音量」两项反馈<b>不需要识别</b>，现在就已经生效。</div>';
+  }
+  function shadowAccentHtml(st, text, rate) {
+    const lv = (st && st.levels) || [];
+    let peak = 0, voiced = 0;
+    for (let i = 0; i < lv.length; i++) { if (lv[i] > peak) peak = lv[i]; if (lv[i] >= 0.01) voiced += 100; }
+    const est = (Player.estimateSpeechMs ? Player.estimateSpeechMs(text, rate) : 3000);
+    const rows = [];
+    if (peak < 0.01) {
+      rows.push('<b style="color:var(--bad)">这次几乎没有听到你的声音</b>：录音接近静音。<b>这不是发音问题</b> —— ' +
+        '请确认麦克风没被系统占用/静音、离嘴 15–20cm，然后点下面的「再读一次」。');
+    } else if (peak < 0.03) {
+      rows.push('音量偏小（峰值 ' + Math.round(peak * 100) + '/100）：靠近一点、把声音放出来，识别和评分都会更准。');
+    } else {
+      rows.push('音量正常（峰值 ' + Math.round(peak * 100) + '/100）。');
+    }
+    if (peak >= 0.01 && voiced > 0) {
+      const ratio = voiced / est;
+      const y = (voiced / 1000).toFixed(1), s = (est / 1000).toFixed(1);
+      if (ratio < 0.45) rows.push('<b style="color:var(--bad)">你只出了声 ' + y + ' 秒</b>，标准音约 ' + s +
+        ' 秒 —— 很可能<b>漏读了后半段</b>。先按 0.6× 慢速听一遍，再逐词跟读。');
+      else if (ratio < 0.8) rows.push('你比标准音<b>快 ' + Math.round((1 - ratio) * 100) + '%</b>（' + y + 's / 标准约 ' + s +
+        's）：多半吞了音或连得太快。放慢，把每个词的尾音读出来。');
+      else if (ratio <= 1.35) rows.push('✔ 节奏与标准音接近（' + y + 's / 标准约 ' + s + 's）。');
+      else rows.push('你比标准音<b>慢 ' + Math.round((ratio - 1) * 100) + '%</b>（' + y + 's / 标准约 ' + s +
+        's）：先求读准、再求读快，熟练后自然会快。');
+    }
+    return '<div style="margin-top:7px;line-height:1.8">' + rows.map(function (r) { return "· " + r; }).join("<br>") + '</div>';
+  }
+  /* 核心：在给定的结果框里跑一遍五步闭环。box = 结果框；text = 目标文本 */
+  function shadowRunAt(box, text, ent) {
     const P = window.Player;
-    if (!P) return;
-    const text = String(el.getAttribute("data-text") || "").trim();
-    if (!text) return;
-    const box = shadowBoxFor(el);
-    const out = function (html) { box.hidden = false; box.innerHTML = html; };
-    const label = esc(text.length > 46 ? text.slice(0, 46) + "…" : text);
-    const rate = (window.FTE_BOOT && FTE_BOOT.progress && FTE_BOOT.progress.rate) || 1;
-    const rep = (P.repeat && P.repeatPref) ? P.repeatPref : { n: 1, gap: 0.5 };
+    if (!P || !box || !text) return;
+    const e0 = ent || {};
+    const rate = e0.rate || (window.FTE_BOOT && FTE_BOOT.progress && FTE_BOOT.progress.rate) || 1;
+    const rep = (P.repeat && P.repeatPref) ? P.repeatPref : { n: 1, gap: 0.8 };
     const canRec = !!(P.canRecord && P.canRecord() && P.startRecording && P.stopRecording);
+    const label = esc(text.length > 46 ? text.slice(0, 46) + "…" : text);
+    const hist = shadowHist(text);
+
     State.shadow = (State.shadow || 0) + 1;
     const my = State.shadow;
     const alive = function () { return State.shadow === my; };
+    const out = function (html) { box.hidden = false; box.innerHTML = html; };
+    const silence = function () {
+      try { P.stop(); } catch (e) { /* ignore */ }
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+    };
+    const clearTimers = function () {
+      if (State.shadowStopTimer) { clearTimeout(State.shadowStopTimer); State.shadowStopTimer = null; }
+      if (State.shadowGuard) { clearTimeout(State.shadowGuard); State.shadowGuard = null; }
+      State.shadowStop = null;
+    };
+    const dropUrl = function () {
+      if (State.shadowUrl) { try { URL.revokeObjectURL(State.shadowUrl); } catch (e) { /* ignore */ } State.shadowUrl = null; }
+    };
 
+    /* 打断上一轮：停声 / 停录 / 撤录音，绝不让两条跟读链并行 */
+    silence();
+    clearTimers();
+    if (State.shadowRec) { try { State.shadowRec.stop(); } catch (e) { /* ignore */ } State.shadowRec = null; }
+    if (State.shadowRep && State.shadowRep.stop) { try { State.shadowRep.stop(); } catch (e) { /* ignore */ } }
+    State.shadowRep = null;
+    dropUrl();
+
+    /* 录不了音时：把"为什么"和"怎么办"说清楚，而不是只放一遍标准音就完事 */
     if (!canRec) {
-      out('🎤 <b>' + label + '</b>：此环境不能录音（需要 <code>http://localhost</code> 或 https + 麦克风授权）。已只播放标准发音。');
+      const isFile = (location.protocol === "file:");
+      out('🎤 <b>' + label + '</b>：' +
+        (isFile
+          ? '你现在是<b>直接双击 index.html</b> 打开的（<code>file://</code>）——浏览器在这种方式下<b>禁用麦克风录音</b>，所以只能放标准音。'
+          : '当前环境不能录音（需要 <code>https://</code> 或 <code>http://localhost</code>，并允许麦克风权限）。') +
+        '<div style="margin-top:6px">✅ 正确的打开方式：双击站内的 <b>启动外贸英语网站.bat</b>，它会以 ' +
+        '<b>http://localhost:8000</b> 打开本站，录音、A/B 对比与评测全部可用。</div>' +
+        '<div style="margin-top:6px;color:var(--muted)">现在先给你放一遍标准发音。</div>' +
+        shadowRetryBtns(text, rate));
       P.speak(text, { rate: rate });
       return;
     }
-    out('🎤 <b>' + label + '</b>：先听标准音，随后留出的空档里<b>跟着读一遍</b>…');
-    const afterRehearse = function () {
-      if (!alive()) return;
-      out('🎤 <b>' + label + '</b>：<b>录音中</b>…对着麦克风读一遍');
-      P.startRecording().then(function () {
-        if (!alive()) { P.stopRecording(); return; }
-        setTimeout(function () {
-          if (!alive()) return;
-          P.stopRecording().then(function (url) {
-            if (!alive()) return;
-            if (!url) { out('🎤 <b>' + label + '</b>：录音失败，请检查麦克风权限。'); return; }
-            if (State.shadowUrl) { try { URL.revokeObjectURL(State.shadowUrl); } catch (e) { /* ignore */ } }
-            State.shadowUrl = url;
-            const a = new Audio(url);
-            out('🎤 <b>' + label + '</b>：<b>① 回放你的</b> → 接着自动放标准音…');
-            a.onended = function () {
-              if (!alive()) return;
-              out('🎤 <b>' + label + '</b>：<b>② 标准音</b>（对比重音 / 连读 / 尾音）…');
-              P.speak(text, { rate: rate, onend: function () { if (alive()) out(afterShadowCompare(text, label)); } });
-            };
-            a.onerror = function () { if (alive()) out(afterShadowCompare(text, label)); };
-            a.play().catch(function () { if (alive()) out(afterShadowCompare(text, label)); });
-          });
-        }, Math.max(1200, rep.gap * 1000));
+
+    /* ---------------- ① 听标准音（N 遍，每遍之间留出跟读窗口） ---------------- */
+    const total = (P.repeat ? rep.n : 1);
+    const gap = (P.repeat ? rep.gap : 0.8);
+    const listen = function (k) {
+      out('<div style="font-weight:700">🎧 ① 听标准音' + (total > 1 ? " · 第 " + k + " / " + total + " 遍" : "") + '</div>' +
+        '<div style="margin-top:4px">听完在留出的空档里<b>跟着读一遍</b>，' + (total > 1 ? total + " 遍读完后" : "随后") + '自动开始录音。</div>' +
+        '<div style="margin-top:6px;color:var(--muted)">目标：<b>' + label + '</b> · 语速 ' + rate + '×</div>');
+    };
+
+    /* ---------------- ② 录音（实时电平 + 计时 + 手动/自动收尾） ---------------- */
+    let stat = null;
+    function startRec() {
+      silence();                                    /* ★ 开录前硬停 TTS：绝不把标准音录进麦克风 */
+      const est = (P.estimateSpeechMs ? P.estimateSpeechMs(text, rate) : 3000);
+      const maxMs = Math.max(4000, Math.round(est * 1.8 + 1500));
+      stat = { t0: Date.now(), levels: [], spoken: false, lastVoice: 0, done: false, maxMs: maxMs };
+      out('<div style="font-weight:700">🎙 ② 录音中 —— 现在轮到你</div>' +
+        '<div style="margin-top:4px">对着麦克风读出：<b>' + label + '</b></div>' +
+        '<div style="margin-top:9px;height:10px;border-radius:6px;background:var(--line);overflow:hidden">' +
+        '<i id="shadowLvl" style="display:block;height:100%;width:0%;background:var(--ok);transition:width .1s"></i></div>' +
+        '<div id="shadowTimer" style="margin-top:5px;font-size:12.5px;color:var(--muted)">0.0s · 还没听到声音，请出声</div>' +
+        '<div style="margin-top:9px"><button class="btn btn-primary btn-sm" data-action="shadow-stop">⏹ 我说完了</button></div>');
+      P.startRecording({
+        capturePcm: true,                            /* 录一次就够：PCM 直接喂本机识别，评分不用再读一遍 */
+        onLevel: function (rms) {
+          if (!alive() || !stat || stat.done) return;
+          stat.levels.push(rms);
+          if (rms >= 0.01) { stat.spoken = true; stat.lastVoice = Date.now(); }
+          const bar = document.getElementById("shadowLvl");
+          if (bar) bar.style.width = Math.min(100, Math.round(Math.sqrt(Math.max(0, rms)) * 320)) + "%";
+          const ms = Date.now() - stat.t0;
+          const tm = document.getElementById("shadowTimer");
+          if (tm) tm.textContent = (ms / 1000).toFixed(1) + "s · " + (stat.spoken ? "已听到你的声音" : "还没听到声音，请出声");
+          /* 说过话之后连续 1.2 秒静音即收尾，不让用户干等刷超时 */
+          if (stat.spoken && Date.now() - stat.lastVoice > 1200 && ms > 1500) finishRec();
+        }
+      }).then(function () {
+        if (!alive()) { try { P.stopRecording(); } catch (e) { /* ignore */ } return; }
+        State.shadowStop = finishRec;
+        State.shadowStopTimer = setTimeout(finishRec, maxMs);
       }).catch(function (err) {
         if (!alive()) return;
-        out('🎤 <b>' + label + '</b>：' + esc(micMsg(err)) + '，已改为只播放标准音。');
+        const m = micMsg(err);
+        out('🎤 <b>' + label + '</b>：' + esc(m) + '<div style="margin-top:6px">已改为只播放标准音。</div>' + shadowRetryBtns(text, rate));
         P.speak(text, { rate: rate });
       });
-    };
-    if (P.repeat) State.shadowRep = P.repeat(text, { rate: rate, n: rep.n, gap: rep.gap, onDone: afterRehearse });
-    else P.speak(text, { rate: rate, onend: afterRehearse });
+    }
+
+    /* ---------------- ③ 回放你的 → ④ 标准音 → ⑤ 对比与评分 ---------------- */
+    function finishRec() {
+      if (!alive() || !stat || stat.done) return;
+      stat.done = true;
+      clearTimers();
+      const P2 = window.Player;
+      P2.stopRecording().then(function (url) {
+        if (!alive()) return;
+        if (!url) { out('🎤 <b>' + label + '</b>：录音失败，请检查麦克风权限后点「再读一次」。' + shadowRetryBtns(text, rate)); return; }
+        dropUrl();
+        State.shadowUrl = url;
+        const el = document.querySelector('[data-action="shadow-stop"]');
+        out('<div style="font-weight:700">③ 回放你的</div>' +
+          '<div style="margin-top:4px;color:var(--muted)">听自己的重音、连读、尾音；放完自动放标准音做 A/B 对照。</div>');
+        const a = new Audio(url);
+        let went = false;
+        const go = function () { if (went) return; went = true; if (alive()) playStandard(); };
+        a.onended = go;
+        a.onerror = go;
+        State.shadowGuard = setTimeout(go, 15000);
+        a.play().catch(go);
+      });
+    }
+    function playStandard() {
+      if (!alive()) return;
+      out('<div style="font-weight:700">④ 标准音（对照重音 / 连读 / 尾音）</div>' +
+        '<div style="margin-top:4px;color:var(--muted)">目标：<b>' + label + '</b> — 听完立刻出对比与评分。</div>');
+      let went = false;
+      const go = function () { if (went) return; went = true; if (alive()) report(); };
+      Player.speak(text, { rate: rate, onend: go });
+      const est = (Player.estimateSpeechMs ? Player.estimateSpeechMs(text, rate) : 3000);
+      State.shadowGuard = setTimeout(go, est + 1500);
+    }
+    function report() {
+      if (!alive() || report.done) return;
+      report.done = true;
+      if (State.shadowGuard) { clearTimeout(State.shadowGuard); State.shadowGuard = null; }
+      out('<div style="font-weight:700">⑤ 对比与评分</div>' +
+        shadowAccentHtml(stat, text, rate) +
+        '<div id="shadowScore" style="margin-top:9px"></div>' +
+        (hist.n ? '<div style="margin-top:7px;font-size:12.5px;color:var(--muted)">📈 这个词你已经练了 <b>' + hist.n +
+          '</b> 次' + (hist.best ? '，历史最好 <b>' + hist.best + '%</b>' : "") + '。</div>' : ""));
+      scoreIt();
+    }
+    /* 评分：优先本机离线（复用刚录到的 PCM，一次录音即可）→ 再退浏览器在线识别 */
+    function scoreIt() {
+      const box2 = document.getElementById("shadowScore");
+      if (!box2) return;
+      const done = function (txt) {
+        if (!alive()) return;
+        if (!txt) {
+          box2.innerHTML = '<b style="color:var(--bad)">没识别到语音</b>：靠近麦克风、在安静环境再读一次。' +
+            '（录音已可回放对照，上面的节奏反馈也仍然有效。）' + shadowRetryBtns(text, rate);
+          return;
+        }
+        const ev = evaluateSpeech(text, txt);
+        hist.n++; if (ev.acc > hist.best) hist.best = ev.acc;
+        box2.innerHTML = evalResultHtml(text, txt) +
+          '<div style="margin-top:7px;font-size:12.5px;color:var(--muted)">本次 <b>' + ev.acc + '%</b> · 历史最好 <b>' +
+          hist.best + '%</b> · 已练 ' + hist.n + ' 次' +
+          (hist.best > ev.acc ? ' —— 别急，把标红的词单独练两遍再整句读。' : '') + '</div>' +
+          shadowRetryBtns(text, rate);
+      };
+      const pcm = (Player.lastRecordingPcm && Player.lastRecordingPcm()) || null;
+      /* 在线识别（需要**再读一遍**）：既是离线不可用时的回退，也是用户"不想等"时的出口 */
+      const onlinePath = function (note) {
+        if (!alive()) return;
+        State.shadowUseOnline = null;
+        if (!Player.recognitionSupported()) { box2.innerHTML = shadowNoAsrHtml() + shadowRetryBtns(text, rate); return; }
+        box2.innerHTML = (note ? '<div style="color:var(--muted)">' + note + '</div>' : "") +
+          '<div style="color:var(--muted)">⏳ 用<b>语音识别</b>评分：请<b>再读一遍</b>「' + esc(text) + '」…（说完自动停）</div>';
+        Player.micRequest().then(function () {
+          if (!alive()) return;
+          if (State.shadowRec) { try { State.shadowRec.stop(); } catch (e) { /* ignore */ } }
+          State.shadowRec = Player.recognize({
+            lang: "en-US", maxMs: 4000,
+            onError: function (err) {
+              State.shadowRec = null;
+              if (!alive()) return;
+              const m = micMsg(err);
+              box2.innerHTML = '这次没拿到识别结果（' + esc(m) + '）。' + shadowRetryBtns(text, rate);
+            },
+            onEnd: function (txt) { State.shadowRec = null; done(txt); }
+          });
+          if (!State.shadowRec) box2.innerHTML = '识别不可用。' + shadowRetryBtns(text, rate);
+        }).catch(function (err) {
+          if (!alive()) return;
+          box2.innerHTML = esc(micMsg(err)) + shadowRetryBtns(text, rate);
+        });
+      };
+      const localReady = !!(window.LocalASR && Player.localASROn && Player.localASROn() &&
+        !Player.localASRBroken && window.LocalASR.transcribe && pcm && pcm.length > 8000);
+      if (localReady) {
+        box2.innerHTML = '<div style="color:var(--muted)">⏳ 正在用<b>本机离线识别</b>给这次录音评分…' +
+          '<br>（首次使用要先准备模型，约 1–2 分钟；之后就都是几秒。）</div>' +
+          '<div style="margin-top:8px"><button class="btn btn-outline btn-sm" data-action="shadow-online">⚡ 不想等，改用在线识别</button></div>';
+        /* ★ 硬超时（真机教训）：离线识别这条链**必须**有截止时间，而且必须给用户一个"立刻改道"的按钮。
+           vosk 首次要下 41MB 归档、解包进 IndexedDB 再建模型；本机实测：模型**下载只要 1 秒**，
+           但在"装了整个站点的页面里" `createModel` 超过 120 秒仍未返回（同一台机器的隔离页只要 2–6 秒）。
+           没有超时的话用户会永远停在"正在评分…"——这正是上一轮「点跟读永远等待」的复发路径。
+           超时/用户改道后都标记 localASRBroken，后续直接走在线识别，不让用户反复白等。 */
+        let settled = false;
+        let timer = null;
+        const first = !(Player.localASRFirstDone);
+        const limitMs = first ? 90000 : 25000;
+        const settle = function (txt, err) {
+          if (settled) return;
+          settled = true;
+          if (timer) { clearTimeout(timer); timer = null; }
+          State.shadowUseOnline = null;
+          if (!alive()) return;
+          if (err) {
+            Player.localASRBroken = true;
+            onlinePath('离线识别这次没成功（' + esc(err) + '），已自动改用在线识别。' +
+              '想再用离线：去 <b>⚙ 发音设置</b> 重新勾选「优先本地识别」。');
+            return;
+          }
+          done(txt);
+        };
+        /* 用户点「不想等」：立刻放弃离线等待，直接转在线 */
+        State.shadowUseOnline = function () {
+          if (settled) return;
+          settled = true;
+          if (timer) { clearTimeout(timer); timer = null; }
+          Player.localASRBroken = true;
+          onlinePath('已按你的选择改用在线识别（本机离线模型准备太慢时可随时这样切）。');
+        };
+        timer = setTimeout(function () {
+          settle(null, "等待超过 " + Math.round(limitMs / 1000) + " 秒，离线模型未及时准备好");
+        }, limitMs);
+        try {
+          window.LocalASR.transcribe(pcm).then(function (txt) {
+            Player.localASRFirstDone = true;
+            settle(txt, null);
+          }).catch(function (e) { settle(null, String((e && e.message) || e)); });
+        } catch (e) { settle(null, String((e && e.message) || e)); }
+        return;
+      }
+      onlinePath("");
+    }
+
+    if (P.repeat) {
+      listen(1);
+      State.shadowRep = P.repeat(text, {
+        rate: rate, n: total, gap: gap,
+        onRound: function (k) { if (alive()) listen(k); },
+        onDone: function () { if (alive()) startRec(); }
+      });
+    } else {
+      /* 极端降级：没有 repeat 就直接speak + 估算间隔 */
+      listen(1);
+      P.speak(text, { rate: rate, onend: function () { setTimeout(function () { if (alive()) startRec(); }, gap * 1000); } });
+    }
+  }
+  /* 入口一：从带 data-text 的按钮发起 */
+  function shadowRun(el) {
+    const text = String(el.getAttribute("data-text") || "").trim();
+    if (!text) return;
+    shadowRunAt(shadowBoxFor(el), text, {});
+  }
+  /* 入口二：从结果框里的「再读一次 / 慢速再来」发起（此时没有原按钮，锚点就是结果框） */
+  function shadowRerun(el) {
+    const box = el.closest(".shadow-out");
+    const text = String(el.getAttribute("data-text") || "").trim();
+    if (!box || !text) return;
+    const r = parseFloat(el.getAttribute("data-rate"));
+    shadowRunAt(box, text, r > 0 ? { rate: r } : {});
   }
   /* 🎯 评测（需要识别）：说一遍 → 转写 → 词形命中分。src 用于显示"是本地还是在线识别"。 */
   function shadowEval(el) {
@@ -3665,6 +3923,10 @@
       /* 2026-10-11 使用反馈：跟读（不需要识别，火狐也能用）与评测（需要识别）分开 */
       case "shadow": shadowRun(el); break;
       case "shadow-eval": shadowEval(el); break;
+      /* 跟读闭环的收尾与重来：用户自己控制"我说完了"，并可就地再读一次看涨分 */
+      case "shadow-stop": if (State.shadowStop) State.shadowStop(); break;
+      case "shadow-retry": shadowRerun(el); break;
+      case "shadow-online": if (State.shadowUseOnline) State.shadowUseOnline(); break;
       case "atrisk-flash": {
         const rb = document.getElementById("atriskReinforce");
         startAtRiskFlash(!!(rb && rb.checked));
@@ -4751,8 +5013,19 @@
        它是 js/immerse.js 的偏好（键 fte-immerse），不写进 progress，也不影响任何学习数据。 */
     const setImmerse = document.getElementById("setImmerse");
     /* P2-2：离线识别**不做无凭证的承诺**。模型不随站分发，所以这项在多数环境里不可用；
-       现场探测一次，不可用就禁用开关、清掉已勾选状态并写明原因，而不是让用户勾了却毫无效果。 */
-    if (setLocalASR && window.LocalASR && window.LocalASR.probe) {
+       现场探测一次，不可用就禁用开关、清掉已勾选状态并写明原因，而不是让用户勾了却毫无效果。
+
+       ★ 第三/四轮修复（2026-10-11 晚）：这段自检原先直接写在 setupSettings() 里，
+       而 setupSettings() 是在**页面启动时**调用的 —— 于是每次打开站点都会在后台开始
+       下载/装载 41 MB 模型（用户根本没打算用离线识别也要付这份流量），更要命的是它会与
+       用户随后在弹窗里触发的自检**并发**：worker 侧两次 load() 共用同一个存储目录，
+       后一次会以 `Failed to open '…/downloaded.tar.gz'` 失败，且失败状态留在 IndexedDB 里。
+       现在改为**首次打开弹窗时才检查一次**（localASRChecked 守卫），两个问题一起消失。 */
+    let localASRChecked = false;
+    function checkLocalASR() {
+      if (localASRChecked) return;
+      localASRChecked = true;
+      if (!(setLocalASR && window.LocalASR && window.LocalASR.probe)) return;
       try {
         window.LocalASR.probe().then(function (st) {
           if (!(st && st.ready)) {
@@ -4763,20 +5036,23 @@
             if (note0) {
               note0.innerHTML = "⚠️ <b>离线识别当前不可用</b>：" + esc((st && st.reason) || "未就绪") +
                 "。本站不分发该模型（约 66MB），已自动切回<b>浏览器在线识别</b>；" +
-                "确实需要离线时按 <code>tools/fetch-vosk-model.ps1</code> 的说明把模型与库放进站内，刷新后此开关自动可用。" +
+                "确实需要离线时按 <code>tools/fetch-vosk-model.ps1</code> 的说明把模型放进站内，刷新后此开关自动可用。" +
                 "<br>📌 <b>国内 Chrome 的在线识别走 Google、通常不可达</b>：跟读评分请改用 <b>Edge</b> 打开本站（Edge 的识别国内可达）。";
             }
             return;
           }
-          /* 文件在 ≠ 能识别：真跑一次自检，只有拿到模型对象才谈"就绪"。
-             实测本机模型目录齐全但 createModel 永不返回（见 asr-local.js 的 selfTest 注释），
+          /* 文件在 ≠ 能识别：真跑一次自检，只有真的把模型装起来才算"就绪"。
              所以这里绝不能凭"文件在"就默认打开——那会把用户带进"点跟读→永远等待"。 */
           const note1 = document.getElementById("localASRNote");
           if (note1) note1.innerHTML = "⏳ 检测到本机有离线模型，正在自检（最多 45 秒）…";
           window.LocalASR.selfTest(45000).then(function (r) {
             const note = document.getElementById("localASRNote");
             if (r && r.ok) {
-              if (!progress.localASROff && !progress.localASR) {
+              /* 自检通过 = 环境确实没问题 → 解除历史上"自检失败"留下的关闭记忆。
+                 不这样做的话，老用户早就被写进 localASROff=true，即使本轮把模型加载修好了，
+                 他也永远等不到自动打开（这正是"修好了却仍然没有评测"的另一半原因）。 */
+              progress.localASROff = false;
+              if (!progress.localASR) {
                 progress.localASR = true;
                 try { saveProgress(); } catch (e) { /* ignore */ }
                 if (setLocalASR) setLocalASR.checked = true;
@@ -4787,20 +5063,39 @@
               }
               return;
             }
-            /* 自检没过：保持关闭、写明原因，并给出可立即生效的替代路径 */
+            /* 自检没过：本次保持关闭、写明原因，并给出可立即生效的替代路径。
+               ⚠️ 这里**不再**写 `localASROff`：那个标记只用来表达"**用户明确**关掉过"（见下方保存逻辑）。
+               以前自检失败也写它，后果是"环境一次性抽风 → 这个浏览器永远不再自动启用离线识别"，
+               而用户根本不知道自己被永久降级了 —— 这正是"修好了却仍然没有评测"的又一条暗线。
+               现在失败只影响本次，下次启动会重新用极轻的 HEAD 探测一次（几乎零成本）。 */
             if (progress.localASR) { progress.localASR = false; try { saveProgress(); } catch (e) { /* ignore */ } }
             if (setLocalASR) { setLocalASR.checked = false; }
-            progress.localASROff = true;
-            try { saveProgress(); } catch (e) { /* ignore */ }
             if (note) {
               note.innerHTML = "⚠️ <b>离线识别自检未通过</b>：" + esc((r && r.reason) || "未知原因") +
-                "。<b>已保持关闭</b>（避免点跟读时白等）。<br>" +
+                "。<b>本次已保持关闭</b>（避免点跟读时白等；下次打开本站会自动再试一次）。<br>" +
                 "📌 <b>国内 Chrome 的在线识别走 Google、通常不可达</b>——跟读评分请改用 <b>Edge</b> 打开本站（Edge 的语音识别走 Azure，国内可达），这是目前最稳的路径。<br>" +
-                "🧪 想试离线：<b>手动勾选「优先本地识别」</b>——首次跟读需要下载 39MB 压缩包并解包（约 1–2 分钟），" +
-                "成功后缓存在浏览器里，之后都是秒级。第一次会等到准备好为止，不会静默失败。";
+                "🧪 想现在就用离线：<b>手动勾选「优先本地识别」</b>——首次跟读要把模型装进浏览器缓存，" +
+                "成功后之后都是秒级；不会静默失败（有硬超时与「改用在线识别」出口）。";
             }
           });
         }).catch(function () { /* ignore */ });
+      } catch (e) { /* ignore */ }
+    }
+    /* ★ 启动时只做一次**极轻**的探测（HEAD，不建模型、不下载）：模型在站内、且用户没有明确关过，
+       就先把「优先本地识别」打开。这样用户**不必先发现「发音设置」**才能用上离线评分；
+       而 41 MB 的装载只在真正要用（首次跟读）时才发生 —— 既不白耗启动流量，
+       也不会像老实现那样在启动时就把模型装起来、再和弹窗自检并发撞车。
+       `localASROff` 的语义在这里被收紧为**「用户明确关掉过」**（自检失败不再写它），
+       所以一次性抽风不会把某个浏览器永久降级到在线识别。 */
+    if (!progress.localASROff && !progress.localASR && setLocalASR && window.LocalASR && window.LocalASR.probe) {
+      try {
+        window.LocalASR.probe().then(function (st) {
+          if (st && st.ready && !progress.localASROff && !progress.localASR) {
+            progress.localASR = true;
+            try { saveProgress(); } catch (e) { /* ignore */ }
+            if (setLocalASR) setLocalASR.checked = true;
+          }
+        }).catch(function () { /* 探测失败就当没有模型，保持在线识别 */ });
       } catch (e) { /* ignore */ }
     }
     const accentNote = document.getElementById("accentNote");
@@ -4843,6 +5138,8 @@
     }
     function open() {
       populateVoices();
+      /* 离线识别的探测/自检**放在首次打开弹窗时**，不再在页面启动时就跑（见 checkLocalASR 注释） */
+      checkLocalASR();
       engineSel.value = progress.engine || "native";
       syncAzureField();
       azureKey.value = progress.azureKey || "";

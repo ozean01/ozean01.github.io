@@ -680,9 +680,9 @@
     if (useLocal) {
       U().Player.micRequest().then(function () {
         toast("🎙 本地离线识别：朗读后点「停止」");
-        let rec = window.LocalASR.record(function (mono) {
+        let rec = window.LocalASR.record(function (mono, rate) {
           toast("正在识别…");
-          window.LocalASR.transcribe(mono).then(function (text) {
+          window.LocalASR.transcribe(mono, rate).then(function (text) {
             done(text);
           }).catch(function (e) {
             toast("本地识别失败，回退浏览器在线识别：" + e.message);
@@ -713,7 +713,7 @@
 
   /* ---------- Azure 音素级发音评测（复用发音设置里的 Azure Key/Region） ----------
      P0-04：原先先试 `js/vendor/microsoft.cognitiveservices.speech.sdk.bundle-min.js`——
-     这个文件**从未随站发布**（js/vendor 里只有 phonemizer.js / vosk.js / README.md，
+     这个文件**从未随站发布**（js/vendor 里只有 phonemizer.js / vosk-worker.js / README.md，
      `git ls-files js/vendor` 也不跟踪它），于是每次点击都先白吃一个 404 再去 CDN。
      该 SDK 是**经典 IIFE/UMD 产物**（实测 550,893 B，挂 window.SpeechSDK，无顶层 export），
      所以这里**继续用 loadScript 是正确做法**——不能一律改成 import()；
@@ -1080,8 +1080,8 @@
   function offlineTranscribe() {
     if (window.LocalASR) {
       return new Promise(function (resolve) {
-        var rec = window.LocalASR.record(function (mono) {
-          window.LocalASR.transcribe(mono).then(resolve).catch(function () { resolve(""); });
+        var rec = window.LocalASR.record(function (mono, rate) {
+          window.LocalASR.transcribe(mono, rate).then(resolve).catch(function () { resolve(""); });
         });
         setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
       });

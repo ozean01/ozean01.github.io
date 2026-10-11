@@ -363,7 +363,7 @@ pwsh -File tools/build-assets.ps1
 评测采用「浏览器语音识别 + 逐词对齐」，**识别来源三选一**：
 
 - **浏览器在线**（默认）：Chrome/Edge，依赖 Google（你有 VPN 时走代理）。**分级评分**：精确命中（全分）/ 近似·错拼（部分分，标注 ≈你读的音，如 forward≈fourd）/ 漏读·多读（标红）。
-- **本地离线 vosk-browser**：发音设置勾选「优先本地识别」后，跟读评测改用 Kaldi wasm（跨 Safari/Firefox、可断网）。需把解压后的 `models/vosk-model-small-en-us-0.15/` 放到站点根目录、`vosk.js` 放 `js/vendor/`（运行 `tools/fetch-vosk-model.ps1` 一次）；未就绪时自动回退浏览器在线识别。
+- **本地离线 vosk-browser**：发音设置勾选「优先本地识别」后，跟读评测改用 Kaldi wasm（跨 Safari/Firefox、可断网）。需把模型压缩包 `models/vosk-model-small-en-us-0.15.tar.gz` 放到站点根目录（运行 `tools/fetch-vosk-model.ps1` 一次即可）；识别引擎 `js/vendor/vosk-worker.js` **已随站分发**，无需再手工下载 `vosk.js`。未就绪时自动回退浏览器在线识别。
 - **Azure 音素级**（🔎 按钮）：同 Key 打分，见「四维口语实战」。
 
 给出加权准确率 + 精确率，并附针对性练习建议（慢速分音节跟读等）。为获得更高准确度：
@@ -416,7 +416,7 @@ pwsh -File tools/build-assets.ps1
 │   ├── sop.js          # 外贸实操 SOP 页（清单/单证/报关/风控/Incoterms/计算器/HS/汇率）
 │   ├── export.js       # 学习数据导出/导入 JSON + 词表/错题 CSV（Anki 互通）
 │   ├── asr-local.js   # 本地/离线识别钩子（vosk-browser 可插拔：录 Mic→Float32→transcribe）
-│   ├── vendor/        # 可选：微软 Azure Speech SDK + vosk.js（见各自 README）
+│   ├── vendor/        # 可选：微软 Azure Speech SDK 的 CDN 位置 + 离线识别同源 worker（见各自 README）
 │   ├── sources.js     # 🎧 真实商务听音源（精选目录 + 四步听练闭环，纯数据+渲染）
 │   ├── data-glossary.js # 🔍 术语库数据（324 词条：音标 + 双语例句全覆盖 · 67 条写法对齐）
 │   ├── glossary.js    # 🔍 专业术语速查（中英对照 · 搜索 · 分类筛选 · TTS 朗读）
@@ -554,7 +554,7 @@ pwsh -File tools/build-assets.ps1
 |---|---|---|
 | 转义 | **写作区与句型库的 `esc` 原是恒等函数**（不转义任何字符），却被当转义用于 textarea 预填、作品标题与用户输入回显 → 写入 `<img onerror>` 会在保存后回列表时执行，并可随备份传播。现改为真转义（& < > "），与 `app.js`/`subtitle.js` 口径一致 | `js/write.js`、`js/patterns.js` |
 | 字幕 toast | `toastMsg` 唯一渲染出口改为**默认转义**，仅「点词查意」显式走 HTML（载入字幕时的文件名此前可注入） | `js/subtitle.js` |
-| CSP | 新增 `Content-Security-Policy`：**script-src 不含 `'unsafe-inline'`**（这才能让注入的内联处理器失效），保留 `'wasm-unsafe-eval'`（音素 IPA 与离线识别是 wasm）与 `cdn.jsdelivr.net`（vendor 加载源）。为此把 index.html 里**唯一的 SW 注册内联脚本搬到 `js/pwa-init.js`**，全站不再有可执行内联脚本 | `index.html`、`js/pwa-init.js` |
+| CSP | 新增 `Content-Security-Policy`：**script-src 不含 `'unsafe-inline'`**（这才能让注入的内联处理器失效），保留 `'wasm-unsafe-eval'`（音素 IPA 与离线识别是 wasm）与 `cdn.jsdelivr.net`（vendor 加载源）。为此把 index.html 里**唯一的 SW 注册内联脚本搬到 `js/pwa-init.js`**，全站不再有可执行内联脚本。⚠️ 第三轮一度为离线识别补过 `'unsafe-eval'`，**随后已被更好的解法取代并移除**（同源 worker 文件，见 §6-7）——script-src 至今**不含** `'unsafe-eval'` | `index.html`、`js/pwa-init.js` |
 | 备份全覆盖 | 新建**存储键唯一权威注册表 `js/storage-keys.js`**（29 个 localStorage 键）。此前备份只覆盖 4 个键，SOP 勾选 / 学习走势 / 雷达原始分 / 自述语料库 / 写作作品 / 单证草稿 / 看板 / 自测基线**全部静默丢失**，而页面承诺「导入即可续学」。现在备份清单由注册表生成，并支持裸字符串键（`uk`/`all` 这类原先整类丢失） | `js/storage-keys.js`、`js/export.js` |
 | 凭据不外泄 | 备份**绝不包含** AI 陪练配置（`fte-tutor-cfg`）与 `progress.azureKey` 字段；导入时同样跳过，不写回 | `js/export.js` |
 | 隐私声明 | 设置页新增「🔍 数据去向」逐项表：哪个功能会向哪个域名发什么（含此前未披露的 `r.jina.ai` 网页抓取与录音上行），页脚同步 | `index.html` |
@@ -593,8 +593,8 @@ pwsh -File tools/build-assets.ps1
 
 | 验证 | 结果 |
 |---|---|
-| CSP 是否挡住注入 | ✅ 内联 `onerror` 与注入的 `<script>` **均未执行**；`eval` 被拦（本站不使用 eval） |
-| CSP 是否挡住 vendor | ✅ `cdn.jsdelivr.net` 动态脚本正常加载（exceljs 实测就绪）；`wasm-unsafe-eval` 下 `WebAssembly.compile` 通过 |
+| CSP 是否挡住注入 | ✅ 内联 `onerror` 与注入的 `<script>` **均未执行**；`eval` 仍被拦（本站不使用 eval；§6-7 之后 `'unsafe-eval'` 已从 CSP 移除） |
+| CSP 是否挡住 vendor | ✅ `cdn.jsdelivr.net` 动态脚本正常加载（exceljs 实测就绪）；`wasm-unsafe-eval` 下 `WebAssembly.compile` 通过；离线识别的 Kaldi 引擎改为**同源 worker 文件**后，`script-src` **无需** `'unsafe-eval'`（§6-7） |
 | 是否产生 CSP 违规 | ✅ 触发 vendor 加载与 wasm 编译期间 **0 条 securitypolicyviolation** |
 | P2-1 播放回退 | ✅ 在线音源全失败时，4 句经浏览器语音**逐句播完并触发 onend**（修复前只播 1 句且不再回调） |
 
@@ -1211,4 +1211,172 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 - 新增 **[`tools/prepush-check.js`](./tools/prepush-check.js)**：发布前固定动作（工作区干净 + `CACHE` 已升版 + 基线一致 + `npm test` 依赖全被跟踪），出口码 0/1，已接进两个 workflow。
 - **CI 决策**：小程序端是**兄弟目录、不在本仓库**，CI 里必然没有它的数据，故 `check-single-source` 在 CI 中**显式传 `--allow-missing`**（漂移检查只在本地严格生效）；要恢复成真检查需把小程序端纳入本仓库——**产品决策，未做**。
 - **新增门禁** `tools/test-p1-invariants.js`（已接入 `npm test`，守住上述口径不被改回去）。该门禁第一版自己踩过一个坑：把 YAML **注释**里的旧写法当成违规 → 已改为只在有效配置上断言。
+
+---
+
+## 🎤 第三轮真实使用反馈：跟读要真的录我，评测要真的给分（2026-10-11 晚）
+
+> 反馈原文：「**进入学习后，跟读按钮放出的仍是系统声音，不是让我录音，并且也没有我的语音与标准语音之间的评测功能**让我明白错误之处不断纠正取得进步。」
+
+「**仍是**」两个字是关键：上一轮（P1 批次）已为这条反馈加过 🎙/🎯 入口，但**没有在真浏览器里跑过麦克风链路**（上一轮报告自己写了「未做真机验证」）。本轮用 `--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture=<真实语音 wav>` 把整条链路真跑了一遍，定位到**三个叠在一起的根因**。
+
+### 6-1 根因一：跟读窗口从「开始朗读」算起，录音把系统音一起录了进去
+
+`Player.repeat()` 老实现是 `Player.speak(text); timer = setTimeout(round, gap)` —— 定时器从**开始朗读**那一刻算起，而不是从**读完**算起。于是句子比 `gap` 长时：① 第二轮在上一条没读完时抢麦，`Player.speak` 内部把上一条 `stop` 掉；② `onDone` 在固定 `n × gap` 秒后触发，**录音在系统朗读尚未结束时就开始**，麦克风把扬声器里的标准音录了进去 —— 用户回放"我的录音"听到的当然还是系统声音。这就是「跟读按钮放出的仍是系统声音」的字面来源。
+
+- **修法**：`Player.repeat` 把「下一轮 / onDone」挂在 `Player.speak` 的 **`onend`** 上，`onDone` 只在**最后一轮读完且停满 gap** 后触发一次；另加 `onRound(k,n)`，以及「`onend` 失联时按估算时长兜底」（微信内置浏览器等不回调 `onend` 的环境不会把跟读链卡死）。
+- **开录前硬停一切 TTS**（`Player.stop()` + `speechSynthesis.cancel()`），保证录进去的只有用户的声音。
+
+### 6-2 根因二：离线识别的自检传错了模型形态，把「优先本地识别」永久关掉了
+
+`ensureModel()` 上一轮已改成传 `*.tar.gz` 归档，但同一轮新增的 `selfTest()` **仍在传解压目录 `MODELS_DIR`**。真机实测（Chrome 154 + vosk-browser 0.0.8）：
+
+| 传给 `Vosk.createModel` 的形态 | 结果 |
+|---|---|
+| 解压目录 `models/vosk-model-small-en-us-0.15` | **60 秒不 resolve 也不 reject** |
+| 归档 `models/vosk-model-small-en-us-0.15.tar.gz` | **6 秒 resolve** |
+
+于是这台**模型齐全**的机器上：自检 100% 超时 → 设置页写入 `localASROff = true` → 开关被永久关掉 → 只能退回 Chrome 的在线识别（走 Google、国内不可达）→ **用户拿不到任何评分**。
+
+**修法**：自检与正式识别共用同一个来源，并把模型地址解析成**绝对 URL**（vosk 的 worker 是 `blob:` Worker，在 worker 里再解析相对路径不可靠）；自检通过时清除历史遗留的 `localASROff`（否则修好了、老用户也永远等不到自动打开）。
+
+### 6-3 根因三（决定性）：离线识别的 API 调用从来就是错的
+
+`transcribe()` 用的是 **C++/Python 绑定的方法名**，而 `vosk-browser` 的 `KaldiRecognizer` 是一个 EventTarget 包装类。真机报错原文：`rec.AcceptWaveform is not a function`。
+
+| 老写法（错） | 真实 API（对） |
+|---|---|
+| `rec.AcceptWaveform(chunk)` | `rec.acceptWaveformFloat(Float32Array, sampleRate)` |
+| `rec.FinalResult()` | `rec.retrieveFinalResult()` —— **异步**，结果经 `"result"` 事件回传 |
+| `rec.Free()` | `rec.remove()` |
+| `res.text` | `msg.result.text`（库内 `ServerMessage.isResult()` 判的是 `.result.text`，**包了一层**） |
+| 一律按 16000 喂 | 必须按音频的**真实采样率**（48k 录音按 16k 喂 = 语速变 3 倍） |
+
+也就是说：**离线识别此前从未真正跑通过** —— 模型能建、开关能开，一转写就抛异常。这解释了「本机明明有模型，却依然没有任何评测」的最后一环。
+
+**真机证据**（隔离页 + 真实语音，SAPI 生成 "solventless adhesive"）：`模型 2–5 秒就绪 → 识别约 2 秒 → text = "solvent listed he's of"，逐词 solvent:1.00 / listed:0.60 / he's:1.00 / of:1.00`。（小模型对方便语音的转写有偏差是正常的；站点口径一直是**"识别≠发音"的参考分**，不是声学发音分。）
+
+### 6-4 界面：把闭环做成五步、每一步都看得见
+
+`shadowRun` 重做为：**① 听标准音（第 k/N 遍）→ ② 录音中（实时电平表 + 计时 + 「⏹ 我说完了」）→ ③ 回放你的 → ④ 再放标准音 → ⑤ 对比与评分**。
+
+- **一次录音就能评分**：录音时同时采 PCM（`capturePcm` + `Player.lastRecordingPcm()`，内部线性插值重采样到 16k），直接喂本机 vosk，**不再让用户为评分重读一遍**；没有本地识别时才回退浏览器在线识别（并明说"请再读一遍"）。
+- **不依赖识别的反馈也照样给**：音量峰值 + 有效出声时长 vs 标准音估算时长的**节奏对比**（"比标准音快 38%，多半吞音" / "只出声 0.9 秒，很可能漏读后半段" / "这次几乎没听到你的声音，这不是发音问题"）。这两项在任何浏览器、断网、火狐下都成立。
+- **"不断纠正取得进步"要有凭证**：结果里显示 `本次 X% · 历史最好 Y% · 已练 N 次`，并就地给「🔁 再读一次」「🐢 0.6× 慢速再来」。
+- **课程单元【对话】每一句补上 🎙/🎯**（此前只有 ▶，等于"进入学习"最常去的那一屏根本没法开口）。
+- **`file://` 双击打开时明说**：浏览器在 `file://` 下禁用录音，提示改用启动脚本以 `http://localhost:8000` 打开。
+- 离线识别这条链**加了硬超时**（首次 90 秒 / 之后 25 秒）**外加一个「⚡ 不想等，改用在线识别」按钮**，
+  超时或用户改道都自动切在线并如实说明 —— 绝不再出现"永远停在正在评分…"。（§6-6 修好后正常路径只要约 8 秒，
+  超时与按钮从此只是兜底。）
+
+### 6-5 验证与未决
+
+- **端到端真机**（无头 Chrome + 假麦克风喂真实语音）：五步全部观测到；电平表确认"已听到你的声音"、峰值 33/100、录到约 3.9 秒 PCM（62,805 采样），节奏反馈正确输出。
+- `node tools/test-all.js` **exit 0 · 全部门禁通过**（含本轮新增的复读时序、vosk API 与结果形状守卫）。
+- ⚠️ **已解决（见 §6-6）**：曾观察到「装了整个站点的页面里离线模型超过 180 秒不返回，而空白页只要 2–6 秒」。
+  当时误判为资源竞争/页面体量；后续用「同一 Chrome、交替跑空白页与整站页」的受控对照 + worker 内部日志，
+  定位到真正原因是 **CSP**（详见 §6-6）。修复后整站页 **8 秒**建好模型。
+- `CACHE` `fte-v100 → fte-v101 → fte-v102`（PRECACHE 清单与指纹始终不变），`tools/precache-baseline.json` 同步。
+
+### 6-6 根因四（最初被误判）：CSP 缺少 `'unsafe-eval'`，离线模型永远建不出来
+
+§6-5 当时只看到"整站页慢、空白页快"，把它记成了"环境/资源竞争，原因未定位"。
+后来做了两件对的事才把它钉死：
+
+1. **受控对照**：同一个 Chrome 实例、交替跑「空白页」与「整个站点页」，每轮全新标签页。
+   结果与机器负载无关，稳定复现：
+
+   | 页面 | `Vosk.createModel()` |
+   |---|---|
+   | 空白页（只有 vosk 库，**无 CSP**） | **3 秒 / 5 秒 / 8 秒** resolve |
+   | 整站页 `index.html`（有 CSP） | **永不 resolve**（>120 秒） |
+
+   同时测出：模型**下载只要 1 秒**（`fetch` 41,166,339 B），所以既不是网络也不是体积。
+2. **抓 worker 内部报错**：`createModel` 卡住时主线程一片安静，因为 vosk 的引擎跑在
+   **blob: Worker** 里，而主线程看不到 worker 内部的异常。用 CDP `Target.setAutoAttach`
+   附到该 worker 上抓 `Log.entryAdded`，拿到真实报错原文：
+
+   ```
+   EvalError: Evaluating a string as JavaScript violates the following Content Security Policy
+   directive because 'unsafe-eval' is not an allowed source of script:
+   script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'".
+   ```
+
+**因果链**：blob Worker **继承创建它的文档的 CSP** → worker 内的 Emscripten 胶水要执行字符串形式的 JS
+→ 原 CSP 只有 `'wasm-unsafe-eval'`（允许 wasm 编译，但**不允许** eval）→ worker 内抛 EvalError
+→ 而 vosk-browser 只等 worker 的 `"load"` 事件，**不把 worker 的 error 映射成 promise rejection**
+→ `createModel()` 既不 resolve 也不 reject → 用户看到"离线识别永远准备中"。
+
+**止损修法**：`index.html` 的 `script-src` 补上 `'unsafe-eval'`（`fte-v102`）。
+
+- **验证**：修后同一页面、同一台机器，`cm:RESOLVE sec=8`；空白页 `bare:RESOLVE sec=3`。
+- **代价边界**：`'unsafe-eval'` 只放开 `eval` / `new Function`，**不放开** `'unsafe-inline'` ——
+  注入的内联 `<script>` 与 `onerror=` 仍被拦，而那是本站真正要防的一类。
+- **这也顺带解释了上一轮的误判**：上一轮把"`createModel` 永不返回"归因给"传了解压目录而不是 tar.gz"。
+  实测目录形态确实也不返回，但**真正的拦路虎是 CSP**——换归档只是把"必然卡住"换成了"另一条也卡住的路"。
+  本轮把 `selfTest` 统一到 tar.gz + 绝对 URL 是对的（那是 6-2 的问题），但只修那一处不足以让离线识别跑起来。
+- `CACHE` `fte-v100 → fte-v101 →`（本节的止损）`fte-v102`。
+
+### 6-7 加固：把 `'unsafe-eval'` 拿掉 —— 改用**同源真实文件** worker（`fte-v103`）
+
+§6-6 的 `'unsafe-eval'` 是止损，不是好设计。既然根因是"**blob** Worker 继承文档 CSP"，
+那就别用 blob Worker。**先验证机制，再动代码**：
+
+| worker 形态（同一页面、同一份严格 CSP） | worker 内 `eval` 结果 |
+|---|---|
+| `blob:` Worker | **`EVAL-BLOCKED`**（复现 §6-6 的故障） |
+| **同源真实文件** Worker | **`EVAL-OK`**（同源文件用**它自己响应头**的 CSP；静态托管不发 CSP 头） |
+
+机制成立，于是做了三件事：
+
+1. **把 worker 源码抽成同源文件**：`tools/build-vosk-worker.js` 从 `vosk-browser@0.0.8` 发行包里
+   那个 `createBase64WorkerFactory('…')` 的 base64 参数**逐字节还原**成
+   `js/vendor/vosk-worker.js`（4,330,588 B），并写出 `vosk-worker.meta.json`（字节数 + sha256）。
+   脚本可 `--check` 复核，升级上游时可重跑。
+2. **自己驱动它**：`js/asr-local.js` 不再加载 `dist/vosk.js`，改为直接走 worker 的原始消息协议
+   （协议是从 worker 源码逐条核出来的，写进了模块头注释）。这带来两个额外好处：
+   - **错误不再被吞**：上游客户端只等 `"load"` 事件、把 worker 的 `error` 静默掉；我们在 `worker.onerror`
+     上把它变成一条可执行的提示 —— 正是这类静默把用户困在"永远准备中"。
+   - **一次只丢一份字节**：`vosk.js` 里 99.5% 是那段 base64；现在它整份被删掉（5,804,767 B），
+     换成本来就要下载的 worker 文件 —— 离线识别的下载量从 **5.8 MB 降到 4.13 MB**。
+3. **把 `'unsafe-eval'` 从 CSP 里移除**，严格策略恢复；并加守卫禁止它被"顺手加回来"。
+
+**两条实现细节（都来自 worker 源码，写错会"识别不出文本"且不报错，已写进注释与门禁）**：
+- 送音频前必须 **× 0x8000**：worker 是把 Float32 直接 `HEAPF32.set` 进 wasm 堆，缩放由客户端负责。
+  本轮第一次跑就踩了另一个变体：结果对象**被展开两次**（内层 `result` 本身是数组），
+  文本静默变成空串、表现成"没识别到语音" —— 现在 `unwrapResult` 只在 `msg.result` 是非数组对象时才下钻。
+- `modelUrl` 必须是**绝对 URL**：worker 内是 `new URL(modelUrl, location.href)`，而 file worker 的
+  `location.href` 是 `…/js/vendor/vosk-worker.js`，相对路径会被解析到 `js/vendor/` 底下。
+
+**端到端验证（严格 CSP，无 `'unsafe-eval'`）**：整站页点 🎙 → 五步闭环 → **2–4 秒**建好模型 →
+**`🎯 准确率 100%`**（假麦克风喂 SAPI 念的 "trade"，目标词也是 trade）。
+`tools/test-security.js` 新增守卫：**CSP 不得包含 `'unsafe-eval'`**（并说明为什么曾经加过、现在为什么不需要）。
+
+- 相关文件：`tools/build-vosk-worker.js`、`js/vendor/vosk-worker.js`、`js/vendor/vosk-worker.meta.json`、
+  `js/asr-local.js`、`index.html`、`tools/fetch-vosk-model.ps1`（只准备模型，不再下载 `vosk.js`）。
+- `CACHE` `fte-v102 → fte-v103`（PRECACHE 清单与指纹不变），`tools/precache-baseline.json` 同步。
+
+#### 6-7a 加固过程中又抓到两个真缺陷（都已修）
+
+上面"端到端跑通"之后，我补做了一次**最不利时序**的复验：页面刚 `FTE_BOOTED` 就立刻触发自检。
+结果自检**稳定失败**，worker 日志是 `Failed to open '…/downloaded.tar.gz'`；而延迟 15 秒再触发就成功。
+顺着这条差异查出两个真缺陷：
+
+1. **自检原本在页面启动时就跑。** `setupSettings()` 是在模块初始化时调用的，而离线识别的
+   `probe()` → `selfTest()` 就写在里面 —— 于是**每次打开站点都会在后台下载/装载 41 MB 模型**，
+   哪怕用户根本不打算用离线识别；而且用户随后打开设置弹窗会**再触发一次**，两次并发。
+2. **两次并发 `load` 会互相踩。** worker 侧 `load()` 把模型下载到同一个存储目录并写 `downloaded.ok`；
+   后一次看到标记就跳过下载、直接去解包那个可能已被前一次 `unlink` 掉的归档 →
+   `Failed to open '…/downloaded.tar.gz'`。更糟的是**失败状态会留在 IndexedDB 里**，
+   下一次仍会看到 `downloaded.ok` 而跳过下载 → **一次失败可能变成"以后永远失败"**。
+
+修法：
+- `js/app.js`：自检挪到**首次打开「发音设置」弹窗**时（`checkLocalASR()` + 一次性守卫），启动不再碰模型。
+- `js/asr-local.js`：模型加载改为**单飞**（并发调用共用同一个 promise），且**失败后换一个存储目录重试一次**
+  （查询串会进入 worker 的目录名推导，绕开残留的 `downloaded.ok` / 半包归档）。
+- 验证：同样的"启动即自检"时序现在**直接通过**（`{"ok":true}`）；两条门禁守着"单飞"与"不得在启动时自检"。
+- ⚠️ **一处未跑成的复核（如实记录）**：`node tools/build-vosk-worker.js --check` 会因为本机 **jsDelivr 不可达**
+  （`fetch failed`）而无法与上游发行包逐字节比对；`npm test` 里用的是不联网的静态校验
+  （`vosk-worker.meta.json` 的字节数 + sha256）。**请在有网机器上补跑一次 `--check`**，把它变成硬证据；
+  详细口径见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) 的 1.2 行。
 

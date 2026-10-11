@@ -1,0 +1,7 @@
+{
+  "note": "由 tools/build-vosk-worker.js 从 vosk-browser 发行包抽取的同源 worker（勿手工编辑）",
+  "source": "本地 js/vendor/vosk.js",
+  "pinnedVersion": "vosk-browser@0.0.8",
+  "bytes": 4330588,
+  "sha256": "7ba6b482f49ff3d49290b85f4ca13d5c6a5787b237cac1c6d15129668d36f529"
+}

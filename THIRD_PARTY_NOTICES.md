@@ -39,20 +39,27 @@
 
 > **待决**：本文件把 espeak-ng 编入同一产物，属**聚合**还是**演绎/组合作品**、本站**分发**触发哪些义务，须法律判断。处置选项见「四、待决事项」。
 
-### 1.2 `js/vendor/vosk.js` — 离线语音识别（vosk-browser）
+### 1.2 `js/vendor/vosk-worker.js` — 离线语音识别（vosk-browser）
+
+> **2026-10-11 晚变更**：原先分发的是发行包 `js/vendor/vosk.js`（5,804,767 字节），
+> 其中 **5,774,120 字符（99.5%）是一个 base64 字符串** —— 那是被打包进 blob Worker 的 Kaldi 引擎。
+> 由于 blob Worker 继承文档 CSP，本站的严格 CSP 会让它在启动时抛 `EvalError` 并**静默死掉**
+> （表现为"离线识别永远建不出来"）。现改为把这段 base64 载荷**逐字节还原**成同源 worker 文件
+> `js/vendor/vosk-worker.js`，由 `js/asr-local.js` 直接驱动；发行包 `vosk.js` 已从仓库删除。
 
 | 项 | 内容 |
 |---|---|
 | 名称 | `vosk-browser`（Kaldi wasm 的浏览器封装，含 `vosk-api`/Kaldi 侧组件与若干工具函数） |
-| 用途 | 「发音设置 → 识别来源 → 优先本地识别」；`js/asr-local.js` 先本地 vendor、后 CDN |
-| 文件与体积 | `js/vendor/vosk.js`，**5,804,767 字节**（本次实测） |
-| 许可 | **Apache-2.0** |
-| 一手来源 | [jsDelivr `vosk-browser@0.0.8/package.json`](https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/package.json) 的 `"license": "Apache-2.0"`（HTTP 200，本次实读） |
-| 分发状态 | **是**（`git ls-files` 跟踪） |
-| 署名义务 | **部分满足**：文件内保留了第三方版权行——`:7-20` `Copyright (c) Microsoft Corporation.` + 一段 ISC 式许可正文（`Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.`，Microsoft 的 `tslib` 头）；`:174-189` blueimp `JavaScript-MD5` 的 `Copyright 2011, Sebastian Tschan` + `Licensed under the MIT license` + `Version 2.2 Copyright (C) Paul Johnston 1999 - 2009` + `Distributed under the BSD License`。**但文件内未见 `vosk-browser` 自身的 Apache-2.0 许可文本或 NOTICE。** |
-| 证据强度 | 许可字段 **A**；"版本 = 0.0.8" **C（未核）**——见下 |
+| 用途 | 「发音设置 → 识别来源 → 优先本地识别」；`js/asr-local.js` 用同源 worker 文件 + 直接的消息协议驱动 |
+| 文件与体积 | `js/vendor/vosk-worker.js`，**4,330,588 字节**（`vosk-worker.meta.json` 内有 sha256） |
+| 与上游的关系 | 是 `vosk-browser@0.0.8` 发行包内 `createBase64WorkerFactory('…')` 那个 base64 参数的**逐字节 base64 解码结果**，未作任何源码改动；抽取脚本为 `tools/build-vosk-worker.js`（可复现、可 `--check` 校验） |
+| 许可 | **Apache-2.0**（沿用上游；注意下列"未核"项） |
+| 一手来源 | [jsDelivr `vosk-browser@0.0.8/package.json`](https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/package.json) 的 `"license": "Apache-2.0"`；产物 URL 为 `https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js`（由 `tools/build-vosk-worker.js` 钉死） |
+| 分发状态 | **是**（`git ls-files` 跟踪 `js/vendor/vosk-worker.js` 与 `vosk-worker.meta.json`） |
+| 署名义务 | **部分满足**：worker 内保留了原有第三方版权行——开头 `Copyright (c) Microsoft Corporation.` + 一段 ISC 式许可正文（Microsoft 的 `tslib` 头），以及 blueimp `JavaScript-MD5` 的 `Copyright 2011, Sebastian Tschan`（MIT）与 `Version 2.2 Copyright (C) Paul Johnston 1999 - 2009`（BSD）。**但文件内仍未见 `vosk-browser` 自身的 Apache-2.0 许可文本或 NOTICE。** |
+| 证据强度 | 许可字段 **A**（`vosk-browser@0.0.8` 的 `package.json` 声明 Apache-2.0）；"本文件 = 该版本发行包内那段 base64 载荷" **B（可复核，但本机未复核）** —— 抽取脚本 `tools/build-vosk-worker.js` 钉死了产物 URL 与版本，`vosk-worker.meta.json` 记录了字节数与 sha256；只要目标机器能访问 jsDelivr，`node tools/build-vosk-worker.js --check` 就能自动判定是否与上游一致。⚠️ **本次加固的机器上 jsDelivr 不可达（`fetch failed`），所以"与上游逐字节一致"这一步在本环境没有真正跑过**，只有"从本机原先那份 `vosk.js`（其来源亦为该 URL，见旧记录）抽取"这一条链；请在有网机器上跑一次 `--check` 把它补成硬证据 |
 
-**未核**：`js/vendor/vosk.js` 文件内**没有**版本标识（`version`/`VERSION` 查无产品号），"它就是 `vosk-browser@0.0.8`"目前只有 `js/vendor/README.md:15-16` 与 `tools/fetch-vosk-model.ps1` 的下载 URL 佐证，**未取到文件级证据**。若该文件与 0.0.8 有差异，本行的许可依据随之失效。
+**未核**：`vosk-worker.js` 内不含 `vosk-browser` 自身的版本标识；上游该包是否发布 `NOTICE` 文件仍未取得。
 
 ### 1.3 `js/vendor/README.md`
 
@@ -95,7 +102,7 @@
 
 1. **站点自身没有 `LICENSE`**。仓库根**无** `LICENSE` / `COPYING`（本次实测：`Get-ChildItem -File | ? Name -match 'LICENSE|THIRD|NOTICE|COPYING'` 在新建本文件前为空）。即**站点自身代码的许可未声明**，默认"保留所有权利"。→ 待业主决定（可选方向：MIT / Apache-2.0 / 内部使用声明）。**注意**：站点含 1.1 的 GPL-3.0-or-later 组件，"选哪种许可"与"该组件如何处置"是**联动**问题，须一并判断。
 2. **`js/vendor/phonemizer.js` 内无任何许可/版权文本**（见 1.1）：即使按保留处理，也缺 GPL-3.0 要求的许可全文与版权声明。
-3. **`js/vendor/vosk.js` 内无 `vosk-browser` 自身的 Apache-2.0 许可文本与 NOTICE**（见 1.2）：MIT/Apache-2.0 均要求随分发保留版权与许可文本。
+3. **`js/vendor/vosk-worker.js` 内无 `vosk-browser` 自身的 Apache-2.0 许可文本与 NOTICE**（见 1.2）：MIT/Apache-2.0 均要求随分发保留版权与许可文本。
 4. **`@latest` 类引用**：全仓 `*.js` 实测只有 **1 处** `@latest`，即 `js/sop.js:1130` 的 `@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json`（见 2.1 的说明）。其余 CDN 依赖均已锁到具体版本。
 5. **没有 `NOTICE` 文件**：Apache-2.0 组件（`vosk-browser`、`@xenova/transformers`）要求保留/提供上游 NOTICE。上游是否发布 NOTICE，本次**未核**。
 6. **术语库 provenance 与本清单相关的事实**（不属于第三方代码，但属第三方**文字/汇编**来源，见「四 · B」）：
@@ -144,8 +151,8 @@
 ## 五、本次核到 / 核不到（一览）
 
 - **核到一手来源**：espeak-ng = GPL-3.0-or-later（Debian `espeak-ng 1.52.0+dfsg-5` 的 `debian/copyright`）；`vosk-browser@0.0.8` = Apache-2.0；`microsoft-cognitiveservices-speech-sdk@1.52.0` = MIT；`@xenova/transformers@2.17.2` = Apache-2.0；`exceljs@4.4.0` = MIT；`@fawazahmed0/currency-api`（exchange-api）= CC0-1.0。
-- **核不到 / 未核**：`@xenova/phonemizer` 自身的许可（jsDelivr 上该包 404，npm registry/npmjs 本次不可达）；`js/vendor/vosk.js` 与 `vosk-browser@0.0.8` 的**文件级**版本对应；`@xenova/transformers` 运行期拉取的 Hugging Face **模型权重**的许可；上游 Apache-2.0 组件是否发布 `NOTICE`；《专业术语中英文词典》的出版信息与授权情况。
-- **缺失**：站点自身 `LICENSE`；`js/vendor/phonemizer.js` 内的许可与版权文本；`js/vendor/vosk.js` 内 `vosk-browser` 自身的许可文本/NOTICE。
+- **核不到 / 未核**：`@xenova/phonemizer` 自身的许可（jsDelivr 上该包 404，npm registry/npmjs 本次不可达）；`@xenova/transformers` 运行期拉取的 Hugging Face **模型权重**的许可；上游 Apache-2.0 组件是否发布 `NOTICE`；《专业术语中英文词典》的出版信息与授权情况。
+- **缺失**：站点自身 `LICENSE`；`js/vendor/phonemizer.js` 内的许可与版权文本；`js/vendor/vosk-worker.js` 内 `vosk-browser` 自身的许可文本/NOTICE。
 
 ---
 

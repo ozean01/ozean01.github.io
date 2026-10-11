@@ -38,8 +38,21 @@ check("P2-1：回退逻辑附带原因说明（防止后人不明就里地删掉
 
 /* ============ P2-2 离线识别诚实化 ============ */
 check("P2-2：LocalASR 提供就绪探测 probe()", /function probe\(/.test(asr) && /probe: probe/.test(asr));
-check("P2-2：修掉 KaldiRecognizer 的 API 误用（必须 new，采样率 16000）",
-  /new m\.KaldiRecognizer\(16000\)/.test(stripComments(asr)) && !/m\.KaldiRecognizer\(44100\)/.test(stripComments(asr)));
+/* ★ 第三/四轮（2026-10-11 晚）：离线识别的实现已从「加载 dist/vosk.js 并用它的 KaldiRecognizer」
+   换成「直接驱动同源 worker 文件 js/vendor/vosk-worker.js」。原因见 js/asr-local.js 头注释：
+   dist/vosk.js 用 blob Worker，会继承文档 CSP，严格 CSP 下必然被拦死且静默挂住。
+   所以这里守的是新架构的关键接线，而不是那个已经不存在的客户端 API。 */
+check("P2-2b：必须走同源 worker 文件，并带硬超时 + worker 报错上报（不得静默挂住）",
+  /WORKER_FILE = "js\/vendor\/vosk-worker\.js"/.test(stripComments(asr)) &&
+  /new Worker\(WORKER_URL\)/.test(stripComments(asr)) &&
+  /w\.onerror\s*=/.test(stripComments(asr)) &&
+  /request\(key, timeoutMs/.test(stripComments(asr)));
+check("P2-2c：送音频前必须 ×0x8000（worker 不缩放；漏了会识别不出文本且不报错）",
+  /\* 0x8000/.test(stripComments(asr)));
+check("P2-2d：结果只在 msg.result 是非数组对象时才下钻（内层 result 是数组，展开两次会得到空文本）",
+  /!Array\.isArray\(inner\)/.test(stripComments(asr)));
+check("P2-2e：worker 由 tools/build-vosk-worker.js 抽取、带 sha256 清单，可复核",
+  /build-vosk-worker/.test(asr) && /MODEL_ARCHIVE_URL/.test(asr));
 check("P2-2：设置页明确写明「本站不分发该模型」", /本站不分发该模型/.test(html));
 check("P2-2：未就绪时禁用开关并清掉已勾选状态",
   /setLocalASR\.disabled = true/.test(appCode) && /setLocalASR\.checked = false/.test(appCode) &&

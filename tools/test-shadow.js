@@ -164,6 +164,71 @@ flush();
 ok("新 repeat 使旧链失效（onDone 只来自新链）", dones === 1, "dones=" + dones);
 ok("失效的旧链不再发声（new 只读 1 次）", speaks <= 2, "speaks=" + speaks);
 
+/* ---------------- T3b repeat()：跟读窗口必须从「读完」算起 ----------------
+   第三轮使用反馈原文：「跟读按钮放出的仍是系统声音，不是让我录音」。
+   老实现 `speak(); setTimeout(round, gap)` —— 定时器从**开始朗读**那一刻算起，
+   于是句子比 gap 长时：① 第 2 轮在上一条没读完时抢麦；② onDone 在固定 n×gap 秒后触发，
+   录音在系统朗读尚未结束时就开始 → 麦克风把扬声器里的标准音录了进去。
+   本组断言把"跟读窗口挂在 onend 上"钉死：speak 必须拿到 onend，且
+   **onend 之前不得进入下一轮 / 触发 onDone；最后一轮也要停满 gap 才 onDone**。 */
+console.log("---- 🔁 T3b repeat()：下一轮与 onDone 必须等「读完 + gap」 ----");
+
+/* runNext：只放行一个真正的定时器回调（队列里可能夹着 clearTimeout 留下的 null） */
+function runNext() {
+  while (timerQ.length) {
+    const fn = timerQ.shift();
+    if (typeof fn === "function") { fn(); return true; }
+  }
+  return false;
+}
+
+timerQ = []; speaks = 0; dones = 0;
+store["fte-rep"] = JSON.stringify({ n: 2, gap: 1.5 });
+const P5 = loadPlayer();
+let pendings = [];
+P5.speak = function (t, o) { speaks++; if (o && typeof o.onend === "function") pendings.push(o.onend); };
+P5.stop = function () { };
+P5.repeat("quotation", { onDone: function () { dones++; } });
+ok("T3b 第 1 轮已开始朗读", speaks === 1, "speaks=" + speaks);
+ok("T3b speak 必须收到 onend（跟读窗口就挂在它上面）", pendings.length === 1, "pendings=" + pendings.length);
+
+const on1 = pendings.shift();
+on1();                                   /* 模拟"这一轮读完了" */
+ok("T3b 读完时先留 gap，不得立刻读第 2 轮", speaks === 1, "speaks=" + speaks);
+runNext();
+ok("T3b gap 到点才读第 2 轮", speaks === 2, "speaks=" + speaks);
+ok("T3b 第 2 轮也拿到了 onend", pendings.length === 1, "pendings=" + pendings.length);
+
+const on2 = pendings.shift();
+on2();
+ok("T3b 最后一轮读完仍要停满 gap 才 onDone", dones === 0, "dones=" + dones);
+runNext();
+ok("T3b gap 走完 onDone 恰好一次", dones === 1, "dones=" + dones);
+
+/* 兜底：引擎不回调 onend 时，链子也必须能自己走完（不许卡死） */
+timerQ = []; speaks = 0; dones = 0;
+const P5b = loadPlayer();
+P5b.speak = function () { speaks++; };             /* 永不回调 onend */
+P5b.stop = function () { };
+store["fte-rep"] = JSON.stringify({ n: 2, gap: 0.5 });
+const P5c = loadPlayer();
+P5c.speak = function () { speaks++; };
+P5c.stop = function () { };
+P5c.repeat("fallback", { n: 2, gap: 0.5, onDone: function () { dones++; } });
+flush();
+ok("T3b onend 失联时靠兜底读满 N 次（不卡死）", speaks === 2, "speaks=" + speaks);
+ok("T3b onend 失联时 onDone 仍恰好一次", dones === 1, "dones=" + dones);
+
+/* onRound 供 UI 显示"第几遍"（不给也不影响） */
+timerQ = []; speaks = 0;
+const P5d = loadPlayer();
+const rounds = [];
+P5d.speak = function () { speaks++; };
+P5d.stop = function () { };
+P5d.repeat("rounds", { n: 3, gap: 0.5, onRound: function (k, t) { rounds.push(k + "/" + t); } });
+flush();
+ok("T3b onRound 按轮次回调（1/3 2/3 3/3）", rounds.join(",") === "1/3,2/3,3/3", rounds.join(","));
+
 global.setTimeout = realSetTimeout;
 
 console.log("---- 🎤 T4 音素页接线（词条 = 朗读 + 跟读两个动作） ----");

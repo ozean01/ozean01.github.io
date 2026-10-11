@@ -10,13 +10,44 @@
 - 选用产物：`distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js`（UMD，可用 `<script>` 加载）。许可证：MIT（`package.json` 的 `license` 字段实测，见 `THIRD_PARTY_NOTICES.md`）。
 - 该 SDK **不随本仓库分发**（`js/vendor/` 里没有这个文件），只在运行时从 jsDelivr 按**锁定版本**拉取；版本以 `js/eval4.js` 的 `SDK_CDN` 为准。
 
-## 2. vosk-browser（离线语音识别）
-「发音设置 → 识别来源 → 优先本地识别」用。
-- 运行 `tools/fetch-vosk-model.ps1`（在【有网机器】一次）即可自动获取 `vosk.js` 到本目录 + 模型到 `models/`。
-- 或手动：下载 `https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js` 命名为 `vosk.js` 放入本目录，
-  并把解压后的 `vosk-model-small-en-us-0.15/` 放到站点根目录的 `models/` 下。
-- 许可证：Apache-2.0（vosk-browser；`package.json` 的 `license` 字段实测，见 `THIRD_PARTY_NOTICES.md`）。**所填版本须与 `js/vendor/vosk.js` 实际一致**；`js/asr-local.js` 的 CDN 兜底同样锁定 `vosk-browser@0.0.8`。
-- 本文件内**保留**了若干第三方版权行（`Copyright (c) Microsoft Corporation.`、`Copyright 2011, Sebastian Tschan` + MIT、`Version 2.2 Copyright (C) Paul Johnston 1999 - 2009` + BSD），属需随分发保留的署名材料，清单见 `THIRD_PARTY_NOTICES.md`。
+## 2. vosk-browser（离线语音识别）→ 以**同源 worker 文件**形态随站分发
+
+「发音设置 → 识别来源 → 优先本地识别」用。**注意：本站不再放置 `dist/vosk.js`**，而是用抽取出来的
+`vosk-worker.js`，原因见下（真机定位，2026-10-11 晚）。
+
+### 为什么要抽成同源 worker 文件
+
+`vosk-browser@0.0.8` 的 `dist/vosk.js` 有 **99.5% 是一个 base64 字符串** —— 它把 Kaldi 引擎（含内嵌 wasm）
+打包成一个 **blob: Worker**。而 blob Worker 会**继承创建它的文档的 CSP**：本站的严格 CSP（无 `'unsafe-eval'`）
+会让 worker 里的 Emscripten 胶水抛 `EvalError`，worker 当场死掉且**不上报**，表现为
+`createModel()` 既不 resolve 也不 reject（真机实测 >120 秒）→ **离线识别永远建不出来**。
+
+实测对照（同一页面、同一份严格 CSP）：
+
+| worker 形态 | 结果 |
+|---|---|
+| `blob:` Worker（dist/vosk.js 的做法） | `EVAL-BLOCKED`（复现原故障） |
+| **同源真实文件** Worker（本目录做法） | `EVAL-OK`（同源文件用**它自己响应头**的 CSP；静态托管不发 CSP 头） |
+
+所以本站把那段 worker 源码抽成 `js/vendor/vosk-worker.js`，由 `js/asr-local.js` 直接跟它通信。
+好处：`'unsafe-eval'` 可以从 CSP 里拿掉（严格策略恢复），且离线识别要下载的字节从 5.8 MB 降到 4.13 MB。
+
+### 怎么来、怎么升级
+
+- **生成/刷新**：`node tools/build-vosk-worker.js`
+  - 若本目录存在原始发行包 `js/vendor/vosk.js`（例如刚下载的），就从它抽取；
+  - 否则从钉死版本 `https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js` 取。
+  - 同时写出 `vosk-worker.meta.json`（字节数 + sha256，供门禁校验）。
+- **校验**：`node tools/build-vosk-worker.js --check`。
+  ⚠️ 本地发行包 `vosk.js` 已按设计删除，所以 `--check` 需要**能访问 jsDelivr**（它会去取钉死版本重新抽取比对）。
+  本次加固的机器上 jsDelivr 不可达（`fetch failed`），这一步没跑成——**请在有网机器上补跑一次**。
+  `npm test` 用的是不联网的静态校验（`js/vendor/vosk-worker.meta.json` 里的字节数 + sha256）。
+- **升级 vosk-browser**：下载新的 `dist/vosk.js` 放成本目录的 `vosk.js` → 重跑上面的生成命令 →
+  **删掉 `vosk.js`**（它只是抽取用的中间物，99.5% 是重复的 base64，不必留在仓库里）。
+- 模型仍需本机准备：运行 `tools/fetch-vosk-model.ps1`（在【有网机器】一次）把
+  `models/vosk-model-small-en-us-0.15.tar.gz` 放好。**worker 只认 `.tar.gz`**，不认解压目录。
+- 许可证：Apache-2.0（vosk-browser；`package.json` 的 `license` 字段实测，见 `THIRD_PARTY_NOTICES.md`）。
+  `vosk-worker.js` 是 `vosk-browser@0.0.8` 发行包内那段 base64 载荷的**逐字节还原**，版本由上面钉死的 URL 决定。
 ## 3. phonemizer（参考句全句音标）
 「四维口语实战」参考句下方的「🔊 全句音标」用。**只从本目录加载**（`phonemizer.js` 已随仓库提供）。
 > P0 批次（第二期评审 S07 落地）：此前这里指向的 `@xenova/phonemizer@latest` CDN 地址**实测 404**，

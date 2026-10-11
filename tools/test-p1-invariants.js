@@ -147,5 +147,137 @@ check("start-site.ps1 必须支持 -Browser 且 auto 模式优先 Edge（评测�
   /\[ValidateSet\('auto', 'edge', 'chrome', 'firefox', 'default'\)\]/.test(bootSrc) &&
   /Resolve-BrowserExe/.test(bootSrc) && /Resolve-BrowserExe 'edge'/.test(bootSrc));
 
+/* ---------- 9. 第三轮使用反馈：「跟读按钮放出的仍是系统声音，不是让我录音，也没有评测」
+   真机复核后确认的两个根因，各配一条机器守卫。这些守卫的意义不是"代码长这样"，
+   而是**把两个已被证伪的写法钉死**，免得下次重构又退回去。 ---------- */
+const asrSrc = read("js/asr-local.js");
+
+/* 9-1 跟读窗口必须从"读完"算起。老写法 `Player.speak(...); timer = setTimeout(round, gap)`
+     从**开始朗读**算起：句子比 gap 长时第二轮会抢麦，录音还会把扬声器里的标准音录进去
+     ——用户回放"我的录音"听到的还是系统声音。 */
+check("Player.repeat 必须把「下一轮/onDone」挂在朗读的 onend 上（不得在 speak 之后立刻 setTimeout）",
+  /Player\.speak\(text, \{ rate: o\.rate, onend: advance \}\)/.test(playerSrc) &&
+  !/Player\.speak\(text, \{ rate: o\.rate \}\);\s*\n\s*timer = setTimeout\(round/.test(playerSrc));
+check("Player.repeat 必须有 onend 失联时的兜底推进（不能把跟读链卡死）",
+  /watchdog = setTimeout\(advance, estimateSpeechMs/.test(playerSrc));
+
+/* 9-2 自检与正式识别必须共用同一个模型形态。老写法 selfTest 传解压目录 →
+     必然超时 → localASROff=true → 离线评测被永久关掉 → 国内 Chrome 拿不到任何评分。 */
+check("自检与正式识别必须共用同一个模型来源（tar.gz 的绝对 URL），不得再传解压目录",
+  /postLoad\(w, MODEL_ARCHIVE_URL\)/.test(asrSrc) &&
+  /var MODEL_ARCHIVE_URL = absUrl\(MODEL_ARCHIVE\)/.test(asrSrc) &&
+  !/createModel\(MODELS_DIR\)/.test(asrSrc));
+
+/* 9-3 开录之前必须硬停 TTS，否则麦克风会把扬声器里的标准音一起录进去。 */
+check("跟读开录前必须硬停一切 TTS（Player.stop + speechSynthesis.cancel）",
+  /function shadowRunAt/.test(appSrc) &&
+  /speechSynthesis\.cancel\(\)/.test(appSrc) &&
+  /silence\(\);\s*\/\* ★ 开录前硬停 TTS/.test(appSrc));
+
+/* 9-4 录音必须是用户看得见、控得住的：实时电平 + 手动「我说完了」。 */
+check("跟读录音必须有实时电平表（onLevel）与手动收尾动作（shadow-stop）",
+  /onLevel: function \(rms\)/.test(appSrc) && /case "shadow-stop"/.test(appSrc) &&
+  /data-action="shadow-stop"/.test(appSrc));
+
+/* 9-5 没有识别能力时也要给"我的语音 vs 标准音"的反馈——节奏与音量本来就不需要识别。 */
+check("跟读必须有不依赖识别的声学反馈（音量峰值 + 有效时长/节奏对比）",
+  /function shadowAccentHtml/.test(appSrc) && /estimateSpeechMs/.test(playerSrc) &&
+  /节奏与标准音接近/.test(appSrc));
+
+/* 9-6 一次录音就能评分：录到的 PCM 直接喂本机离线识别，不再让用户为评分重读一遍。 */
+check("录音需同时采 PCM 并暴露给离线识别（capturePcm + lastRecordingPcm）",
+  /capturePcm: true/.test(appSrc) && /Player\.lastRecordingPcm/.test(playerSrc) &&
+  /lastRecordingPcm\(\)/.test(appSrc));
+check("评分必须优先走本机离线识别，其次才回退浏览器在线识别",
+  /const localReady = !!\(window\.LocalASR/.test(appSrc) &&
+  /if \(localReady\)/.test(appSrc));
+
+/* 9-7 "不断纠正取得进步"要有可见凭证：本次分 / 历史最好 / 已练次数。 */
+check("跟读结果必须记录并显示「本次 / 历史最好 / 已练次数」",
+  /function shadowHist/.test(appSrc) && /历史最好/.test(appSrc) && /已练/.test(appSrc));
+
+/* 9-8 历史重复发：课程单元的【对话】tab 之前只有 ▶，不说不能练，是**没有入口**。 */
+check("课程单元对话的每一句都必须能跟读与评测（不能只有 ▶ 朗读）",
+  /data-action="shadow" data-text="\$\{esc\(l\.en\)\}"/.test(appSrc));
+
+/* 9-9 file:// 双击打开时录音被浏览器禁用，必须**明说**并给出正确打开方式。 */
+check("不能录音时必须区分 file:// 并指明用启动脚本以 http://localhost:8000 打开",
+  /location\.protocol === "file:"/.test(appSrc) && /localhost:8000/.test(appSrc));
+
+/* 9-10 离线识别的实现形态（2026-10-11 晚，两轮真机定位后的最终架构）。
+   真机踩过的坑，逐个钉死：
+     ① 自检传解压目录 → 必然超时 → localASROff 永久关掉离线识别（已改为 tar.gz + 绝对 URL）；
+     ② 客户端用 C++/Python 绑定名 → `rec.AcceptWaveform is not a function`（已不再自建客户端）；
+     ③ dist/vosk.js 用 blob Worker → 继承文档 CSP → worker 内 EvalError 且不上报 → 模型永不返回；
+        最终改为**同源 worker 文件**，严格 CSP 得以恢复（CSP 侧守卫见 test-security.js）。 */
+const asrLocalSrc = read("js/asr-local.js");
+check("离线识别必须走同源 worker 文件（blob Worker 会继承文档 CSP，严格策略下必被拦死）",
+  /WORKER_FILE = "js\/vendor\/vosk-worker\.js"/.test(asrLocalSrc) &&
+  /new Worker\(WORKER_URL\)/.test(asrLocalSrc) &&
+  !/createObjectURL/.test(asrLocalSrc));
+check("worker 地址与模型地址都必须解析成绝对 URL（file worker 的 location.href 在 js/vendor/ 下，相对路径必错）",
+  /var MODEL_ARCHIVE_URL = absUrl\(MODEL_ARCHIVE\)/.test(asrLocalSrc) &&
+  /var WORKER_URL = absUrl\(WORKER_FILE\)/.test(asrLocalSrc));
+check("送音频前必须 ×0x8000（worker 直接写 HEAPF32，不缩放；漏了会识别不出文本）",
+  /\* 0x8000/.test(asrLocalSrc));
+check("结果解包必须只在 msg.result 是非数组对象时下钻（内层 result 是数组，展开两次 → 空文本）",
+  /!Array\.isArray\(inner\)/.test(asrLocalSrc));
+check("worker 的 error 必须变成可读错误（上游库在这里静默，正是用户「永远准备中」的来源）",
+  /w\.onerror\s*=/.test(asrLocalSrc) && /worker 启动失败/.test(asrLocalSrc));
+check("自检与正式识别必须共用同一模型来源（tar.gz + 绝对 URL），不得再传解压目录",
+  /postLoad\(w, MODEL_ARCHIVE_URL\)/.test(asrLocalSrc));
+check("识别必须按音频的真实采样率喂入（不得一律按 16k 猜）",
+  /sampleRate: rate/.test(asrLocalSrc) && /onDone\(out, rate\)/.test(asrLocalSrc));
+/* 9-10b worker 文件必须真的在站内、且与 sha256 清单一致（不联网的静态校验） */
+const workerMetaPath = path.join(ROOT, "js", "vendor", "vosk-worker.meta.json");
+const workerPath = path.join(ROOT, "js", "vendor", "vosk-worker.js");
+let workerMetaOk = false, workerMetaWhy = "";
+try {
+  const meta = JSON.parse(fs.readFileSync(workerMetaPath, "utf8"));
+  const buf = fs.readFileSync(workerPath);
+  const digest = require("crypto").createHash("sha256").update(buf).digest("hex");
+  workerMetaOk = buf.length === meta.bytes && digest === meta.sha256;
+  workerMetaWhy = "bytes=" + buf.length + "/" + meta.bytes + " sha=" + digest.slice(0, 12);
+} catch (e) { workerMetaWhy = String((e && e.message) || e); }
+check("js/vendor/vosk-worker.js 必须在站内且与 meta 清单（字节数 + sha256）一致",
+  workerMetaOk, workerMetaWhy);
+check("抽取脚本 tools/build-vosk-worker.js 必须在站内（升级/复核用）",
+  fs.existsSync(path.join(ROOT, "tools", "build-vosk-worker.js")));
+
+/* 9-11 离线识别可能很慢（真机：模型下载 1 秒，但整站页面里 createModel 超过 120 秒未返回）。
+   所以除了硬超时，还必须给用户一个**立刻改道**的按钮，不让他干等。 */
+check("离线评分等待期间必须能一键改用在线识别（shadow-online）",
+  /data-action="shadow-online"/.test(appSrc) && /case "shadow-online"/.test(appSrc) &&
+  /State\.shadowUseOnline/.test(appSrc));
+check("离线识别的等待必须有硬超时（不得无限等）",
+  /const limitMs = first \? 90000 : 25000;/.test(appSrc));
+
+/* 9-12 并发与启动期：真机上"启动时的自检"与"用户打开弹窗的自检"撞过车。
+   两次并发 load 共用同一个 worker 存储目录 → 后者以 `Failed to open '…/downloaded.tar.gz'` 失败，
+   且失败状态留在 IndexedDB 里（一次失败可能变成"以后永远失败"）。两条守卫： */
+check("模型加载必须单飞（并发调用共用同一次加载，不得各发一次 load）",
+  /var loadPromise = null;/.test(asrLocalSrc) &&
+  /if \(loadPromise\) return loadPromise;/.test(asrLocalSrc));
+check("加载失败必须换一个存储目录重试（否则残留的 downloaded.ok 会让后续每次都失败）",
+  /r=" \+ Date\.now\(\)/.test(asrLocalSrc));
+check("离线识别的自检不得在页面启动时跑（否则每次打开站点都白下载 41MB，还会与弹窗自检并发）",
+  (function () {
+    const openIdx = appSrc.indexOf("function open() {");
+    const callIdx = appSrc.indexOf("checkLocalASR();");
+    return openIdx > 0 && callIdx > openIdx && (callIdx - openIdx) < 300 &&
+      /function checkLocalASR\(\)/.test(appSrc);
+  })());
+
+/* 9-13 「打开站点就用本地模型」与「localASROff 只表示用户明确关过」
+   把自检挪出启动路径后，用户必须先打开「发音设置」才会被启用 —— 那是个隐藏陷阱：
+   本机明明有模型，用户却一直走在线识别（国内不可达）而不知道为什么。
+   现在启动时只做一次 HEAD 探测（几乎零成本）就先把开关打开；41MB 的装载仍推迟到真正要用时。
+   另外，自检失败**不再**写 localASROff —— 否则一次性抽风就把这个浏览器永久降级。 */
+check("启动时必须用极轻的探测自动启用本地识别（否则用户不打开设置页就永远用不上）",
+  /!progress\.localASROff && !progress\.localASR && setLocalASR && window\.LocalASR && window\.LocalASR\.probe/.test(appSrc));
+check("localASROff 只能由「用户明确取消勾选」写入（自检失败不得永久降级该浏览器）",
+  /progress\.localASROff = !progress\.localASR/.test(appSrc) &&
+  !/progress\.localASROff = true/.test(appSrc));
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);

@@ -1,5 +1,10 @@
-# 在【你的有网机器】上一次运行：下载并解压 vosk 小模型到 models/，把 vosk.js 放到 js/vendor/。
+# 在【你的有网机器】上一次运行：下载 vosk 小模型并打包成 models/*.tar.gz。
 # 之后站点即可「完全离线」使用本地语音识别（在发音设置开「本地离线识别」）。
+#
+# 注意：识别引擎 js/vendor/vosk-worker.js 已随站分发，**本脚本不再下载 vosk.js**。
+#   （2026-10-11 晚真机定位：dist/vosk.js 99.5% 是 base64 载荷，且它用 blob Worker，
+#    会继承文档 CSP 而必然被严格 CSP 拦死；现在改由 tools/build-vosk-worker.js 抽出
+#    同源 worker 文件。升级时见 js/vendor/README.md。）
 #
 # ⚠️ 注意：本文件的字符串字面量必须保持 ASCII。
 #   Windows PowerShell 5.1 会按系统 ANSI 代码页读取无 BOM 的 .ps1，中文字符串会被误解码，
@@ -8,13 +13,18 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $models = Join-Path $root 'models\vosk-model-small-en-us-0.15'
-$vendor = Join-Path $root 'js\vendor'
 
-Write-Host "== [1/2] Downloading vosk-browser (~100KB) to js/vendor/vosk.js =="
-New-Item -ItemType Directory -Force -Path $vendor | Out-Null
-Invoke-WebRequest -Uri 'https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js' -OutFile (Join-Path $vendor 'vosk.js') -UseBasicParsing
+Write-Host "== [1/3] Checking for the on-site recognition worker (js/vendor/vosk-worker.js) =="
+$worker = Join-Path $root 'js\vendor\vosk-worker.js'
+if (Test-Path $worker) {
+  Write-Host ("   OK: " + $worker)
+} else {
+  Write-Host "   MISSING. Regenerating from the pinned vosk-browser bundle..."
+  & node (Join-Path $PSScriptRoot 'build-vosk-worker.js')
+  if (-not (Test-Path $worker)) { throw "worker file still missing: $worker" }
+}
 
-Write-Host "== [2/2] Downloading and extracting vosk-model-small-en-us-0.15 (~40MB) to models/ =="
+Write-Host "== [2/3] Downloading and extracting vosk-model-small-en-us-0.15 (~40MB) to models/ =="
 $zip = Join-Path $env:TEMP 'vosk-model-small-en-us-0.15.zip'
 Invoke-WebRequest -Uri 'https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip' -OutFile $zip -UseBasicParsing
 if (Test-Path $models) { Remove-Item $models -Recurse -Force }

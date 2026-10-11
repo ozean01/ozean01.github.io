@@ -570,33 +570,69 @@
 
   let repSeq = 0;
 
-  /* 读 text 共 n 次，每次读完停 gap 秒（留给你跟读），最后一轮读完调 onDone。
-     返回 {stop} 句柄；自带 seq 令牌，被后来的朗读/复读打断即自行失效。 */
+  /* 估算一段文本的朗读时长（毫秒）。**只**用于"引擎不回调 onend"时的兜底推进：
+     正常浏览器一律以真实 onend 为准，估算值只在失联时接手（避免跟读链卡死）。 */
+  function estimateSpeechMs(text, rate) {
+    const s = String(text || "").trim();
+    if (!s) return 400;
+    const words = s.split(/\s+/).filter(Boolean).length || Math.ceil(s.length / 5);
+    const punct = (s.match(/[.,;:!?]/g) || []).length;
+    return Math.round((words * 330 + punct * 120 + 400) / clampRate(rate));
+  }
+  Player.estimateSpeechMs = estimateSpeechMs;
+
+  /* 读 text 共 n 次，每次**读完**停 gap 秒（留给你跟读），最后一轮读完并停满 gap 后调 onDone。
+     返回 {stop} 句柄；自带 seq 令牌，被后来的朗读/复读打断即自行失效。
+
+     ★ 修复（真实使用反馈：「跟读按钮放出的仍是系统声音，不是让我录音」）：
+       老实现是「读一次 → 立刻 setTimeout(gap) → 再读」——定时器从**开始朗读**那一刻算起，
+       而不是从**读完**那一刻算起。于是：
+         ① 句子比 gap 长时，第二轮会在第一轮还没读完时抢麦，Player.speak 内部把上一条 stop 掉，
+            用户听到的是被截断又重来的系统音；
+         ② repeat 的 onDone 在固定的 n×gap 秒后就触发，跟读录音**在系统朗读尚未结束时就开录**，
+            麦克风把扬声器里的标准音一起录进去 —— 回放"我的录音"听到的自然还是系统声音。
+       本修复让每一轮严格等 onend，再计 gap；onDone 只在最后一轮"读完 + 停满 gap"之后触发一次。
+       另加 onRound(k, n) 回调，供 UI 显示"第几遍"，不改 Player.speak 的 onend 语义。 */
   Player.repeat = function (text, opts) {
     const o = opts || {};
     const n = clampRepeat(o.n === undefined ? Player.repPref.n : o.n);
     const gap = clampGap(o.gap === undefined ? Player.repPref.gap : o.gap);
     const my = ++repSeq;
     let done = 0;
-    let timer = null;
+    let timer = null;        // 跟读窗口倒计时
+    let watchdog = null;     // onend 失联时的兜底
     const alive = function () { return my === repSeq; };
+    const clearTimers = function () {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+    };
 
     function round() {
       if (!alive()) return;
+      clearTimers();
       if (done >= n) {
-        if (o.onDone) o.onDone();
+        if (o.onDone) o.onDone();      /* 最后一轮的 gap 已经走完，此后麦克风才该开 */
         return;
       }
       done++;
+      if (o.onRound) o.onRound(done, n);
+      let advanced = false;
+      const advance = function () {
+        if (advanced || !alive()) return;
+        advanced = true;
+        clearTimers();
+        timer = setTimeout(round, gap * 1000);
+      };
       /* 每轮都重新走统一入口，音源被切换也能生效（与 Player.speak 同一口径） */
-      if (Player.speak) Player.speak(text, { rate: o.rate });
-      timer = setTimeout(round, gap * 1000);
+      if (Player.speak) Player.speak(text, { rate: o.rate, onend: advance });
+      else advance();
+      watchdog = setTimeout(advance, estimateSpeechMs(text, o.rate) + 1500);
     }
     round();
 
     return {
       stop: function () {
-        if (timer) { clearTimeout(timer); timer = null; }
+        clearTimers();
         if (my === repSeq) repSeq++;          /* 让后续定时器与 onDone 都失效 */
         Player.stop();
       },
@@ -605,12 +641,57 @@
     };
   };
 
-  /* ---------------- 录音（跟读回放对比） ---------------- */
+  /* ---------------- 录音（跟读回放对比） ----------------
+     ★ 2026-10-11 追加 opts.onLevel(rms)：复用**同一条** getUserMedia 流做电平表。
+       为什么要它：「跟读」对用户最大的不确定是"到底有没有在录我"——只靠一行文字，
+       点了按钮的人分不清"在听标准音"还是"在录我"。有了电平表 + 峰值，UI 就能
+       ① 实时显示麦克风在动；② 录完判断"本次几乎没声音"并如实告知，而不是给个 0 分让人以为是自己读错。
+       这是**旁挂**能力：不传 opts 的既有调用方（音素页 / 听说训练 / 五洲实战）行为完全不变。 */
   let mediaRecorder = null;
   let chunks = [];
   let stream = null;
+  let levelCtx = null, levelAnalyser = null, levelTimer = null;
+  let lastPeak = 0;
+  let pcmChunks = [], pcmRate = 0;
 
-  Player.startRecording = function () {
+  function stopLevelMeter() {
+    if (levelTimer) { clearInterval(levelTimer); levelTimer = null; }
+    try { if (levelCtx && levelCtx.close) levelCtx.close(); } catch (e) { /* ignore */ }
+    levelCtx = null; levelAnalyser = null;
+  }
+  /* 本次录音的峰值电平（0..1）。UI 用它区分"没说话 / 声音太小 / 正常"。 */
+  Player.lastMicPeak = function () { return lastPeak; };
+
+  /* 线性插值重采样到 16k（vosk 的 KaldiRecognizer 按 16k 建模）。
+     放在这里而不是调用方：采样率只有拿到了 AudioContext 的人知道。 */
+  function resampleTo16k(list, rate) {
+    if (!list || !list.length) return null;
+    let total = 0;
+    for (let i = 0; i < list.length; i++) total += list[i].length;
+    if (!total) return null;
+    const src = new Float32Array(total);
+    let off = 0;
+    for (let i = 0; i < list.length; i++) { src.set(list[i], off); off += list[i].length; }
+    if (!(rate > 0) || Math.abs(rate - 16000) < 1) return src;
+    const ratio = rate / 16000;
+    const outLen = Math.floor(total / ratio);
+    if (outLen <= 0) return src;
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const pos = i * ratio;
+      const i0 = Math.floor(pos);
+      const i1 = i0 + 1 < total ? i0 + 1 : total - 1;
+      const f = pos - i0;
+      out[i] = src[i0] * (1 - f) + src[i1] * f;
+    }
+    return out;
+  }
+  /* 本次录音的 16k 单声道 PCM（Float32Array）。没开 capturePcm 或采不到时为 null。
+     用途：一次录音即可直接喂给本机 vosk 识别，**不必让用户为评分再读一遍**。 */
+  Player.lastRecordingPcm = function () { return resampleTo16k(pcmChunks, pcmRate); };
+
+  Player.startRecording = function (opts) {
+    const o = opts || {};
     return new Promise(function (resolve, reject) {
       if (!Player.canRecord()) {
         reject(new Error("no-media"));
@@ -620,11 +701,57 @@
         .then(function (s) {
           stream = s;
           chunks = [];
+          lastPeak = 0;
+          pcmChunks = [];
+          pcmRate = 0;
           mediaRecorder = new MediaRecorder(s);
           mediaRecorder.ondataavailable = function (e) {
             if (e.data && e.data.size > 0) chunks.push(e.data);
           };
           mediaRecorder.start();
+          const needLevel = typeof o.onLevel === "function";
+          if (needLevel || o.capturePcm) {
+            try {
+              const Ctx = window.AudioContext || window.webkitAudioContext;
+              levelCtx = new Ctx();
+              pcmRate = levelCtx.sampleRate || 48000;
+              const src = levelCtx.createMediaStreamSource(s);
+              if (needLevel) {
+                levelAnalyser = levelCtx.createAnalyser();
+                levelAnalyser.fftSize = 1024;
+                src.connect(levelAnalyser);
+                const buf = new Float32Array(levelAnalyser.fftSize);
+                levelTimer = setInterval(function () {
+                  if (!levelAnalyser) return;
+                  levelAnalyser.getFloatTimeDomainData(buf);
+                  let sum = 0;
+                  for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+                  const rms = Math.sqrt(sum / buf.length);
+                  if (rms > lastPeak) lastPeak = rms;
+                  try { o.onLevel(rms); } catch (e) { /* 回调是 UI 的事，不拖垮录音 */ }
+                }, 100);
+              }
+              if (o.capturePcm) {
+                /* 用 ScriptProcessor 收 PCM；经**增益 0** 的节点接到 destination ——
+                   只为了"被拉数据"，不会把麦克风回放到扬声器（否则会啸叫）。
+                   累计上限 15 秒：够一句话，且不会无限吃内存。 */
+                const proc = levelCtx.createScriptProcessor(4096, 1, 1);
+                const sink = levelCtx.createGain();
+                sink.gain.value = 0;
+                let samples = 0;
+                const CAP = 16000 * 15 * (pcmRate / 16000);
+                proc.onaudioprocess = function (e) {
+                  if (samples > CAP) return;
+                  const c = new Float32Array(e.inputBuffer.getChannelData(0));
+                  samples += c.length;
+                  pcmChunks.push(c);
+                };
+                src.connect(proc);
+                proc.connect(sink);
+                sink.connect(levelCtx.destination);
+              }
+            } catch (e) { /* 电平表/PCM 是增强项：拿不到就静默降级，绝不影响录音本身 */ }
+          }
           resolve();
         })
         .catch(function (err) {
@@ -635,6 +762,7 @@
 
   Player.stopRecording = function () {
     return new Promise(function (resolve) {
+      stopLevelMeter();
       if (!mediaRecorder) { resolve(null); return; }
       mediaRecorder.onstop = function () {
         const type = (mediaRecorder && mediaRecorder.mimeType) || "audio/webm";
@@ -806,8 +934,10 @@
     };
     Player.micRequest().then(function () {
       if (stopped) return;
-      handle = window.LocalASR.record(function (mono) {
-        window.LocalASR.transcribe(mono).then(finish).catch(function (e) {
+      /* record 回调带**真实采样率**：识别的 KaldiRecognizer 必须按实际速率喂音频，
+         此前一律按 16k 猜，48k 的录音喂进去等于语速变成 3 倍，必然识别不出来。 */
+      handle = window.LocalASR.record(function (mono, rate) {
+        window.LocalASR.transcribe(mono, rate).then(finish).catch(function (e) {
           fail("local-asr-failed: " + ((e && e.message) || "识别失败"));
         });
       });
