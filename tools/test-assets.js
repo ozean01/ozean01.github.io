@@ -176,6 +176,24 @@ PNG_EXPECT.forEach(function (e) {
     !!s && s.w === e[1] && s.h === e[2], s ? s.w + "x" + s.h : "缺失或非 PNG");
 });
 
+/* ▲ maskable 必须与 any 版**不是同一张图**（P1 图标修复）。
+   原状：icon-maskable-512.png 与 icon-512.png **字节完全相同** —— 而 maskable 的语义是
+   "内容会落在中心 80% 安全圆内、四周允许被自适应遮罩裁切"。字节相同就意味着内容贴着边缘，
+   安卓圆形/水滴形遮罩会把地球切掉（真机主屏图标就是这个后果）。
+   零依赖地守住这条：不解码图像，只比对两份字节——相同即违规。
+   安全区本身的数值校验由 `_fte-review-2/P1/_probe/build-maskable.py` 负责（生成时断言 ≤0.4R）。 */
+(function () {
+  const A = path.join(ROOT, "icons", "icon-512.png");
+  const B = path.join(ROOT, "icons", "icon-maskable-512.png");
+  if (!fs.existsSync(A) || !fs.existsSync(B)) {
+    check("maskable 与 any 版图标都存在", false, "缺少 icons/icon-512.png 或 icons/icon-maskable-512.png");
+    return;
+  }
+  const a = fs.readFileSync(A), b = fs.readFileSync(B);
+  check("maskable 图标必须与 any 版不同（相同 = 内容贴边，会被安卓自适应遮罩裁掉）",
+    a.length !== b.length || !a.equals(b), a.length + " B vs " + b.length + " B");
+})();
+
 const pngExemptPaths = PNG_PRECACHE_EXEMPT.map(function (w) { return w.path; });
 const pngExemptBad = PNG_PRECACHE_EXEMPT.filter(function (w) {
   return !w.path || String(w.reason || "").length < 10 ||
