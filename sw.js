@@ -7,32 +7,32 @@
      ① 恰好命中 PRECACHE 的同源资源；② 无 query 的同源 GET 且 Content-Length ≤ MAX_EXTRA_BYTES；
      其余（大资产 js/vendor/** · models/**、带 query 的地址、非 http(s) scheme、体积未知）一律不写进外壳桶。
      依据实测：原实现把任何同源 200 basic 都 put，带 query 的一次请求即可让桶 59 → 60 条，
-     且 js/vendor 下的大资产（离线识别 worker 4.13 MB、phonemizer 1.26 MB）会与离线外壳抢同一桶；
+     且 js/vendor 下的大资产（phonemizer 1.26 MB）会与离线外壳抢同一桶；
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v103";   /* ★ 严格 CSP + 同源 worker 文件（第三轮加固，取代 v102 的 'unsafe-eval' 止损）：
-                              · index.html —— script-src **去掉 'unsafe-eval'**（回到严格策略）。
-                              · js/asr-local.js —— 不再加载 dist/vosk.js（它 99.5% 是 base64，且用 blob Worker，
-                                blob Worker 继承文档 CSP → 严格 CSP 下 worker 内抛 EvalError 且不上报 →
-                                createModel() 永不返回）；改为直接驱动**同源真实文件** worker。
-                              · js/vendor/vosk-worker.js —— 新增：由 tools/build-vosk-worker.js 从
-                                vosk-browser@0.0.8 发行包抽取的 worker（4.13 MB，带 sha256 清单）；
-                                同源文件 worker 不继承文档 CSP，实测 EVAL-OK（blob 形态 EVAL-BLOCKED）。
-                              · js/vendor/vosk.js —— 删除（5.8 MB 里 5.77 MB 是死掉的 base64 副本）。
-                              · tools/build-vosk-worker.js / js/vendor/vosk-worker.meta.json —— 可复现的抽取与校验。
-                              · tools/fetch-vosk-model.ps1 —— 只准备模型，不再下载 vosk.js。
-                              端到端实测：严格 CSP 下整站页 2–4 秒建好模型并给出「🎯 准确率 100%」。
-                              前一轮（v102 的止损与跟读闭环修复，仍全部有效）：
+const CACHE = "fte-v104";   /* ★ 移除本地离线识别（2026-10-12）——本轮**PRECACHE 清单真的变了**（58 → 57 条）：
+                              · js/asr-local.js —— 删除（整个本地识别客户端）。
+                              · js/vendor/vosk-worker.js / vosk-worker.meta.json —— 删除（4.13 MB 引擎）。
+                              · tools/build-vosk-worker.js / tools/fetch-vosk-model.ps1 —— 删除。
+                              · index.html —— 去掉 <script src="js/asr-local.js">、去掉「优先本地识别」开关
+                                与其说明，CSP 注释改为记录这段历史；数据去向里移除"本地识别不出网"一条。
+                              · js/player.js —— 删除 recognizeLocal / localASROn / localASRBroken /
+                                resampleTo16k / lastRecordingPcm / capturePcm（电平表保留）。
+                              · js/app.js —— 删除 checkLocalASR / 启动期探测 / 评分里的本地优先分支 /
+                                shadow-online 改道按钮 / progress.localASR 与 localASROff。
+                              · js/eval4.js —— 参考句评测与「近似诊断」都不再走本地识别。
+                              · js/storage-keys.js —— 注销 fte-local-asr-v1。
+                              · 用户机器上的 models/ 也已删除（106.9 MB；该目录本就不随仓库分发）。
+                              原因：实测小模型在行业术语上错得太多（isocyanate → "isis i and eight"），
+                              给出的分会误导人；详情与实测数据见 README §6-8。
                               跟读闭环修复（第三轮真实使用反馈「跟读按钮放出的仍是系统声音，不是让我录音，
-                              也没有我的语音与标准语音之间的评测」）：
+                              也没有我的语音与标准语音之间的评测」）仍全部有效：
                               · js/player.js —— Player.repeat 的跟读窗口改为从**读完**（onend）算起（老实现从"开始朗读"算起，
-                                导致录音在系统朗读尚未结束时开录、把扬声器里的标准音录了进去）；录音新增实时电平表与
-                                PCM 采集（capturePcm + lastRecordingPcm，供本机识别复用同一次录音）。
-                              · js/app.js —— shadowRun 重做为可见的五步闭环（听→录→回放你的→标准音→对比评分），
-                                开录前硬停 TTS，新增 shadow-stop / shadow-retry，评分优先本机离线、否则退在线；
-                                课程单元【对话】每一句补 🎙/🎯 入口；自检通过时清除历史遗留的 localASROff。
-                              PRECACHE 清单集合与指纹不变（仍是同样 58 条），按纪律升版让老用户取到新逻辑。
+                                导致录音在系统朗读尚未结束时开录、把扬声器里的标准音录了进去）；录音带实时电平表。
+                              · js/app.js —— shadowRun 是可见的五步闭环（听→录→回放你的→标准音→对比评分），
+                                开录前硬停 TTS，有 shadow-stop / shadow-retry；课程单元【对话】每一句补 🎙/🎯 入口。
+                              更早几轮的版本说明见下（严格 CSP / 图标修复等，均仍有效）：
                               图标修复：icons/icon-192.png 与 apple-touch-icon.png 原为退化的纯渐变图（无地球图案），已由 icon-512.png 重建为正确设计；
                               icons/icon-maskable-512.png 原与 icon-512.png 字节完全相同（内容贴边，会被安卓自适应遮罩裁掉），已按 maskable 规范
                               把内容缩入中心 80% 安全圆（内容最远像素距中心 163.4 px < 安全半径 204.8 px）并保持满幅不透明背景。
@@ -101,7 +101,6 @@ const PRECACHE = [
   "./js/listen.js",
   "./js/sop.js",
   "./js/export.js",
-  "./js/asr-local.js",
   "./js/sources.js",
   "./js/glossary.js",
   "./js/subtitle.js",
@@ -151,7 +150,7 @@ self.addEventListener("message", function (e) {
 /* ============ P1-D · 缓存写入闸（cacheGate）============
    守的是什么：**缓存桶无上限增长**（S10 评审实测：带 query 的一次请求让桶 59 → 60 条）。
    原实现只要 `status === 200 && type === "basic"` 就 `put` 进外壳桶 CACHE，于是
-   `js/vendor/vosk-worker.js`（4.13 MB）与 `js/vendor/phonemizer.js`（1.26 MB）、
+   `js/vendor/phonemizer.js`（1.26 MB）、
    `models/**`（本地 ASR 模型，可选放置，最大约 66 MB）、
    以及任何带 query 的地址都会和外离线外壳抢同一个桶。iOS 对单个 origin 的存储配额很紧，
    一旦超限，浏览器淘汰的是**整个桶里的条目**（含离线外壳）——离线能力可能连带失效。

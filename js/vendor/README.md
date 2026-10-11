@@ -10,44 +10,37 @@
 - 选用产物：`distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js`（UMD，可用 `<script>` 加载）。许可证：MIT（`package.json` 的 `license` 字段实测，见 `THIRD_PARTY_NOTICES.md`）。
 - 该 SDK **不随本仓库分发**（`js/vendor/` 里没有这个文件），只在运行时从 jsDelivr 按**锁定版本**拉取；版本以 `js/eval4.js` 的 `SDK_CDN` 为准。
 
-## 2. vosk-browser（离线语音识别）→ 以**同源 worker 文件**形态随站分发
+## 2. 【已移除】vosk-browser（本地离线语音识别 · 2026-10-12 删除）
 
-「发音设置 → 识别来源 → 优先本地识别」用。**注意：本站不再放置 `dist/vosk.js`**，而是用抽取出来的
-`vosk-worker.js`，原因见下（真机定位，2026-10-11 晚）。
+本站曾集成 vosk-browser 做**本机离线**的跟读评分。已于 **2026-10-12 整体移除**，现在本目录只有
+`phonemizer.js` 一个第三方产物。
 
-### 为什么要抽成同源 worker 文件
+**为什么移除**：对着本站自己的课程内容实测（12 条、站点自己的评分代码，见 README §6-8），
+那个 40 MB 小模型**平均词形命中只有 74%**，而且错得**集中在行业术语**上——
 
-`vosk-browser@0.0.8` 的 `dist/vosk.js` 有 **99.5% 是一个 base64 字符串** —— 它把 Kaldi 引擎（含内嵌 wasm）
-打包成一个 **blob: Worker**。而 blob Worker 会**继承创建它的文档的 CSP**：本站的严格 CSP（无 `'unsafe-eval'`）
-会让 worker 里的 Emscripten 胶水抛 `EvalError`，worker 当场死掉且**不上报**，表现为
-`createModel()` 既不 resolve 也不 reject（真机实测 >120 秒）→ **离线识别永远建不出来**。
-
-实测对照（同一页面、同一份严格 CSP）：
-
-| worker 形态 | 结果 |
+| 参考 | 本地模型听到的 |
 |---|---|
-| `blob:` Worker（dist/vosk.js 的做法） | `EVAL-BLOCKED`（复现原故障） |
-| **同源真实文件** Worker（本目录做法） | `EVAL-OK`（同源文件用**它自己响应头**的 CSP；静态托管不发 CSP 头） |
+| `isocyanate` | **isis i and eight** |
+| `polyether-based PU` | paul either based pay you |
+| `spout pouch` | spell pouch |
+| `co-extrusion` | seo extrusion |
+| `coating` | coding |
 
-所以本站把那段 worker 源码抽成 `js/vendor/vosk-worker.js`，由 `js/asr-local.js` 直接跟它通信。
-好处：`'unsafe-eval'` 可以从 CSP 里拿掉（严格策略恢复），且离线识别要下载的字节从 5.8 MB 降到 4.13 MB。
+也就是说：在术语上它会给人**"我读错了"的错觉**，而术语正是本站的核心内容。断网场景又几乎没有，
+云端识别（Edge 的 Azure）明显更准，于是这个功能的收益不足以抵消它带来的误导。
 
-### 怎么来、怎么升级
+**移除时删掉的东西**（`tools/test-p1-invariants.js` §10 有反向守卫，防止它们复活）：
+`js/asr-local.js`、`js/vendor/vosk-worker.js` + `vosk-worker.meta.json`、
+`tools/build-vosk-worker.js`、`tools/fetch-vosk-model.ps1`，以及 index.html / app.js / player.js /
+eval4.js 里的全部接线与 UI。用户机器上的 `models/`（106.9 MB，本就不随仓库分发）也已删除。
 
-- **生成/刷新**：`node tools/build-vosk-worker.js`
-  - 若本目录存在原始发行包 `js/vendor/vosk.js`（例如刚下载的），就从它抽取；
-  - 否则从钉死版本 `https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js` 取。
-  - 同时写出 `vosk-worker.meta.json`（字节数 + sha256，供门禁校验）。
-- **校验**：`node tools/build-vosk-worker.js --check`。
-  ⚠️ 本地发行包 `vosk.js` 已按设计删除，所以 `--check` 需要**能访问 jsDelivr**（它会去取钉死版本重新抽取比对）。
-  本次加固的机器上 jsDelivr 不可达（`fetch failed`），这一步没跑成——**请在有网机器上补跑一次**。
-  `npm test` 用的是不联网的静态校验（`js/vendor/vosk-worker.meta.json` 里的字节数 + sha256）。
-- **升级 vosk-browser**：下载新的 `dist/vosk.js` 放成本目录的 `vosk.js` → 重跑上面的生成命令 →
-  **删掉 `vosk.js`**（它只是抽取用的中间物，99.5% 是重复的 base64，不必留在仓库里）。
-- 模型仍需本机准备：运行 `tools/fetch-vosk-model.ps1`（在【有网机器】一次）把
-  `models/vosk-model-small-en-us-0.15.tar.gz` 放好。**worker 只认 `.tar.gz`**，不认解压目录。
-- 许可证：Apache-2.0（vosk-browser；`package.json` 的 `license` 字段实测，见 `THIRD_PARTY_NOTICES.md`）。
-  `vosk-worker.js` 是 `vosk-browser@0.0.8` 发行包内那段 base64 载荷的**逐字节还原**，版本由上面钉死的 URL 决定。
+**留下的历史教训**（值得记，因为踩过一次）：`dist/vosk.js` 99.5% 是一个 base64 载荷，把 Kaldi 引擎
+装进 **blob: Worker**；而 blob Worker **继承创建它的文档的 CSP**，严格 CSP（无 `'unsafe-eval'`）会让
+worker 里的 Emscripten 胶水抛 `EvalError`，worker 当场死掉且**不上报** → `createModel()` 既不
+resolve 也不 reject（真机实测 >120 秒）。当时的解法是改用**同源真实文件** worker（同源文件用自己
+响应头的 CSP，实测同一份严格 CSP 下 blob 形态 `EVAL-BLOCKED` / 同源文件形态 `EVAL-OK`）。
+功能虽已删除，但 `index.html` 的 CSP 注释与 `tools/test-security.js` 的守卫保留了这条教训。
+
 ## 3. phonemizer（参考句全句音标）
 「四维口语实战」参考句下方的「🔊 全句音标」用。**只从本目录加载**（`phonemizer.js` 已随仓库提供）。
 > P0 批次（第二期评审 S07 落地）：此前这里指向的 `@xenova/phonemizer@latest` CDN 地址**实测 404**，

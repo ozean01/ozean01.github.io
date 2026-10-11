@@ -119,7 +119,7 @@ python -m http.server 8000
 
 3. **开 Pages**：仓库 → `Settings` → `Pages` → **Source 选 `GitHub Actions`**（用根目录已附带的 `.github/workflows/pages.yml` 自动发布，推 push 即更新）。
 4. **访问**：发布完成后 `https://<你的用户名>.github.io/softpackaging-english/`，用浏览器打开（HTTPS）→ 地址栏出现「安装」图标，点一下即可**安装到桌面、离线打开**；把链接发给同事即可分享。
-5. **离线语音依赖（可选）**：`models/` 被 `.gitignore` 忽略（40MB，避免把仓库撑大）。若要「全离线识别」，把 `vosk-model-small-en-us-0.15/` 手动上传到托管根目录（或用 Pages 的网页拖拽上传），或直接删除 `.gitignore` 里的 `models/` 一并提交。
+5. ~~离线语音依赖（可选）~~：**本地离线识别已于 2026-10-12 整体移除**（见 §6-8），不再需要上传 `models/`。跟读评分走浏览器语音识别（推荐 Edge）。
 
 ### 方式 B · Cloudflare Pages（免 GitHub、可拖拽）
 
@@ -135,7 +135,7 @@ python -m http.server 8000
   > ⚠️ **更正（第二期评审 S12 指出）**：原文说「加一行 [GoatCounter](https://www.goatcounter.com/) 的 `<script>` 即可」——**在 hash 路由下这条不成立**。GoatCounter 默认用 `path` 取页面路径，而本站的页面标识在 `#` 后面（canonical 恒为 `https://ozean01.github.io/`），照做会把**所有页面塌成一条 `/`**，看似有数据实为噪声。若确实要接，必须用 `no_onload:true` 并在路由切换处手动上报（[GoatCounter SPA 文档](https://www.goatcounter.com/help/spa)），CSP 还要放行其域名。
   > **Cloudflare Web Analytics** 在本站另有三个限制：无自定义事件；上报依赖 `Referer` 而本站未设 `Referrer-Policy`；未采样数据只留 7 天、之后降采样。且 **GitHub Pages 不提供站点所有者可见的 URL 级统计**。
   > 结论：**先不要按原话接入**；要接就按上面的 SPA 方式，并同步改正设置页「数据去向」的措辞。
-- 上传的 `models/`（离线 vosk 模型）约 40MB，若不需要「完全离线」，可不上传；浏览器在线识别 + Azure + 系统人声仍可用。
+- **不再需要上传 `models/`**：本地离线识别已移除（§6-8）。跟读评分走浏览器在线识别（Edge 的 Azure 国内可达）+ Azure 音素级 + 系统人声。
 
 ### 🔗 分享预览、站点图标与 canonical（换域名时必看）
 
@@ -363,7 +363,8 @@ pwsh -File tools/build-assets.ps1
 评测采用「浏览器语音识别 + 逐词对齐」，**识别来源三选一**：
 
 - **浏览器在线**（默认）：Chrome/Edge，依赖 Google（你有 VPN 时走代理）。**分级评分**：精确命中（全分）/ 近似·错拼（部分分，标注 ≈你读的音，如 forward≈fourd）/ 漏读·多读（标红）。
-- **本地离线 vosk-browser**：发音设置勾选「优先本地识别」后，跟读评测改用 Kaldi wasm（跨 Safari/Firefox、可断网）。需把模型压缩包 `models/vosk-model-small-en-us-0.15.tar.gz` 放到站点根目录（运行 `tools/fetch-vosk-model.ps1` 一次即可）；识别引擎 `js/vendor/vosk-worker.js` **已随站分发**，无需再手工下载 `vosk.js`。未就绪时自动回退浏览器在线识别。
+- **跟读评分（浏览器语音识别）**：用浏览器自带的 Web Speech API（**推荐 Edge**，其识别走 Azure、国内可达；Chrome 的走 Google、通常不可达）。拿不到识别时仍可练：五步闭环里的 A/B 回放 + 音量/节奏反馈都不依赖识别。
+  - ~~本地离线 vosk-browser~~：**2026-10-12 已整体移除**（实测小模型在行业术语上错得太多，见 §6-8）。
 - **Azure 音素级**（🔎 按钮）：同 Key 打分，见「四维口语实战」。
 
 给出加权准确率 + 精确率，并附针对性练习建议（慢速分音节跟读等）。为获得更高准确度：
@@ -415,8 +416,7 @@ pwsh -File tools/build-assets.ps1
 │   ├── eval4.js        # 四维口语实战（双评测链路：ASR 语发/流利 + AI 应答准确性/逻辑）
 │   ├── sop.js          # 外贸实操 SOP 页（清单/单证/报关/风控/Incoterms/计算器/HS/汇率）
 │   ├── export.js       # 学习数据导出/导入 JSON + 词表/错题 CSV（Anki 互通）
-│   ├── asr-local.js   # 本地/离线识别钩子（vosk-browser 可插拔：录 Mic→Float32→transcribe）
-│   ├── vendor/        # 可选：微软 Azure Speech SDK 的 CDN 位置 + 离线识别同源 worker（见各自 README）
+│   ├── vendor/        # 第三方产物：phonemizer.js（全句音标）。Azure Speech SDK 只走 CDN，见 README
 │   ├── sources.js     # 🎧 真实商务听音源（精选目录 + 四步听练闭环，纯数据+渲染）
 │   ├── data-glossary.js # 🔍 术语库数据（324 词条：音标 + 双语例句全覆盖 · 67 条写法对齐）
 │   ├── glossary.js    # 🔍 专业术语速查（中英对照 · 搜索 · 分类筛选 · TTS 朗读）
@@ -468,7 +468,6 @@ pwsh -File tools/build-assets.ps1
 │   │   ├── cefrj-vocab.csv      # A1–B2 词汇画像
 │   │   ├── c1c2-vocab.csv       # C1–C2 词汇画像
 │   │   └── oxford-3000-cefr.json# Oxford 3000 CEFR（交叉校验）
-│   ├── fetch-vosk-model.ps1 # 在【有网机器】下载并解压 vosk 模型 + 库，实现离线识别
 │   ├── build-assets.ps1 # 从 icon.svg 渲染全部位图（apple-touch-icon / PWA 图标 / og-image）
 │   └── report-ipa.csv  # IPA 审计报告
 └── README.md
@@ -554,7 +553,7 @@ pwsh -File tools/build-assets.ps1
 |---|---|---|
 | 转义 | **写作区与句型库的 `esc` 原是恒等函数**（不转义任何字符），却被当转义用于 textarea 预填、作品标题与用户输入回显 → 写入 `<img onerror>` 会在保存后回列表时执行，并可随备份传播。现改为真转义（& < > "），与 `app.js`/`subtitle.js` 口径一致 | `js/write.js`、`js/patterns.js` |
 | 字幕 toast | `toastMsg` 唯一渲染出口改为**默认转义**，仅「点词查意」显式走 HTML（载入字幕时的文件名此前可注入） | `js/subtitle.js` |
-| CSP | 新增 `Content-Security-Policy`：**script-src 不含 `'unsafe-inline'`**（这才能让注入的内联处理器失效），保留 `'wasm-unsafe-eval'`（音素 IPA 与离线识别是 wasm）与 `cdn.jsdelivr.net`（vendor 加载源）。为此把 index.html 里**唯一的 SW 注册内联脚本搬到 `js/pwa-init.js`**，全站不再有可执行内联脚本。⚠️ 第三轮一度为离线识别补过 `'unsafe-eval'`，**随后已被更好的解法取代并移除**（同源 worker 文件，见 §6-7）——script-src 至今**不含** `'unsafe-eval'` | `index.html`、`js/pwa-init.js` |
+| CSP | 新增 `Content-Security-Policy`：**script-src 不含 `'unsafe-inline'`**（这才能让注入的内联处理器失效），保留 `'wasm-unsafe-eval'`（音素 IPA 用的是 wasm）与 `cdn.jsdelivr.net`（vendor 加载源）。为此把 index.html 里**唯一的 SW 注册内联脚本搬到 `js/pwa-init.js`**，全站不再有可执行内联脚本。⚠️ 第三轮一度为本地离线识别补过 `'unsafe-eval'`，先改为同源 worker 文件把它拿掉（§6-7），随后**该功能整体移除**（§6-8）——script-src 至今**不含** `'unsafe-eval'`，且已无任何理由需要它 | `index.html`、`js/pwa-init.js` |
 | 备份全覆盖 | 新建**存储键唯一权威注册表 `js/storage-keys.js`**（29 个 localStorage 键）。此前备份只覆盖 4 个键，SOP 勾选 / 学习走势 / 雷达原始分 / 自述语料库 / 写作作品 / 单证草稿 / 看板 / 自测基线**全部静默丢失**，而页面承诺「导入即可续学」。现在备份清单由注册表生成，并支持裸字符串键（`uk`/`all` 这类原先整类丢失） | `js/storage-keys.js`、`js/export.js` |
 | 凭据不外泄 | 备份**绝不包含** AI 陪练配置（`fte-tutor-cfg`）与 `progress.azureKey` 字段；导入时同样跳过，不写回 | `js/export.js` |
 | 隐私声明 | 设置页新增「🔍 数据去向」逐项表：哪个功能会向哪个域名发什么（含此前未披露的 `r.jina.ai` 网页抓取与录音上行），页脚同步 | `index.html` |
@@ -580,7 +579,7 @@ pwsh -File tools/build-assets.ps1
 | `tools/test-term-score.js` | 术语分口径：大小写 / 多词术语 / near 不得满分 / 不适用返回 null；并用**真实 6 个场景**回归 |
 | `tools/test-honesty.js` | 诚实性不变量：能力栏不含自评、手动完成不算证据、快照不被自评门控、复测可比、趋势与分档样本门 |
 
-> ⚠️ 浏览器侧未验证：本项目开发环境未安装 Chromium，**CSP 对动态加载 vendor（Azure Speech SDK / phonemizer / vosk / exceljs）的实际影响尚未在真实浏览器里冒烟**。
+> ⚠️ 浏览器侧未验证：本项目开发环境未安装 Chromium，**CSP 对动态加载 vendor（Azure Speech SDK / phonemizer / exceljs）的实际影响尚未在真实浏览器里冒烟**。
 > 上线前请用 Chrome + Edge 各走一遍：发音（三音源）、跟读评测、Azure 音素级评测、汇率查询、单证导出 Excel。
 
 ---
@@ -594,7 +593,7 @@ pwsh -File tools/build-assets.ps1
 | 验证 | 结果 |
 |---|---|
 | CSP 是否挡住注入 | ✅ 内联 `onerror` 与注入的 `<script>` **均未执行**；`eval` 仍被拦（本站不使用 eval；§6-7 之后 `'unsafe-eval'` 已从 CSP 移除） |
-| CSP 是否挡住 vendor | ✅ `cdn.jsdelivr.net` 动态脚本正常加载（exceljs 实测就绪）；`wasm-unsafe-eval` 下 `WebAssembly.compile` 通过；离线识别的 Kaldi 引擎改为**同源 worker 文件**后，`script-src` **无需** `'unsafe-eval'`（§6-7） |
+| CSP 是否挡住 vendor | ✅ `cdn.jsdelivr.net` 动态脚本正常加载（exceljs 实测就绪）；`wasm-unsafe-eval` 下 `WebAssembly.compile` 通过；本地离线识别移除后 `script-src` **无需** `'unsafe-eval'`（§6-8）；`wasm-unsafe-eval` 仅供 phonemizer |
 | 是否产生 CSP 违规 | ✅ 触发 vendor 加载与 wasm 编译期间 **0 条 securitypolicyviolation** |
 | P2-1 播放回退 | ✅ 在线音源全失败时，4 句经浏览器语音**逐句播完并触发 onend**（修复前只播 1 句且不再回调） |
 
@@ -603,7 +602,7 @@ pwsh -File tools/build-assets.ps1
 | 项 | 改动 | 落点 |
 |---|---|---|
 | **P2-1 播放回退自锁** | `Player.speakNative` 内部会 `current.stop()`，而回退时 `current` 正是**该播放器自己的 handle**——它的 `stop()` 把 `onend` 里要读的 `stopped` 置真，于是第一句播完 `playNext()` 直接返回，**连听 / 字幕连播静默卡死**。修法：进回退前先把自己从 `current` 摘掉 | `js/player.js` ×2 处 |
-| **P2-2 离线识别诚实化** | 模型不随站分发（66MB），却摆着一个可勾选的「优先本地识别」。现在 `LocalASR.probe()` 现场探测，未就绪即**禁用开关 + 清掉勾选 + 写明原因与补救路径**；同时修掉 `KaldiRecognizer` 漏 `new`、采样率误写 44100 的 API 误用（改对后，自备模型的环境才真有可能工作） | `js/asr-local.js`、`js/app.js`、`index.html` |
+| ~~**P2-2 离线识别诚实化**~~ | 该功能已于 2026-10-12 整体移除（§6-8），相关代码与 UI 均已删除；本行仅作历史记录 | ~~`js/asr-local.js`、`js/app.js`、`index.html`~~ |
 | **P2-3 移动端导航** | `#navToggle` 写了 `hidden` 却无人摘除、CSS 也没有 `.main-nav.show` 规则——手机上 9 个一级项竖直常驻（约占首屏 45%）。现窄屏默认收起、☰ 按媒体查询显隐、维护 `aria-expanded`、点导航项自动收起；**触控目标提到 44px**（实测 44.0px，此前约 31px）。真机实测 375px 无横向溢出 | `css/style.css`、`js/app.js` |
 | **P2-4 键盘与 ARIA** | ① 字幕点读行原是 `<div data-idx>` + click，全文件 0 tabindex/role/keydown（WCAG 2.1.1 **A 级**失败）→ 现 `role="button" tabindex="0" aria-label` + Enter/Space 走**同一条**播放路径；② tab 补 `aria-selected` / `tabindex` 并建立配对的 `role="tabpanel"`；③ 设置弹窗补 `role="dialog" aria-modal` + **焦点管理**（打开送焦点、关闭还焦点、Esc 可关） | `js/subtitle.js`、`js/app.js`、`index.html` |
 | **P2-5 对比度** | 实测不达标：`--ok` 2.54、`--accent` 2.15、`--bad` 3.76、`--muted` 4.43；暗色 `--primary-2` 仅 **1.68:1（47 处）** 且四个 `*-soft` 未随暗色切换。现全部 ≥4.5:1（浅色 4.67–6.02，暗色 5.29–8.76，soft 底配前景 6.15–9.49）。**门禁现场计算**，改色即校验 | `css/style.css` |
@@ -614,7 +613,7 @@ pwsh -File tools/build-assets.ps1
 
 | 脚本 | 守什么 |
 |---|---|
-| `tools/test-ui-quality.js` | P2-1…P2-6 全部：回退自锁、离线识别诚实化、移动导航与 44px、键盘/ARIA 成对、**对比度现场计算**、溢出与版本单一来源 |
+| `tools/test-ui-quality.js` | P2-1…P2-6：回退自锁、设置页识别说明（原「离线识别诚实化」随功能移除改写为反向守卫）、移动导航与 44px、键盘/ARIA 成对、**对比度现场计算**、溢出与版本单一来源 |
 | `tools/smoke-phase2.html` | **真机**冒烟页（不是门禁，手工跑）：375px iframe 驱动真实计算样式，18 项断言。跑法：站点目录起本地服务器后打开 `http://localhost:<启动器打印的端口>/tools/smoke-phase2.html`（默认 8000） |
 
 ---
@@ -805,7 +804,7 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 
 **默认端口先改为 8088、随后又回到 8000，最终定为「8000 + 绝不自动换端口」**：8088 是为了避开那个反复出现的占用者，但改端口会**连带改掉 origin**，导致老用户的 `localStorage` 进度"看起来丢了"——所以最终策略是**默认 8000 不变；被占用时停下并让用户明确选择**（关掉占用者再启动 / 或同意换端口），非交互场景一律默认停下，另提供 `-AllowPortChange` 显式放行、`-Port <n>` 显式指定端口，`.bat` 已加 `%*` 转发参数。
 
-⚠️ **该脚本必须保持纯 ASCII**：`.bat` 用 `powershell.exe`（Windows PowerShell 5.1）执行，而 5.1 对**无 BOM** 的 `.ps1` 按系统 ANSI 代码页（中文系统为 GBK）解码——写进中文提示会变成乱码**并直接破坏语法**（本轮实测：4 处语法错误，启动器会当场坏掉）。所以提示文案沿用英文。仓库里其它含中文的 `.ps1`（如 `tools/fetch-vosk-model.ps1`）同样存在"输出乱码"的轻微问题，可选手工加 UTF-8 BOM 解决。
+⚠️ **该脚本必须保持纯 ASCII**：`.bat` 用 `powershell.exe`（Windows PowerShell 5.1）执行，而 5.1 对**无 BOM** 的 `.ps1` 按系统 ANSI 代码页（中文系统为 GBK）解码——写进中文提示会变成乱码**并直接破坏语法**（本轮实测：4 处语法错误，启动器会当场坏掉）。所以提示文案沿用英文。仓库里其它含中文的 `.ps1`（如 `tools/fetch-vosk-model.ps1`，已于 2026-10-12 随离线识别一并删除）同样存在"输出乱码"的轻微问题，可选手工加 UTF-8 BOM 解决。
 
 **实测验证**（`powershell.exe -File start-site.ps1 -NoBrowser`）：解析零错误、0 个非 ASCII 字节；端口被占用时输出 `[STOP] ... will not switch ports` 并**不启动任何服务**；正常时打印 `URL: http://localhost:8000`，`Invoke-WebRequest` 对首页与 `/js/subtitle.js`、`/js/player.js`、`/css/style.css` 全部 **HTTP 200**，且服务出的文件含本轮 P8 内容（`fte-sub-notes-v1` / `abTick` / `Player.waveSegRange`）。
 
@@ -1217,6 +1216,11 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
 ## 🎤 第三轮真实使用反馈：跟读要真的录我，评测要真的给分（2026-10-11 晚）
 
 > 反馈原文：「**进入学习后，跟读按钮放出的仍是系统声音，不是让我录音，并且也没有我的语音与标准语音之间的评测功能**让我明白错误之处不断纠正取得进步。」
+>
+> ⚠️ **阅读提示（2026-10-12 补）**：本节与 §6-1…§6-7 记录的那条「本地离线识别（vosk）」路径
+> **已于 2026-10-12 整体移除**，原因与实测数据见 **§6-8**。下面保留的是**踩坑过程** ——
+> 它解释了几条至今仍在跑的守卫从哪来（CSP 不得含 `'unsafe-eval'`、跟读窗口必须挂在 `onend` 上、
+> 开录前硬停 TTS、五步闭环与音量/节奏反馈…）。其中「离线识别引擎怎么选 / 怎么修」的部分**已失效**。
 
 「**仍是**」两个字是关键：上一轮（P1 批次）已为这条反馈加过 🎙/🎯 入口，但**没有在真浏览器里跑过麦克风链路**（上一轮报告自己写了「未做真机验证」）。本轮用 `--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture=<真实语音 wav>` 把整条链路真跑了一遍，定位到**三个叠在一起的根因**。
 
@@ -1379,4 +1383,62 @@ README 曾把句型骨架数写成 **848**、把词汇数写成 **691**（当时
   （`fetch failed`）而无法与上游发行包逐字节比对；`npm test` 里用的是不联网的静态校验
   （`vosk-worker.meta.json` 的字节数 + sha256）。**请在有网机器上补跑一次 `--check`**，把它变成硬证据；
   详细口径见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) 的 1.2 行。
+
+> ⚠️ **上面这段"补跑 --check"的待办已随 §6-8 作废**：worker 文件本身已被删除。
+
+---
+
+## 🗑 6-8 反向决定：**移除本地离线识别**（2026-10-12）
+
+第三轮为了「跟读要真的给分」把本地离线识别（vosk 小模型）一路修到能用 —— 严格 CSP、同源 worker、
+单飞加载、启动期轻量探测。修好之后我问了一句本该早点问的话：**它给的分数值不值得信？**
+于是拿**本站自己的课程内容**做了一次实测（12 条从 `js/data.js` 等抽取的短语/例句，本机 TTS 合成音，
+用**站点自己的评分代码** `SpeechScore.evaluateSpeech` + 当时那份 `LocalASR.transcribe`，严格 CSP 下跑）：
+
+| 命中 | 类型 | 参考 | 本地模型听到的 |
+|---|---|---|---|
+| **100%** | 术语 | laminating adhesive | laminating adhesive |
+| 50% | 术语 | coating | **coding** |
+| 50% | 术语 | spout pouch | **spell pouch** |
+| **0%** | 术语 | **isocyanate** | **isis i and eight** |
+| 50% | 术语 | polyether-based PU | **paul either based pay you** |
+| **100%** | 术语 | substrate | substrate |
+| 50% | 术语 | co-extrusion | **seo extrusion** |
+| **100%** | 术语 | solvent residue | solvent residue |
+| **100%** | 术语 | primer | primer |
+| **100%** | 例句 | International trade has grown rapidly… | 完全正确 |
+| **100%** | 例句 | The trade fair is a great place… | 完全正确 |
+| 89% | 例句 | …for this order is **25** days. | …is **twenty five** days |
+
+**平均词形命中 74%，完全命中 6/12。** 关键不在平均值，而在**错在哪**：
+
+1. **错得集中在行业术语上**，而术语正是本站的核心内容。普通商务句子识别得很好（3 条例句里 2 条满分）。
+2. 更糟的是**误导性**：`isocyanate` 你读得再标准也可能拿 0 分 —— 那不是"发音反馈"，是**让人以为
+   自己读错**。一个会制造假阴性、且假阴性恰好集中在最该练的术语上的评分，比没有评分更有害。
+3. 断网场景几乎没有（用户明确说明），而云端识别（Edge 的 Azure）明显更准且国内可达 ——
+   本地识别的**唯一独占价值**（离线可用）在这个使用场景里不成立。
+4. 附带成本也不小：106.9 MB 模型 + 4.13 MB worker + 一条 41 MB 的首次加载路径 + 一整套探针/门禁。
+
+**因此整体移除**，而不是"改成默认关闭"。删除清单：
+`js/asr-local.js`、`js/vendor/vosk-worker.js` + `.meta.json`、`tools/build-vosk-worker.js`、
+`tools/fetch-vosk-model.ps1`、`models/`（106.9 MB，本就不随仓库分发），以及
+index.html / app.js / player.js / eval4.js / storage-keys.js 里的全部接线与 UI。
+
+**移除后的跟读闭环（仍在，且是完整可用的）**：
+- 逐词评分走**浏览器语音识别**（Edge 的 Azure 国内可达）；拿不到识别时明说原因与出路，不再指向一个
+  已不存在的开关。
+- **不依赖识别的部分照旧**：① 听标准音 → ② 录音（实时电平表 + 「⏹ 我说完了」）→ ③ 回放你的 →
+  ④ 再放标准音 → ⑤ 音量峰值 + 节奏对比 + A/B 对照。火狐、断网、Chrome 国内都能练，只是不出逐词分。
+
+**防回退**：`tools/test-p1-invariants.js` §10 有反向守卫 —— 已删的 5 个文件不得复活、index.html
+不得再出现那个开关、app.js/player.js 不得再含 `LocalASLR` / `recognizeLocal` / `localASROn`、
+`storage-keys.js` 不得再登记 `fte-local-asr-v1`。**如果将来要重新引入，请连同那节守卫、本节、
+`THIRD_PARTY_NOTICES.md` 1.2 与 `js/vendor/README.md` 一起改**，别让它们静默失效。
+
+**版本纪律**：这次 **PRECACHE 清单真的变了**（去掉 `./js/asr-local.js`，58 → 57 条，指纹
+`0287a522ce9a… → bd59843a72a6…`），按纪律**先升 CACHE `fte-v103 → fte-v104`，再刷新
+`tools/precache-baseline.json`**（sha256/count/cache/minVersion 四项全改）。
+
+**验收**：`node tools/test-all.js` = exit 0 · 全部门禁通过；无头 Chrome 真机走一遍跟读五步闭环，
+确认在**拿不到识别**的情况下仍给出音量/节奏反馈与明确出路（而不是报错或假装评了分）。
 

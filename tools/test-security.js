@@ -91,26 +91,17 @@ check("index.html 声明了 CSP", !!csp);
 check("CSP 的 script-src 不含 'unsafe-inline'（否则注入的内联处理器仍会执行）",
   !!csp && !/script-src[^;]*'unsafe-inline'/.test(csp));
 check("CSP 的 script-src 允许自身与外置 vendor 源", !!csp && /script-src[^;]*'self'/.test(csp) && /script-src[^;]*cdn\.jsdelivr\.net/.test(csp));
-check("CSP 保留 wasm（音素 IPA / 离线识别需要）", !!csp && /'wasm-unsafe-eval'/.test(csp));
-/* ★ 第三/四轮真机定位与加固（2026-10-11 晚）：
-   离线识别 vosk-browser 的 Kaldi 引擎原本跑在一个 **blob: Worker** 里，而 blob Worker
-   **继承本文档的 CSP**；该 worker 内的 Emscripten 胶水要执行字符串形式的 JS。CSP 若不含
-   'unsafe-eval'，worker 内部抛 EvalError，而上游库只等 "load" 事件、**不把 worker 的 error
-   映射成 promise rejection** → `createModel()` 既不 resolve 也不 reject（真机实测 >120 秒）
-   → 表现为"离线识别永远建不出来"。
-   当时的止损是给 script-src 加 'unsafe-eval'；**最终解法**是把那段 worker 抽成**同源真实文件**
-   `js/vendor/vosk-worker.js`（同源文件的 CSP 来自它自己的响应头，不继承文档）——
-   实测同一份严格 CSP 下：blob 形态 EVAL-BLOCKED、同源文件形态 EVAL-OK。
-   所以这里要反过来守：**script-src 不得再出现 'unsafe-eval'**，别"顺手加回来"。 */
-check("CSP 的 script-src 不得含 'unsafe-eval'（离线识别已改为同源 worker 文件，不再需要它；见上方注释）",
+check("CSP 保留 wasm（音素 IPA 需要）", !!csp && /'wasm-unsafe-eval'/.test(csp));
+/* ★ script-src 不含 'unsafe-eval' —— 这条守卫的历史值得留一行，免得有人"顺手加回来"：
+   本站 2026-10-11 一度集成本地离线识别（vosk-browser），它的 Kaldi 引擎跑在 **blob: Worker** 里，
+   而 blob Worker **继承本文档的 CSP**；worker 内的 Emscripten 胶水要执行字符串形式的 JS，
+   被 CSP 拦下后 worker 当场死掉且**不上报**，表现为"离线识别永远建不出来"（真机实测 >120 秒）。
+   当时先加了 'unsafe-eval' 止损，随后改用**同源真实文件** worker 把它拿掉（实测同一份严格 CSP 下
+   blob 形态 EVAL-BLOCKED / 同源文件形态 EVAL-OK）；再后来该功能整体被**移除**（2026-10-12，
+   实测小模型在行业术语上错得太多，给的分会误导人，见 README §6-8）。
+   于是 `'unsafe-eval'` 在本站**再无任何理由**——这条守卫把它钉死。 */
+check("CSP 的 script-src 不得含 'unsafe-eval'（本站不需要 eval；历史原因见上方注释）",
   !!csp && !/script-src[^;]*'unsafe-eval'/.test(csp));
-/* 守卫的第二半：既然不需要 eval，就必须确实在用同源 worker 文件（否则删掉 unsafe-eval 会让离线识别再次失效） */
-const asrForCsp = read("js/asr-local.js");
-check("离线识别必须走同源 worker 文件（js/vendor/vosk-worker.js），不得再依赖 blob Worker / dist/vosk.js",
-  /WORKER_FILE = "js\/vendor\/vosk-worker\.js"/.test(asrForCsp) &&
-  /new Worker\(WORKER_URL\)/.test(asrForCsp) &&
-  !/createObjectURL/.test(asrForCsp) &&
-  !/js\/vendor\/vosk\.js"/.test(asrForCsp));
 
 /* 脚本形态：全部 defer（解析后再按序执行），pwa-init 必须第一个、app.js 必须最后 */
 const tags = [];

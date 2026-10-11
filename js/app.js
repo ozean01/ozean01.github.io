@@ -1,7 +1,7 @@
 /* ============ 软包装外贸英语 · 应用主逻辑 ============ */
 /* ---------------------------------------------------------------------
    目录（本文件是「路由 + 全部页面渲染器 + 交互」单一编排器，引擎模块已拆分为
-   独立文件：player/parser/flashcards/quiz/listen/eval4/sop/export/asr-local/
+   独立文件：player/parser/flashcards/quiz/listen/eval4/sop/export/
    sources/subtitle/tutor 等。因全文件为一个闭包(IIFE)，逐函数共享 State/progress/
    DATA/U()/esc 等私有状态，故「不引入构建工具」下不把本文件再物理拆分，
    以免破坏 file:// 双击即用与离线 PWA 的零构建属性。以下为分区索引，便于定位。
@@ -60,7 +60,6 @@
   _need("AI 陪练 tutor.js", !!window.Tutor);
   _need("实操 SOP sop.js", !!window.SOP);
   _need("导出 export.js", !!window.FTEExport);
-  _need("本地识别 asr-local.js", !!window.LocalASR);
   _need("听音源 sources.js", !!window.Sources);
   _need("术语速查数据 data-glossary.js", !!window.FTE_GLOSSARY);
   _need("术语速查 glossary.js", !!(window.Glossary && window.Glossary.render));
@@ -141,7 +140,7 @@
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
     return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, flashChunk: {}, done: {}, rate: 1, voice: "",
-      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, localASR: false };
+      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
      首次迁移时把未手动关闭过它的旧设置切回浏览器语音，避免后续覆盖用户手动选择。 */
@@ -1666,7 +1665,7 @@
             <button class="btn btn-soft btn-sm" data-action="play-all-words" data-id="${u.id}">🔊 朗读全部词汇</button>
           </div>
           <p class="field-note" style="margin:2px 0 10px">想练发音：点每个词后面的 <b>🎙</b> —— ① 听标准音 → ② <b>录音</b>（有电平表与「⏹ 我说完了」）→ ③ 回放你的 → ④ 再听标准音 → ⑤ 出对比与评分（音量、节奏，以及逐词命中）。
-            <b>本机已装离线识别模型时不联网也能评分</b>（离线识别默认开启，见「发音设置」）。点 <b>🎯</b> 可直接单独评测。</p>
+            逐词评分需要浏览器的语音识别：<b>推荐用 Edge 打开</b>（识别走 Azure，国内可达）。点 <b>🎯</b> 可直接单独评测。</p>
           <div id="wordShadowOut" class="field-note" hidden style="margin:0 0 10px"></div>
           ${words.map(function (w) { return wordRowHtml(w, hl); }).join("")}
         </div>`;
@@ -1681,7 +1680,7 @@
               <button class="play-btn" data-action="play-text" data-text="${esc(p.p + ". " + p.ex)}" title="朗读">▶</button>
               <button class="play-btn" data-action="shadow" data-text="${esc(p.p)}" title="跟读短语（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
               <button class="play-btn" data-action="shadow" data-text="${esc(p.ex)}" title="跟读例句（不需要语音识别）">🎙句</button>
-              <button class="play-btn" data-action="shadow-eval" data-text="${esc(p.p)}" title="评测短语：需要语音识别（本地离线模型 / Edge / Chrome+代理）">🎯</button>
+              <button class="play-btn" data-action="shadow-eval" data-text="${esc(p.p)}" title="评测短语：需要浏览器的语音识别（推荐 Edge；Chrome 需走代理）">🎯</button>
               <div style="grid-column:1/-1;font-size:13px;color:var(--muted)">${hlText(p.ex, hl)}<br><b>${hlText(p.exCn, hl)}</b></div>
             </div>`;
           }).join("")}
@@ -2055,7 +2054,7 @@
       <span class="actions">
         <button class="play-btn" data-action="play-word" data-id="${w.id}" title="朗读单词">🔊</button>
         <button class="play-btn" data-action="play-sentence" data-id="${w.id}" title="朗读例句">▶</button>
-        <button class="play-btn" data-action="shadow-eval" data-text="${esc(w.v.w)}" title="评测单词：需要语音识别（本地离线模型 / Edge / Chrome+代理）">🎯</button>
+        <button class="play-btn" data-action="shadow-eval" data-text="${esc(w.v.w)}" title="评测单词：需要浏览器的语音识别（推荐 Edge；Chrome 需走代理）">🎯</button>
         <button class="play-btn" data-action="shadow" data-text="${esc(w.v.w)}" title="跟读（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
         <button class="learn-toggle ${learned ? "learned" : ""}" data-action="toggle-learn" data-id="${w.id}"
           title="${learned ? "已自评标记，点击取消" : "标记为已自评"}">${learned ? "✓" : "☆"}</button>
@@ -2118,8 +2117,10 @@
      实测两条根因：
        ① 跟读只存在于音素页 / 听说训练 / 四维实战，而**看词的词汇表只有 🔊 与 ▶**；
        ② Chrome 的识别走 Google 服务器，国内不可达 → 即使找到入口，说完也出不来分。
-     本函数把词级跟读补到词汇表；识别走 `Player.recognize`（已改为**离线优先**，见 player.js），
-     本机装了 vosk 小模型时全程不联网。
+     本函数把词级跟读补到词汇表；识别走 `Player.recognize`（浏览器语音识别，**推荐 Edge**：
+      它的识别走 Azure、国内可达；Chrome 的走 Google、通常不可达）。
+      （2026-10-11~12 一度还有一条"本机离线识别"的路径，因小模型在行业术语上错得太多已整体移除，
+       见 README §6-8。）
      诚实口径沿用全站：这是 ASR 转写的**词形命中**参考分，不是声学发音评分；
      要真正的发音分用四维实战的「Azure 音素级评测」，练口型去「音素与辨音」。 */
   function startWordShadow(id, el) {
@@ -2183,14 +2184,14 @@
        ① `Player.repeat()` 的跟读窗口从**开始朗读**算起而不是**读完**算起（见 player.js 的修复说明），
           于是录音在系统朗读还没结束时就开录，麦克风把扬声器里的标准音一起录了进去 ——
           用户回放"我的录音"听到的当然还是系统声音；
-       ② 离线识别的自检 `selfTest()` 走的是**解压目录**（vosk 只认 tar.gz），必然超时失败 →
-          「优先本地识别」被永久关掉 → 只能走 Chrome 的在线识别 → 国内不可达 → 没有评分。
+       ② 识别这条路当时被本机离线识别拖住（自检失败把开关永久关掉）；该功能最终在 2026-10-12
+          被整体移除（小模型在行业术语上错得太多，给的分会误导人，见 README §6-8）。
      因此本轮把闭环重做成**五步、每步在界面上看得见**：
        ① 听标准音（第 k/N 遍）→ ② 录音中（实时电平表 + 计时 + 「⏹ 我说完了」）
        → ③ 回放你的 → ④ 再放标准音 → ⑤ 对比与评分
      三条口径：
        · **开录前硬停一切 TTS**，保证录进去的只有你的声音；
-       · 评分**优先走本机离线识别**，而且复用刚录到的 PCM（不再让用户为评分重读一遍）；
+       · 逐词评分走**浏览器语音识别**（Edge 走 Azure 国内可达）；拿不到识别时
        · 没有识别能力时**照样给节奏/音量反馈**（这两项本来就不需要识别），
          并把"要拿逐词分该怎么办"写清楚 —— 绝不假装评了分。 */
   function shadowBoxFor(el) {
@@ -2223,11 +2224,12 @@
   }
   function shadowNoAsrHtml() {
     return '<div style="line-height:1.75">当前的<b>逐词评测需要语音识别</b>，这台机器上暂时拿不到：' +
-      '① 火狐没有这个 API；② Chrome 的识别走 Google、国内通常不可达。<br>两条能立刻解决的路：<br>' +
-      '· <b>开启本机离线识别</b>：右上角 <b>⚙ 发音设置</b> → 勾选「优先本地识别」' +
-      '（本机已放好 vosk 模型时，首次约 1–2 分钟准备，之后不联网、不受墙影响）；<br>' +
-      '· 或<b>用 Edge 打开</b>本站（Edge 的识别走 Azure，国内可达）。<br>' +
-      '上面「节奏 / 音量」两项反馈<b>不需要识别</b>，现在就已经生效。</div>';
+      '① 火狐没有这个 API；② Chrome 的识别走 Google、国内通常不可达。<br>能立刻解决的路：<br>' +
+      '· <b>用 Edge 打开本站</b>（Edge 的识别走 Azure，国内可达）—— 这是目前唯一有分的一条路；<br>' +
+      '· 若在用 Chrome，请确认它走了代理（Chrome → 设置 → 系统 → 使用系统代理）。<br>' +
+      '📌 2026-10-12 起本站<b>已移除本地离线识别</b>：实测那个小模型在行业术语上错得太多，' +
+      '给出的分会误导人（详见 README §6-8）。<br>' +
+      '上面「节奏 / 音量」两项反馈<b>不需要识别</b>，现在就已经生效；A/B 回放对比也照常。</div>';
   }
   function shadowAccentHtml(st, text, rate) {
     const lv = (st && st.levels) || [];
@@ -2418,11 +2420,10 @@
           (hist.best > ev.acc ? ' —— 别急，把标红的词单独练两遍再整句读。' : '') + '</div>' +
           shadowRetryBtns(text, rate);
       };
-      const pcm = (Player.lastRecordingPcm && Player.lastRecordingPcm()) || null;
-      /* 在线识别（需要**再读一遍**）：既是离线不可用时的回退，也是用户"不想等"时的出口 */
+      /* 逐词评分走**浏览器语音识别**（Edge 走 Azure、国内可达）。这就是唯一路径了——
+         本地离线识别已于 2026-10-12 整体移除（见 README §6-8）。 */
       const onlinePath = function (note) {
         if (!alive()) return;
-        State.shadowUseOnline = null;
         if (!Player.recognitionSupported()) { box2.innerHTML = shadowNoAsrHtml() + shadowRetryBtns(text, rate); return; }
         box2.innerHTML = (note ? '<div style="color:var(--muted)">' + note + '</div>' : "") +
           '<div style="color:var(--muted)">⏳ 用<b>语音识别</b>评分：请<b>再读一遍</b>「' + esc(text) + '」…（说完自动停）</div>';
@@ -2445,54 +2446,6 @@
           box2.innerHTML = esc(micMsg(err)) + shadowRetryBtns(text, rate);
         });
       };
-      const localReady = !!(window.LocalASR && Player.localASROn && Player.localASROn() &&
-        !Player.localASRBroken && window.LocalASR.transcribe && pcm && pcm.length > 8000);
-      if (localReady) {
-        box2.innerHTML = '<div style="color:var(--muted)">⏳ 正在用<b>本机离线识别</b>给这次录音评分…' +
-          '<br>（首次使用要先准备模型，约 1–2 分钟；之后就都是几秒。）</div>' +
-          '<div style="margin-top:8px"><button class="btn btn-outline btn-sm" data-action="shadow-online">⚡ 不想等，改用在线识别</button></div>';
-        /* ★ 硬超时（真机教训）：离线识别这条链**必须**有截止时间，而且必须给用户一个"立刻改道"的按钮。
-           vosk 首次要下 41MB 归档、解包进 IndexedDB 再建模型；本机实测：模型**下载只要 1 秒**，
-           但在"装了整个站点的页面里" `createModel` 超过 120 秒仍未返回（同一台机器的隔离页只要 2–6 秒）。
-           没有超时的话用户会永远停在"正在评分…"——这正是上一轮「点跟读永远等待」的复发路径。
-           超时/用户改道后都标记 localASRBroken，后续直接走在线识别，不让用户反复白等。 */
-        let settled = false;
-        let timer = null;
-        const first = !(Player.localASRFirstDone);
-        const limitMs = first ? 90000 : 25000;
-        const settle = function (txt, err) {
-          if (settled) return;
-          settled = true;
-          if (timer) { clearTimeout(timer); timer = null; }
-          State.shadowUseOnline = null;
-          if (!alive()) return;
-          if (err) {
-            Player.localASRBroken = true;
-            onlinePath('离线识别这次没成功（' + esc(err) + '），已自动改用在线识别。' +
-              '想再用离线：去 <b>⚙ 发音设置</b> 重新勾选「优先本地识别」。');
-            return;
-          }
-          done(txt);
-        };
-        /* 用户点「不想等」：立刻放弃离线等待，直接转在线 */
-        State.shadowUseOnline = function () {
-          if (settled) return;
-          settled = true;
-          if (timer) { clearTimeout(timer); timer = null; }
-          Player.localASRBroken = true;
-          onlinePath('已按你的选择改用在线识别（本机离线模型准备太慢时可随时这样切）。');
-        };
-        timer = setTimeout(function () {
-          settle(null, "等待超过 " + Math.round(limitMs / 1000) + " 秒，离线模型未及时准备好");
-        }, limitMs);
-        try {
-          window.LocalASR.transcribe(pcm).then(function (txt) {
-            Player.localASRFirstDone = true;
-            settle(txt, null);
-          }).catch(function (e) { settle(null, String((e && e.message) || e)); });
-        } catch (e) { settle(null, String((e && e.message) || e)); }
-        return;
-      }
       onlinePath("");
     }
 
@@ -2530,9 +2483,8 @@
     const box = shadowBoxFor(el);
     const out = function (html) { box.hidden = false; box.innerHTML = html; };
     const label = esc(text.length > 46 ? text.slice(0, 46) + "…" : text);
-    const local = !!(window.Player.localASROn && Player.localASROn() && !Player.localASRBroken);
     if (State.shadowRec) { try { State.shadowRec.stop(); } catch (e) { /* ignore */ } State.shadowRec = null; }
-    out('🎯 <b>' + label + '</b>：先听一遍，然后跟读一次…（' + (local ? '本地离线识别' : '在线识别') + '）');
+    out('🎯 <b>' + label + '</b>：先听一遍，然后跟读一次…（在线识别）');
     Player.speak(text, {
       rate: 0.95,
       onend: function () {
@@ -2542,8 +2494,8 @@
             onError: function (err) {
               const m = micMsg(err);
               out('🎯 <b>' + label + '</b>：这次没拿到识别结果（' + esc(m) + '）。' +
-                '<div style="margin-top:4px">可执行的路：①「发音设置」开启<b>本地离线识别</b>（不联网、任何浏览器含火狐）；' +
-                '② 用 <b>Edge</b> 打开（识别走 Azure，国内可达）；③ <b>不评分也能练</b>：点 🎤 做 A/B 回放对比。</div>');
+                '<div style="margin-top:4px">可执行的路：① 用 <b>Edge</b> 打开本站（识别走 Azure，国内可达）；' +
+                '② 若在用 Chrome，确认它走了代理；③ <b>不评分也能练</b>：点 🎙 做 A/B 回放对比 + 看音量/节奏反馈。</div>');
             },
             onEnd: function (txt) {
               State.shadowRec = null;
@@ -3926,7 +3878,6 @@
       /* 跟读闭环的收尾与重来：用户自己控制"我说完了"，并可就地再读一次看涨分 */
       case "shadow-stop": if (State.shadowStop) State.shadowStop(); break;
       case "shadow-retry": shadowRerun(el); break;
-      case "shadow-online": if (State.shadowUseOnline) State.shadowUseOnline(); break;
       case "atrisk-flash": {
         const rb = document.getElementById("atriskReinforce");
         startAtRiskFlash(!!(rb && rb.checked));
@@ -5008,96 +4959,9 @@
     const azureRegion = document.getElementById("setAzureRegion");
     const azureVoice = document.getElementById("setAzureVoice");
     const azurePA = document.getElementById("setAzurePA");
-    const setLocalASR = document.getElementById("setLocalASR");
     /* 🌐 全英模式：显示偏好，与「听力口音」同一节奏——弹窗里只暂存，点「保存」才落库。
        它是 js/immerse.js 的偏好（键 fte-immerse），不写进 progress，也不影响任何学习数据。 */
     const setImmerse = document.getElementById("setImmerse");
-    /* P2-2：离线识别**不做无凭证的承诺**。模型不随站分发，所以这项在多数环境里不可用；
-       现场探测一次，不可用就禁用开关、清掉已勾选状态并写明原因，而不是让用户勾了却毫无效果。
-
-       ★ 第三/四轮修复（2026-10-11 晚）：这段自检原先直接写在 setupSettings() 里，
-       而 setupSettings() 是在**页面启动时**调用的 —— 于是每次打开站点都会在后台开始
-       下载/装载 41 MB 模型（用户根本没打算用离线识别也要付这份流量），更要命的是它会与
-       用户随后在弹窗里触发的自检**并发**：worker 侧两次 load() 共用同一个存储目录，
-       后一次会以 `Failed to open '…/downloaded.tar.gz'` 失败，且失败状态留在 IndexedDB 里。
-       现在改为**首次打开弹窗时才检查一次**（localASRChecked 守卫），两个问题一起消失。 */
-    let localASRChecked = false;
-    function checkLocalASR() {
-      if (localASRChecked) return;
-      localASRChecked = true;
-      if (!(setLocalASR && window.LocalASR && window.LocalASR.probe)) return;
-      try {
-        window.LocalASR.probe().then(function (st) {
-          if (!(st && st.ready)) {
-            const note0 = document.getElementById("localASRNote");
-            if (progress.localASR) { progress.localASR = false; try { saveProgress(); } catch (e) { /* ignore */ } }
-            setLocalASR.checked = false;
-            setLocalASR.disabled = true;
-            if (note0) {
-              note0.innerHTML = "⚠️ <b>离线识别当前不可用</b>：" + esc((st && st.reason) || "未就绪") +
-                "。本站不分发该模型（约 66MB），已自动切回<b>浏览器在线识别</b>；" +
-                "确实需要离线时按 <code>tools/fetch-vosk-model.ps1</code> 的说明把模型放进站内，刷新后此开关自动可用。" +
-                "<br>📌 <b>国内 Chrome 的在线识别走 Google、通常不可达</b>：跟读评分请改用 <b>Edge</b> 打开本站（Edge 的识别国内可达）。";
-            }
-            return;
-          }
-          /* 文件在 ≠ 能识别：真跑一次自检，只有真的把模型装起来才算"就绪"。
-             所以这里绝不能凭"文件在"就默认打开——那会把用户带进"点跟读→永远等待"。 */
-          const note1 = document.getElementById("localASRNote");
-          if (note1) note1.innerHTML = "⏳ 检测到本机有离线模型，正在自检（最多 45 秒）…";
-          window.LocalASR.selfTest(45000).then(function (r) {
-            const note = document.getElementById("localASRNote");
-            if (r && r.ok) {
-              /* 自检通过 = 环境确实没问题 → 解除历史上"自检失败"留下的关闭记忆。
-                 不这样做的话，老用户早就被写进 localASROff=true，即使本轮把模型加载修好了，
-                 他也永远等不到自动打开（这正是"修好了却仍然没有评测"的另一半原因）。 */
-              progress.localASROff = false;
-              if (!progress.localASR) {
-                progress.localASR = true;
-                try { saveProgress(); } catch (e) { /* ignore */ }
-                if (setLocalASR) setLocalASR.checked = true;
-              }
-              if (note) {
-                note.innerHTML = "✅ <b>离线识别自检通过</b>：跟读与评分走<b>本机识别</b>（不联网、不受网络环境影响）。" +
-                  "取消勾选即可改用在线识别（下次不再自动打开）。";
-              }
-              return;
-            }
-            /* 自检没过：本次保持关闭、写明原因，并给出可立即生效的替代路径。
-               ⚠️ 这里**不再**写 `localASROff`：那个标记只用来表达"**用户明确**关掉过"（见下方保存逻辑）。
-               以前自检失败也写它，后果是"环境一次性抽风 → 这个浏览器永远不再自动启用离线识别"，
-               而用户根本不知道自己被永久降级了 —— 这正是"修好了却仍然没有评测"的又一条暗线。
-               现在失败只影响本次，下次启动会重新用极轻的 HEAD 探测一次（几乎零成本）。 */
-            if (progress.localASR) { progress.localASR = false; try { saveProgress(); } catch (e) { /* ignore */ } }
-            if (setLocalASR) { setLocalASR.checked = false; }
-            if (note) {
-              note.innerHTML = "⚠️ <b>离线识别自检未通过</b>：" + esc((r && r.reason) || "未知原因") +
-                "。<b>本次已保持关闭</b>（避免点跟读时白等；下次打开本站会自动再试一次）。<br>" +
-                "📌 <b>国内 Chrome 的在线识别走 Google、通常不可达</b>——跟读评分请改用 <b>Edge</b> 打开本站（Edge 的语音识别走 Azure，国内可达），这是目前最稳的路径。<br>" +
-                "🧪 想现在就用离线：<b>手动勾选「优先本地识别」</b>——首次跟读要把模型装进浏览器缓存，" +
-                "成功后之后都是秒级；不会静默失败（有硬超时与「改用在线识别」出口）。";
-            }
-          });
-        }).catch(function () { /* ignore */ });
-      } catch (e) { /* ignore */ }
-    }
-    /* ★ 启动时只做一次**极轻**的探测（HEAD，不建模型、不下载）：模型在站内、且用户没有明确关过，
-       就先把「优先本地识别」打开。这样用户**不必先发现「发音设置」**才能用上离线评分；
-       而 41 MB 的装载只在真正要用（首次跟读）时才发生 —— 既不白耗启动流量，
-       也不会像老实现那样在启动时就把模型装起来、再和弹窗自检并发撞车。
-       `localASROff` 的语义在这里被收紧为**「用户明确关掉过」**（自检失败不再写它），
-       所以一次性抽风不会把某个浏览器永久降级到在线识别。 */
-    if (!progress.localASROff && !progress.localASR && setLocalASR && window.LocalASR && window.LocalASR.probe) {
-      try {
-        window.LocalASR.probe().then(function (st) {
-          if (st && st.ready && !progress.localASROff && !progress.localASR) {
-            progress.localASR = true;
-            try { saveProgress(); } catch (e) { /* ignore */ }
-            if (setLocalASR) setLocalASR.checked = true;
-          }
-        }).catch(function () { /* 探测失败就当没有模型，保持在线识别 */ });
-      } catch (e) { /* ignore */ }
-    }
     const accentNote = document.getElementById("accentNote");
     let pendingAccent = Player.accent || "us";
 
@@ -5138,15 +5002,12 @@
     }
     function open() {
       populateVoices();
-      /* 离线识别的探测/自检**放在首次打开弹窗时**，不再在页面启动时就跑（见 checkLocalASR 注释） */
-      checkLocalASR();
       engineSel.value = progress.engine || "native";
       syncAzureField();
       azureKey.value = progress.azureKey || "";
       azureRegion.value = progress.azureRegion || "";
       azureVoice.value = progress.azureVoice || "en-US-JennyNeural";
       if (azurePA) azurePA.checked = progress.azurePA !== false;
-      if (setLocalASR) setLocalASR.checked = !!progress.localASR;
       if (setImmerse) setImmerse.checked = !!(window.Immerse && window.Immerse.on());
       voiceSel.value = progress.voice || "";
       rateRange.value = progress.rate || 1;
@@ -5166,10 +5027,6 @@
         progress.azureRegion = azureRegion.value.trim();
         progress.azureVoice = azureVoice.value.trim() || "en-US-JennyNeural";
         progress.azurePA = azurePA ? azurePA.checked : true;
-        progress.localASR = setLocalASR ? setLocalASR.checked : false;
-        /* 记住"明确关闭"：模型就绪时启动会自动打开离线识别（见设置面板的探测逻辑），
-           所以用户手动取消勾选必须留痕，否则下次打开又被自动打开——那会像"开关坏了"。 */
-        progress.localASROff = !progress.localASR && !!(setLocalASR && setLocalASR.disabled === false);
         progress.voice = voiceSel.value;
         progress.accent = pendingAccent;
         progress.rate = parseFloat(rateRange.value) || 1;

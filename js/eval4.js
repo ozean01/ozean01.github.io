@@ -366,7 +366,7 @@
           <summary class="btn btn-outline btn-sm dx-summary" style="list-style:none">🔬 音素诊断 <span class="dx-caret" aria-hidden="true">▾</span></summary>
           <div class="dx-menu-body">
             <button class="btn btn-soft btn-sm" style="width:100%" data-action="e4-deep-dx" title="下载 wav2vec2 音素模型（首次需联网、较慢），逐音素比对「你读成了哪个音」">⚡ 高精度（wav2vec2 · 联网）</button>
-            <button class="btn btn-outline btn-sm" style="width:100%" data-action="e4-deep-dx-offline" title="本地 vosk 词级 + phonemizer，无需下载模型、可离网">🧩 离线近似（无需模型）</button>
+            <button class="btn btn-outline btn-sm" style="width:100%" data-action="e4-deep-dx-offline" title="浏览器识别 + phonemizer，不下载大模型；需要能连上识别服务（推荐 Edge）">🧩 近似诊断（不下载模型）</button>
           </div>
         </details>
         ${ev ? '<button class="btn btn-outline btn-sm" data-action="e4-clear-ref">重置</button>' : ""}
@@ -675,25 +675,8 @@
       render();
     }
 
-    /* 若开启「本地离线识别」且可用，走 vosk；否则浏览器在线识别（webkit） */
-    const useLocal = !!(U().getProgress() && U().getProgress().localASR && window.LocalASR);
-    if (useLocal) {
-      U().Player.micRequest().then(function () {
-        toast("🎙 本地离线识别：朗读后点「停止」");
-        let rec = window.LocalASR.record(function (mono, rate) {
-          toast("正在识别…");
-          window.LocalASR.transcribe(mono, rate).then(function (text) {
-            done(text);
-          }).catch(function (e) {
-            toast("本地识别失败，回退浏览器在线识别：" + e.message);
-            evalRefWebkit(scene, done, btn);
-          });
-        });
-        /* 录音 2.5 秒后自动停止（说完一小段即可） */
-        setTimeout(function () { try { rec && rec.stop(); } catch (e) { /* ignore */ } }, 2500);
-      }).catch(function () { evalRefWebkit(scene, done, btn); });
-      return;
-    }
+    /* 识别走浏览器语音识别（Web Speech）。本地离线识别已于 2026-10-12 整体移除
+       （实测那个小模型在行业术语上错得太多，给出的分会误导人；见 README §6-8）。 */
     evalRefWebkit(scene, done, btn);
   }
 
@@ -713,7 +696,7 @@
 
   /* ---------- Azure 音素级发音评测（复用发音设置里的 Azure Key/Region） ----------
      P0-04：原先先试 `js/vendor/microsoft.cognitiveservices.speech.sdk.bundle-min.js`——
-     这个文件**从未随站发布**（js/vendor 里只有 phonemizer.js / vosk-worker.js / README.md，
+     这个文件**从未随站发布**（js/vendor 里只有 phonemizer.js / README.md，
      `git ls-files js/vendor` 也不跟踪它），于是每次点击都先白吃一个 404 再去 CDN。
      该 SDK 是**经典 IIFE/UMD 产物**（实测 550,893 B，挂 window.SpeechSDK，无顶层 export），
      所以这里**继续用 loadScript 是正确做法**——不能一律改成 import()；
@@ -1076,30 +1059,22 @@
       ensurePhonemizer().then(function (mod) { return callPhonemize(mod, said); })
     ]).then(function (ips) { renderDeepDx(out, scene, { text: said, refIpa: ips[0], recIpa: ips[1] }); });
   }
-  /* 离线近似识别：优先本地 vosk（离线），否则浏览器在线识别。返回识别文本。 */
+  /* 近似诊断用的识别：走浏览器语音识别（本地离线识别已于 2026-10-12 移除）。返回识别文本。 */
   function offlineTranscribe() {
-    if (window.LocalASR) {
-      return new Promise(function (resolve) {
-        var rec = window.LocalASR.record(function (mono, rate) {
-          window.LocalASR.transcribe(mono, rate).then(resolve).catch(function () { resolve(""); });
-        });
-        setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
-      });
-    }
     return new Promise(function (resolve) {
       var rec = U().Player.recognize({ lang: "en-US", onError: function () { resolve(""); }, onEnd: function (t) { resolve(t || ""); } });
       if (!rec) return resolve("");
       setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
     });
   }
-  /* 离线近似版音素诊断：无需大模型，vosk 词级 + phonemizer 简化比对 */
+  /* 近似版音素诊断：不下载大模型，用浏览器识别 + phonemizer 简化比对 */
   function deepDiagnoseOffline() {
     var scene = SCENES[state.sceneIdx];
     var out = document.getElementById("deepDxOut");
     if (!scene || !out) return;
-    if (!window.confirm("离线近似诊断：用本地 vosk 词级识别 + phonemizer 音标比对，无需下载模型、可离网。继续？")) return;
+    if (!window.confirm("近似诊断：用浏览器语音识别 + phonemizer 音标比对（不下载大模型）。需要浏览器能连上识别服务（推荐 Edge）。继续？")) return;
     out.hidden = false;
-    out.innerHTML = '<p class="sop-hint">离线近似诊断：本地识别 + 音标比对（无需下载大模型）。请朗读整句…</p>';
+    out.innerHTML = '<p class="sop-hint">近似诊断：浏览器识别 + 音标比对（不下载大模型）。请朗读整句…</p>';
     U().Player.micRequest().then(function () {
       return offlineTranscribe();
     }).then(function (text) {

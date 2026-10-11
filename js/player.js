@@ -652,7 +652,6 @@
   let stream = null;
   let levelCtx = null, levelAnalyser = null, levelTimer = null;
   let lastPeak = 0;
-  let pcmChunks = [], pcmRate = 0;
 
   function stopLevelMeter() {
     if (levelTimer) { clearInterval(levelTimer); levelTimer = null; }
@@ -661,34 +660,6 @@
   }
   /* 本次录音的峰值电平（0..1）。UI 用它区分"没说话 / 声音太小 / 正常"。 */
   Player.lastMicPeak = function () { return lastPeak; };
-
-  /* 线性插值重采样到 16k（vosk 的 KaldiRecognizer 按 16k 建模）。
-     放在这里而不是调用方：采样率只有拿到了 AudioContext 的人知道。 */
-  function resampleTo16k(list, rate) {
-    if (!list || !list.length) return null;
-    let total = 0;
-    for (let i = 0; i < list.length; i++) total += list[i].length;
-    if (!total) return null;
-    const src = new Float32Array(total);
-    let off = 0;
-    for (let i = 0; i < list.length; i++) { src.set(list[i], off); off += list[i].length; }
-    if (!(rate > 0) || Math.abs(rate - 16000) < 1) return src;
-    const ratio = rate / 16000;
-    const outLen = Math.floor(total / ratio);
-    if (outLen <= 0) return src;
-    const out = new Float32Array(outLen);
-    for (let i = 0; i < outLen; i++) {
-      const pos = i * ratio;
-      const i0 = Math.floor(pos);
-      const i1 = i0 + 1 < total ? i0 + 1 : total - 1;
-      const f = pos - i0;
-      out[i] = src[i0] * (1 - f) + src[i1] * f;
-    }
-    return out;
-  }
-  /* 本次录音的 16k 单声道 PCM（Float32Array）。没开 capturePcm 或采不到时为 null。
-     用途：一次录音即可直接喂给本机 vosk 识别，**不必让用户为评分再读一遍**。 */
-  Player.lastRecordingPcm = function () { return resampleTo16k(pcmChunks, pcmRate); };
 
   Player.startRecording = function (opts) {
     const o = opts || {};
@@ -702,55 +673,30 @@
           stream = s;
           chunks = [];
           lastPeak = 0;
-          pcmChunks = [];
-          pcmRate = 0;
           mediaRecorder = new MediaRecorder(s);
           mediaRecorder.ondataavailable = function (e) {
             if (e.data && e.data.size > 0) chunks.push(e.data);
           };
           mediaRecorder.start();
-          const needLevel = typeof o.onLevel === "function";
-          if (needLevel || o.capturePcm) {
+          if (typeof o.onLevel === "function") {
             try {
               const Ctx = window.AudioContext || window.webkitAudioContext;
               levelCtx = new Ctx();
-              pcmRate = levelCtx.sampleRate || 48000;
               const src = levelCtx.createMediaStreamSource(s);
-              if (needLevel) {
-                levelAnalyser = levelCtx.createAnalyser();
-                levelAnalyser.fftSize = 1024;
-                src.connect(levelAnalyser);
-                const buf = new Float32Array(levelAnalyser.fftSize);
-                levelTimer = setInterval(function () {
-                  if (!levelAnalyser) return;
-                  levelAnalyser.getFloatTimeDomainData(buf);
-                  let sum = 0;
-                  for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-                  const rms = Math.sqrt(sum / buf.length);
-                  if (rms > lastPeak) lastPeak = rms;
-                  try { o.onLevel(rms); } catch (e) { /* 回调是 UI 的事，不拖垮录音 */ }
-                }, 100);
-              }
-              if (o.capturePcm) {
-                /* 用 ScriptProcessor 收 PCM；经**增益 0** 的节点接到 destination ——
-                   只为了"被拉数据"，不会把麦克风回放到扬声器（否则会啸叫）。
-                   累计上限 15 秒：够一句话，且不会无限吃内存。 */
-                const proc = levelCtx.createScriptProcessor(4096, 1, 1);
-                const sink = levelCtx.createGain();
-                sink.gain.value = 0;
-                let samples = 0;
-                const CAP = 16000 * 15 * (pcmRate / 16000);
-                proc.onaudioprocess = function (e) {
-                  if (samples > CAP) return;
-                  const c = new Float32Array(e.inputBuffer.getChannelData(0));
-                  samples += c.length;
-                  pcmChunks.push(c);
-                };
-                src.connect(proc);
-                proc.connect(sink);
-                sink.connect(levelCtx.destination);
-              }
-            } catch (e) { /* 电平表/PCM 是增强项：拿不到就静默降级，绝不影响录音本身 */ }
+              levelAnalyser = levelCtx.createAnalyser();
+              levelAnalyser.fftSize = 1024;
+              src.connect(levelAnalyser);
+              const buf = new Float32Array(levelAnalyser.fftSize);
+              levelTimer = setInterval(function () {
+                if (!levelAnalyser) return;
+                levelAnalyser.getFloatTimeDomainData(buf);
+                let sum = 0;
+                for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+                const rms = Math.sqrt(sum / buf.length);
+                if (rms > lastPeak) lastPeak = rms;
+                try { o.onLevel(rms); } catch (e) { /* 回调是 UI 的事，不拖垮录音 */ }
+              }, 100);
+            } catch (e) { /* 电平表是增强项：拿不到就静默降级，绝不影响录音本身 */ }
           }
           resolve();
         })
@@ -876,94 +822,14 @@
   /* ---------------- 语音识别评测（逐词打分） ---------------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  Player.recognitionSupported = function () { return !!(SR || (window.LocalASR && localASROn())); };
+  Player.recognitionSupported = function () { return !!SR; };
   /* 浏览器语音识别（依赖 Google 服务）。国内无法直连时，请改用系统语音输入（Web Speech、软键盘听写）。 */
   Player.recognitionHint = "语音识别依赖 Google 服务。若你开了 VPN/代理仍报错，多为 Chrome 未走代理：请在 Chrome 设置 → 系统 → 开启「使用系统代理」(或让 VPN 全局接管)，或切换其他能连通 Google 的网络。若始终不可用，可用系统语音听写（光标放输入框后按 Win+H 说话）作为兜底。";
-
-  /* ============ 本地离线识别优先（真实使用反馈修复，2026-10-11）============
-     用户反馈：「单词及句子我只能听系统播放……跟读及评分这个功能缺失」。
-     实测根因不是麦克风不行，而是**全站跟读评分默认走浏览器识别（Chrome = Google 服务器）**，
-     国内不可达 → 即使找到入口，说完也只会得到识别失败。
-     本机若已放好 vosk 小模型（`models/vosk-model-small-en-us-0.15/`，约 67 MB，仅本机安装、
-     `.gitignore` 排除、不随站分发），就走**完全离线的本地识别**：不联网、不受墙影响。
-     开关沿用「发音设置 → 优先本地识别」（`progress.localASR`）；Lead 在模型就绪时会默认打开。 */
-  function localASROn() {
-    try {
-      if (!window.LocalASR) return false;
-      const raw = localStorage.getItem("fte-progress-v1");
-      if (!raw) return false;
-      const p = JSON.parse(raw);
-      return !!(p && p.localASR);
-    } catch (e) { return false; }
-  }
-  Player.localASROn = localASROn;
-
-  /* 本地识别：录音 → vosk 转写 → 回调。maxMs 为最长录音（默认 2.5 秒，够一个词/短句）。
-     ★ P1-使用反馈加固（2026-10-11）：**必须有硬超时**。离线模型是 67MB 的 WASM，
-       实测在无头浏览器里出现过"创建模型后长时间不回调"的情况——若没有超时，
-       用户点 🎤 会永远停在"请跟读…"（比报错更糟：用户以为是自己读得不对）。
-       超时或失败后标记 localASRBroken，后续调用不再让用户白等。 */
-  Player.localASRBroken = false;
-  Player.localASRFirstDone = false;
-  function recognizeLocal(opts) {
-    const maxMs = opts.maxMs || 2500;
-    /* ★ 首次调用给足时间：第一次要**下载 39MB 压缩包 + 解包到 IndexedDB + 建模型**，
-       本机实测（headless）150 秒仍未完成；真实浏览器通常更快，但一次成功之后就吃缓存。
-       之后的调用若还不返回，说明链路有问题，25 秒就够判断——不让用户反复白等。 */
-    const hardMs = opts.hardMs || (Player.localASRFirstDone ? 25000 : 180000);
-    let stopped = false, handle = null, pendingStop = false, settled = false;
-    const settle = function (fn) {
-      if (settled) return; settled = true;
-      clearTimeout(recTimer); clearTimeout(hardTimer);
-      fn();
-    };
-    const finish = function (text) {
-      settle(function () {
-        stopped = true;
-        Player.localASRFirstDone = true;
-        if (opts.onResult) opts.onResult(text || "", true);
-        if (opts.onEnd) opts.onEnd(text || "");
-      });
-    };
-    const fail = function (msg) {
-      settle(function () {
-        stopped = true;
-        Player.localASRBroken = true;
-        if (opts.onError) opts.onError(new Error(msg));
-      });
-    };
-    Player.micRequest().then(function () {
-      if (stopped) return;
-      /* record 回调带**真实采样率**：识别的 KaldiRecognizer 必须按实际速率喂音频，
-         此前一律按 16k 猜，48k 的录音喂进去等于语速变成 3 倍，必然识别不出来。 */
-      handle = window.LocalASR.record(function (mono, rate) {
-        window.LocalASR.transcribe(mono, rate).then(finish).catch(function (e) {
-          fail("local-asr-failed: " + ((e && e.message) || "识别失败"));
-        });
-      });
-      if (pendingStop) { try { handle && handle.stop(); } catch (e) { /* ignore */ } }
-    }).catch(function (e) { fail(String((e && e.message) || e)); });
-    const recTimer = setTimeout(function () {
-      if (handle) { try { handle.stop(); } catch (e) { /* ignore */ } } else { pendingStop = true; }
-    }, maxMs);
-    const hardTimer = setTimeout(function () {
-      try { handle && handle.stop(); } catch (e) { /* ignore */ }
-      fail("本地离线识别超时（模型加载或转写未在 " + Math.round(hardMs / 1000) + " 秒内完成）。" +
-        "可改用在线识别：设置里取消「优先本地识别」后用 Edge 打开（Edge 的识别国内可达）。");
-    }, hardMs);
-    return {
-      stop: function () { clearTimeout(recTimer); clearTimeout(hardTimer); try { handle && handle.stop(); } catch (e) { /* ignore */ } }
-    };
-  }
 
   /* 开始一次实时识别。opts: { lang, onResult(text,isFinal), onEnd(text), onError(err), retries }
      返回 { stop() }。对 no-speech / 一过性 network 错误自动重试（VPN 场景常见）。 */
   Player.recognize = function (opts) {
     opts = opts || {};
-    /* P1-使用反馈修复：**离线优先**。本机模型在场且开关打开时，一次都不碰 Google 服务器
-       （这正是国内 Chrome 下"跟读评分不可用"的根因）。识别器不可用时再退回浏览器识别。 */
-    /* 本地识别连续失败后不再让用户白等（localASRBroken），直接走浏览器识别 */
-    if (window.LocalASR && localASROn() && !Player.localASRBroken) return recognizeLocal(opts);
     if (!Player.recognitionSupported()) {
       if (opts.onError) opts.onError(new Error("unsupported"));
       return null;

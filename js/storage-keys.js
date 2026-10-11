@@ -53,7 +53,6 @@
       { key: "fte-rep", kind: "pref", owner: "player.js / phonemes.js", backup: true, note: "词级跟读的复读次数与间隔（{n:1-5, gap:0.5-5 秒}，供 Player.repeat 使用）" },
       { key: "fte-immerse", kind: "pref", owner: "immerse.js", backup: true, note: "全英模式（隐藏与英文并排的译文；不含答案面与判分依据）" },
       { key: "fte-weekly-v1", kind: "progress", owner: "weekly.js", backup: true, note: "「本周新料」的已投料标记（按 ISO 周，跨周自动归零）" },
-      { key: "fte-local-asr-v1", kind: "pref", owner: "asr-local.js", backup: true, note: "是否优先使用本地离线识别" },
       { key: "fte-subtitle-mode", kind: "pref", owner: "subtitle.js", backup: true, note: "字幕四档位选择" },
       { key: "fte-sub-notes-v1", kind: "progress", owner: "subtitle.js", backup: true, note: "字幕逐句笔记（按 文件名+起始秒 定位，换字幕不串位）" },
       { key: "fte-tutor-fill", kind: "pref", owner: "tutor.js", backup: true, note: "AI 陪练场景预填/临时输入" },

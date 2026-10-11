@@ -26,7 +26,6 @@ const appCode = stripComments(app);
 const css = read("css/style.css");
 const player = read("js/player.js");
 const subtitle = read("js/subtitle.js");
-const asr = read("js/asr-local.js");
 const pwa = read("js/pwa-init.js");
 const pkg = JSON.parse(read("package.json"));
 
@@ -36,28 +35,17 @@ check("P2-1：两处回退都在调用 speakNative 前把自己从 current 摘�
 check("P2-1：回退逻辑附带原因说明（防止后人不明就里地删掉）",
   /speakNative.*current\.stop|current\.stop.*stopped/s.test(player) || /静默中断|自锁/.test(player));
 
-/* ============ P2-2 离线识别诚实化 ============ */
-check("P2-2：LocalASR 提供就绪探测 probe()", /function probe\(/.test(asr) && /probe: probe/.test(asr));
-/* ★ 第三/四轮（2026-10-11 晚）：离线识别的实现已从「加载 dist/vosk.js 并用它的 KaldiRecognizer」
-   换成「直接驱动同源 worker 文件 js/vendor/vosk-worker.js」。原因见 js/asr-local.js 头注释：
-   dist/vosk.js 用 blob Worker，会继承文档 CSP，严格 CSP 下必然被拦死且静默挂住。
-   所以这里守的是新架构的关键接线，而不是那个已经不存在的客户端 API。 */
-check("P2-2b：必须走同源 worker 文件，并带硬超时 + worker 报错上报（不得静默挂住）",
-  /WORKER_FILE = "js\/vendor\/vosk-worker\.js"/.test(stripComments(asr)) &&
-  /new Worker\(WORKER_URL\)/.test(stripComments(asr)) &&
-  /w\.onerror\s*=/.test(stripComments(asr)) &&
-  /request\(key, timeoutMs/.test(stripComments(asr)));
-check("P2-2c：送音频前必须 ×0x8000（worker 不缩放；漏了会识别不出文本且不报错）",
-  /\* 0x8000/.test(stripComments(asr)));
-check("P2-2d：结果只在 msg.result 是非数组对象时才下钻（内层 result 是数组，展开两次会得到空文本）",
-  /!Array\.isArray\(inner\)/.test(stripComments(asr)));
-check("P2-2e：worker 由 tools/build-vosk-worker.js 抽取、带 sha256 清单，可复核",
-  /build-vosk-worker/.test(asr) && /MODEL_ARCHIVE_URL/.test(asr));
-check("P2-2：设置页明确写明「本站不分发该模型」", /本站不分发该模型/.test(html));
-check("P2-2：未就绪时禁用开关并清掉已勾选状态",
-  /setLocalASR\.disabled = true/.test(appCode) && /setLocalASR\.checked = false/.test(appCode) &&
-  /localASRNote/.test(appCode));
-check("P2-2：设置了运行时说明节点 id=localASRNote", /id="localASRNote"/.test(html));
+/* ============ P2-2 离线识别：**已于 2026-10-12 整体移除** ============
+   原 P2-2 守的是"本地离线识别要诚实"（probe/selfTest/未就绪禁用开关…）。实测那个小模型在
+   行业术语上错得太多（isocyanate → "isis i and eight"），给出的分会误导人，故整体删除；
+   这些检查随之失效 —— 但**不能删完就算**，否则功能会悄悄回来（见 test-p1-invariants.js §10
+   的"已移除的文件不得复活"反向守卫）。这里只留一条：设置页必须把"评分走哪个引擎"说清楚。 */
+check("P2-2：设置页必须写明跟读评分走浏览器语音识别、并推荐 Edge",
+  /id="asrSourceNote"/.test(html) && /Edge/.test(html) && /Web Speech API/.test(html));
+check("P2-2：设置页不得再出现「优先本地识别」开关与其说明节点",
+  !/setLocalASR|localASRNote/.test(html) && !/id="localASRNote"/.test(read("index.html")));
+check("P2-2：app.js 不得再对已移除的开关做禁用/勾选操作",
+  !/setLocalASR/.test(appCode) && !/localASRNote/.test(appCode));
 
 /* ============ P2-3 移动端导航 ============ */
 check("P2-3：窄屏导航默认收起（display:none）且 .show 才展开",
