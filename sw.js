@@ -10,7 +10,9 @@
      且 js/vendor/vosk.js（5.8 MB）会与离线外壳抢同一桶；iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v98";   /* 第一阶段（P0'/P1/P2/P3）+ 第二阶段（P4 口径 / P5 段位措辞 / P6 明日起点 / P7 单单一致字段）
+const CACHE = "fte-v99";   /* 图标修复：icons/icon-192.png 与 apple-touch-icon.png 原为退化的纯渐变图（无地球图案），已由 icon-512.png 重建为正确设计。
+                              PRECACHE 清单集合与指纹不变，升版本只为让老用户不吃到缓存里的空白主屏图标。
+                              第一阶段（P0'/P1/P2/P3）+ 第二阶段（P4 口径 / P5 段位措辞 / P6 明日起点 / P7 单单一致字段）
                               + P8 字幕精听三件套 + P9 全英模式·本周新料·进度搬运 + P10 词级跟读（复读次数与间隔）
                               + 术语库（🔍 专业术语速查：新增 js/data-glossary.js · js/glossary.js，并改 index.html · js/app.js）
                               + 术语库音标全量校订（324 条补音标，改 js/data-glossary.js · js/glossary.js）
