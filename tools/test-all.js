@@ -9,8 +9,17 @@
 "use strict";
 const { spawnSync } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 
 const ROOT = path.join(__dirname, "..");
+
+/* ★ CI 修复（2026-10-11）：单一数据源门禁的环境自适配。
+   小程序端是**兄弟目录** `../外贸英语小程序/`，不在本仓库里 ——
+   所以 CI / 异地 clone 里永远没有 `utils/data.js`，而该门禁默认 strict（测不了 = 失败），
+   直接导致 `node tools/test-all.js` 在 CI 里 100% 常红（本次推送就是这么红的）。
+   这里按"数据在不在"决定参数：本机严格；CI 显式 `--allow-missing`，
+   并把这件事**写进 job 标签**（不是静默跳过，输出可见）。 */
+const HAS_MINIPROGRAM = fs.existsSync(path.join(ROOT, "..", "外贸英语小程序", "utils", "data.js"));
 
 /* gate: true → 必须 exit 0；false → 仅重算报告，失败不阻塞（打印即可） */
 const JOBS = [
@@ -47,7 +56,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-ui-quality.js"], gate: true, label: "UI 质量：播放回退 / 离线识别诚实 / 移动导航 / 键盘 ARIA / 对比度现场计算" },
   { cmd: "node", args: ["tools/test-outcomes.js"],gate: true,  label: "出口能力断言：锚点存在 / 口径守卫 / 加载顺序" },
   { cmd: "node", args: ["tools/test-difficulty.js"], gate: true, label: "难度标定 P3-4：CEFR 命中数门限 / 条目量项 / 同形异义排除 / dom 收窄" },
-  { cmd: "node", args: ["tools/check-single-source.js"], gate: true, label: "单一数据源：小程序数据可由网页版重生成" },
+  { cmd: "node", args: ["tools/check-single-source.js"].concat(HAS_MINIPROGRAM ? [] : ["--allow-missing"]), gate: true, label: "单一数据源：小程序数据可由网页版重生成" + (HAS_MINIPROGRAM ? "（严格模式：本机检测到小程序数据）" : "（⚠️ 本环境没有 ../外贸英语小程序/utils/data.js → 传 --allow-missing：漂移检查只在有该目录的机器上生效）") },
   { cmd: "node", args: ["tools/test-doc-numbers.js"], gate: true, label: "文档数字对账：README 的数量宣称必须与实测数据一致" },
   { cmd: "node", args: ["tools/test-p0-content.js"], gate: true, label: "P0 内容不变量：术语/法规禁用串 · GA 卷舌 · #wsAi 渲染 · ESM 加载 · 冒烟页口径 · 零埋点措辞" },
   { cmd: "node", args: ["tools/test-ai-prompt-inventory.js"], gate: true, label: "AI 调用点清单：FACT_GUARD 覆盖 / AIDisclosure 披露 / termCheck 默认 / 调用点与渲染点漂移" },
