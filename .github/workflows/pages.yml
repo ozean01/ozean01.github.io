@@ -98,7 +98,8 @@ jobs:
           set -euo pipefail
           for f in index.html sw.js manifest.webmanifest icon.svg apple-touch-icon.png og-image.png \
                    css/style.css js/app.js js/pwa-init.js js/data.js js/storage-keys.js \
-                   js/vendor/vosk.js icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png; do
+                   js/player.js js/eval4.js js/score.js js/vendor/phonemizer.js \
+                   icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png; do
             test -f "_site/$f" || { echo "::error::发布集合缺少站点必需文件：$f"; exit 1; }
           done
           # index.html 引用的每个本地 <script src> / <link href> 都必须在发布集合里
