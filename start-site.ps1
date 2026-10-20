@@ -282,24 +282,20 @@ Write-Host ""
 Write-Host "  -------- Server log (close window to stop) --------" -ForegroundColor Cyan
 Write-Host ""
 
-# ---------- 3) Open the browser only after the port really accepts ----------
-# Probe with a RAW TCP connect to 127.0.0.1: no DNS, no IPv6, no HTTP, no proxy.
+# ---------- 3) Start the server, then open the browser only after the port accepts ----------
+# The server runs as a child of THIS console (no new window), so its log stays
+# visible and closing this window stops it.
 #
-# Why not "http://localhost + Invoke-WebRequest -TimeoutSec 2" (the first attempt):
-# on this machine `localhost` resolves to ::1 first and that attempt stalls, so a
-# single probe cost ~2.3s (measured) and EVERY probe tripped the 2s timeout. The
-# loop then exhausted itself and gave up SILENTLY - the server was up, but no
-# browser opened and nothing was printed. Now the wait is an instant TCP connect,
-# and the URL is always printed up front, so a failure can never be invisible.
-$opener = $null
+# Why the browser is opened from the MAIN script and not from a background job:
+# on Windows PowerShell 5.1 (this is what the .bat uses) a GUI app started
+# inside Start-Job never appeared - the job reported Completed, no error was
+# raised, and no browser window opened. The user then saw only the server log
+# and concluded "it does not start". Reproduced on this machine; opening the
+# browser from the main script works.
+$openExe = $null
 if (-not $NoBrowser) {
-  # ---------- 2b) Resolve the browser BEFORE starting the job ----------
-  # The job below runs in its own scope, so the executable path must be resolved
-  # here and passed in. Resolution is a plain file-existence check (no registry,
-  # no admin rights).
-  # (Resolve-BrowserExe is defined with the other helpers near the top: the
-  #  port-reuse branch above needs it before this point.)
-  $openExe = $null
+  # Resolve the browser BEFORE starting the server: a plain file-existence
+  # check, no registry, no admin rights.
   $openWhy = "system default browser"
   if ($Browser -eq 'auto') {
     $openExe = Resolve-BrowserExe 'edge'
@@ -315,28 +311,52 @@ if (-not $NoBrowser) {
   Write-Host "       Practice WITHOUT scoring (listen/repeat/record/A-B playback) works in any browser, Firefox included." -ForegroundColor DarkGray
   Write-Host "       Override: start-site.ps1 -Browser edge|chrome|firefox|default   (default: auto)" -ForegroundColor DarkGray
   Write-Host ""
-  $opener = Start-Job -ArgumentList $url, $port, $openExe -ScriptBlock {
-    param($u, $p, $exe)
-    for ($i = 0; $i -lt 100; $i++) {
-      $client = New-Object System.Net.Sockets.TcpClient
-      $up = $false
-      try { $client.Connect('127.0.0.1', $p); $up = $true } catch { } finally { $client.Close() }
-      if ($up) {
-        if ($exe) { Start-Process $exe $u } else { Start-Process $u }
-        return
+}
+
+$pyProc = Start-Process -FilePath $pyCmd -ArgumentList @('-m', 'http.server', "$port", '--bind', '127.0.0.1') -NoNewWindow -PassThru
+
+if (-not $NoBrowser) {
+  # Raw TCP probe on 127.0.0.1 (no DNS, no IPv6, no HTTP, no proxy): instant.
+  $up = $false
+  for ($i = 0; $i -lt 100; $i++) {
+    $client = New-Object System.Net.Sockets.TcpClient
+    try { $client.Connect('127.0.0.1', $port); $up = $true } catch { } finally { $client.Close() }
+    if ($up) { break }
+    Start-Sleep -Milliseconds 200
+  }
+  if ($up) {
+    # Open the browser and VERIFY it actually came up: a broken browser install
+    # (real case on this machine: Edge's "User Data" is a junction into a folder
+    # that had been deleted, so Edge exited at once) used to look exactly like
+    # "the site does not start". Never fail silently here.
+    $started = $false
+    if ($openExe) {
+      Start-Process $openExe $url
+      $browserName = [System.IO.Path]::GetFileNameWithoutExtension($openExe)
+      for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 300
+        if (Get-Process $browserName -ErrorAction SilentlyContinue) { $started = $true; break }
       }
-      Start-Sleep -Milliseconds 200
+      if (-not $started) {
+        Write-Host "  [WARN] The requested browser did not start; trying the system default..." -ForegroundColor Yellow
+        try { Start-Process $url; Start-Sleep -Seconds 2 } catch { }
+      }
+    } else {
+      Start-Process $url
+      Start-Sleep -Seconds 2
     }
+    if ($started) {
+      Write-Host "  [OK] Browser opened." -ForegroundColor Green
+    } else {
+      Write-Host "  [WARN] No browser window detected. Open this URL manually:" -ForegroundColor Yellow
+      Write-Host ("         " + $url) -ForegroundColor Yellow
+    }
+  } else {
+    Write-Host "  [WARN] The port did not accept in time; open the URL above manually." -ForegroundColor Yellow
   }
 }
 
-& $pyCmd -m http.server $port --bind 127.0.0.1
-
-# ---------- 4) Cleanup ----------
-if ($opener) {
-  Stop-Job $opener -ErrorAction SilentlyContinue
-  Remove-Job $opener -Force -ErrorAction SilentlyContinue
-}
+if ($pyProc) { Wait-Process -Id $pyProc.Id -ErrorAction SilentlyContinue }
 
 Write-Host ""
 Write-Host "  -------- Server stopped --------" -ForegroundColor Cyan
