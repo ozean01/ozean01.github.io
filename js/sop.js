@@ -227,7 +227,7 @@
         {
           k: "s3f", cn: "报检与危险品资料（化工品必看）",
           note: "属法定检验目录的货物要报检；溶剂型复膜胶、油墨等危险化学品出口还需危险特性分类鉴定报告、危包证（性能与使用鉴定）、UN 包装标记与英文危险公示标签。这类资料缺一样，港口直接不收货。",
-          en: "This is a solvent-based adhesive. Adhesives containing a flammable liquid are normally classified as UN 1133; the classification report is the authority, so please confirm the entry before shipping.",
+          en: "This is a solvent-based adhesive. Adhesives containing a flammable liquid are normally classified as UN 1133; the classification report is the authority, so please confirm the entry before shipping. We will provide the dangerous-goods packaging certificate and the English MSDS.",
           enCn: "这款是溶剂型胶粘剂。含易燃液体的胶粘剂通常归入 UN 1133；以危险特性分类鉴定报告为准，出货前请先确认具体条目。我们会提供危包证和英文版 MSDS。"
         }
       ]
@@ -577,7 +577,7 @@
     { ab: "CFR", cn: "成本加运费", mode: "仅海运 / 内河", risk: "货物装上船时（早于费用终点）", exp: "卖方", main: "卖方", ins: "买方", imp: "买方", note: "风险转移点与费用承担点分离，这是最常被误解的一条。" },
     { ab: "CIF", cn: "成本、保险加运费", mode: "仅海运 / 内河", risk: "货物装上船时", exp: "卖方", main: "卖方", ins: "卖方（最低险别）", imp: "买方", note: "卖方投保通常按 CIF 加成 10%，最低险别即可，不等于包送到。" },
     { ab: "CPT", cn: "运费付至", mode: "任何方式", risk: "交给第一承运人时", exp: "卖方", main: "卖方", ins: "买方", imp: "买方", note: "CFR 的万能版，空运、陆运、多式联运都能用。" },
-    { ab: "CIP", cn: "运费和保险费付至", mode: "任何方式", risk: "交给第一承运人时", exp: "卖方", main: "卖方", ins: "卖方（协会货物条款 A）", imp: "买方", note: "2020 版要求投保一切险级别，保额高于 CIF。" },
+    { ab: "CIP", cn: "运费和保险费付至", mode: "任何方式", risk: "交给第一承运人时", exp: "卖方", main: "卖方", ins: "卖方（协会货物条款 A）", imp: "买方", note: "2020 版要求投保协会货物条款 A；保额同为发票金额加成 10%，与 CIF 相同——差别在险别范围，不是保额。" },
     { ab: "DAP", cn: "目的地交货", mode: "任何方式", risk: "运抵指定地点、可卸货时", exp: "卖方", main: "卖方", ins: "卖方自担", imp: "买方", note: "卖方送到但不负责卸货。" },
     { ab: "DPU", cn: "卸货地交货", mode: "任何方式", risk: "在指定地点卸货完成时", exp: "卖方", main: "卖方", ins: "卖方自担", imp: "买方", note: "11 个术语中唯一要求卖方卸货；原 DAT 改名而来。" },
     { ab: "DDP", cn: "完税后交货", mode: "任何方式", risk: "在指定地点交买方处置时", exp: "卖方", main: "卖方", ins: "卖方自担", imp: "卖方", note: "卖方责任最大，报价必须把进口关税与税金算进去。" }
@@ -708,10 +708,10 @@
       '<span class="sop-en-t">' + esc(en) + '</span>' +
       '<span class="sop-en-cn">' + esc(cn || "") + '</span>' +
       '<span class="sop-en-btns">' +
-      '<button class="play-btn" data-action="play-text" data-text="' + esc(en) + '" title="朗读">▶</button>' +
-      '<button class="play-btn" data-action="sop-copy" data-text="' + esc(en) + '" title="复制">📋</button>' +
+      '<button class="play-btn" data-action="play-text" data-text="' + esc(en) + '" title="朗读这句话">🔊</button>' +
+      '<button class="play-btn" data-action="sop-copy" data-text="' + esc(en) + '" title="复制这句话">📋</button>' +
       '<button class="sop-practice" data-action="sop-practice" data-en="' + esc(en) + '" data-cn="' + esc(cn || "") + '" ' +
-      'title="把这句送进「五阶段闯关」：盲听 → 跟读 → 听写 → 复述">🎤 练</button>' +
+      'title="把这句送进「五阶段闯关」：盲听 → 跟读 → 听写 → 复述">🏁 练</button>' +
       '</span></div>';
   }
 
@@ -819,9 +819,9 @@
         '</div>' +
         '<div class="progressbar" style="margin:6px 0 10px"><i class="' + (sp === 100 ? "full" : "") + '" style="width:' + sp + '%"></i></div>' +
         '<p class="sop-stage-lead">' + esc(s.lead) + '</p>' +
-        /* 整阶段的英文一起练：单句「🎤 练」适合临时练一句，这个适合把一段流程的英文一次过完 */
+        /* 整阶段的英文一起练：单句「🏁 练」适合临时练一句，这个适合把一段流程的英文一次过完 */
         '<div class="sop-practice-row">' +
-        '<button class="btn btn-soft btn-sm" data-action="sop-practice-stage" data-id="' + s.id + '">🎤 本阶段 ' + s.steps.length + ' 句送进闯关</button>' +
+        '<button class="btn btn-soft btn-sm" data-action="sop-practice-stage" data-id="' + s.id + '" title="把这一个阶段的英文一起送进「五阶段闯关」">🏁 本阶段 ' + s.steps.length + ' 句送进闯关</button>' +
         '<button class="btn btn-outline btn-sm" data-action="sop-flash-stage" data-id="' + s.id + '">🃏 实词进单词卡</button>' +
         '</div>' +
         steps +
@@ -837,7 +837,7 @@
       '<div class="sop-overall-h"><b>📋 实操清单完成度</b><span>' + doneCount(all) + " / " + all.length + '（' + pct + '%）</span></div>' +
       '<div class="progressbar"><i class="' + (pct === 100 ? "full" : "") + '" style="width:' + pct + '%"></i></div>' +
       '<div class="sop-overall-a">' +
-      '<button class="btn btn-primary btn-sm" data-action="sop-practice-all">🎤 全部 ' + all.length + ' 句英文送进闯关</button>' +
+      '<button class="btn btn-primary btn-sm" data-action="sop-practice-all" title="把这一节全部英文送进「五阶段闯关」：盲听 → 跟读 → 听写 → 复述">🏁 全部 ' + all.length + ' 句英文送进闯关</button>' +
       '<button class="btn btn-soft btn-sm" data-action="sop-flash-all">🃏 实词进单词卡</button>' +
       '<button class="btn btn-outline btn-sm" data-action="sop-reset">↺ 清空勾选</button>' +
       '<span class="sop-hint">勾选状态保存在本浏览器，下次打开继续。每接一单可以清空重走一遍。上面这些英文都能直接拿去练——不只看和复制。</span>' +
@@ -971,7 +971,7 @@
       '<ul class="tip-list">' + DD_FLAGS.map(function (f) { return "<li>" + esc(f) + "</li>"; }).join("") + '</ul></div>' +
       '<div class="card"><div class="chat-head"><span>🗣 催款英文话术（由软到硬）</span><span class="sop-hint">可朗读、可复制、<b>可直接拿去练</b></span></div>' +
       '<div class="sop-practice-row">' +
-      '<button class="btn btn-soft btn-sm" data-action="sop-practice-chase">🎤 这 ' + CHASE_LINES.length + ' 句送进闯关</button>' +
+      '<button class="btn btn-soft btn-sm" data-action="sop-practice-chase" title="把这几句催款英文一起送进「五阶段闯关」">🏁 这 ' + CHASE_LINES.length + ' 句送进闯关</button>' +
       '<button class="btn btn-outline btn-sm" data-action="sop-flash-chase">🃏 实词进单词卡</button>' +
       '</div>' +
       CHASE_LINES.map(function (l) { return enLineHtml(l.en, l.cn); }).join("") + '</div>';
@@ -1099,7 +1099,7 @@
     { code: "3920.20", en: "Other plates, sheets, film... of polymers of propylene | PP 薄膜", cn: "聚丙烯 PP 薄膜" },
     { code: "3920.10", en: "Plates, sheets, film of polymers of ethylene | PE film", cn: "聚乙烯 PE 薄膜/膜" },
     { code: "3920.62", en: "Plates, sheets, film of poly(ethylene terephthalate) | PET", cn: "聚酯 PET 薄膜" },
-    { code: "3920.32", en: "Flexible film of polymers of vinyl chloride | PVC 膜", cn: "聚氯乙烯 PVC 膜" },
+    { code: "3920.41 / 3920.42", en: "Plates, sheets, film of polymers of vinyl chloride (≥6% / <6% plasticisers)", cn: "聚氯乙烯 PVC 薄膜（按增塑剂含量分 3920.41 / 3920.42）" },
     { code: "3921.90", en: "Other plates, sheets, film of plastics (incl. multi-layer)", cn: "其它塑料板/片/膜（含复合多层）" },
     { code: "3923.21", en: "Sacks and bags of polymers of ethylene | PE 袋", cn: "聚乙烯包装袋" },
     { code: "3923.29", en: "Sacks and bags of other plastics", cn: "其它塑料包装袋" },
@@ -1111,8 +1111,8 @@
     { code: "3208.90", en: "Paints/varnishes in non-aqueous medium (ink/gum)", cn: "非水介质油漆/清漆/油墨基料" },
     { code: "3215.19", en: "Printing ink, other than black", cn: "其它印刷油墨" },
     { code: "7607.11 / 7607.19", en: "Aluminum foil (rolls)", cn: "铝箔（卷）" },
-    { code: "3920.49 / 3920.99", en: "Oriented / other plastic film", cn: "定向/其它塑料薄膜" },
-    { code: "3809.10", en: "Finishing agents / carriers for dyeing", cn: "染整助剂/载体（水性助剂）" },
+    { code: "3920.99", en: "Plates, sheets, film of other plastics, not elsewhere specified", cn: "其它塑料薄膜（定向膜按材质归 3920.10 / 3920.20）" },
+    { code: "3809.91", en: "Finishing agents of a kind used in the textile or like industries", cn: "纺织/染整工业用助剂" },
     { code: "3912.39", en: "Cellulose ethers (in primary forms) — coating agent", cn: "纤维素醚（涂布助剂）" }
   ];
   function HS_REF_HTML() {
@@ -1589,10 +1589,10 @@
       '<th class="dg-no">#</th><th>品名 Description</th><th>HS</th><th style="width:60px">数量 Qty</th><th style="width:54px">单位</th><th style="width:72px">单价</th><th style="width:62px">净重/个</th><th style="width:62px">毛重/个</th><th style="width:58px">箱数</th><th style="width:58px">CBM</th><th style="width:24px"></th>' +
       '</tr></thead><tbody id="dgLineBody"></tbody></table>' +
       '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button class="btn btn-primary btn-sm" data-action="dg-gen">⚙️ 生成三份单证</button>' +
-      '<button class="btn btn-outline btn-sm" data-action="dg-add">➕ 添加明细行</button>' +
-      '<button class="btn btn-outline btn-sm" data-action="dg-xl">📊 导出 Excel (.xlsx)</button>' +
-      '<button class="btn btn-outline btn-sm" data-action="dg-clear">🗑 清空</button>' +
+      '<button class="btn btn-primary btn-sm" data-action="dg-gen" title="按上面录的信息生成 PI（形式发票）/ CI（商业发票）/ PL（装箱单）三份一致的文档">⚙️ 生成三份单证</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-add" title="在明细表末尾追加一行">➕ 添加明细行</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-xl" title="把当前明细导出为 .xlsx 表格文件">📊 导出 Excel (.xlsx)</button>' +
+      '<button class="btn btn-outline btn-sm" data-action="dg-clear" title="清空已录入的抬头与全部明细行（已生成的文档也会一起清掉）">🗑 清空录入</button>' +
       '</div></div>' +
       '<div class="dg-out" id="dgOut" hidden></div>';
   }

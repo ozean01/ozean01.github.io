@@ -90,7 +90,7 @@
 
   function filterBarHtml() {
     const chips = TAGS.map(function (t) {
-      return '<button class="pt-tag ' + (state.tag === t.id ? "on" : "") + '" data-action="pt-tag" data-id="' + t.id + '">' + t.label + '</button>';
+      return '<button class="pt-tag ' + (state.tag === t.id ? "on" : "") + '" data-action="pt-tag" data-id="' + t.id + '" aria-pressed="' + (state.tag === t.id ? "true" : "false") + '" title="只练这一类功能句型">' + t.label + '</button>';
     }).join("");
     const unitOpts = '<option value="all">全部单元</option>' + (typeof FTE_DATA !== "undefined" && FTE_DATA ? FTE_DATA.units.map(function (u) { return '<option value="' + u.id + '">' + u.id + '. ' + esc(u.title) + '</option>'; }).join("") : "");
     return '<div class="field"><label>按功能分类</label><div class="scen-grid" style="gap:8px">' + chips + '</div></div>' +

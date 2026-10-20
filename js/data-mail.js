@@ -5,7 +5,7 @@
       请当「高质量仿真语料」使用；引用给客户看之前请自行判断适用性。
 
    由来（SLA 专家评审遗留项「补真实业务语料」）：
-     站内已有 768 词 / 174 短语 / 28 段对话 + SOP 英文，但**全部是构造出来的教科书英文**：
+     站内已有 798 词 / 174 短语 / 28 段对话 + SOP 英文，但**全部是构造出来的教科书英文**：
      主谓一致、时态正确、句子完整、没有缩写、没有多余信息。
      学员在站内读得懂，一收到真实客户来信就卡住——因为真实的信件长这样：
        · 印度客户的 is having / do the needful，时态全乱但意思清楚；
@@ -155,7 +155,7 @@
         body: [
           { k: "p", s: "Dear Mr. Wang," },
           { k: "p", s: "We have to inform you that we detected delamination on the pouches made from PO 4412." },
-          { k: "p", s: "The film was processed on our VFFS line 3 weeks after receipt, under the conditions we agreed. After six weeks of storage at 23 °C / 50 % RH, we found separation between the PET and the aluminium layer on approximately 12 % of the pouches. Photos and the affected reel numbers are attached." },
+          { k: "p", s: "The film was processed on our VFFS line 3 weeks after receipt, under the conditions we agreed. After six weeks of storage at 23 °C / 50% RH, we found separation between the PET and the aluminium layer on approximately 12% of the pouches. Photos and the affected reel numbers are attached." },
           { k: "p", s: "We need from you:" },
           { k: "p", s: "1. A written root cause analysis, 8D format\n2. The retained samples of the affected reels for our own testing\n3. A statement whether the adhesive used was solvent-free and, if so, the coating weight" },
           { k: "p", s: "Please treat this as priority. Until we have your analysis we will hold the remaining stock." },
@@ -164,7 +164,7 @@
         gloss: [
           { t: "We have to inform you that", cn: "我们不得不通知您。德语区商务信的固定分寸感：内容很硬，措辞克制。**不是敌意。**" },
           { t: "VFFS line", cn: "立式成型填充封口机（Vertical Form Fill Seal）。制袋厂的核心设备，客户提这个是在说明「制袋工序没问题，问题在膜」。" },
-          { t: "23 °C / 50 % RH", cn: "23 摄氏度 / 50% 相对湿度。这是**标准测试条件**（RH = relative humidity）。客户特意写出条件，是在强调「我们是按规范存放的」，即**排除自己一方的原因**。" },
+          { t: "23 °C / 50% RH", cn: "23 摄氏度 / 50% 相对湿度。这是**标准测试条件**（RH = relative humidity）。客户特意写出条件，是在强调「我们是按规范存放的」，即**排除自己一方的原因**。" },
           { t: "3 weeks after receipt", cn: "收货后 3 周才上机。这个时间点很关键，见「坑」。" },
           { t: "separation between the PET and the aluminium layer", cn: "PET 与铝箔之间分离。注意不是 PE 层脱层——**脱层的层位决定了根本原因方向**（面材/铝箔之间通常是胶水或熟化问题）。" },
           { t: "8D format", cn: "8 Disciplines，制造业标准的问题解决八步框架（团队/问题描述/临时对策/根本原因/纠正措施/验证/预防/关闭）。**不是「写八条」。**" },
@@ -213,7 +213,7 @@
           { k: "p", s: "Hi there," },
           { k: "p", s: "Thanks for the samples - the seal looked good on our lab sealer." },
           { k: "p", s: "Before we cut the PO, a few things our QA needs on file:" },
-          { k: "p", s: "- TDS for the structure\n- COA, per lot\n- Is the sealant layer compliant under 21 CFR 177.1520 for fatty foods, and is the adhesive covered by 21 CFR 175.105? Can you issue a letter of guaranty?\n- What is the WVTR and OTR? We need it at 100 °F / 90 % RH, not at the standard condition.\n- What is the COF on the outside so it runs on our f/f/s?\n- Shelf life and storage conditions for the rolls" },
+          { k: "p", s: "- TDS for the structure\n- COA, per lot\n- Is the sealant layer compliant under 21 CFR 177.1520 for fatty foods, and is the adhesive covered by 21 CFR 175.105? Can you issue a letter of guaranty?\n- What is the WVTR and OTR? We need it at 100 °F / 90% RH, not at the standard condition.\n- What is the COF on the outside so it runs on our f/f/s?\n- Shelf life and storage conditions for the rolls" },
           { k: "p", s: "Our line runs at 60 pouches/min, so please advise on the slip and the anti-block." },
           { k: "p", s: "Please advise." },
           { k: "p", s: "Thanks,\nDoug Petrakis\nDoug Petrakis | Procurement\nMidwest Snack Co." }
@@ -224,9 +224,9 @@
           { t: "our QA needs on file", cn: "我们质检部门需要归档备查。on file = 存档。这句在说「不给文件就不下单」。" },
           { t: "TDS", cn: "Technical Data Sheet，技术数据表（典型值：厚度、克重、COF、WVTR/OTR、抗拉、热封参数）。" },
           { t: "COA, per lot", cn: "Certificate of Analysis，每批次的出厂检验报告。注意 per lot 是**每批都要**，不是给一次就完。" },
-          { t: "letter of guaranty", cn: "保函 / 合规担保函。美国食品接触材料常用，**法律效力比欧洲的 DoC 更强**——通常要公司名义签发，业务员不能自己出。" },
-          { t: "WVTR and OTR", cn: "水蒸气透过率（Water Vapor Transmission Rate）与氧气透过率（Oxygen Transmission Rate）。阻隔性能的两个核心指标。" },
-          { t: "100 °F / 90 % RH, not at the standard condition", cn: "100 华氏度（约 38 °C）/ 90% 相对湿度，**不是标准条件**。高湿高温下阻隔数值会明显变差——客户特意强调，是在提醒你**别拿标准条件的数据糊弄**。" },
+          { t: "letter of guaranty", cn: "保函 / 合规担保函。美国食品接触材料常用（基于 FD&C 法案的 guaranty 机制）；它与欧盟 DoC 的法律性质不同，不宜简单比较强弱——通常要公司名义签发，业务员不能自己出。" },
+          { t: "WVTR and OTR", cn: "水蒸气透过率（Water Vapor Transmission Rate）与氧气透过率（Oxygen Transmission Rate）。阻隔性能的两个核心指标。注意客户原句 What is the WVTR and OTR? 是口语省略（两个指标并列，母语者常这样写）；**回信要写 What are the WVTR and OTR values?**，别把客户的随口写法当范本。" },
+          { t: "100 °F / 90% RH, not at the standard condition", cn: "100 华氏度（约 38 °C）/ 90% 相对湿度，**不是标准条件**。高湿高温下阻隔数值会明显变差——客户特意强调，是在提醒你**别拿标准条件的数据糊弄**。" },
           { t: "COF on the outside", cn: "外层摩擦系数（Coefficient of Friction）。膜卷外层太滑跑机会跑偏，太涩会走不动，是设备适性的关键。" },
           { t: "so it runs on our f/f/s", cn: "好让它在我们的成型填充封口机上跑得顺。f/f/s = form-fill-seal。" },
           { t: "the slip and the anti-block", cn: "滑爽性与抗粘连。slip 决定走机顺不顺，anti-block 决定膜卷会不会粘在一起揭不开。" },
@@ -234,7 +234,7 @@
           { t: "Please advise.", cn: "请指示/请答复。美式邮件最高频的收尾，等于「等你回话」。**不是客套，是真的在等。**" }
         ],
         traps: [
-          { t: "阻隔数据必须带测试条件", cn: "客户明确要 100 °F / 90 % RH 下的数值。**拿 23 °C / 50 % RH 的标准值交差，会被 QA 直接退档**——这是美国客户最常见的退档原因。如果手上只有标准条件的数据，正解是：附标准值 + 说明测试条件 + 承诺按客户条件送第三方测试并给时点。" },
+          { t: "阻隔数据必须带测试条件", cn: "客户明确要 100 °F / 90% RH 下的数值。**拿 23 °C / 50% RH 的标准值交差，会被 QA 直接退档**——这是美国客户最常见的退档原因。如果手上只有标准条件的数据，正解是：附标准值 + 说明测试条件 + 承诺按客户条件送第三方测试并给时点。" },
           { t: "letter of guaranty 不能业务员自己签", cn: "这是**有法律责任的担保文件**。回信要说明由哪个部门签发、需要什么材料、多久能给，而不是「好的我们提供」。真实业务里业务员擅自出具保函，出事是个人责任。" },
           { t: "1.5 mil 换算错一步，整封信都崩", cn: "1.5 mil ≈ 38 μm。若答成 1.5 mm 或 150 μm，客户会立刻判断你不专业。同理：他把 60 pouches/min 说出来，是在**暗示样品可能跑不快**——真正要正面回答的是开口性/滑爽，而不是把 COF 数字一贴了事。" },
           { t: "shelf life 要给数字", cn: "「shelf life and storage conditions for the rolls」必须落到具体数值，例如：12 个月（未开封）、≤ 30 °C、避免阳光直射、膜卷直立存放、开封后 7 天内用完。写 long 或 good 等于没答。" },
@@ -243,8 +243,8 @@
         drill: [
           { en: "Attached is the TDS for the PET/PE structure; COA will be issued per lot.", cn: "随附 PET/PE 结构的 TDS，COA 将按批次出具。" },
           { en: "The PE sealant layer complies with 21 CFR 177.1520 for fatty foods and the adhesive with 21 CFR 175.105, and our QA department can issue a letter of guaranty within five working days.", cn: "PE 热封层符合 21 CFR 177.1520（适用于油脂类食品），胶粘剂符合 21 CFR 175.105，我司质检部门可在五个工作日内出具保函。" },
-          { en: "Our standard WVTR value is measured at 38 °C / 90 % RH, which is close to the condition you specified.", cn: "我们的水蒸气透过率标准值是在 38 摄氏度 / 90% 相对湿度下测得的，与您指定的条件接近。" },
-          { en: "The outside COF is 0.28 kinetic, which runs cleanly on high-speed f/f/s equipment.", cn: "外层动摩擦系数为 0.28，可在高速成型填充封口机上顺畅运行。" },
+          { en: "Our standard WVTR value is measured at 38 °C / 90% RH, which is close to the condition you specified.", cn: "我们的水蒸气透过率标准值是在 38 摄氏度 / 90% 相对湿度下测得的，与您指定的条件接近。" },
+          { en: "The kinetic COF on the outside is 0.28, so the film runs cleanly on high-speed f/f/s equipment.", cn: "外层动摩擦系数为 0.28，因此该膜在高速成型填充封口机上运行顺畅。" },
           { en: "Regarding the storage, the rolls should be kept upright below 30 °C and used within 12 months of production.", cn: "关于存放：膜卷应直立存放于 30 摄氏度以下，并在生产后 12 个月内使用。" }
         ],
         points: [
@@ -300,7 +300,7 @@
         ],
         drill: [
           { en: "We understand the pressure from the exchange rate and the banking costs in Brazil.", cn: "我们理解贵方在汇率与银行成本上的压力。" },
-          { en: "However, our standard terms are 30 % deposit with the balance against copy of B/L.", cn: "不过我们的标准条件是 30% 定金、余款见提单副本。" },
+          { en: "However, our standard terms are 30% deposit with the balance against copy of B/L.", cn: "不过我们的标准条件是 30% 定金、余款见提单副本。" },
           { en: "As an alternative, we could accept a usance letter of credit at 60 days, which gives you the credit period without using your cash line.", cn: "另一种方案是接受 60 天远期信用证，这样您能获得账期又不占用现金额度。" },
           { en: "Just to be clear, could you confirm whether the 90 days is counted from the B/L date or from arrival?", cn: "为免误解，能否确认 90 天是从提单日起算还是从到港日起算？" },
           { en: "We value this relationship and would like to find a structure that works for both sides.", cn: "我们珍视这段合作，希望找到一个双方都可行的方案。" }
@@ -406,7 +406,7 @@
           { t: ">>> / >> / >", cn: "邮件引用层级：每多一个 > 就是**更早的一轮**。读线程要**从最下面往上读**，时间顺序才成立。" },
           { t: "kindly approve by 18 Mar so that we can keep the ETD", cn: "请在 3 月 18 日前批准，以便保住原定开船日。keep the ETD = 维持原船期。" },
           { t: "approved with one change", cn: "有条件批准：整体通过，但要改一处。**这一处就是真正待办事项**。" },
-          { t: "move the Recyclable logo to the bottom right and reduce it by 20 %", cn: "把「可回收」标识移到右下角并缩小 20%。" },
+          { t: "move the Recyclable logo to the bottom right and reduce it by 20%", cn: "把「可回收」标识移到右下角并缩小 20%。" },
           { t: "Noted. We will send the revised file for final approval.", cn: "已知悉，我们将发送修订稿供最终确认。这是 3/15 的**承诺**，而客户 3/19 说没收到。" },
           { t: "Our marketing team is asking.", cn: "我们市场部在问。把内部压力来源说出来，是在给你台阶——意思是「不是我要为难你，是我这边也顶着」。" },
           { t: "we cannot make the vessel", cn: "赶不上这条船。make the vessel 是外贸核心动词，等于「赶上船期」。" },
@@ -422,15 +422,15 @@
         ],
         drill: [
           { en: "Apologies for the delay - we should have sent the revised file on 15 March.", cn: "抱歉延迟——我们本应在 3 月 15 日发出修订稿。" },
-          { en: "We have moved the Recyclable logo to the bottom right and reduced it by 20 % as requested; the revised file is attached.", cn: "我们已按要求把可回收标识移到右下角并缩小 20%，修订稿见附件。" },
-          { en: "Please note that at 20 % reduction the logo may fall below the minimum print size required in some markets.", cn: "请注意缩小 20% 后，该标识可能低于部分市场要求的最小印刷尺寸。" },
+          { en: "We have moved the Recyclable logo to the bottom right and reduced it by 20% as requested; the revised file is attached.", cn: "我们已按要求把可回收标识移到右下角并缩小 20%，修订稿见附件。" },
+          { en: "Please note that at 20% reduction the logo may fall below the minimum print size required in some markets.", cn: "请注意缩小 20% 后，该标识可能低于部分市场要求的最小印刷尺寸。" },
           { en: "If we receive your final approval by 25 March, we can still make the 10 April vessel.", cn: "如能在 3 月 25 日前收到最终确认，我们仍能赶上 4 月 10 日的船。" },
           { en: "Should the approval come later than that, the next available vessel is 8 May.", cn: "若确认晚于该日期，下一班可用船期为 5 月 8 日。" }
         ],
         points: [
           { t: "Apologies", cn: "先认延迟" },
           { t: "bottom right", cn: "复述他要求的修改内容" },
-          { t: "20 %", cn: "确认缩小比例" },
+          { t: "20%", cn: "确认缩小比例" },
           { t: "attached", cn: "给出稿件" },
           { t: "minimum", cn: "提示最小尺寸合规风险" },
           { t: "25 March", cn: "给出真实截止日" },

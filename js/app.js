@@ -402,7 +402,10 @@
     recLine: null,
     mistFlow: "all",
     mistGrammar: "all",
-    mistReveal: false,
+    /* 易错点「揭晓」状态：单项与全部分开记。只在内存 State 里、**不持久化**——
+       揭晓是当下的自测动作，不该跨会话记住（刷新即回到"先自己想"）。 */
+    mistRevealAll: false,
+    mistRevealed: {},
     homeTab: ""            /* 已废弃：首页旅程 Tab 在 P1 移除，字段保留仅为兼容旧进度数据 */
   };
 
@@ -471,7 +474,7 @@
   /* ---------------- 头部状态 ---------------- */
   function updateHeaderStat() {
     const el = document.getElementById("headerStat");
-    if (el) el.textContent = "🎯 " + totalLearned() + "/" + totals.words;
+    if (el) el.textContent = "✅ " + totalLearned() + "/" + totals.words;
   }
 
   /* ---------------- 合并页容器（P3）----------------
@@ -725,7 +728,7 @@
       <div class="home-goal-filter">
         <span class="hgf-label">按你的目标筛选</span>
         ${HOME_GOALS.map(function (g) {
-          return '<button class="hgf-chip' + (g.id === goalId ? " on" : "") + '" data-action="home-goal" data-goal="' + g.id + '">' + esc(g.label) + '</button>';
+          return '<button class="hgf-chip' + (g.id === goalId ? " on" : "") + '" data-action="home-goal" data-goal="' + g.id + '" aria-pressed="' + (g.id === goalId ? "true" : "false") + '" title="按「' + esc(g.label) + '」筛选入口">' + esc(g.label) + '</button>';
         }).join("")}
       </div>
       ${goal && goal.id !== "all" ? '<div class="home-goal-hint">🎯 选了「' + esc(goal.label) + '」：优先从这几个区开始 <b>' +
@@ -737,7 +740,7 @@
           const inner = '<div class="z-ic">' + z.icon + '</div><div class="z-body"><b>' + esc(z.title) + '</b><small>' + esc(z.desc) + '</small></div>';
           return '<div class="zone-card' + (hot ? " goal-hot" : "") + '">' +
             '<a class="zone-link" href="' + z.href + '">' + inner + '</a>' +
-            '<button class="zone-star' + (isFav ? " on" : "") + '" data-action="home-fav" data-id="' + z.id + '" title="收藏到常用">' + (isFav ? "★" : "☆") + '</button>' +
+            '<button class="zone-star' + (isFav ? " on" : "") + '" data-action="home-fav" data-id="' + z.id + '" aria-pressed="' + (isFav ? "true" : "false") + '" aria-label="' + (isFav ? "取消收藏到常用" : "收藏到常用") + '" title="' + (isFav ? "取消收藏到常用" : "收藏到常用") + '">' + (isFav ? "★" : "☆") + '</button>' +
             '</div>';
         }).join("")}
       </div>
@@ -981,6 +984,15 @@
       queue: cards,                      // 强制包含全部选中词（不按是否到期过滤）
       idx: 0,
       stats: { known: 0, unknown: 0 },
+      /* deck/prod/hadCards 三个字段必须补齐：会话中途点「⇄ 切换牌型 / 切到产出档」时，
+         restartFlashWithCurrentUnit 会带着这些字段重开会话。缺了 deck 时 flashStoreKey
+         会落到 flashProd 线，缺了 hadCards 时空态会走完成态（说「已全部掌握」）。
+         旧版这里三个字段全缺，且 unit.id 是合成值 "atrisk"（不在 DATA.units 里），
+         于是切档时 getUnit("atrisk") → undefined → unitWords(u) 抛
+         "Cannot read properties of undefined (reading 'map')"，整页切换失败。 */
+      deck: "word",
+      prod: flashProdMode,
+      hadCards: cards.length > 0,
       reinforce: !!reinforce
     };
     toast("已生成 " + cards.length + " 张易忘词复习卡" + (reinforce ? "（启用 3 天加急）" : ""));
@@ -1112,7 +1124,7 @@
     const high = recurringTop(9).filter(function (x) { return !progress.learned[x.id]; }).slice(0, 6);
 
     const chip = function (text, id, unitId, extra) {
-      return '<span class="wk-word"><button class="play-btn" data-action="play-text" data-text="' + esc(text) + '" title="朗读">▶</button>' +
+      return '<span class="wk-word"><button class="play-btn" data-action="play-text" data-text="' + esc(text) + '" title="朗读">🔊</button>' +
         '<span class="wk-t">' + esc(text) + '</span>' +
         (extra ? '<span class="wk-x">' + esc(extra) + '</span>' : "") +
         '<a class="wk-go" href="#/unit/' + unitId + '">去学 →</a></span>';
@@ -1120,7 +1132,7 @@
 
     return `
     <div class="card wk-review">
-      <div class="chat-head"><span>📅 本周易错 / 高频词回顾</span><span class="sop-hint">凭记忆先想，再点 ▶ 朗读，复习错词与被忽略的高频词</span></div>
+      <div class="chat-head"><span>📅 本周易错 / 高频词回顾</span><span class="sop-hint">凭记忆先想，再点 🔊 朗读，复习错词与被忽略的高频词</span></div>
       <div class="wk-cols">
         <div class="wk-col">
           <b>🔥 本周常错词 <span class="wk-sub">（最近复习仍易错的词）</span></b>
@@ -1539,6 +1551,12 @@
   }
 
   /* ================= 中国外贸人高频易错点 ================= */
+  /* 单项揭晓的 key：组 id + 错误句。两者在数据里唯一，且不随"流程/语法点"筛选变化，
+     所以筛选切换后同一条仍能保持自己的揭晓状态。 */
+  function mistKey(g, m) { return g.id + "#" + m.wrong; }
+  function mistItemRevealed(g, m) {
+    return !!(State.mistRevealAll || (State.mistRevealed && State.mistRevealed[mistKey(g, m)]));
+  }
   function renderMistakes() {
     const MK = window.FTE_MISTAKES;
     if (!MK || !MK.groups || !MK.groups.length) {
@@ -1549,25 +1567,24 @@
     const grammars = MK.grammars || [];
     const activeFlow = State.mistFlow || "all";
     const activeGrammar = State.mistGrammar || "all";
-    const reveal = State.mistReveal;
 
     const flowTabs = [
-      '<button class="chip ' + (activeFlow === "all" ? "active" : "") + '" data-action="mistake-flow" data-flow="all">全部流程</button>'
+      '<button class="chip ' + (activeFlow === "all" ? "active" : "") + '" data-action="mistake-flow" data-flow="all" aria-pressed="' + (activeFlow === "all" ? "true" : "false") + '">全部流程</button>'
     ].concat(flows.map(function (f) {
-      return '<button class="chip ' + (activeFlow === f.id ? "active" : "") + '" data-action="mistake-flow" data-flow="' + f.id + '">' + esc(f.label) + '</button>';
+      return '<button class="chip ' + (activeFlow === f.id ? "active" : "") + '" data-action="mistake-flow" data-flow="' + f.id + '" aria-pressed="' + (activeFlow === f.id ? "true" : "false") + '">' + esc(f.label) + '</button>';
     })).join("");
 
     /* 「按语法知识点」二级索引：跟随当前流程，标出这个维度下有哪些语法点（对应《英语常见问题
        解答大词典》那本书的"按语法/按试题多目录索引"思路），点击二级筛选合并到同级过滤。 */
     const grammarTabs = [
-      '<button class="chip ' + (activeGrammar === "all" ? "active" : "") + '" data-action="mistake-grammar" data-grammar="all">全部语法点</button>'
+      '<button class="chip ' + (activeGrammar === "all" ? "active" : "") + '" data-action="mistake-grammar" data-grammar="all" aria-pressed="' + (activeGrammar === "all" ? "true" : "false") + '">全部语法点</button>'
     ].concat(grammars.map(function (g) {
       const count = MK.groups.reduce(function (n, gr) {
         return n + (activeFlow === "all" || gr.flow === activeFlow
           ? gr.items.filter(function (m) { return m.grammar === g.id; }).length : 0);
       }, 0);
       if (!count) return "";
-      return '<button class="chip ' + (activeGrammar === g.id ? "active" : "") + '" data-action="mistake-grammar" data-grammar="' + g.id + '">' + esc(g.label) + ' · ' + count + '</button>';
+      return '<button class="chip ' + (activeGrammar === g.id ? "active" : "") + '" data-action="mistake-grammar" data-grammar="' + g.id + '" aria-pressed="' + (activeGrammar === g.id ? "true" : "false") + '">' + esc(g.label) + ' · ' + count + '</button>';
     })).filter(Boolean).join("");
 
     const groups = MK.groups.filter(function (g) {
@@ -1579,22 +1596,28 @@
       return { g: g, items: items };
     }).filter(function (x) { return activeGrammar === "all" || x.items.length; });
 
+    /* 顶部按钮的文案依据「当前筛选结果里是否每条都已揭晓」。不这样算的话，按钮会写着
+       "隐藏全部"却只影响部分条目，或写着"显示全部"实际只揭晓几条——文字与行为不符。 */
+    const allRevealed = groups.length > 0 && groups.every(function (x) {
+      return x.items.every(function (m) { return mistItemRevealed(x.g, m); });
+    });
+
     const groupHtml = groups.map(function (x) {
       const g = x.g;
       const items = x.items.map(function (m, i) {
         return `
         <div class="mistake-card" style="margin-top:12px">
           <div class="mk-wrong">❌ <span>${esc(m.wrong)}</span>
-            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.wrong)}" title="朗读错误版（感受为什么别扭）">▶</button>
+            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.wrong)}" title="朗读错误版（感受为什么别扭）">🔊</button>
           </div>
           <div class="mk-right">
-            ${reveal
-              ? '✅ <span>' + esc(m.right) + '</span><button class="play-btn" data-action="mistake-speak" data-text="' + esc(m.right) + '" title="朗读正确版">▶</button>'
-              : '<span class="mk-hidden" data-action="mistake-reveal" title="点击揭晓正确表达">（先想一下，再点揭晓）</span>'}
+            ${mistItemRevealed(g, m)
+              ? '✅ <span>' + esc(m.right) + '</span><button class="play-btn" data-action="mistake-speak" data-text="' + esc(m.right) + '" title="朗读正确版">🔊</button>'
+              : '<button type="button" class="linklike mk-hidden" data-action="mistake-reveal" data-mk="' + esc(mistKey(g, m)) + '" aria-pressed="false" title="点击只揭晓这一条的正确答案">（先想一下，再点揭晓）</button>'}
           </div>
           <div class="mk-why">💡 <b>为什么：</b>${esc(m.why)}</div>
           <div class="mk-ex">📖 行业例句：<span>${esc(m.ex)}</span>
-            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.ex)}" title="朗读例句">▶</button>
+            <button class="play-btn" data-action="mistake-speak" data-text="${esc(m.ex)}" title="朗读例句">🔊</button>
             <span class="mk-excn">${esc(m.exCn)}</span>
           </div>
         </div>`;
@@ -1628,7 +1651,7 @@
       <div class="chip-row" style="margin-top:8px;border-top:1px dashed var(--line,#e2e8f0);padding-top:8px">
         <span class="mistake-dim">📐 按语法知识点（二级索引）：</span>${grammarTabs}
       </div>
-      <button class="btn btn-outline btn-sm" data-action="mistake-reveal">${reveal ? "🙈 隐藏正确答案" : "👁 显示全部正确答案"}</button>
+      <button class="btn btn-outline btn-sm" data-action="mistake-reveal" aria-pressed="${allRevealed ? "true" : "false"}" title="一次切换全部条目的答案显示">${allRevealed ? "🙈 隐藏全部正确答案" : "👁 显示全部正确答案"}</button>
     </div>
     ${groupHtml || '<div class="empty"><div class="e-icon">📭</div>该流程下暂无易错点。</div>'}
     <div class="card" style="margin-top:18px;padding:14px 18px;font-size:13px;color:var(--muted)">
@@ -1677,7 +1700,7 @@
             return `<div class="phrase-row">
               <span class="p">${hlText(p.p, hl)}</span>
               <span class="pc">${hlText(p.cn, hl)}</span>
-              <button class="play-btn" data-action="play-text" data-text="${esc(p.p + ". " + p.ex)}" title="朗读">▶</button>
+              <button class="play-btn" data-action="play-text" data-text="${esc(p.p + ". " + p.ex)}" title="朗读">🔊</button>
               <button class="play-btn" data-action="shadow" data-text="${esc(p.p)}" title="跟读短语（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
               <button class="play-btn" data-action="shadow" data-text="${esc(p.ex)}" title="跟读例句（不需要语音识别）">🎙句</button>
               <button class="play-btn" data-action="shadow-eval" data-text="${esc(p.p)}" title="评测短语：需要浏览器的语音识别（推荐 Edge；Chrome 需走代理）">🎯</button>
@@ -1725,13 +1748,13 @@
         }).join("")}
       </aside>
       <div class="content-main">
-        <div class="tabs">
-          <button class="tab ${tab === "vocab" ? "active" : ""}" data-action="unit-tab" data-tab="vocab">词汇 (${u.vocab.length})</button>
-          <button class="tab ${tab === "phrases" ? "active" : ""}" data-action="unit-tab" data-tab="phrases">短语 (${u.phrases.length})</button>
-          <button class="tab ${tab === "dialogues" ? "active" : ""}" data-action="unit-tab" data-tab="dialogues">对话 (${u.dialogues.length})</button>
-          <button class="tab ${tab === "tips" ? "active" : ""}" data-action="unit-tab" data-tab="tips">技巧</button>
+        <div class="tabs" role="tablist" aria-label="单元内容（词汇 / 短语 / 对话 / 技巧）">
+          <button class="tab ${tab === "vocab" ? "active" : ""}" role="tab" aria-selected="${tab === "vocab" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="vocab">词汇 (${u.vocab.length})</button>
+          <button class="tab ${tab === "phrases" ? "active" : ""}" role="tab" aria-selected="${tab === "phrases" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="phrases">短语 (${u.phrases.length})</button>
+          <button class="tab ${tab === "dialogues" ? "active" : ""}" role="tab" aria-selected="${tab === "dialogues" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="dialogues">对话 (${u.dialogues.length})</button>
+          <button class="tab ${tab === "tips" ? "active" : ""}" role="tab" aria-selected="${tab === "tips" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="tips">技巧</button>
         </div>
-        <div id="unitContent">${tabHtml}</div>
+        <div id="unitContent" role="tabpanel" aria-label="单元内容">${tabHtml}</div>
       </div>
     </div>`;
 
@@ -1986,7 +2009,7 @@
           return '<button class="chip" data-action="placement-opt" data-idx="' + i + '" data-cn="' + esc(o) + '" data-w="' + esc(item.w) + '">' + esc(o) + '</button>';
         }).join("")}
       </div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:14px" data-action="placement-skip">😌 跳过 · 直接从最基础的开始</button>
+      <button class="btn btn-outline btn-sm" style="margin-top:14px" data-action="placement-skip">😌 跳过 · 直接从最基础的开始</button>
     </div>`;
   }
 
@@ -2036,7 +2059,7 @@
       <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
         <a class="btn btn-primary" href="#/unit/${rec.unitId}">从推荐单元开始 →</a>
         <button class="btn btn-outline" data-action="placement-retest">🔁 重新测试</button>
-        <a class="btn btn-ghost" href="#/units">浏览全部课程</a>
+        <a class="btn btn-outline" href="#/units">浏览全部课程</a>
       </div>
     </div>
     <div id="plCard">${(P && P.cardHtml) ? P.cardHtml() : ""}</div>`;
@@ -2053,10 +2076,10 @@
       <span class="ex">${hlText(w.v.ex, hl)} <b>${hlText(w.v.exCn, hl)}</b></span>
       <span class="actions">
         <button class="play-btn" data-action="play-word" data-id="${w.id}" title="朗读单词">🔊</button>
-        <button class="play-btn" data-action="play-sentence" data-id="${w.id}" title="朗读例句">▶</button>
+        <button class="play-btn" data-action="play-sentence" data-id="${w.id}" title="朗读例句">🔊</button>
         <button class="play-btn" data-action="shadow-eval" data-text="${esc(w.v.w)}" title="评测单词：需要浏览器的语音识别（推荐 Edge；Chrome 需走代理）">🎯</button>
         <button class="play-btn" data-action="shadow" data-text="${esc(w.v.w)}" title="跟读（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
-        <button class="learn-toggle ${learned ? "learned" : ""}" data-action="toggle-learn" data-id="${w.id}"
+        <button class="learn-toggle ${learned ? "learned" : ""}" data-action="toggle-learn" data-id="${w.id}" aria-pressed="${learned ? "true" : "false"}"
           title="${learned ? "已自评标记，点击取消" : "标记为已自评"}">${learned ? "✓" : "☆"}</button>
       </span>
     </div>`;
@@ -2067,7 +2090,7 @@
       <div class="dlg-head">
         <h4>💬 ${esc(d.title)}</h4>
         <div class="dlg-controls">
-          <button class="btn btn-soft btn-sm" data-action="play-dlg" data-id="${u.id}" data-idx="${di}">▶ 播放全部</button>
+          <button class="btn btn-soft btn-sm" data-action="play-dlg" data-id="${u.id}" data-idx="${di}">🔊 播放全部</button>
           <button class="btn btn-outline btn-sm" data-action="stop-dlg" hidden>⏹ 停止</button>
         </div>
       </div>
@@ -2079,9 +2102,9 @@
             <div class="cn">${hlText(l.cn, hl)}</div>
           </div>
           <span class="side">
-            <button class="play-btn" data-action="play-line" data-id="${u.id}" data-idx="${di}" data-li="${li}" title="朗读本句">▶</button>
+            <button class="play-btn" data-action="play-line" data-id="${u.id}" data-idx="${di}" data-li="${li}" title="朗读本句">🔊</button>
             <button class="play-btn" data-action="shadow" data-text="${esc(l.en)}" title="跟读本句（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比 → 给节奏与逐词反馈">🎙</button>
-            <button class="play-btn" data-action="shadow-eval" data-text="${esc(l.en)}" title="评测本句：需要语音识别（本机离线模型 / Edge / Chrome+代理）">🎯</button>
+            <button class="play-btn" data-action="shadow-eval" data-text="${esc(l.en)}" title="评测本句：需要浏览器语音识别（推荐 Edge；Chrome 需走代理）">🎯</button>
           </span>
         </div>`;
       }).join("")}
@@ -2146,7 +2169,7 @@
         '<div style="margin-top:6px"><button class="btn btn-outline btn-sm" data-action="word-shadow" data-id="' + id + '">🔁 再读一次</button></div>');
     }
     if (el) { el.classList.add("listening"); el.disabled = true; }
-    show('🔊 先听原声，然后<b>跟读一次</b>「' + esc(target) + '」…（说完约 2.5 秒自动停；本机装了离线模型时不联网）');
+    show('🔊 先听原声，然后<b>跟读一次</b>「' + esc(target) + '」…（说完约 2.5 秒自动停；识别走浏览器在线语音识别）');
     Player.speak(target, {
       rate: 0.9,
       onend: function () {
@@ -2170,7 +2193,7 @@
             onEnd: done
           });
           State.wordShadowRec = rec;
-          if (!rec) { done(""); toast("识别启动失败：请在「发音设置」开启「优先本地识别」，或改用 Edge 打开。"); }
+          if (!rec) { done(""); toast("识别启动失败：请改用 Edge 打开本站（识别走 Azure，国内可达），或确认已允许麦克风权限。"); }
         }).catch(function (err) { done(""); const m = Player.recErrorText(err); if (m) toast(m); });
       }
     });
@@ -2504,7 +2527,7 @@
             }
           });
           State.shadowRec = rec;
-          if (!rec) out('🎯 <b>' + label + '</b>：识别不可用（火狐没有该 API；Chrome 需代理）。点 🎤 可做不需要识别的 A/B 跟读。');
+          if (!rec) out('🎯 <b>' + label + '</b>：识别不可用（火狐没有该 API；Chrome 需代理）。点 🎙 可做不需要识别的 A/B 跟读。');
         }).catch(function (err) { out('🎯 ' + esc(micMsg(err))); });
       }
     });
@@ -2632,7 +2655,14 @@
       return;
     }
     if (s.idx >= s.queue.length) {
-      app.innerHTML = flashDoneHtml(s);
+      /* 队列为空要分两种情况，混在一起会撒谎（用户投诉的「文字与含义不符」）：
+         ① 这个牌型在该单元**本来就没有内容**（如单元里 0 条短语/骨架）→ 说清「没有可练的」；
+            旧版照样渲染「🎉 本单元已全部掌握 / 暂时没有需要复习的卡片了」，
+            把「没有内容」说成「你已掌握」，标题里还会出现空书名号「「」」；
+         ② 有卡、只是本轮没有到期卡（都练过且未到期）→ 走完成态（确实练完了）。
+         `hadCards` 由 startFlashSession 记录「选卡前池子里有没有内容」，是这两者的分水岭：
+         只看 queue.length 会把②也判成「没内容」，那是把这一轮的空说成这个单元的空。 */
+      app.innerHTML = s.hadCards === false ? flashEmptyHtml(s) : flashDoneHtml(s);
       return;
     }
     const card = s.queue[s.idx];
@@ -2642,65 +2672,125 @@
     const prod = !!s.prod;
     /* P3-1/P4-1：牌型（word / phrase / frame）与单词档内的产出档（prod）是两件事 */
     const deck = s.deck || "word";
+    const isMk = card.kind === "mistake",
+      isFrame = card.kind === "frame",
+      isPhrase = card.kind === "phrase";
+    /* 各牌型「要开口说的那句英文」与「答案面的标准英文」——
+       朗读/跟读/评测都从这里取值，避免再出现「背面朗读读 undefined」这类错配。 */
+    const sayEn = isMk ? (card.cn || "") : isFrame ? (card.ex || card.w || "") : (card.w || "");
+    const backEn = isMk ? (card.cn || "") : isPhrase ? (card.w || "") : (card.ex || card.w || "");
+    /* 「评测」需要语音识别：没有可说的英文、或浏览器不支持时，这个按钮根本不该出现
+       （旧版是无条件渲染，于是出现「点了没反应」的死按钮）。 */
+    const canEval = !!sayEn && !!(window.Player && Player.recognitionSupported && Player.recognitionSupported());
+    const evalBtn = canEval
+      ? '<button class="play-btn" data-action="shadow-eval" data-text="' + esc(sayEn) + '" title="评测：朗读后与标准音逐词打分（需要浏览器语音识别，推荐 Edge）">🎯</button>'
+      : "";
+    /* 跟读（不需要语音识别）：录音回放 A/B 对比。正反面都给入口——
+       旧版背面没有跟读，用户翻面看到答案后反而不能练。 */
+    const shadowBtn = function (text, title, action) {
+      return text ? '<button class="play-btn" data-action="' + action + '" data-text="' + esc(text) + '" title="' + esc(title) + '">🎙</button>' : "";
+    };
+    const shadowSayTitle = isMk ? "跟读纠正后的句子" : isFrame ? "跟读完整句" : isPhrase ? "跟读整条短语" : "跟读这个单词";
+    const hintText = isMk ? "先想怎么改，再点卡片翻面看正确说法"
+      : isFrame ? "先说完整句，再点卡片翻面核对骨架块"
+        : prod ? "先说出英文，再点卡片翻面核对" : "先想中文意思，再点卡片翻面核对";
     app.innerHTML = `
     <div class="page-head"><h2>${deck === "word" ? "🃏 单词卡" : (deck === "phrase" ? "🧩 语块卡 · 短语" : "🧱 语块卡 · 句型骨架")} · ${esc(s.unit.title)}</h2>
       <div class="en">${deck === "word"
-        ? (prod ? "🔄 产出档：看中文说英文 · 点击翻面 · 空格键翻面" : "点击卡片翻面 · 空格键翻面 · 想不起来就点“不认识”")
+        ? (prod ? "🔄 产出档：看中文说英文 · 点击卡片翻面 · 按空格键也能翻面" : "点击卡片翻面 · 按空格键也能翻面 · 想不起来就选“忘了”")
         : (deck === "phrase"
-          ? "🧩 语块档 · 短语：看中文说出整条英文短语 · 点击翻面 · 空格键翻面"
-          : "🧱 语块档 · 句型骨架：看挖空句与中文义，说出完整句子 · 点击翻面 · 空格键翻面")}</div>
+          ? "🧩 语块档 · 短语：看中文说出整条英文短语 · 点击卡片翻面 · 按空格键也能翻面"
+          : "🧱 语块档 · 句型骨架：看挖空句与中文义，说出完整句子 · 点击卡片翻面 · 按空格键也能翻面")}</div>
     </div>
     <div class="flash-wrap">
-      <div class="flash-progress">第 <b>${s.idx + 1}</b> / ${s.queue.length} 张 · 已认识 <b style="color:var(--ok)">${s.stats.known}</b> · 未掌握 <b style="color:var(--bad)">${s.stats.unknown}</b>
-        <button class="fp-toggle${deck === "word" ? "" : " on"}" data-action="flash-deck" title="依次切换：单词档 → 语块档·短语 → 语块档·句型骨架">${flashDeckLabel()}</button>
-        ${deck === "word" ? '<button class="fp-toggle' + (prod ? " on" : "") + '" data-action="flash-prod" title="在「看英文想中文」与「看中文说英文」之间切换——两条线各自按 FSRS 排期">' + (prod ? "🔄 产出档（中→英）" : "↔ 切到产出档") + "</button>" : ""}
+      <div class="flash-progress">第 <b>${s.idx + 1}</b> / ${s.queue.length} 张 · 已认识 <b class="n-ok">${s.stats.known}</b> · 未掌握 <b class="n-bad">${s.stats.unknown}</b>
+        <span class="fp-cur">当前：<b>${esc(flashDeckShort())}</b>${deck === "word" ? " · " + (prod ? "产出档（中→英）" : "接受档（英→中）") : ""}</span>
+        <button class="fp-toggle${deck === "word" ? "" : " on"}" data-action="flash-deck" aria-label="切换卡片牌型" title="点击切换牌型：单词档 → 语块档·短语 → 语块档·句型骨架（依次循环，共 3 种）">⇄ 切换牌型（当前：${esc(flashDeckShort())}）</button>
+        ${deck === "word" ? '<button class="fp-toggle' + (prod ? " on" : "") + '" data-action="flash-prod" aria-label="切换接受档与产出档" title="点击切换记忆方向：接受档＝看英文想中文 ↗ 产出档＝看中文说英文（两条线各自按 FSRS 排期，互不影响）">' + (prod ? "⇄ 切回接受档（英→中）" : "⇄ 切到产出档（中→英）") + "</button>" : ""}
       </div>
-      <div class="flash-card" id="flashCard" data-action="flash-flip">
+      <div class="flash-card" id="flashCard" role="button" tabindex="0" aria-pressed="false" aria-label="记忆卡片：按空格键或回车键翻面，查看答案">
         <div class="flash-inner">
           <div class="flash-face flash-front">
-            ${card.kind === "frame"
-              ? '<div class="big" style="font-size:23px;line-height:1.5">' + esc(card.w) + "</div>" +
-                '<div class="cn" style="margin-top:8px;opacity:.9">' + esc(card.cn) + "</div>" +
+            ${isFrame
+              ? '<div class="big big-frame">' + esc(card.w) + "</div>" +
+                '<div class="cn cn-soft">' + esc(card.cn) + "</div>" +
                 '<div class="ipa">（说出完整句子）</div>'
               : '<div class="big">' + esc(prod && card.kind !== "mistake" ? (card.cn || card.w) : card.w) + "</div>" +
-                '<div class="ipa">' + (prod ? (card.kind === "mistake" ? "" : "（说出它的英文）") : esc(card.ipa || "")) + "</div>"}
+                '<div class="ipa">' + (prod ? (isMk ? "" : "（说出它的英文）") : esc(card.ipa || "")) + "</div>"}
             <span class="flash-meta">
               <span class="fs-badge fs-${state.cls}">${esc(state.label)}</span>
               ${wron > 0 ? '<span class="fs-badge fs-wrong">常错 ' + wron + ' 次</span>' : ""}
-              ${card.kind === "mistake" ? '<span class="fs-badge fs-wrong">⚠️ 错句 · 怎么改？</span>' : ""}
-              ${card.kind === "frame" ? '<span class="fs-badge">🧱 句型骨架</span>' : ""}
-              ${card.kind === "phrase" ? '<span class="fs-badge">🧩 短语</span>' : ""}
+              ${isMk ? '<span class="fs-badge fs-wrong">⚠️ 错句 · 怎么改？</span>' : ""}
+              ${isFrame ? '<span class="fs-badge">🧱 句型骨架</span>' : ""}
+              ${isPhrase ? '<span class="fs-badge">🧩 短语</span>' : ""}
             </span>
-            <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="flash-say" title="朗读">🔊</button>
-            <button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="shadow" data-text="${esc(card.kind === "frame" ? (card.ex || card.w) : (card.kind === "mistake" ? card.cn : card.w))}" title="跟读（不需要语音识别）：听标准音 → 你读一遍 → 录音回放 A/B 对比">🎙</button>
-            ${card.ex && card.kind !== "frame" && card.kind !== "mistake" ? '<button class="play-btn" style="width:40px;height:40px;font-size:16px" data-action="shadow" data-text="' + esc(card.ex) + '" title="跟读例句（不需要语音识别）">🎙句</button>' : ""}
-            <div class="hint">${card.kind === "mistake" ? "先想怎么改，再翻面看正确说法" : (card.kind === "frame" ? "先说完整句，再翻面核对骨架块" : (prod ? "先说出英文，再翻面核对" : "点击卡片查看释义"))}</div>
+            <div class="flash-tools">
+              <button class="play-btn" data-action="flash-say" title="朗读这个单词">🔊</button>
+              ${isMk ? "" : shadowBtn(sayEn, shadowSayTitle, "shadow")}
+              ${evalBtn}
+              ${card.ex && !isFrame && !isMk ? shadowBtn(card.ex, "跟读例句", "shadow") : ""}
+            </div>
+            <div class="hint">${hintText}</div>
           </div>
           <div class="flash-face flash-back">
-            ${card.kind === "mistake"
-              ? '<div class="cn" style="color:var(--ok);font-weight:800">✓ 正确：' + esc(card.cn) + '</div>' +
-                '<div class="cn" style="margin-top:6px;color:var(--accent);font-weight:600">💡 ' + esc(card.why || "") + '</div>'
-              : (card.kind === "frame"
-                ? '<div class="cn" style="font-size:19px;font-weight:700;line-height:1.6">' + esc(card.ex) + "</div>" +
-                  '<div class="cn" style="margin-top:8px;color:var(--accent);font-weight:600">骨架块：' + esc(card.slot) + "</div>"
+            ${isMk
+              ? '<div class="cn cn-ok">✓ 正确：' + esc(card.cn) + "</div>" +
+                '<div class="cn cn-why">💡 ' + esc(card.why || "") + "</div>"
+              : (isFrame
+                ? '<div class="cn cn-frame">' + esc(card.ex) + "</div>" +
+                  '<div class="cn cn-slot">骨架块：' + esc(card.slot) + "</div>"
                 : (prod
-                  ? '<div class="big" style="font-size:30px">' + esc(card.w) + '</div><div class="ipa">' + esc(card.ipa || "") + "</div>"
-                  : '<div class="cn">' + esc(card.cn) + '</div>'))}
-            ${window.FTE_MEMO && card.kind !== "mistake" && window.FTE_MEMO[String(card.w).toLowerCase()]
-              ? '<div class="cn memo">💡 助记：' + esc(window.FTE_MEMO[String(card.w).toLowerCase()]) + '</div>' : ""}
-            ${card.kind === "frame" ? "" : '<div class="ex">' + esc(card.ex) + '</div><div class="ex">' + esc(card.exCn) + "</div>"}
-            <button class="play-btn" style="width:40px;height:40px;font-size:16px;background:rgba(255,255,255,.2);color:#fff" data-action="flash-say" title="朗读例句">🔊</button>
+                  ? '<div class="big big-back">' + esc(card.w) + '</div><div class="ipa">' + esc(card.ipa || "") + "</div>"
+                  : '<div class="cn">' + esc(card.cn) + "</div>"))}
+            ${window.FTE_MEMO && !isMk && window.FTE_MEMO[String(card.w).toLowerCase()]
+              ? '<div class="cn cn-memo">💡 助记：' + esc(window.FTE_MEMO[String(card.w).toLowerCase()]) + "</div>" : ""}
+            ${isFrame ? "" : (card.ex ? '<div class="ex">' + esc(card.ex) + "</div>" : "") + (card.exCn ? '<div class="ex ex-cn">' + esc(card.exCn) + "</div>" : "")}
+            <div class="flash-tools">
+              ${card.ex ? '<button class="play-btn" data-action="flash-say" title="朗读这个例句">🔊</button>' : ""}
+              ${card.ex ? shadowBtn(backEn, "跟读这个例句", "shadow") : ""}
+              ${canEval && backEn ? '<button class="play-btn" data-action="shadow-eval" data-text="' + esc(backEn) + '" title="评测这个例句：朗读后与标准音逐词打分（需要浏览器语音识别）">🎯</button>' : ""}
+            </div>
+            <!-- 只留一个方向指示，不复述下方 #flashHint 的整句说明（避免同一屏两段近义文字） -->
+            <div class="hint">按真实掌握程度评分 ↓</div>
           </div>
         </div>
       </div>
-      <div class="flash-actions-hint">凭记忆先想，再按掌握程度评分</div>
+      <div class="flash-actions-hint" id="flashHint" aria-live="polite">先自己回想，再点卡片翻面核对答案；四个评分按钮按真实掌握程度选。</div>
       <div class="flash-actions">
-        <button class="btn btn-danger" data-action="flash-grade" data-rating="1" title="完全想不起来，隔天再来">😵 忘了</button>
-        <button class="btn btn-outline" data-action="flash-grade" data-rating="2" title="勉强想起、有点模糊，稍后再复习">😐 模糊</button>
+        <button class="btn btn-danger" data-action="flash-grade" data-rating="1" title="完全想不起来，明天就会再出现">😵 忘了</button>
+        <button class="btn btn-warn" data-action="flash-grade" data-rating="2" title="勉强想起、答案不完整，稍后再复习">😐 模糊</button>
         <button class="btn btn-ok" data-action="flash-grade" data-rating="3" title="想起来了，按正常间隔复习">🙂 认识</button>
         <button class="btn btn-ok" data-action="flash-grade" data-rating="4" title="秒答，很牢，拉长复习间隔">😀 秒答</button>
       </div>
-      <button class="btn btn-outline btn-sm" style="margin-top:16px" data-action="flash-exit">退出学习</button>
+      <button class="btn btn-outline btn-sm" data-action="flash-exit" title="结束本次学习，回到单元列表">← 退出本次学习</button>
+    </div>`;
+  }
+
+  /* 「这个牌型在这个单元里没有卡」的空态。
+     不该复用 flashDoneHtml：那是「练完了」的完成态（成绩单 + 再来一组），
+     把「没有内容」渲染成「已全部掌握」是典型的文字与含义不符，而且标题里会出现空书名号「「」」。 */
+  function flashEmptyHtml(s) {
+    const deck = s.deck || "word";
+    const unitTitle = (s.unit && s.unit.title) || DATA.units[0].title;
+    const what = deck === "phrase" ? "短语" : (deck === "frame" ? "句型骨架" : "词汇");
+    const why = deck === "phrase"
+      ? "这个单元还没有录入短语。"
+      : (deck === "frame"
+        ? "这个单元没有符合条件的句型骨架（骨架需挖空 ≥2 个词、整句 ≤18 词）。" + (s.buildNote || "")
+        : "这个单元没有可练的词汇。");
+    return `
+    <div class="page-head"><h2>🃏 单词卡 · ${esc(unitTitle)}</h2>
+      <div class="en">这个牌型暂时没有可练的卡片</div>
+    </div>
+    <div class="card" style="max-width:560px;text-align:center;padding:30px 20px">
+      <div style="font-size:40px">🗂</div>
+      <p style="margin:12px 0 4px">「${esc(unitTitle)}」没有可练的<b>${what}</b>。</p>
+      <p style="font-size:13px;color:var(--muted)">${why}</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+        ${deck === "word" ? "" : '<button class="btn btn-primary" data-action="flash-deck-word">🃏 切到单词档</button>'}
+        <button class="btn btn-soft" data-action="flash-setup">↩ 换个单元 / 换牌型</button>
+        <a class="btn btn-outline" href="#/units">去其他单元</a>
+      </div>
     </div>`;
   }
 
@@ -2740,14 +2830,30 @@
     const total = s.stats.known + s.stats.unknown;
     const acc = total ? Math.round(s.stats.known / total * 100) : 0;
     if (total === 0) {
+      /* 这一轮**一张都没评**（队列为空但有内容：全都练过且还没到期）。
+         旧文案写「🎉 本单元已全部掌握」，对「有卡但未到期」是另一句真话，
+         但用「全部掌握」下结论太重——这里改为说清状态：本轮无到期卡 + 什么时候会有。 */
+      const key = s.deck && s.deck !== "word" ? "flashChunk" : (s.prod ? "flashProd" : "flash");
+      let soon = null;
+      try {
+        const store = Flashcards.storeOf(progress, key);
+        Object.keys(store).forEach(function (id) {
+          const f = store[id];
+          if (!f || !f.due) return;
+          const left = f.due - Date.now();
+          if (left > 0 && (soon == null || left < soon)) soon = left;
+        });
+      } catch (e) { /* 拿不到排期不影响文案 */ }
+      const when = soon == null ? "" : "最近一张在 " + Math.max(1, Math.ceil(soon / 86400000)) + " 天后到期";
       return `
-      <div class="page-head"><h2>🎉 本单元已全部掌握</h2></div>
+      <div class="page-head"><h2>🎉 本组学习完成</h2></div>
       <div class="card" style="max-width:560px;text-align:center;padding:34px 20px">
-        <div style="font-size:44px">🏆</div>
-        <p style="margin:12px 0 4px">「${esc(s.unit.title)}」暂时没有需要复习的卡片了。</p>
-        <p style="font-size:13px;color:var(--muted)">系统会在合适的时间自动安排复习，也可以去其他单元继续学习。</p>
+        <div style="font-size:44px">🗓</div>
+        <p style="margin:12px 0 4px">「${esc((s.unit && s.unit.title) || "")}」本轮没有到期卡片${when ? "，" + when : ""}。</p>
+        <p style="font-size:13px;color:var(--muted)">间隔重复会把卡片按遗忘曲线排进复习计划；到点后会重新出现在这里，也可以现在去其他单元学习。</p>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
           <a class="btn btn-primary" href="#/units">去其他单元</a>
+          <button class="btn btn-outline" data-action="flash-setup">↩ 换个牌型 / 单元</button>
           <button class="btn btn-outline" data-action="flash-exit">返回</button>
         </div>
       </div>`;
@@ -2814,7 +2920,16 @@
        所以这里读它不会在会话中途把模式改掉。 */
     const dsel = document.getElementById("flashDeckSel");
     if (dsel) flashDeck = dsel.value || "word";
-    const u = prefUnit || (sel ? getUnit(parseInt(sel.value, 10)) : DATA.units[0]);
+    /* 单元解析必须**逐级验证**：prefUnit 可能是合成会话的 id（"atrisk"/"weak"），
+       也可能来自下拉框。/^\d+$/ 只放行真实单元号，其余一律落到 select 或首单元——
+       保证下面的 u.vocab / u.phrases 永远有值（否则整页会因 undefined.map 崩掉）。 */
+    const pick = function (id) {
+      if (id == null || !/^\d+$/.test(String(id))) return null;
+      return getUnit(parseInt(String(id), 10)) || null;
+    };
+    const u = pick(prefUnit)
+      || (sel ? getUnit(parseInt(sel.value, 10)) : null)
+      || DATA.units[0];
     let cards;
     let buildNote = "";
     if (flashDeck === "phrase") {
@@ -2872,7 +2987,12 @@
       freshLeft: built.freshLeft,
       dueLeft: built.dueLeft,
       prod: flashDeck === "word" ? flashProdMode : true,
-      deck: flashDeck
+      deck: flashDeck,
+      /* 这个牌型在选卡前**有没有内容**（不是「本轮有没有到期卡」）。
+         空态文案必须区分「没内容」与「本轮没到期卡」，见 renderFlash。 */
+      hadCards: cards.length > 0,
+      /* 空态要用到的「为什么没卡」说明（句型骨架档会带上「全站 N 条 → 本单元 M 条」） */
+      buildNote: buildNote
     };
     renderFlash();
   }
@@ -2904,6 +3024,28 @@
   function flashDeckLabel() {
     const d = FLASH_DECKS.filter(function (x) { return x.id === flashDeck; })[0];
     return d ? d.label : FLASH_DECKS[0].label;
+  }
+
+  /* 牌型的短名字（只写档名，不带 emoji）。
+     用途：进度条上「当前：单词档」这类**状态**展示，以及切换按钮的 title。
+     为什么不复用 FLASH_DECKS.label：那是给下拉框用的完整名，
+     而切换按钮的文案必须写**动作**（「⇄ 切换牌型」），状态另处显示——
+     旧版把状态名当按钮文案，于是同一个按钮一会儿像开关、一会儿像标签。 */
+  function flashDeckShort() {
+    return flashDeck === "phrase" ? "语块档·短语" : flashDeck === "frame" ? "语块档·句型骨架" : "单词档";
+  }
+
+  /* 卡片翻面：同步 aria-pressed 与评分引导语。
+     单一入口（点击与键盘都走这里），避免两处各自 toggle 造成状态不一致。 */
+  function flashFlip(card) {
+    const el = card || document.getElementById("flashCard");
+    if (!el) return;
+    const flipped = el.classList.toggle("flipped");
+    el.setAttribute("aria-pressed", flipped ? "true" : "false");
+    const hint = document.getElementById("flashHint");
+    if (hint) hint.textContent = flipped
+      ? "已翻面：对照答案，再按真实掌握程度评分；没把握就选「模糊」或「忘了」。"
+      : "先自己回想，再点卡片翻面核对答案；四个评分按钮按真实掌握程度选。";
   }
 
   function restartFlashWithCurrentUnit() {
@@ -2938,6 +3080,14 @@
     const s = State.flash;
     if (!s || s.idx >= s.queue.length) return;
     const card = s.queue[s.idx];
+    /* 防重复提交（同一张卡只评一次）。
+       缺陷背景（浏览器实测）：焦点在评分按钮上按空格/回车时，浏览器会在
+       keydown 与 keyup 各派发一次 click，而评分按钮不带 disabled，
+       于是 gradeFlash 被调用两次 —— 实测一次按键连跳两张卡，统计与 FSRS 都被多记一次。
+       幂等键用「位置 + 卡片 id」：同一位置的第二次点击被忽略，
+       正常推进到下一张（idx 变了）不受影响。 */
+    if (s.lastGradedKey === s.idx + "@" + card.id) return;
+    s.lastGradedKey = s.idx + "@" + card.id;
     Flashcards.grade(progress, card.id, rating, flashStoreKey(s));
     /* 3=认识 4=秒答 记掌握；1=忘了 2=模糊 记未掌握 */
     const known = rating >= 3;
@@ -2982,7 +3132,7 @@
     <div class="quiz-progress"><i style="width:${(s.idx / s.questions.length * 100)}%"></i></div>
     <div class="card">
       <div class="quiz-q">
-        ${q.type === "listening" ? '<button class="play-btn" style="width:42px;height:42px;font-size:16px" data-action="quiz-listen">🔊</button>' : ""}
+        ${q.type === "listening" ? '<button class="play-btn" style="width:44px;height:44px;font-size:16px" data-action="quiz-listen" title="播放听力音频" aria-label="播放听力音频">🔊</button>' : ""}
         <div class="q-type">${esc(q.typeLabel)}</div>
         <div class="q-text">${esc(q.prompt)}</div>
         ${q.sub ? '<div class="q-sub">' + esc(q.sub) + '</div>' : ""}
@@ -3315,7 +3465,7 @@
         <div class="chat-head"><span>① 盲听 · 不看文字，先整体听一遍</span></div>
         <p style="font-size:13px;color:var(--muted)">先纯听，抓住大意与语音节奏，不急着看文字。</p>
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary" data-action="play-dlg" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-role="">▶ 播放整段</button>
+          <button class="btn btn-primary" data-action="play-dlg" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-role="">🔊 播放整段</button>
           <button class="btn btn-ok" data-action="stage-next" data-phase="shadow">🎧 我听得差不多了，进入精听</button>
         </div>
       </div>`;
@@ -3343,26 +3493,26 @@
       /* 复述：不看文字，听一句 → 用自己的话说/录音 → 与原文逐词对比 */
       app.innerHTML = head + stageStepper(s) + `
       <div class="card" style="margin-top:12px"><div class="chat-head"><span>④ 复述 · 不看原文，听完用自己的话重说</span></div>
-        <p class="sop-hint">逐句进行：🔊 播放 → 🎤 对着麦克风复述 → 🎯 看与原文的相似度（也可打字后再对照）。</p>
+        <p class="sop-hint">逐句进行：🔊 播放 → ● 录音后对着麦克风复述 → 🎯 看与原文的相似度（也可打字后再对照）。</p>
         ${s.dlg.lines.map(function (l, li) {
           const rev = s.revealed && s.revealed[li];
           return `<div class="dlg-line ${l.sp === "A" ? "roleA" : "roleB"} card" style="margin-top:10px" data-line="${li}">
             <span class="sp">${esc(l.sp)}</span>
             <div style="flex:1;min-width:0">
               ${rev ? '<div class="en">' + esc(l.en) + '</div><div class="cn">' + esc(l.cn) + "</div>"
-                : '<div class="en" style="color:var(--accent)">🔎 复述后再点「看原文对比」</div><div class="cn" style="font-size:12.5px;color:var(--muted)">（原文已隐藏）</div>'}
+                : '<div class="en" style="color:var(--accent)">🔎 复述后再点 👁 显示原文对比</div><div class="cn" style="font-size:12.5px;color:var(--muted)">（原文已隐藏）</div>'}
             </div>
             <span class="side">
-              <button class="play-btn" data-action="play-line" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-li="${li}" title="播放本句">▶</button>
+              <button class="play-btn" data-action="play-line" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-li="${li}" title="播放本句">🔊</button>
               ${Player.recognitionSupported() ? '<button class="eval-btn" data-action="eval" data-li="' + li + '" title="复述评测：与原文逐词对比">🎯</button>' : ""}
-              <button class="rec" data-action="rec-toggle" data-li="${li}" title="录下我的复述">●</button>
-              <button class="learn-toggle" data-action="stage-reveal" data-li="${li}" title="显示原文对比">👁</button>
+              <button class="rec" data-action="rec-toggle" data-li="${li}" title="录音（再次点击停止录音）" aria-label="录音">●</button>
+              <button class="learn-toggle" data-action="stage-reveal" data-li="${li}" aria-pressed="${rev ? "true" : "false"}" title="显示原文对比">👁</button>
             </span>
           </div>`;
         }).join("")}
         <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-ok" data-action="stage-next" data-phase="done">🏁 完成本段闯关</button>
-          <button class="btn btn-outline" data-action="stage-restart">🔁 重新挑战本段</button>
+          <button class="btn btn-outline" data-action="stage-restart" title="从①盲听重新开始本段闯关">🔁 重新挑战本段</button>
         </div>
       </div>`;
       drawWave();
@@ -3386,7 +3536,7 @@
         <p style="font-size:13.5px;color:var(--muted);margin-top:8px">
           建议：把②③④里出错的句子记到错题本（AI 陪练可提炼），第二天先复述。闯关完成后可换一段对话继续。</p>
         <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-          <button class="btn btn-primary" data-action="stage-restart">🔁 再挑战一次</button>
+          <button class="btn btn-primary" data-action="stage-restart" title="从①盲听重新开始本段闯关">🔁 重新挑战本段</button>
           <button class="btn btn-outline" data-action="speak-back">🗂 换一段对话</button>
           <a class="btn btn-soft" href="#/tutor">🤖 让 AI 陪练扮演 B 方对练 →</a>
         </div>
@@ -3399,7 +3549,7 @@
       app.insertAdjacentHTML("beforeend",
         '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">' +
         '<button class="btn btn-ok" data-action="stage-next" data-phase="' + phase + '">' + label + "</button>" +
-        '<button class="btn btn-outline" data-action="stage-restart">🔁 重新开始</button>' +
+        '<button class="btn btn-outline" data-action="stage-restart" title="从①盲听重新开始本段闯关">🔁 重新挑战本段</button>' +
         "</div>");
     } catch (e) { /* ignore */ }
   }
@@ -3449,14 +3599,14 @@
         voices.map(function (v) { return '<option value="' + esc(v.name) + '"' + (progress.voice === v.name ? " selected" : "") + '>' + esc(v.name) + "</option>"; }).join("") +
         "</select></div>" : ""}
       <button class="btn btn-primary" data-action="speak-start" style="margin-top:10px">开始训练 →</button>
-      <button class="btn btn-outline btn-sm" style="margin-top:10px;margin-left:8px" data-action="diag-voice">🔍 诊断语音服务</button>
+      <button class="btn btn-outline btn-sm" style="margin-top:10px;margin-left:8px" data-action="diag-voice" title="检查浏览器语音识别与 Google 是否可达">🧪 诊断语音服务</button>
       <a class="btn btn-soft btn-sm" style="margin-top:10px;margin-left:8px" href="#/listen">👂 辨音训练（最小音对）</a>
       <p style="font-size:12.5px;color:var(--muted);margin-top:12px">
         <b>🎙 语音能力（VPN/代理环境下最佳）</b>：跟读评测 🎯 与 AI 陪练 🎤 使用浏览器在线语音识别 + 逐词打分，连 Google 时可获得精确纠音反馈；<br>
         若网络不可达：可聚焦输入框按 <kbd>Win</kbd>+<kbd>H</kbd> 用系统听写，或以「逐句跟读 + ● 录音对比 + 听写训练」为主。<br>
         ${Player.recognitionSupported() ? "此浏览器支持在线语音识别；点「诊断语音服务」可确认 Google 是否可达。" : "⚠️ 此浏览器不支持在线语音识别，建议使用 Chrome / Edge（系统听写不依赖浏览器可用）。"}
         ${Player.canRecord() ? "" : " ⚠️ 当前环境不支持录音。"}
-        <br>💡 跟读界面勾选「逐句练习」：系统说一句 → 你跟读/录音/评测 → 点 ⏭ 进入下一句。发音引擎/发音人可在右上角 <b>⚙ 发音设置</b> 中切换。
+        <br>💡 跟读界面勾选「逐句练习」：系统说一句 → 你跟读/录音/评测 → 点 ⏭ 进入下一句。发音引擎/发音人可在右上角 <b>⚙ 设置</b> 中切换。
       </p>
     </div>`;
   }
@@ -3531,13 +3681,13 @@
         <label class="step-toggle" title="系统说一句 → 你跟读 → 评测 → 手动进入下一句">
           <input type="checkbox" id="stepMode" ${s.stepMode ? "checked" : ""}> 逐句练习
         </label>
-        <button class="btn btn-primary" data-action="play-dlg" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-role="${esc(role)}" ${s.stepMode ? "hidden" : ""}>▶ 播放全部</button>
+        <button class="btn btn-primary" data-action="play-dlg" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-role="${esc(role)}" ${s.stepMode ? "hidden" : ""}>🔊 播放全部</button>
         <button class="btn btn-outline" data-action="stop-dlg">⏹ 停止</button>
       </div>
       <div id="stepPanel" class="step-panel" ${s.stepMode ? "" : "hidden"}>
         <span class="step-info">第 <b>${step + 1}</b> / ${N} 句</span>
         <button class="btn btn-outline btn-sm" data-action="step-prev" ${step === 0 ? "disabled" : ""}>◀ 上一句</button>
-        <button class="btn btn-primary btn-sm" data-action="step-play">▶ 播放本句</button>
+        <button class="btn btn-primary btn-sm" data-action="step-play">🔊 播放本句</button>
         <button class="btn btn-ok btn-sm" data-action="step-eval">🎯 评测本句</button>
         <button class="btn btn-primary btn-sm" data-action="step-next" ${last ? "disabled" : ""}>⏭ 下一句</button>
         ${last ? '<button class="btn btn-soft btn-sm" data-action="step-restart">🔄 重新开始</button>' : ""}
@@ -3566,11 +3716,11 @@
         ${rec ? '<div class="wave-wrap"><canvas class="wave" data-wave="' + li + '" width="220" height="42" title="我的录音波形"></canvas></div>' : ""}
       </div>
       <span class="side">
-        ${isRole ? "" : '<button class="play-btn" data-action="play-line" data-id="' + s.unit.id + '" data-idx="' + s.dlgIdx + '" data-li="' + li + '" title="播放本句">▶</button>'}
+        ${isRole ? "" : '<button class="play-btn" data-action="play-line" data-id="' + s.unit.id + '" data-idx="' + s.dlgIdx + '" data-li="' + li + '" title="播放本句">🔊</button>'}
         ${Player.recognitionSupported()
           ? '<button class="eval-btn" data-action="eval" data-li="' + li + '" title="智能评测：跟读后逐词打分">🎯</button>'
           : ""}
-        <button class="rec ${Player.isRecording() && State.recLine === li ? "recording" : ""}" data-action="rec-toggle" data-li="${li}" title="录音回放对比">●</button>
+        <button class="rec ${Player.isRecording() && State.recLine === li ? "recording" : ""}" data-action="rec-toggle" data-li="${li}" title="录音（再次点击停止录音）" aria-label="录音">●</button>
         ${rec ? '<button class="myply" data-action="my-play" data-li="' + li + '" title="播放我的录音">▶</button>' : ""}
         ${rec ? '<button class="myply" data-action="ab-compare" data-li="' + li + '" title="原声→我的录音 对照">🔁AB</button>' : ""}
       </span>
@@ -3771,7 +3921,7 @@
       <div class="en">搜索单词、短语、对话语句（支持中英文）</div>
     </div>
     <div class="card" style="margin-top:14px">
-      <input type="search" id="searchPageInput" value="${esc(q)}" placeholder="输入关键词，如：FOB / 谈判 / shipment…" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;outline:none" data-action="search-page">
+      <input type="search" id="searchPageInput" value="${esc(q)}" placeholder="输入关键词，如：FOB / 谈判 / shipment…" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;outline:none">
     </div>
     <div id="searchResults" style="margin-top:16px">
       ${q ? (results.length ? results.map(searchRowHtml).join("") : '<div class="empty"><div class="e-icon">🔍</div>没有找到与「' + esc(q) + '」相关的内容</div>') : '<div class="empty"><div class="e-icon">💡</div>输入关键词开始搜索</div>'}
@@ -3796,6 +3946,18 @@
        放后面会被提前 return 掉、整类入口点击全部漏记。记录器自身静默失败，不影响后续渲染。 */
     if (window.FTE_TRACE && typeof window.FTE_TRACE.traceClick === "function") {
       try { window.FTE_TRACE.traceClick(e); } catch (e2) { /* 记录失败不影响交互 */ }
+    }
+    /* 点卡片任意非按钮区域都能翻面。
+       .flash-card 原来是 div[data-action=flash-flip]，但卡片内部的元素自带 data-action
+       （按钮、跟读、评分），closest("[data-action]") 会先命中**里面那个**元素，
+       于是「点卡片翻面」只在卡片空白处有效；而卡片背面几乎全是按钮，
+       用户点背面很容易误触按钮或完全没反应——这正是「背面很不规范」的来源之一。
+       现在改为：卡片自身不带 data-action，用 closest(".flash-card") 判断；
+       点到的若是卡片内的按钮/链接/输入框则一律不翻面。 */
+    const cardHit = e.target.closest && e.target.closest(".flash-card");
+    if (cardHit && !e.target.closest("button, a, input, select, textarea, label")) {
+      flashFlip(cardHit);
+      return;
     }
     const el = e.target.closest("[data-action]");
     if (!el) return;
@@ -3843,12 +4005,6 @@
       case "home-fav":
         homeFavToggle(el.getAttribute("data-id"));
         break;
-      case "home-anchor": {
-        const target = document.getElementById(el.getAttribute("data-target"));
-        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-        else window.scrollTo({ top: 0, behavior: "smooth" });
-        break;
-      }
       case "home-goal":
         homeGoalSave(el.getAttribute("data-goal"));
         renderHome();
@@ -3891,11 +4047,26 @@
         if (mt) Player.speak(mt, { rate: 1 });
         break;
       }
-      case "mistake-reveal":
-        State.mistReveal = !State.mistReveal;
-        renderRoute();
-        toast(State.mistReveal ? "👁 已显示全部正确答案" : "🙈 已隐藏正确答案，先自己想再揭晓");
+      case "mistake-reveal": {
+        const mk = el.getAttribute("data-mk");
+        if (!State.mistRevealed) State.mistRevealed = {};
+        if (mk) {
+          /* 单卡按钮：只切自己那一条。全部揭晓时卡片渲染的是 ✅、压根没有单卡按钮
+             （见 renderMistakes 的 mistItemRevealed 分支），所以这里不必考虑 mistRevealAll。 */
+          if (State.mistRevealed[mk]) delete State.mistRevealed[mk];
+          else State.mistRevealed[mk] = true;
+          renderRoute();
+        } else {
+          /* 顶部按钮：它的 aria-pressed 由渲染时算出的 allRevealed 写入，这里直接据它取反，
+             比在 DOM 上重新数一遍更准——全部揭晓时单卡按钮会被 ✅ 替换掉、根本数不到。 */
+          const on = el.getAttribute("aria-pressed") === "true";
+          State.mistRevealAll = !on;
+          State.mistRevealed = {};
+          renderRoute();
+          toast(State.mistRevealAll ? "👁 已显示全部正确答案" : "🙈 已隐藏全部正确答案，先自己想再揭晓");
+        }
         break;
+      }
       case "mistake-flow":
         State.mistFlow = el.getAttribute("data-flow") || "all";
         renderRoute();
@@ -3938,7 +4109,7 @@
       }
 
       case "flash-flip":
-        document.getElementById("flashCard").classList.toggle("flipped");
+        flashFlip();
         break;
       case "flash-prod":
         toggleFlashProd();
@@ -3946,12 +4117,35 @@
       case "flash-deck":
         cycleFlashDeck();
         break;
+      case "flash-deck-word":
+        flashDeck = "word";
+        flashProdMode = false;
+        restartFlashWithCurrentUnit();
+        break;
+      case "flash-setup":
+        State.flash = null;
+        renderFlash();
+        break;
       case "flash-say": {
         const s = State.flash;
         if (!s) break;
         const card = s.queue[s.idx];
+        if (!card) break;
         const flipped = document.getElementById("flashCard").classList.contains("flipped");
-        Player.speak(flipped ? card.ex : card.w, { rate: 0.9 });
+        /* 牌型与正反面决定要读哪一句：句型骨架卡正面读挖空句不合适（会暴露答案），
+           背面的按钮读例句；错句卡正面读错句、背面读正确说法。data-text 缺失时退回 card.w，
+           绝不把 undefined 交给 TTS（旧版背面按钮在句型骨架卡上就是这样）。 */
+        const text = flipped
+          ? (card.kind === "mistake" ? card.cn : (card.ex || card.w))
+          : (card.kind === "frame" ? (card.ex || card.w) : card.w);
+        if (!text) break;
+        const btn = el.classList.contains("play-btn") ? el : null;
+        Player.speak(text, {
+          rate: 0.9,
+          onend: function () { if (btn) btn.classList.remove("speaking"); },
+          onerror: function () { if (btn) btn.classList.remove("speaking"); }
+        });
+        if (btn) btn.classList.add("speaking");
         break;
       }
       case "flash-grade": gradeFlash(parseInt(el.getAttribute("data-rating"), 10)); break;
@@ -4055,7 +4249,7 @@
         break;
       }
       case "diag-voice": {
-        toast("🔍 正在检测语音服务…");
+        toast("🧪 正在检测语音服务…");
         Player.testSpeechReach().then(function (r) {
           const s = "浏览器在线识别： " + (r.srSupported ? "✅ 支持" : "❌ 不支持(需 Chrome/Edge)") +
             "   |   Google 可达： " + (r.timeout ? "⏱ 超时" : (r.googleReachable ? "✅ 可达" : "❌ 不可达"));
@@ -4228,6 +4422,32 @@
       mainNav.addEventListener("click", function (e) {
         if (e.target && e.target.closest && e.target.closest("a")) closeNav();
       });
+      /* 721–900px（平板横排导航）下 CSS 把 .nav-sub 改成 position:fixed 并钉在 left:20px，
+         否则最右一组的面板会伸出视口 71px、整页横向可滚（真实 Chrome 768 档实测）。
+         fixed 定位拿不到「相对触发项」的纵向位置，所以这里在展开时按触发项的底边赋 top。
+         只在 721–900px 生效；桌面端仍走原来的绝对定位（面板跟着触发项走）。 */
+      const navFixedMQ = window.matchMedia("(max-width: 900px) and (min-width: 721px)");
+      const placeNavSub = function (group) {
+        const sub = group && group.querySelector(".nav-sub");
+        if (!sub || !navFixedMQ.matches) return;
+        const sum = group.querySelector("summary");
+        if (!sum) return;
+        const r = sum.getBoundingClientRect();
+        sub.style.top = Math.round(r.bottom + 6) + "px";
+      };
+      mainNav.addEventListener("toggle", function (e) {
+        const g = e.target;
+        if (g && g.tagName === "DETAILS" && g.open) placeNavSub(g);
+      }, true);
+      /* 视口/滚动变化时把已展开的面板重新摆一次（fixed 不随页面滚动，必须自己跟） */
+      const replaceAll = function () {
+        if (!navFixedMQ.matches) return;
+        Array.prototype.forEach.call(mainNav.querySelectorAll("details.nav-group[open]"), placeNavSub);
+      };
+      window.addEventListener("scroll", replaceAll, { passive: true });
+      window.addEventListener("resize", replaceAll);
+      if (navFixedMQ.addEventListener) navFixedMQ.addEventListener("change", replaceAll);
+      else if (navFixedMQ.addListener) navFixedMQ.addListener(replaceAll);
       if (navMQ.addEventListener) navMQ.addEventListener("change", syncNav);
       else if (navMQ.addListener) navMQ.addListener(syncNav);
       syncNav();
@@ -4240,13 +4460,17 @@
       const row = e.target.closest(".dict-row");
       if (row) checkDict(parseInt(row.getAttribute("data-li"), 10));
     }
-    // 空格翻面（单词卡界面）
-    if (e.code === "Space" && location.hash.indexOf("flash") !== -1) {
-      const card = document.getElementById("flashCard");
-      if (card && document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].indexOf(document.activeElement.tagName) === -1) {
-        e.preventDefault();
-        card.classList.toggle("flipped");
-      }
+    /* 空格翻面（单词卡界面）。
+       旧实现用 `location.hash.indexOf("flash") !== -1` 判断，太粗：
+       输入框以外的任何按键都会翻，且焦点不在卡片上时也翻。
+       现在只在「焦点确实在单词卡容器内、且不在输入控件里」时翻，
+       其余场景（搜索框等）不再误翻。 */
+    if ((e.code === "Space" || e.key === " " || e.key === "Enter") && e.target && e.target.closest) {
+      const card = e.target.closest(".flash-card");
+      if (!card) return;
+      if (e.target.closest("input, textarea, select, button, a")) return;   /* 按钮自己处理 Enter */
+      e.preventDefault();
+      flashFlip(card);
     }
   });
 
@@ -4665,7 +4889,7 @@
     <div class="card" style="margin-top:14px">
       <div class="chat-head"><span>📈 本周 AI 学习报告</span>
         <span style="display:inline-flex;gap:6px;flex-shrink:0">
-          <button class="btn btn-primary btn-sm" data-action="coach-weekly-gen" ${hasKey ? "" : "disabled"}>✨ 生成本周学习报告</button>
+          <button class="btn btn-primary btn-sm" data-action="coach-weekly-gen" ${hasKey ? "" : "disabled"} title="生成本周学习报告（需先在「AI 陪练 → 模型设置」填写 API Key）">✨ 生成本周学习报告</button>
           ${r.text ? '<button class="btn btn-outline btn-sm" data-action="coach-weekly-clear">清空</button>' : ""}
         </span>
       </div>
@@ -4748,12 +4972,17 @@
       else st.textContent = "已暂停";
     }
     document.querySelectorAll("[data-seg]").forEach(function (c) {
-      c.classList.toggle("active", parseInt(c.getAttribute("data-seg"), 10) === coachState.seg);
+      const cur = parseInt(c.getAttribute("data-seg"), 10) === coachState.seg;
+      c.classList.toggle("active", cur);
+      c.setAttribute("aria-pressed", cur ? "true" : "false");
     });
     const cur = document.getElementById("ctCurrent");
     if (cur) cur.innerHTML = "<b>" + esc(TRAIN_SEGS[coachState.seg].label) + "</b> · " + esc(TRAIN_SEGS[coachState.seg].goal);
     const sBtn = document.getElementById("ctStart");
-    if (sBtn) sBtn.textContent = coachState.running ? "⏸ 暂停" : "▶ 继续";
+    /* 文案必须与行为一致：本按钮 data-action=coach-start 只负责"开始/继续"，**不负责暂停**
+       （暂停是旁边独立的 coach-pause）。此前 running 时这里写成「⏸ 暂停」，屏幕上于是出现
+       两个「暂停」，而左边那个点下去只是重挂计时器、并不暂停；且未开始过也显示「▶ 继续」。 */
+    if (sBtn) sBtn.textContent = coachState.running ? "▶ 进行中" : (coachElapsedSecs() > 0 ? "▶ 继续" : "▶ 开始");
   }
   function coachSpeak(prompt) {
     if (window.Player && prompt) Player.speak(prompt, { rate: 1 });
@@ -4834,7 +5063,7 @@
     ];
     app.innerHTML = `
     <div class="page-head">
-      <h2>🎯 AI 教练使用手册</h2>
+      <h2>🤖 AI 教练（手册 · 计划 · 打卡）</h2>
       <div class="en">把 GPT Live 的口练心得变成你的日常动作 · 每天 20 分钟最容易坚持</div>
     </div>
 
@@ -4932,7 +5161,9 @@
       <div class="ct-bar"><div class="ct-fill" id="ctFill" style="width:0%"></div></div>
       <div class="ct-segs">
         ${TRAIN_SEGS.map(function (g, i) {
-          return '<button class="ct-seg" data-action="coach-seg" data-seg="' + i + '">' + esc(g.label) + " · " + g.min + "分</button>";
+          return '<button class="ct-seg" data-action="coach-seg" data-seg="' + i + '" aria-pressed="' +
+            (i === coachState.seg ? "true" : "false") + '" title="跳到「' + esc(g.label) + '」段（' + g.min + ' 分钟）">' +
+            esc(g.label) + " · " + g.min + "分</button>";
         }).join("")}
       </div>
       <div class="ct-current" id="ctCurrent"><b>${esc(TRAIN_SEGS[coachState.seg].label)}</b> · ${esc(TRAIN_SEGS[coachState.seg].goal)}</div>
@@ -4971,6 +5202,7 @@
         const on = b.getAttribute("data-accent") === pendingAccent;
         b.classList.toggle("btn-primary", on);
         b.classList.toggle("btn-outline", !on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
       });
       if (!accentNote) return;
       const name = pendingAccent === "uk" ? "英音" : "美音";
@@ -5044,7 +5276,7 @@
       if (progress.engine === "azure" && (!progress.azureKey || !progress.azureRegion)) {
         toast("⚠️ 请填写 Azure 区域的 Key 与 Region，否则会用浏览器语音");
       } else {
-        toast("✅ 发音设置已保存" + label);
+        toast("✅ 设置已保存" + label);
       }
     }
 
@@ -5077,7 +5309,7 @@
     function testAzure() {
       const res = document.getElementById("azureTestResult");
       if (res) res.textContent = "";
-      toast("🔍 正在测试 Azure 语音…");
+      toast("🧪 正在测试 Azure 语音…");
       const cfg = { key: azureKey.value.trim(), region: azureRegion.value.trim(), voice: azureVoice.value.trim() || "en-US-JennyNeural" };
       /* 直接播放测试句；若自检通过则用 testAzure 报告状态 */
       Player.testAzure(cfg).then(function () {

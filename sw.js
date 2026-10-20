@@ -11,7 +11,33 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v104";   /* ★ 移除本地离线识别（2026-10-12）——本轮**PRECACHE 清单真的变了**（58 → 57 条）：
+const CACHE = "fte-v106";   /* ★ 术语/格式一致性小批（2026-10-20）：只改数据文件内容（不改 PRECACHE 清单），
+                             · 术语速查两条例句句首小写 → 大写，且用词更书面（corrosion / transfer 例）；
+                             · 胶水涂布克重单位 gsm → g/m²（纸板仍保留 gsm），与全站 g/m² 口径一致；
+                             · 剥离/封口强度单位统一为 N/15mm（原 data-risk 一处 N/15 mm）；
+                             · 音标 proforma invoice 统一为 GA /proʊˈfɔːrmə ˈɪnvɔɪs/（原 data-ops 漏 r）；
+                             · 摄氏度统一写法：℃ → °C（含空格），与站内 23 °C / 50 % RH 一致。
+                             清单内文件内容变了，按纪律 +1。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v105 · 全站 UI 规范与提升批次（2026-10-12 后一轮）：PRECACHE 清单集合与指纹不变（57 条），
+                             但清单内文件**内容**改了（js/app.js · js/sop.js · js/tutor.js · js/mysay.js ·
+                             js/material.js · js/listen.js · js/patterns.js · js/phonemes.js · js/radar.js ·
+                             js/today.js · js/urgent.js · js/weekly.js · js/write.js · js/pwa-init.js ·
+                             css/style.css · index.html 等），
+                             按本站纪律「清单内文件内容变了也必须 +1」，否则老用户会一直吃到旧外壳。
+                             本批修的是用户直接投诉的两类问题：
+                               · 单词卡/语块卡背面被裁：`.flash-inner` 由固定 height 改为 grid 单元，
+                                 两面都参与高度计算（背面曾静默裁掉 196px 的内容与 3 个牌面按钮）；
+                               · 按钮文字与含义不符：TTS 朗读统一 🔊（原 ▶ 混用 12 处）、诊断 🧪、
+                                 🎯 只留给评测、牌型/产出档按钮改写「动作」而非「状态」、
+                                 mistake-reveal 由「全局翻转却说单卡」改为逐条揭晓、
+                                 评分按钮防重复提交（键盘 keydown+keyup 曾双触发，一次按键跳两张卡）。
+                               · 另含：空态不再把「没有内容」说成「已全部掌握」、44px 触控目标补齐、
+                                 `.ob-bar` 白字对比 3.68→5.17、`.btn-ghost` 误用导致的 1:1 不可见文字修复。
+                             更早几轮的版本说明见下（严格 CSP / 图标修复等，均仍有效）：
+
+                             ★ 移除本地离线识别（2026-10-12）——那一轮**PRECACHE 清单真的变了**（58 → 57 条）：
                               · js/asr-local.js —— 删除（整个本地识别客户端）。
                               · js/vendor/vosk-worker.js / vosk-worker.meta.json —— 删除（4.13 MB 引擎）。
                               · tools/build-vosk-worker.js / tools/fetch-vosk-model.ps1 —— 删除。

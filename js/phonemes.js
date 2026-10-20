@@ -2,7 +2,7 @@
    把「辨音 · 最小音对」的 25 组，扩成一套完整的音素课：41 个音素（单元音 12 / 双元音 5 / 辅音 24），
    每个音素给出「口型舌位要点 + 易混音 + 站内真实例词」。
 
-   关键差异化：**例词不用教材里的 apple / banana，而是从本站 768 条行业词自动索引出来的**——
+   关键差异化：**例词不用教材里的 apple / banana，而是从本站 798 条行业词自动索引出来的**——
    复合膜、上胶量、剥离强度、订舱、信用证……你练的是自己业务里真的要发的那些音。
    索引由 ipa 字段实时算出（`buildIndex`），词库一改，例词自动跟着变，无需手工维护对照表。
 
@@ -82,7 +82,7 @@
 
   /* ---------------- IPA 分词器 ----------------
      站内 ipa 形如 "/ˌmænjuˈfæktʃərər/"：含首尾斜杠、重音符号 ˈ ˌ、空格、以及多读音逗号。
-     先做最长匹配，再跳过分隔符。INVENTORY 覆盖站内 768 条语料的全部字符（测试有断言）。
+     先做最长匹配，再跳过分隔符。INVENTORY 覆盖站内 798 条语料的全部字符（测试有断言）。
      多字符必须排在单字符之前，否则 aɪ 会被拆成 a + ɪ。 */
   const INVENTORY = [
     "tʃ", "dʒ", "eɪ", "aɪ", "ɔɪ", "oʊ", "aʊ",
@@ -465,7 +465,7 @@
 
     const chips = ["all", "vowel", "diphthong", "consonant"].map(function (g) {
       const n = g === "all" ? PHONEMES.length : PHONEMES.filter(function (p) { return p.type === g; }).length;
-      return '<button class="scen-chip' + (S.group === g ? " on" : "") + '" data-action="ph-group" data-id="' + g + '">' +
+      return '<button class="scen-chip' + (S.group === g ? " on" : "") + '" data-action="ph-group" data-id="' + g + '" aria-pressed="' + (S.group === g ? "true" : "false") + '" title="只看这一类音素">' +
         GROUP_NAME[g] + " " + n + "</button>";
     }).join("");
 
@@ -494,7 +494,7 @@
         <div class="ph-ops">
           <button class="btn btn-soft btn-sm" data-action="ph-play" data-id="${esc(p.ipa)}">🔊 连读前 10 个</button>
           <button class="btn btn-outline btn-sm" data-action="ph-flash" data-id="${esc(p.ipa)}">🃏 例词进单词卡</button>
-          ${ws.length > 6 ? '<button class="btn btn-outline btn-sm" data-action="ph-more" data-id="' + esc(p.ipa) + '">' + (isOpen ? "收起" : "显示全部 " + ws.length + " 词") + "</button>" : ""}
+          ${ws.length > 6 ? '<button class="btn btn-outline btn-sm" data-action="ph-more" data-id="' + esc(p.ipa) + '" aria-pressed="' + (isOpen ? "true" : "false") + '" title="' + (isOpen ? "只看前 6 个例词" : "展开这个音素的全部 " + ws.length + " 个例词") + '">' + (isOpen ? "收起" : "显示全部 " + ws.length + " 词") + "</button>" : ""}
         </div>
       </div>`;
     }).join("");

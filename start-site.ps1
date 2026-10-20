@@ -94,6 +94,41 @@ function Get-PortOwner([int]$Port) {
   } catch { return $null }
 }
 
+function Test-OurSiteRunning([int]$Port) {
+  # The port is busy: decide whether the owner is THIS site already running
+  # (the server window from an earlier double-click is still open).
+  # Ask for our manifest and look for two site-specific ASCII markers.
+  # Kept deliberately simple: raw WebRequest + 2.5s timeout, no DNS, no proxy.
+  try {
+    $req = [System.Net.WebRequest]::Create(("http://127.0.0.1:{0}/manifest.webmanifest" -f $Port))
+    $req.Timeout = 2500
+    $resp = $req.GetResponse()
+    try {
+      $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
+      $body = $sr.ReadToEnd()
+      $sr.Close()
+    } finally { $resp.Close() }
+    return ($body -match 'icon-192\.png' -and $body -match 'start_url')
+  } catch {
+    return $false
+  }
+}
+
+function Resolve-BrowserExe([string]$which) {
+  switch ($which) {
+    'edge'    { $c = @((Join-Path ${env:ProgramFiles} 'Microsoft\Edge\Application\msedge.exe'),
+                       (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe')) }
+    'chrome'  { $c = @((Join-Path ${env:ProgramFiles} 'Google\Chrome\Application\chrome.exe'),
+                       (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
+                       (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')) }
+    'firefox' { $c = @((Join-Path ${env:ProgramFiles} 'Mozilla Firefox\firefox.exe'),
+                       (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')) }
+    default   { return $null }
+  }
+  foreach ($p in $c) { if ($p -and (Test-Path $p)) { return $p } }
+  return $null
+}
+
 function Find-PythonCmd {
   # Windows ships a "python.exe" Store stub in WindowsApps that opens the Store
   # instead of running Python - never accept that one.
@@ -134,6 +169,27 @@ $port = $null
 if (Test-PortBindable $preferredPort) { $port = $preferredPort }
 
 if (-not $port) {
+  # ---------- 1a) Is the port owned by THIS site already running? ----------
+  # Most common day-two failure: the browser was closed but the old server
+  # window is still open, so 8000 is taken. That used to print "[STOP] port in
+  # use" and exit, which reads as "the site is broken" even though it works.
+  # If the owner answers with our manifest, reuse it: open the browser, exit 0.
+  if (Test-OurSiteRunning $preferredPort) {
+    $reuseUrl = "http://localhost:$preferredPort"
+    Write-Host ("  [OK] The learning site is ALREADY RUNNING on port {0}." -f $preferredPort) -ForegroundColor Green
+    Write-Host "       Reusing the running server - your saved progress is intact." -ForegroundColor DarkGray
+    Write-Host ("       URL: " + $reuseUrl) -ForegroundColor Yellow
+    if (-not $NoBrowser) {
+      $reuseExe = $null
+      if ($Browser -eq 'auto') { $reuseExe = Resolve-BrowserExe 'edge' }
+      elseif ($Browser -ne 'default') { $reuseExe = Resolve-BrowserExe $Browser }
+      if ($reuseExe) { Start-Process $reuseExe $reuseUrl } else { Start-Process $reuseUrl }
+      Write-Host "       Browser opened. Close the old server window to stop the site." -ForegroundColor DarkGray
+    }
+    Write-Host ""
+    exit 0
+  }
+
   $owner = Get-PortOwner $preferredPort
   Write-Host ("[STOP] Port {0} is already in use." -f $preferredPort) -ForegroundColor Red
   if ($owner) { Write-Host ("       Owned by: {0}" -f $owner) -ForegroundColor DarkYellow }
@@ -241,20 +297,8 @@ if (-not $NoBrowser) {
   # The job below runs in its own scope, so the executable path must be resolved
   # here and passed in. Resolution is a plain file-existence check (no registry,
   # no admin rights).
-  function Resolve-BrowserExe([string]$which) {
-    switch ($which) {
-      'edge'    { $c = @((Join-Path ${env:ProgramFiles} 'Microsoft\Edge\Application\msedge.exe'),
-                         (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe')) }
-      'chrome'  { $c = @((Join-Path ${env:ProgramFiles} 'Google\Chrome\Application\chrome.exe'),
-                         (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
-                         (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')) }
-      'firefox' { $c = @((Join-Path ${env:ProgramFiles} 'Mozilla Firefox\firefox.exe'),
-                         (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')) }
-      default   { return $null }
-    }
-    foreach ($p in $c) { if ($p -and (Test-Path $p)) { return $p } }
-    return $null
-  }
+  # (Resolve-BrowserExe is defined with the other helpers near the top: the
+  #  port-reuse branch above needs it before this point.)
   $openExe = $null
   $openWhy = "system default browser"
   if ($Browser -eq 'auto') {
@@ -267,7 +311,7 @@ if (-not $NoBrowser) {
     else { $openWhy = "system default browser ($Browser was requested but not found)" }
   }
   Write-Host ("  Browser: " + $openWhy) -ForegroundColor Cyan
-  Write-Host "  Tip: SCORING needs speech recognition -> Edge (Azure, works in CN) or the local offline model." -ForegroundColor DarkGray
+  Write-Host "  Tip: SCORING needs speech recognition -> use Edge (Azure, works in CN); Firefox does not implement it." -ForegroundColor DarkGray
   Write-Host "       Practice WITHOUT scoring (listen/repeat/record/A-B playback) works in any browser, Firefox included." -ForegroundColor DarkGray
   Write-Host "       Override: start-site.ps1 -Browser edge|chrome|firefox|default   (default: auto)" -ForegroundColor DarkGray
   Write-Host ""

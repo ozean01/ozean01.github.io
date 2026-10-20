@@ -270,6 +270,8 @@
   function render() {
     const app = document.getElementById("app");
     const n = S.sentences.length;
+    /* disabled 按钮也必须说清「为什么不能点」，否则用户只看到一个灰钮不知道下一步做什么 */
+    const needSplit = 'disabled title="先在上面点「📌 拆成句子」：拆出句子后这里才会亮起"';
     const preview = n
       ? S.sentences.slice(0, 40).map(function (s, i) {
         return `<div class="sub-row" data-idx="${i}">
@@ -294,13 +296,16 @@
       <textarea id="matSource" rows="7" spellcheck="false" placeholder="例如：\n• 粘贴一篇英文文章或商务邮件全文\n• 或贴一个网页链接（自动抓取正文）\n• 或贴 YouTube 视频字幕文本（用「字幕转录」工具复制过来）" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;outline:none;font-size:14px;line-height:1.7"></textarea>
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <input type="text" id="matTitle" value="${esc(S.title)}" placeholder="给这段材料起个标题（可选）" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;outline:none">
-        <button class="btn btn-soft btn-sm" data-action="mat-fetch">🌐 抓取网页正文</button>
+        <button class="btn btn-soft btn-sm" data-action="mat-fetch" title="用 Jina Reader 取回网页正文（需联网）；隐私要求高就直接粘贴正文">🌐 抓取网页正文</button>
         <button class="btn btn-primary btn-sm" id="matParse" data-action="mat-parse"${(() => {
           /* P1-C · 贴的是链接且还没抓取时，「拆成句子」先置灰——不让用户踩「内容太少」那条错路 */
           const t = String(S.raw || "").trim();
-          return (looksLikeUrl(t) && S.fetchedUrl !== t) ? " disabled" : "";
+          const needFetch = looksLikeUrl(t) && S.fetchedUrl !== t;
+          return needFetch
+            ? ' disabled title="粘贴的是链接：先点左边的「🌐 抓取网页正文」取回正文，再来拆句"'
+            : ' title="把粘贴的正文按句子切开，之后可送进字幕点读 / 五阶段闯关"';
         })()}>📌 拆成句子</button>
-        <button class="btn btn-outline btn-sm" data-action="mat-clear">🗑 清空</button>
+        <button class="btn btn-outline btn-sm" data-action="mat-clear" title="清空输入框与已拆出的句子（不影响已保存的作品）">🗑 清空</button>
       </div>
       <div class="field-note" style="margin-top:8px" id="matParseHint">粘贴的是链接时，<b>先</b>点「🌐 抓取网页正文」（左边那个）取回正文，再点「📌 拆成句子」；粘贴的是文本，直接「📌 拆成句子」。YouTube 视频请用字幕转录工具复制<b>英文台词文本</b>粘贴（是<a href="#/sources">真实听音源</a>的延伸，从任意材料练）。</div>
       ${S.error ? '<div class="sop-hint" style="margin-top:8px">⚠️ ' + esc(S.error) + "</div>" : ""}
@@ -309,10 +314,10 @@
     <div class="card" style="margin-top:12px;padding:16px 18px">
       <label style="font-weight:600;display:block;margin-bottom:6px">② 把它送进流水线 ${n ? '<span class="badge badge-ok">已拆出 ' + n + ' 句</span>' : ""}</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" data-action="mat-subtitle" ${n ? "" : "disabled"}>📺 送进「字幕逐句点读」</button>
-        <button class="btn btn-primary" data-action="mat-stage" ${n ? "" : "disabled"}>🏁 送进「听说训练 · 五阶段闯关」</button>
-        <button class="btn btn-soft" data-action="mat-flash" ${n ? "" : "disabled"}>🃏 把句中生词加入单词卡（FSRS）</button>
-        <button class="btn btn-soft" data-action="mat-eval4" ${n ? "" : "disabled"}>🧭 送进「四维口语实战」评分</button>
+        <button class="btn btn-primary" data-action="mat-subtitle" ${n ? 'title="逐句点读 + 生词按易/中/难/专着色 + 点词查意"' : needSplit}>📺 送进「字幕逐句点读」</button>
+        <button class="btn btn-primary" data-action="mat-stage" ${n ? 'title="同一批句子按 盲听 → 精听跟读 → 听写 → 复述 串成一次"' : needSplit}>🏁 送进「听说训练 · 五阶段闯关」</button>
+        <button class="btn btn-soft" data-action="mat-flash" ${n ? 'title="把句中实词（去停用词）做成卡片，背面例句=它出现的原句"' : needSplit}>🃏 把句中生词加入单词卡（FSRS）</button>
+        <button class="btn btn-soft" data-action="mat-eval4" ${n ? 'title="把句子当参考句，跟读 + AI 双评测"' : needSplit}>🧭 送进「四维口语实战」评分</button>
         <span class="field-note" style="align-self:center">🃏 提取句中实词直接进单词卡走 FSRS 间隔重复；🧭 把句子作为参考句，跟读 + AI 双评测。</span>
       </div>
       <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">

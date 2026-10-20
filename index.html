@@ -98,7 +98,7 @@
            · 「外贸实操 SOP」提为独立一级（三位专家一致：它是工作辅助，不是技能训练）
            · 「写作」独立成组（写作是产出，此前误放在「记与测」里） -->
     <nav class="main-nav" id="mainNav">
-      <a class="nav-home-link" href="#/today" data-nav="today">🎯 今日</a>
+      <a class="nav-home-link" href="#/today" data-nav="today">📅 今日</a>
       <a class="nav-home-link" href="#/home" data-nav="home">🏠 首页</a>
       <a class="nav-home-link" href="#/sop" data-nav="sop">🧭 实操 SOP</a>
       <details class="nav-group" data-group="course">
@@ -153,11 +153,11 @@
         <button id="searchBtn" title="搜索" aria-label="搜索">🔍</button>
         <div class="search-drop" id="searchDrop" hidden></div>
       </div>
-      <button class="icon-btn" id="settingsBtn" title="发音设置" aria-label="发音设置" aria-haspopup="dialog">
+      <button class="icon-btn" id="settingsBtn" title="设置" aria-label="设置" aria-haspopup="dialog">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
-      <span class="stat-pill" id="headerStat" title="已掌握单词" aria-label="已掌握单词">🎯 0</span>
-      <button class="icon-btn" id="navToggle" title="菜单" aria-label="展开导航菜单" aria-expanded="false" hidden>☰</button>
+      <span class="stat-pill" id="headerStat" title="已掌握单词" aria-label="已掌握单词">✅ 0</span>
+      <button class="icon-btn" id="navToggle" title="展开或收起导航菜单" aria-label="展开导航菜单" aria-expanded="false" hidden>☰</button>
     </div>
   </div>
 </header>
@@ -179,7 +179,7 @@
       <p>你的学习数据只保存在本浏览器（localStorage），不会上传到本站任何服务器。联网功能会向下列服务商发送必要内容——发音朗读（Google 在线音源 / 微软 Azure）、语音识别与音素级评测（Google / 微软 Azure，发送你的录音）、AI 陪练与写作批改（你填写的服务商，默认 DeepSeek；可改为本机 Ollama 从而完全不出本机）、素材投料口抓取网页正文（r.jina.ai，只发送你粘贴的网址）。<b>逐项清单见 ⚙ 设置页「数据去向」。</b></p>
     </div>
     <div class="footer-tips">
-      <span>💡 快捷键：单词卡界面按 <kbd>Space</kbd> 翻面</span>
+      <span>💡 快捷键：单词卡界面按 <kbd>Space</kbd> 或 <kbd>Enter</kbd> 翻面（焦点在卡片上时）</span>
       <span>🔊 发音使用浏览器自带的语音合成（需联网获取音色时可能首次无声）</span>
       <span class="footer-fine">本站外语学习与「外贸实操 SOP」内容仅作学习参考，不构成法律/合规/报关专业意见；涉及单据、合规与风险事项请以官方原文与实际业务为准。</span>
     </div>
@@ -189,7 +189,7 @@
 <div class="modal-mask" id="settingsModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-head">
-      <b id="settingsTitle">⚙️ 发音设置</b>
+      <b id="settingsTitle">⚙️ 设置</b>
       <button class="icon-btn" data-action="settings-close" title="关闭" aria-label="关闭">✕</button>
     </div>
     <div class="field">
@@ -209,7 +209,7 @@
       <label style="margin-top:8px">发音人（神经网络人声名，可选）</label>
       <input type="text" id="setAzureVoice" value="en-US-JennyNeural" placeholder="en-US-JennyNeural" autocomplete="off">
       <div style="margin-top:10px">
-        <button class="btn btn-outline btn-sm" data-action="settings-test-azure">🔍 测试 Azure 发音</button>
+        <button class="btn btn-outline btn-sm" data-action="settings-test-azure">🧪 测试 Azure 发音</button>
         <span class="field-note" id="azureTestResult" style="display:inline-block;margin:0 0 0 8px"></span>
       </div>
       <p class="field-note">填写后在 Azure 门户创建「Speech」资源，复制 Key 与区域填入即可。常见英文人声：en-US-JennyNeural、en-US-AriaNeural、en-US-GuyNeural、en-GB-SoniaNeural。失败时会自动回退浏览器语音。</p>
@@ -224,8 +224,8 @@
     <div class="field">
       <label>🗣 听力口音（只影响「听」的人声，<b>不改音标与词库</b>）</label>
       <div class="chip-row">
-        <button type="button" class="btn btn-outline btn-sm" data-accent="us">🇺🇸 美音（站内标准 GA）</button>
-        <button type="button" class="btn btn-outline btn-sm" data-accent="uk">🇬🇧 英音（听辨训练）</button>
+        <button type="button" class="btn btn-outline btn-sm" data-accent="us" aria-pressed="false">🇺🇸 美音（站内标准 GA）</button>
+        <button type="button" class="btn btn-outline btn-sm" data-accent="uk" aria-pressed="false">🇬🇧 英音（听辨训练）</button>
       </div>
       <p class="field-note" id="accentNote"></p>
       <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎若要英音，请把上面的发音人改成 <code>en-GB-SoniaNeural</code>；Google 在线音源固定美音。）</p>
@@ -291,7 +291,7 @@
       </div>
     </div>
     <div class="field" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-      <button class="btn btn-outline btn-sm" data-action="settings-close">关闭</button>
+      <button class="btn btn-outline btn-sm" data-action="settings-close">关闭（不保存）</button>
       <button class="btn btn-primary btn-sm" data-action="settings-save">保存</button>
     </div>
   </div>

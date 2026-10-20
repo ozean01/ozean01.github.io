@@ -193,7 +193,7 @@
       <div class="card src-card">
         <div class="src-head">
           <div>
-            <h3 style="margin:0">${esc(it.name)} ${it.free ? '' : '<span class="badge" style="background:#f59e0b;color:#fff">部分付费</span>'}</h3>
+            <h3 style="margin:0">${esc(it.name)} ${it.free ? '' : '<span class="badge payment-badge">部分付费</span>'}</h3>
             <div style="margin-top:6px">
               <span class="badge badge-muted">${esc(levelLabel(it.level))}</span>
               <span class="badge badge-muted">${esc(it.region)}</span>

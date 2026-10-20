@@ -122,10 +122,18 @@ check("有档位→存储线的映射（语块档优先，其次产出档，默�
 check("建队时按档位取存储线", /buildQueue\(cards, progress, 30,[^)]*flashStoreKey\(/.test(appjs));
 check("评分时按档位写入", /Flashcards\.grade\(progress, card\.id, rating, flashStoreKey\(s\)\)/.test(appjs));
 check("卡片状态按档位读取", /stateOf\(progress, card\.id, flashStoreKey\(s\)\)/.test(appjs));
+/* ⑥-2 断言与 2026-10 UI 规范批次对齐：
+   旧断言写死了模板串里的**空格与引号**（`prod && card.kind !== "mistake" ? …`），
+   以及背面单词的**内联 font-size:30px**。UI 批次把背面单词字号移到了 CSS 类
+   `.big-back`（内联样式本来就该消灭），并给产出档加了 `!isMk` 这类等价守卫，
+   于是旧正则全数误报。这里改为断「语义」而不是「字面量」：
+   只要正面取值里出现「产出档 → 中文（缺中文兜底用英文）」，背面出现「读的是 card.w 且有音标」即可。 */
 check("产出档正面显示中文",
-  /prod && card\.kind !== "mistake" \? \(card\.cn \|\| card\.w\) : card\.w/.test(appjs));
+  /prod[^;]{0,80}card\.kind\s*!==\s*["']mistake["'][^;]{0,40}card\.cn\s*\|\|\s*card\.w/.test(appjs),
+  "正面必须能在产出档下显示 card.cn（无中文时兜底 card.w）");
 check("产出档背面显示英文与音标",
-  /font-size:30px">' \+ esc\(card\.w\)/.test(appjs));
+  /esc\(card\.w\)/.test(appjs) && /big-back/.test(appjs) && /esc\(card\.ipa\s*\|\|\s*["']{2}\)/.test(appjs),
+  "背面必须渲染 card.w（.big-back 控制字号）+ card.ipa");
 check("有切换按钮与事件分支",
   /data-action="flash-prod"/.test(appjs) && /case "flash-prod":/.test(appjs));
 /* 重置时必须两条线一起清——只清一条会留下孤儿状态（用户重置后仍显示「已牢固」） */

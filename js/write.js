@@ -122,7 +122,7 @@
        FTE_MAIL.threads = 「给你一封真实来信，你来读懂并回信」——输入 + 产出
      后者的价值在于**输入不是为教学编的**：缩写满天飞、时态乱、信息全塞在一段、
      re: 线程里关键信息还不在最新一封。这些恰恰是学员每天真正面对、而站内
-     768 词 / 28 段对话（全是教科书英文）训练不到的东西。
+     798 词 / 28 段对话（全是教科书英文）训练不到的东西。
      刻意**不新增导航、不新增路由**：整个语料挂在写作专区里，
      因为真实工作流本来就是「读到一封 → 回一封」。 */
   function MAIL() { return (window.FTE_MAIL && window.FTE_MAIL.threads) || []; }
@@ -369,9 +369,9 @@
       </div>
       <div class="mail-subject">Subject: ${escM(th.subject)}</div>
       <div class="mail-body">${bodyHtml}</div>
-      <div class="field-note" style="margin-top:10px">
-        配套单元：${unitLinks || "—"}
-        <button class="btn btn-soft btn-sm" data-action="ws-mail-flash" style="margin-left:8px">🃏 这封信里的实词进单词卡</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+        <span class="field-note" style="margin:0">配套单元：</span>${unitLinks || '<span class="field-note" style="margin:0">—</span>'}
+        <button class="btn btn-soft btn-sm" data-action="ws-mail-flash" title="把这几封来信里出现的实词做成单词卡，走 FSRS 间隔重复">🃏 这封信里的实词进单词卡</button>
       </div>
     </div>
 
@@ -457,8 +457,10 @@
       aiContractHtml() +
       aiBox +
       (window.Tutor && window.Tutor.hasConfig()
-        ? '<button class="btn btn-outline btn-sm" data-action="ws-ai" style="margin-top:10px">🤖 AI 批改（只指问题 · 不代写）+</button>' +
-          (s.d2done ? '<button class="btn btn-soft btn-sm" data-action="ws-ai-full" style="margin-top:10px;margin-left:8px">✨ 对照 AI 的地道版本（二稿已完成，解锁）</button>' : "")
+        ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">' +
+            '<button class="btn btn-outline btn-sm" data-action="ws-ai" title="让 AI 只指出问题、不代写：反馈后要你自己写出二稿">🤖 AI 批改（只指问题 · 不代写）</button>' +
+            (s.d2done ? '<button class="btn btn-soft btn-sm" data-action="ws-ai-full" title="二稿已完成，解锁对照 AI 写的地道版本">✨ 对照 AI 的地道版本</button>' : "") +
+          '</div>'
         : "") +
       '</div>';
   }
@@ -543,10 +545,10 @@
           '<span class="badge badge-ok">已完成</span>' + r + '</div>' +
         '<div class="ws-indep-b">独立稿 · ' + wc(s.indep.text) + ' 词（' + esc(String(new Date(s.indep.at).toLocaleDateString())) + '，全程未使用 AI）</div>' +
         '<div class="ws-indep-ops">' +
-          '<button class="btn btn-ghost btn-sm" data-action="ws-indep-view">📖 看独立稿</button>' +
-          '<button class="btn btn-ghost btn-sm" data-action="ws-indep-reset">↺ 重做一次</button>' +
+          '<button class="btn btn-outline btn-sm" data-action="ws-indep-view" aria-expanded="' + (s.indepView ? "true" : "false") + '" aria-controls="wsIndepText" title="' + (s.indepView ? "收起这篇独立稿" : "展开看当时脱离 AI 写出的原文") + '">' + (s.indepView ? "🙈 收起独立稿" : "📖 看独立稿") + '</button>' +
+          '<button class="btn btn-outline btn-sm" data-action="ws-indep-reset" title="删掉这篇独立稿，换条件重写一次">↺ 重做一次</button>' +
         '</div>' +
-        (s.indepView ? '<div class="ws-indep-text">' + nl2br(s.indep.text) + '</div>' : "") +
+        (s.indepView ? '<div class="ws-indep-text" id="wsIndepText">' + nl2br(s.indep.text) + '</div>' : "") +
         '<div class="ws-indep-note">这一栏是自我声明的独立稿：它比前两稿更有分量（不是 AI 代写），但仍属"过程留痕"，不是被评定的能力证据。' +
           '和上一次的独立稿比，才是「有没有长进」。</div>' +
         '</div>';
@@ -578,7 +580,7 @@
     <div class="card" style="margin-top:16px">
       <div class="chat-head"><span>📋 中文情境</span></div>
       <div class="dlg-line" style="margin-top:8px"><div class="cn">${esc(sc.ctx)}</div></div>
-      ${unitLinks ? '<div class="field-note" style="margin-top:8px">配套单元：' + unitLinks + '</div>' : ""}
+      ${unitLinks ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="field-note" style="margin:0">配套单元：</span>' + unitLinks + '</div>' : ""}
       <textarea id="wsText" class="write-input" rows="7" placeholder="用英文写这封邮件 / 这段话…" autofocus>${esc(s.text || "")}</textarea>
       <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" data-action="ws-submit">✅ 要点自查</button>

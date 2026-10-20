@@ -90,7 +90,7 @@
       '若选错会立刻高亮正确答案并给出两个音素的差别讲解，方便对比听辨。</p>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center">' +
       '<button class="btn btn-primary" data-action="mp-start">▶ 开始辨音（' + PAIRS.length + ' 组）</button>' +
-      '<button class="btn btn-outline" data-action="mp-reset">重置学习进度</button>' +
+      '<button class="btn btn-outline" data-action="mp-reset" title="清空历史最好成绩与本次答题进度，重新开始；不会影响其它学习数据">🗑 重置学习进度</button>' +
       bestStr +
       '</div>' +
       (State.total
@@ -113,8 +113,8 @@
       '<div class="en">已答 <b style="color:var(--ok)">' + State.right + '</b> / ' + State.total + ' 正确</div></div>' +
       '<div class="card mp-wrap" style="margin-top:10px">' +
       '<div style="text-align:center;margin-bottom:6px">' +
-      '<button class="btn btn-primary" style="font-size:16px;padding:12px 22px" data-action="mp-replay">🔊 再听一遍</button>' +
-      '<div style="font-size:12.5px;color:var(--muted);margin-top:8px">第一次听不清可点“再听一遍”，或先不看屏幕只听</div>' +
+      '<button class="btn btn-primary" style="font-size:16px;padding:12px 22px" data-action="mp-replay" title="把这一组再读一遍">🔊 重听这组</button>' +
+      '<div style="font-size:12.5px;color:var(--muted);margin-top:8px">第一次听不清可点“重听这组”，或先不看屏幕只听</div>' +
       '</div>' +
       '<div class="mp-pair">' +
       opts.map(function (o) {

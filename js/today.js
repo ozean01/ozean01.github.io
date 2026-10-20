@@ -618,7 +618,10 @@
     const L = S.listen || {};
     const items = L.items || [];
     const btn = document.getElementById("tdListenPlay");
-    if (btn) btn.textContent = L.on ? "⏸ 暂停连听" : "▶ 开始连听";
+    if (btn) {
+      btn.textContent = L.on ? "⏸ 暂停连听" : "▶ 开始连听";
+      btn.title = L.on ? "暂停当前的连听" : "从当前句开始，一句接一句自动读完";
+    }
     const c = document.getElementById("tdListenCount");
     if (c) c.textContent = items.length ? Math.min(items.length, (L.i < 0 ? 0 : L.i) + 1) + " / " + items.length : "0 / 0";
     const now = document.getElementById("tdListenNow");
@@ -629,8 +632,13 @@
           (L.mix && it.cn ? '<span class="td-listen-cn">' + esc(it.cn) + "</span>" : "")
         : "点「开始连听」，一句接一句自动读完。";
     }
-    document.querySelectorAll("#app [data-lscope]").forEach(function (b) {
-      b.classList.toggle("on", b.getAttribute("data-lscope") === (L.scope || "all"));
+    /* 连听范围是单选胶囊：`.on` 必须跟着 L.scope 走。
+       原来这里查的是 `[data-lscope]`，而按钮渲染出来的是 `data-scope`——
+       属性名不一致 → 查询永远为空 → 点「词条例句」后高亮仍停在「全部」（实测确认）。 */
+    document.querySelectorAll('#app [data-action="td-listen-scope"]').forEach(function (b) {
+      const on = b.getAttribute("data-scope") === (L.scope || "all");
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
     });
     const mix = document.getElementById("tdListenMix");
     if (mix) mix.classList.toggle("on", !!L.mix);
@@ -645,11 +653,11 @@
         <span class="td-listen-sub">通勤 / 做家务 / 看不了屏幕时的复习：一句接一句自动读完，不用点、不用看</span>
       </div>
       <div class="td-listen-ops">
-        <button class="btn btn-primary btn-sm" id="tdListenPlay" data-action="td-listen-play">▶ 开始连听</button>
+        <button class="btn btn-primary btn-sm" id="tdListenPlay" data-action="td-listen-play" title="${L.on ? "暂停当前的连听" : "从当前句开始，一句接一句自动读完"}">${L.on ? "⏸ 暂停连听" : "▶ 开始连听"}</button>
         <button class="btn btn-outline btn-sm" data-action="td-listen-prev">⏮ 上一句</button>
         <button class="btn btn-outline btn-sm" data-action="td-listen-next">⏭ 下一句</button>
         ${LISTEN_SCOPES.map(function (s) {
-          return '<button class="td-lchip' + ((L.scope || "all") === s.key ? " on" : "") + '" data-action="td-listen-scope" data-scope="' + s.key + '">' + s.label + "</button>";
+          return '<button class="td-lchip' + ((L.scope || "all") === s.key ? " on" : "") + '" data-action="td-listen-scope" data-scope="' + s.key + '" aria-pressed="' + ((L.scope || "all") === s.key ? "true" : "false") + '" title="只连听这个范围的内容">' + s.label + "</button>";
         }).join("")}
         <button class="td-lchip${L.mix ? " on" : ""}" id="tdListenMix" data-action="td-listen-mix" title="英文读完停一下，再读中文">🀄 英中交替</button>
         <span class="badge badge-muted" id="tdListenCount">0 / ${n}</span>
@@ -818,8 +826,8 @@
     <div class="td-migrate">
       <b>🔄 换电脑 / 换手机？</b>
       <span>学习进度只存在本浏览器（本站没有后端，不上传也不同步）。要接着学，就先把进度带走：</span>
-      <button class="btn btn-outline btn-sm" data-action="data-export">⬇️ 导出进度</button>
-      <button class="btn btn-outline btn-sm" data-action="data-import">⬆️ 在新设备导入</button>
+      <button class="btn btn-outline btn-sm" data-action="data-export" title="把全部学习进度下载成一个 JSON 备份文件">⬇️ 导出进度备份</button>
+      <button class="btn btn-outline btn-sm" data-action="data-import" title="在新设备上选择之前导出的备份文件恢复进度">⬆️ 导入备份</button>
       <span class="field-note">在微信里打开 / 装到桌面 / 分享给同事的办法见 ⚙ 设置页「📱 在微信里打开」。</span>
     </div>
 

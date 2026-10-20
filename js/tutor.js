@@ -358,7 +358,7 @@
             <input type="password" id="tKey" value="${esc(cfg.apiKey)}" placeholder="${local ? "留空 —— 本地模型不需要 Key" : "sk-..."}" autocomplete="off">
           </div>
           <div class="field" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" data-action="tutor-save">保存设置</button>
+            <button class="btn btn-primary btn-sm" data-action="tutor-save" title="把上面填写的服务商 / Key / 模型存到本浏览器（不上传，换设备需重新填）">保存设置</button>
             <button class="btn btn-outline btn-sm" data-action="tutor-test" title="用当前填写的 Key 测试接口是否连通">🔍 测试连接</button>
             <label class="step-toggle" title="收到 AI 回复后自动朗读"><input type="checkbox" id="tAutoSpeak" ${cfg.autoSpeak ? "checked" : ""}> 自动朗读回复</label>
           </div>
@@ -371,8 +371,8 @@
             return '<div class="tutor-saved-item"><span>' + esc(sp.label || sp.baseUrl) +
               ' <em>' + esc(sp.model) + '</em></span>' +
               '<span class="tutor-saved-ops">' +
-              '<button class="btn btn-soft btn-sm" data-action="tutor-apply-saved" data-i="' + i + '">应用</button>' +
-              '<button class="btn btn-outline btn-sm" data-action="tutor-del-saved" data-i="' + i + '">删除</button>' +
+              '<button class="btn btn-soft btn-sm" data-action="tutor-apply-saved" data-i="' + i + '" title="用这份设置覆盖当前填写的服务商 / 模型">应用这份设置</button>' +
+              '<button class="btn btn-outline btn-sm" data-action="tutor-del-saved" data-i="' + i + '" title="从「已保存的服务商」里移除这一份">删除</button>' +
               '</span></div>';
           }).join("") + '</div>' : '<p class="field-note" style="margin-top:6px">还没有保存过服务商。填好上面三项后点「➕ 把当前设置为一份」，以后 DeepSeek / 通义 / Moonshot 之间一键切换。</p>'}
         </div>
@@ -418,7 +418,7 @@
             <label class="step-toggle" title="会话结束给出 10 分制评分与下次重点"><input type="checkbox" id="coachScore"${(cfg.coach && cfg.coach.score) || !cfg.coach ? " checked" : ""}> 结束给出 10 分制评分</label>
             <label class="step-toggle" title="让对话难度保持在「约 80% 可懂 + 20% 新表达」"><input type="checkbox" id="coachIPlus"${cfg.coach && cfg.coach.iPlus ? " checked" : ""}> 80% 可懂 + 20% 新</label>
             <label class="step-toggle" title="集中复盘时按「我的原句 / 正确版 / 更自然版 / 原因」四段式输出，解决中式英语"><input type="checkbox" id="coachFormat"${cfg.coach && cfg.coach.correctFormat ? " checked" : ""}> 四段式纠错</label>
-            <label class="step-toggle" title="默认已开启（P0-06）。AI 对拿不准的行业术语、数值、标准号、Incoterms 责任划分会标注「请人工核对」；关闭它也不会关掉事实边界，只会少一句提醒"><input type="checkbox" id="coachTermCheck"${cfg.coach && cfg.coach.termCheck ? " checked" : ""}> 人工核对提示（术语 / 数值 / 标准号 / 责任划分）</label>
+            <label class="step-toggle" title="默认已开启（P0-06）。AI 对拿不准的行业术语、数值、标准号、Incoterms 责任划分会标注「请人工核对」；关闭它也不会关掉事实边界，只会少一句提醒"><input type="checkbox" id="coachTermCheck"${cfg.coach && cfg.coach.termCheck ? " checked" : ""}> 人工核对提示（术语/数值/标准号）</label>
             <label class="step-toggle" title="反馈要「点到为止」：每轮只讲透 1 个点、最多复盘 2 个错误、给 1 个更自然表达 + 1 句值得复述就停，避免 AI 讲太多让你学晕"><input type="checkbox" id="coachConcise"${(cfg.coach && cfg.coach.concise) || !cfg.coach ? " checked" : ""}> 点到为止（反馈给得刚好）</label>
             <label class="step-toggle" title="把你自己「常答错」和「最易忘（FSRS 保持率低）」的词喂给教练，让它在接下来的对话里围绕这些薄弱项出题、逼你用出来（个性化学习路径）"><input type="checkbox" id="coachWeak"${cfg.coach && cfg.coach.weakFocus ? " checked" : ""}> 薄弱项动态出题（围绕我常错/易忘的词练）</label>
             <button class="btn btn-outline btn-sm" data-action="tutor-weakview" title="先看看当前会喂给教练的薄弱词有哪些">🔍 查看本周薄弱词</button>
@@ -442,7 +442,7 @@
         在上方「模型设置」中填入你的 API Key（如 DeepSeek 开放平台的 sk- 密钥）并保存。
         练习过程中对话、纠错、生词教学都由该模型完成。
       </p>
-      <button class="btn btn-primary" data-action="tutor-save">我已填写，保存设置</button>
+      <button class="btn btn-primary" data-action="tutor-save" title="把上方「模型设置」里填的 Key 存到本浏览器，存完就能开始对话">保存设置</button>
     </div>`;
   }
 
@@ -474,7 +474,7 @@
       </div>
       <div class="chat-input-row">
         <button class="mic-btn ${micListening ? "listening" : ""}" data-action="tutor-mic" title="语音输入：用浏览器在线识别（Chrome/Edge + 可访问 Google 时最好用）">🎤</button>
-        <button class="mic-btn ${autoMic ? "listening" : ""}" data-action="tutor-mic-auto" title="免按键对话：静音自动断句并自动发送，像打电话一样（需 Chrome/Edge）">${autoMic ? "🔴" : "🔁"}</button>
+        <button class="mic-btn ${autoMic ? "listening" : ""}" data-action="tutor-mic-auto" aria-pressed="${autoMic ? "true" : "false"}" title="${autoMic ? "正在免按键对话：点一下关掉" : "免按键对话：静音自动断句并自动发送，像打电话一样（需 Chrome/Edge）"}">${autoMic ? "🔴" : "🔁"}</button>
         <input type="text" id="chatInput" placeholder="用英文或中文说点什么…（Enter 发送；语音点 🎤）" autocomplete="off">
         <button class="btn btn-primary" data-action="tutor-send">发送</button>
       </div>
@@ -608,7 +608,7 @@
     <div class="card" style="margin-top:14px">
       <div class="chat-head">
         <span>📖 学习词汇表（${wb.length}）<span style="font-size:12px;color:var(--muted);font-weight:400"> · 点击 AI 回复中的任意英文单词也可手动添加</span></span>
-        ${wb.length ? '<button class="btn btn-outline btn-sm" data-action="wb-clear">清空</button>' : ""}
+        ${wb.length ? '<button class="btn btn-outline btn-sm" data-action="wb-clear" title="清空「本周薄弱词」清单（不影响你的 FSRS 卡片与单元进度）">🗑 清空薄弱词</button>' : ""}
       </div>
       ${wb.length
         ? wb.map(function (w, i) {
@@ -730,7 +730,7 @@
         <span>📌 今日错题 · 下次复习（${list.length}）<span style="font-size:12px;color:var(--muted);font-weight:400"> · 把说不顺的句子复述顺，第二天先复述它们</span></span>
         <span style="display:inline-flex;gap:6px;flex-shrink:0">
           <button class="btn btn-soft btn-sm" data-action="review-gen">🪄 让 AI 提炼本场错句</button>
-          ${list.length ? '<button class="btn btn-outline btn-sm" data-action="review-clear">清空</button>' : ""}
+          ${list.length ? '<button class="btn btn-outline btn-sm" data-action="review-clear" title="清空「今日错题」清单（不影响原始对话与评分记录）">🗑 清空今日错题</button>' : ""}
         </span>
       </div>
       ${list.length
@@ -1068,7 +1068,7 @@
     return `
     <div class="drill-records">
       <div class="chat-head" style="margin-top:14px"><span>📁 深度操练记录（${recs.length}）</span>
-        <button class="btn btn-outline btn-sm" data-action="drill-rec-clear">清空</button></div>
+        <button class="btn btn-outline btn-sm" data-action="drill-rec-clear" title="清空「深度操练记录」全部存档（范文与复盘都会一起删掉）">🗑 清空操练记录</button></div>
       ${recs.map(function (r, i) {
         return '<div class="drill-rec"><span class="drill-rec-t">' + esc(r.topic) + '</span><span class="drill-rec-m">' + new Date(r.time).toLocaleString() + '</span>' +
           '<span class="drill-rec-ops"><button class="btn btn-soft btn-sm" data-action="drill-rec-open" data-i="' + i + '">打开</button>' +

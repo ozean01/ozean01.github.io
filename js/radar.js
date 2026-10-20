@@ -191,7 +191,7 @@
       <div class="rd-cta">
         <a class="btn btn-primary" href="#/eval4">🎯 四维口语实战（跟读+应答）</a>
         <a class="btn btn-outline" href="#/speech">🎙️ 自由表达分析（说一段）</a>
-        <a class="btn btn-ghost" href="#/tutor">🤖 AI 陪练（场景对练）</a>
+        <a class="btn btn-outline" href="#/tutor">🤖 AI 陪练（场景对练）</a>
       </div>
       ${legacy}
     </div>`;

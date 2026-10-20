@@ -217,8 +217,8 @@
         '<span class="urg-n">' + (i + 1) + "</span>" +
         '<div class="urg-l-main"><div class="urg-en">' + esc(l.en) + "</div>" +
         (l.cn ? '<div class="urg-cn">' + esc(l.cn) + "</div>" : "") + "</div>" +
-        '<button class="play-btn" data-action="urg-say" data-text="' + esc(l.en) + '" title="朗读">▶</button>' +
-        '<button class="urg-copy" data-action="urg-copy" data-text="' + esc(l.en) + '" title="复制这句">⧉</button>' +
+        '<button class="play-btn" data-action="urg-say" data-text="' + esc(l.en) + '" title="朗读这句">🔊</button>' +
+        '<button class="urg-copy" data-action="urg-copy" data-text="' + esc(l.en) + '" title="复制这句英文">⧉</button>' +
         "</div>";
     }).join("") || '<div class="field-note">该场景暂无现成句，可直接进关联单元看对话。</div>';
 

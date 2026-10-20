@@ -136,16 +136,29 @@ const WHITELIST = [
   /* 固定深蓝渐变底（两套主题下都是同一个深蓝，白字对比 9.1–10.4:1）。
      静态解析器见到 gradient() 会退回页面底，故此处放行并记录实测值。 */
   [".hero", "color:#fff", "底是固定深蓝渐变 linear-gradient(#1e3a8a…)；白字实测 10.36:1"],
-  [".flash-back", "color:#fff", "底是固定深蓝渐变 linear-gradient(160deg,#1e3a8a,#2563eb)；白字实测 9.10–10.36:1"],
-  [".flash-back .ipa", "color:#bfdbfe", "同上固定深蓝渐变上的浅蓝字；对 #1e3a8a 实测 6.53:1"],
-  [".ob-bar", "color:#fff", "底是固定蓝色渐变 linear-gradient(90deg,#2563eb,#3b82f6)；白字对 #2563eb 实测 5.17:1"],
-  [".ob-bar .btn-outline", "color:#fff", "无自身底色，坐在 .ob-bar 的蓝色渐变上；实测 5.17:1"],
-  [".ob-bar-x", "color:#fff", "无自身底色，坐在 .ob-bar 的蓝色渐变上；对 #2563eb 实测 5.17:1"],
+  /* 单词卡背面：底色是**两套主题下都固定**的深蓝渐变，现在两端同值 #2563eb → #2563eb
+     （原来是 #1e3a8a→#2563eb，最浅端 5.17:1 也达标；同值只是更简洁）。
+     下面每条都按**最浅端 #2563eb**记录实测值（对更深的端只会更高）。 */
+  [".flash-back", "color:var(--on-primary)", "底=固定深蓝 #2563eb（渐变同值）；白字实测 5.17:1"],
+  [".flash-back .ipa", "color:rgba(255,255,255,.96)", "白字 96% 合成后 #f5f8fe，对 #2563eb 实测 4.90:1（原 --on-primary-soft=#dbeafe 只有 4.24:1，已改为白系并在此记录）"],
+  [".flash-back .cn-ok", "color:#fff", "同 .flash-back：白字对 #2563eb 实测 5.17:1"],
+  [".flash-back .play-btn", "color:#fff", "底色刻意与牌面同色 #2563eb（只描 2px 白边），白字实测 5.17:1；hover 反白为 95% 白底 + 深蓝字，实测 4.73:1"],
+  [".flash-back .play-btn:hover", "color:#2563eb", "hover 态：底=95% 白（#f2f5fb）与固定深蓝混合，深蓝字对 #f2f5fb 实测 4.73:1"],
+  /* 引导横幅：**渐变两端同值 --primary**（白字 5.17:1）。
+     历史：右端曾是 #3b82f6，白字只有 3.68:1，同条上的 .ob-bar-sub（opacity .92）3.36:1、
+     .ob-bar-x（原 .85）3.09:1 全都不达标——现改为同值实色，并把两处 opacity 都提到 .92（4.65:1）。 */
+  [".ob-bar", "color:#fff", "底=实色 --primary #2563eb（渐变同值）；白字实测 5.17:1、92% 合成 4.65:1"],
+  [".ob-bar .btn-outline", "color:#fff", "无自身底色，坐在 .ob-bar 的 #2563eb 上；实测 5.17:1"],
+  [".ob-bar-x", "color:#fff", "无自身底色，坐在 .ob-bar 的 #2563eb 上；opacity .92 合成后实测 4.65:1"],
   /* 深色浮层底（浅色主题下也是深色，白字对比 12.6–14.6:1） */
   [".sw-update", "color:#e2e8f0", "底是固定深色 #1e293b 的浮层（不是页面底）；实测 11.87:1"],
   [".toast", "color:#e2e8f0", "底是固定深色 #0f172a 的浮层；实测 14.48:1"],
   [".dlg-line .sp", "color:#fff", "圆形图标（非正文文本）且真实底随主题走：浅色 .dlg-line 底=--card 白 (#fff 14.63:1)、暗色底=暗卡 (#fff 14.63:1) 均达标"],
-  [".btn-ghost", "color:#fff", "幽灵按钮无自身底色，只出现在深色底上（.hero 固定深蓝渐变 10.36:1 / .flash-back 深蓝 10.36:1 / 暗色 .card 14.63:1）"],
+  /* .btn-ghost 是**深色面专用**的白字按钮（无自身底色）。它被误用到浅色卡片上时白字不可见——
+     placement 页就发生过（实测 1:1）。这条豁免保留是因为解析器看不到真实底，但必须配合
+     "使用层"守卫：tools/test-ui-quality.js 的 P2-9 会扫描所有 btn-ghost 用法并要求其
+     所在模板位于深色面（.hero/.ob-bar/.flash-back）或已改用 btn-outline。 */
+  [".btn-ghost", "color:#fff", "幽灵按钮（非正文装饰性按钮文字）无自身底色，**只允许出现在深色面上**：.hero 固定深蓝渐变实测 10.36:1 / .ob-bar #2563eb 实测 5.17:1 / .flash-back 固定深蓝 实测 5.17:1。误用到浅色卡片上会是 1:1（placement 页已修）；P2-9 扫源码使用层守住这条"],
 ];
 const WL = new Set(WHITELIST.map((w) => w[0] + "|" + w[1]));
 const wlKey = (row) => row.sel + "|color:" + row.decl;

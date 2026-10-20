@@ -109,7 +109,7 @@
           { sp: "B", en: "We only want proof that the pouch thickness is 120 microns; let SGS issue it at your factory then. What is the second clause?", cn: "我们只是想确认包装袋厚度是 120 微米，那就让 SGS 在你方工厂出证吧。第二条是什么？" },
           { sp: "A", en: "One full set of original bills of lading is to be sent directly to you, leaving only two copies to the bank.", cn: "条款要求整套正本提单直接寄给您，只留两份副本给银行。" },
           { sp: "B", en: "Our customs broker asked for that to speed up clearance in Rotterdam.", cn: "我们的报关行为加快鹿特丹清关才这样要求的。" },
-          { sp: "A", en: "If you hold the originals, you can take delivery even if the bank refuses payment. Please amend it to three-thirds to the bank.", cn: "如果正本在您手上，即使银行拒付您也能提货。请改为三分之三正本交银行。" },
+          { sp: "A", en: "If you hold the originals, you can take delivery even if the bank refuses payment. Please amend it so that the full set of three originals is presented to the bank.", cn: "如果正本在您手上，即使银行拒付您也能提货。请改为整套三份正本交银行。" },
           { sp: "B", en: "All right, I will apply for both amendments today. Anything else?", cn: "好的，我今天就申请这两项修改。还有别的吗？" },
           { sp: "A", en: "Yes, the latest shipment date is 15 May but the credit validity is also 15 May, leaving no time for presentation.", cn: "有，最迟装运期是 5 月 15 日，而信用证有效期也是 5 月 15 日，没有交单时间。" },
           { sp: "B", en: "So you need the expiry date extended. How long?", cn: "所以你们需要延长有效期。要多久？" },

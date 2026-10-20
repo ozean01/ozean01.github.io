@@ -100,7 +100,7 @@ python -m http.server 8000
 
 > 部署到带 **HTTPS** 的静态托管后，PWA 才能被「安装到桌面 / 离线打开 / 分享给同事」——这是让它真正跑起来的关键一步。本站纯静态、零构建，无需任何打包。
 
-> 🟢 **已部署**：当前线上为 **<https://ozean01.github.io/>**，对应仓库 `ozean01/ozean01.github.io`。下面步骤适用于**重新部署 / 在其它账号 / 其它站点**时参考；若要更新本站线上版本，直接改本目录 `外贸英语/` 后向该仓库 `main` 推送即可。
+> 🟢 **已部署**：当前线上为 **<https://ozean01.github.io/>**，对应仓库 `ozean01/ozean01.github.io`。下面步骤适用于**重新部署 / 在其它账号 / 其它站点**时参考。**本机更新线上不要重新 `git init`**，走下方「每次更新线上（原子发布）」五步：直接 `push` 不会触发部署成功——必须先提交，且 CI 门禁红就一个字节都不会部署。
 
 ### 方式 A · GitHub Pages（推荐，含自动发布）
 
@@ -120,6 +120,27 @@ python -m http.server 8000
 3. **开 Pages**：仓库 → `Settings` → `Pages` → **Source 选 `GitHub Actions`**（用根目录已附带的 `.github/workflows/pages.yml` 自动发布，推 push 即更新）。
 4. **访问**：发布完成后 `https://<你的用户名>.github.io/softpackaging-english/`，用浏览器打开（HTTPS）→ 地址栏出现「安装」图标，点一下即可**安装到桌面、离线打开**；把链接发给同事即可分享。
 5. ~~离线语音依赖（可选）~~：**本地离线识别已于 2026-10-12 整体移除**（见 §6-8），不再需要上传 `models/`。跟读评分走浏览器语音识别（推荐 Edge）。
+
+#### 每次更新线上（原子发布，缺一步就可能「推了但没更新」）
+
+1. 改完资源把 `sw.js` 的 `CACHE` +1（内容变了就必须升；忘了升，老用户会一直吃旧缓存桶）。
+2. `node tools/prepush-check.js` → 必须 exit 0（工作区干净 / CACHE 已升 / 基线一致 / 依赖已跟踪）。
+3. `node tools/test-all.js` → 必须末行「全部门禁通过」（CI 还会在 ubuntu/Node 22 再跑一遍；红了一个字节都不部署）。
+4. 单一原子提交 + 打 tag + 推送（本仓库远端名为 `ghio`）：
+   ```bash
+   git add -A
+   git commit -m "release: v1.12.0（fte-v106）"
+   git tag v1.12.0
+   git push ghio main --tags
+   ```
+5. 等 Actions 的 `Deploy to GitHub Pages` 变绿，再核验线上（不核验等于没发布）：
+   ```bash
+   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v106"'
+   curl -fsS -o NUL -w "%{http_code}\n" https://ozean01.github.io/
+   ```
+   出现新 `CACHE` 且首页 200 才算发布成功。
+
+**回滚**：`git revert <坏提交>` → 若 `PRECACHE` 清单/指纹变了就把 `CACHE` 再 +1 → 同步刷新 `tools/precache-baseline.json` → 重跑 `prepush-check` 与 `test-all` → push。**不要**把 `CACHE` 直接改回旧版本（基线门禁会红）。每版记录见 `CHANGELOG.md`。
 
 ### 方式 B · Cloudflare Pages（免 GitHub、可拖拽）
 
@@ -167,7 +188,7 @@ pwsh -File tools/build-assets.ps1
 - **改了 `icon.svg` → 重跑本脚本**，全部位图一起更新（`icon.svg` 本身就是按 maskable 安全区设计的，图形集中在中心 80% 内，所以同一份源可直接出 maskable）。
 - ⚠️ 该脚本**刻意保持纯 ASCII，请勿往里加中文**：Windows PowerShell 5.1 按系统 ANSI 代码页读取无 BOM 的 `.ps1`，字符串字面量里的中文会被误解码，多字节序列甚至可能吞掉闭合引号，导致整个脚本解析失败。分享图上的中文改用 HTML 数字实体（`&#36719;`）表达，与文件编码无关。
 - 无头浏览器需要命名管道做多进程 IPC，**受限沙箱下会被拒绝**（`拒绝访问 0x5`）。遇到这个报错，在普通终端里运行即可。
-- 位图已进 `sw.js` 预缓存；`tools/test-assets.js` 会校验它们的**真实像素尺寸**（直接读 PNG 文件头）、预缓存完整性与上述元数据契约，改错了会被门禁拦下。
+- 位图已进 `sw.js` 预缓存（**`og-image.png` 例外**：它只服务社交抓取、页面渲染路径从不加载，按 P0-14 移出 PRECACHE；`tools/test-p0-content.js` 反过来要求它**不得**出现在清单里）；`tools/test-assets.js` 会校验它们的**真实像素尺寸**（直接读 PNG 文件头）、预缓存完整性与上述元数据契约，改错了会被门禁拦下。
 
 ---
 

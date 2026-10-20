@@ -144,7 +144,7 @@ const thrHtml = W.mailReaderHtml({ mail: "thread-long", text: "", checked: false
 check("> 引用层级被转义（不会破坏 DOM）", thrHtml.indexOf("&gt;&gt;&gt;") !== -1);
 check("没有裸露的 >>> 留在 HTML 里", thrHtml.indexOf(">>>") === -1);
 check("线程里更早一轮的关键修改仍然渲染出来（关键信息不在最新一封）",
-  thrHtml.indexOf("bottom right") !== -1 && thrHtml.indexOf("20 %") !== -1);
+  thrHtml.indexOf("bottom right") !== -1 && thrHtml.indexOf("20%") !== -1);
 
 /* textarea 预填不能出现 <br>：换行要保留为真实换行 */
 const taHtml = W.mailReaderHtml({ mail: "in-enquiry", text: "Dear Mr. Sharma,\n\nThank you for your enquiry.", checked: false },

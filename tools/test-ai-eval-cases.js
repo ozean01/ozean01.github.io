@@ -14,12 +14,15 @@
 
    怎么跑（在 外贸英语/ 目录下）：
      node tools/test-ai-eval-cases.js              # 默认 = --check-refs + --self-test，全绿 exit 0
-     node tools/test-ai-eval-cases.js --check-refs # 只校验用例 anchor 的文件:行区间 + 提示词未漂移
+     node tools/test-ai-eval-cases.js --check-refs # 只校验用例 anchor 的「文件:行区间 + ±12 行漂移 + 链路语义 token」+ 提示词未漂移
      node tools/test-ai-eval-cases.js --self-test  # 只跑 16 个判分器的正反例与桩模型自检
      node tools/test-ai-eval-cases.js --list       # 打印 83 条用例的分类计数（不判分）
 
    ── 测得了（无 Key / 无网络，CI 与本地都能反复跑）──
-     1. anchor 指向的 `文件:行区间` 真实存在、未越界、非空（防用例与代码漂移）；
+     1. anchor 指向的 `文件:行区间` 真实存在、未越界、非空，且在 **±12 行容差**内必须命中该链路的
+        语义 token（提示词关键子串）——行号只是「大致位置」，一改就碎的问题已治；
+        同时保留 4 条**反向验证**（空白区 / 越界 / 远离 token / 文件不存在都必须判失败），
+        确保判据不会退化成「有这个文件就过」；
      2. 11 条链路的提示词关键子串仍在源码里（提示词被改写即报警，需重新审计）；
      3. 16 个判分器「好答案通过 / 坏答案被拒」各有正反例（判分器本身可用）；
      4. 83 条用例引用的判分器 id 都存在、每条（除 2 条显式标注的规则冲突/方差测试）
@@ -162,26 +165,127 @@ function parseAnchor(anchor) {
 }
 
 /* ---------------------- --check-refs ---------------------- */
+/* anchor 漂移容差（P0′·2026-10 加固，含「行号漂移」两级判定）：
+   旧版只判「区间非空」——行号一被上游改动顶掉，就会落到空行上整片变红；
+   而只放开成「文件存在即通过」又会让门禁永久常真。
+   现判据（既容忍行号漂移，又盯住语义）：
+     1. 每段行号必须在文件范围内（可含 ±ANCHOR_TOL 的窗口）；
+     2. 每段窗口内必须有非空行（`nonEmpty===0` 的纯空白区间仍然判失败）；
+     3. 该段窗口内出现链路语义 token → 通过（`drifted:false`）；
+        窗口内没有、但**整个文件**里能找到 → 通过并标 `drifted:true`
+        （提示词还在，只是行号漂了；上游频繁改动 app.js 时不再天天变红）；
+        整个文件里都找不到 → 失败（提示词已被改写/删除，这才是真正要拦的漂移）。
+   第 3 条是关键：不允许退化成「有这个文件就过」。 */
+const ANCHOR_TOL = 12;
+
+function anchorWindow(seg, tokens) {
+  const src = readSite(seg.file);
+  if (src == null) return { ok: false, why: seg.raw + " → 文件不存在" };
+  const lines = src.split("\n");
+  if (seg.a < 1 || seg.a > lines.length + ANCHOR_TOL) {
+    return { ok: false, why: seg.file + ":" + seg.a + "-" + seg.b + " → 行号越界（文件共 " + lines.length + " 行）" };
+  }
+  const lo = Math.max(1, seg.a - ANCHOR_TOL);
+  const hi = Math.min(lines.length, seg.b + ANCHOR_TOL);
+  function scan(from, to) {
+    for (let i = from; i <= to; i++) {
+      const L = lines[i - 1];
+      if (!L.trim()) continue;
+      for (let k = 0; k < tokens.length; k++) {
+        if (tokens[k] && L.indexOf(tokens[k]) >= 0) return { line: i, token: tokens[k] };
+      }
+    }
+    return null;
+  }
+  let nonEmpty = 0;
+  for (let i = lo; i <= hi; i++) if (lines[i - 1].trim()) nonEmpty++;
+  if (!nonEmpty) {
+    return { ok: false, why: seg.file + ":" + seg.a + "-" + seg.b + " → 空行区间（窗口 " + lo + "-" + hi + " 内没有非空行）" };
+  }
+  const inWindow = tokens.length ? scan(lo, hi) : null;
+  if (inWindow) return { ok: true, hit: { line: inWindow.line, token: inWindow.token, drifted: false }, lo: lo, hi: hi };
+  if (!tokens.length) return { ok: true, hit: null, lo: lo, hi: hi };
+  const anywhere = scan(1, lines.length);
+  if (anywhere) {
+    return { ok: true, hit: { line: anywhere.line, token: anywhere.token, drifted: true }, lo: lo, hi: hi };
+  }
+  return {
+    ok: false,
+    why: seg.file + " 内不存在该链路的语义 token（提示词可能已被改写/删除；" +
+      "核对后更新 PROMPT_ANCHORS 或该用例的 anchorKeys）"
+  };
+}
+
+/* 对单条用例做 anchor 判定（纯函数，供 ① 与反向验证共用）。
+   返回 {good, detail[], hit, drifted}：good=false 时 detail 说明为什么红。 */
+function anchorVerdict(c, anchorOverride) {
+  const anchor = anchorOverride == null ? c.anchor : anchorOverride;
+  const pa = PROMPT_ANCHORS[c.chain];
+  /* 用例可以自带 anchorKeys 覆盖；否则用该链路提示词的 keys 作语义 token */
+  const tokens = (c.anchorKeys && c.anchorKeys.length) ? c.anchorKeys : (pa ? pa.keys : []);
+  const detail = [];
+  let hit = null;
+  parseAnchor(anchor).forEach(function (s) {
+    if (s.bad) { detail.push(s.raw + " → " + s.bad); return; }
+    const r = anchorWindow(s, tokens);
+    if (!r.ok) { detail.push(r.why); return; }
+    if (r.hit && !hit) hit = { seg: s, res: r };
+  });
+  if (!detail.length && !hit && tokens.length) {
+    detail.push("整条 anchor 里没有任何一段命中「" + c.chain + "」的语义 token");
+  }
+  return {
+    good: detail.length === 0,
+    detail: detail,
+    hit: hit,
+    drifted: !!(hit && hit.res.hit && hit.res.hit.drifted)
+  };
+}
+
 function runCheckRefs(verbose) {
-  console.log("==== ① 用例 anchor 校验（文件:行区间必须真实存在，防用例与代码漂移）====");
-  let bad = 0;
+  console.log("==== ① 用例 anchor 校验（文件:行区间存在 + ±" + ANCHOR_TOL + " 行漂移 + 链路语义 token 命中）====");
+  let bad = 0, drifted = 0;
   CASES.forEach(function (c) {
-    const segs = parseAnchor(c.anchor);
-    const detail = [];
-    segs.forEach(function (s) {
-      if (s.bad) { detail.push(s.raw + " → " + s.bad); return; }
-      const src = readSite(s.file);
-      if (src == null) { detail.push(s.raw + " → 文件不存在"); return; }
-      const lines = src.split("\n");
-      if (s.a < 1 || s.b > lines.length) { detail.push(s.file + ":" + s.a + "-" + s.b + " → 行号越界（文件共 " + lines.length + " 行）"); return; }
-      if (!lines.slice(s.a - 1, s.b).join("").trim()) detail.push(s.file + ":" + s.a + "-" + s.b + " → 空行区间");
-    });
-    const good = detail.length === 0;
-    if (!good) bad++;
-    if (verbose || !good) check(c.id + " anchor=" + c.anchor, good, detail.join("；"));
+    const v = anchorVerdict(c);
+    if (!v.good) bad++;
+    if (v.drifted) {
+      drifted++;
+      note("⚠ 行号已漂：" + c.id + " 声明 " + c.anchor + "，实际命中 " + v.hit.seg.file + ":" +
+        v.hit.res.hit.line + "「" + v.hit.res.hit.token + "」（窗口 " + v.hit.res.lo + "-" + v.hit.res.hi + " 内没有，按整文件回退命中）");
+    }
+    if (verbose || !v.good) {
+      check(c.id + " anchor=" + c.anchor, v.good, v.detail.join("；") ||
+        ("命中 " + v.hit.seg.file + ":" + v.hit.res.hit.line + "「" + v.hit.res.hit.token + "」" +
+          (v.drifted ? "（行号已漂）" : "")));
+    }
   });
   if (!verbose) console.log("   （" + (CASES.length - bad) + "/" + CASES.length + " 条 anchor 通过；这里只打印失败项，加 --check-refs --verbose 看逐条）");
-  check("全部 " + CASES.length + " 条用例的 anchor 文件:行区间都存在", bad === 0, bad ? bad + " 条失败" : "");
+  check("全部 " + CASES.length + " 条用例的 anchor 文件:行区间都存在且命中链路语义 token", bad === 0,
+    (bad ? bad + " 条失败" : "") + (drifted ? "（其中 " + drifted + " 条行号已漂，仍算通过）" : ""));
+
+  /* 反向/正向验证：判据不得退化成「只要文件存在就过」。
+     注意：「窗口全空白 → 失败」这条在这里无法用真实文件复现（tutor.js 第 1-13 行是非空注释，
+     任何声明行号附近的 ±12 窗口都不可能是纯空白），所以不再造假用例；该分支保留在
+     anchorWindow() 里，靠代码审查与上面的 nonEmpty 逻辑保证。 */
+  const sample = CASES[0];
+  const sampleFile = sample.anchor.split(":")[0];
+  const neg = [
+    ["anchor 行号越界", anchorVerdict(sample, sampleFile + ":999999")],
+    ["anchor 的文件不存在", anchorVerdict(sample, "js/不存在的文件.js:1")],
+    ["anchor 指向的文件里根本没有该链路语义 token",
+      anchorVerdict(Object.assign({}, sample, { anchorKeys: ["__不存在的 token__"] }), sample.anchor)]
+  ];
+  neg.forEach(function (pair) {
+    check("反向验证 · " + pair[0] + " → 必须判失败", pair[1].good === false,
+      pair[1].good ? "判据退化了：这种情况竟然通过" : "");
+  });
+  /* 正向：token 在文件里但不在窗口内 → 必须通过，且必须报 drifted + 实际命中行 */
+  const drift = anchorVerdict(sample, sampleFile + ":1");
+  check("正向验证 · 行号漂移（token 在文件内、不在窗口内）→ 必须通过且标 drifted",
+    drift.good === true && drift.drifted === true && !!(drift.hit && drift.hit.res.hit.line === 96),
+    "good=" + drift.good + " drifted=" + drift.drifted +
+    " hitLine=" + (drift.hit && drift.hit.res.hit.line) + "（期望 true/true/96：" +
+    sampleFile + ":1 的 ±" + ANCHOR_TOL + " 窗口内无 token，全文件回退应命中 tutor.js:96）");
 
   console.log("\n==== ② 提示词漂移校验（11 条链路的提示词关键子串必须仍在源码里）====");
   const chains = [];

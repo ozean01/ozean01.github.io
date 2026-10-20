@@ -356,11 +356,13 @@
     const sents = splitSentences(S.en);
     const items = loadItems();
     const hasEn = sents.length > 0;
+    /* disabled 按钮必须说清「为什么不能点」，否则只是几个灰钮 */
+    const needEn = 'disabled title="先在 ② 里生成或填写英文稿，这里才会亮起"';
     const aiReady = !!(window.Tutor && window.Tutor.hasConfig());
 
     const toneChips = TONES.map(function (t) {
-      const on = t.id === S.tone ? " on" : "";
-      return '<button class="scen-chip' + on + '" data-action="ms-tone" data-id="' + t.id + '" title="' + esc(t.hint) + '">' + t.label + "</button>";
+      const on = t.id === S.tone;
+      return '<button class="scen-chip' + (on ? " on" : "") + '" data-action="ms-tone" data-id="' + t.id + '" aria-pressed="' + (on ? "true" : "false") + '" title="' + esc(t.hint) + '">' + t.label + "</button>";
     }).join("");
 
     const preview = hasEn
@@ -376,7 +378,7 @@
           '<span class="wb-e" style="flex:1">' + esc(it.title) + " · " + wordCount(it.en) + " 词 · " + esc(String(new Date(it.t).toLocaleDateString())) +
           (it.done ? ' <span class="badge badge-ok">已背</span>' : "") + "</span>" +
           '<button class="btn btn-outline btn-sm" data-action="ms-load" data-i="' + i + '" title="回到编辑器">📖 再练</button>' +
-          '<button class="learn-toggle" data-action="ms-done" data-i="' + i + '" title="标记已背下来（计入打卡）">' + (it.done ? "↺" : "✓") + "</button>" +
+          '<button class="learn-toggle" data-action="ms-done" data-i="' + i + '" title="' + (it.done ? "取消「已背」标记（已计入的打卡时长不退回）" : "标记已背下来（计入打卡）") + '">' + (it.done ? "↺" : "✓") + "</button>" +
           '<button class="learn-toggle" data-action="ms-del" data-i="' + i + '" title="删除">✕</button>' +
           "</div>";
       }).join("")
@@ -400,9 +402,9 @@
         <span class="sop-hint" id="msCnCount">${cnLength(S.cn)} 字</span>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary btn-sm" data-action="ms-ai" ${S.loading ? "disabled" : ""}>${S.loading ? "🤖 正在转写…" : "🤖 转成地道英文"}</button>
+        <button class="btn btn-primary btn-sm" data-action="ms-ai" ${S.loading ? "disabled" : ""}>${S.loading ? "🤖 正在改写…" : "🤖 转成地道英文"}</button>
         <button class="btn btn-soft btn-sm" data-action="ms-manual">✍️ 我自己写英文（不用 AI）</button>
-        <span class="field-note" style="margin:0">${aiReady ? "AI 已就绪（复用「AI 陪练」里配好的模型）" : "未配置模型：可先用「自己写英文」；想用 AI 转写请到「🤖 AI 陪练 → 模型设置」填 Key"}</span>
+        <span class="field-note" style="margin:0">${aiReady ? "AI 已就绪（复用「AI 陪练」里配好的模型）" : "未配置模型：可先用「自己写英文」；想用 AI 改写请到「🤖 AI 陪练 → 模型设置」填 Key"}</span>
       </div>
       ${S.error ? '<div class="sop-warn" style="margin-top:10px">⚠️ ' + esc(S.error) + "</div>" : ""}
       <div class="field-note" style="margin-top:8px">AI 只做改写，不加戏：<b>忠实原意</b>、不加用户没说的承诺或价格；行业术语保留专业说法。生成后务必自己过一遍——这是你要发出去的话，你要为它负责。</div>
@@ -411,7 +413,7 @@
     <div class="card" style="margin-top:12px;padding:16px 18px">
       <label style="font-weight:600;display:block;margin-bottom:6px">② 英文稿（可自己改）</label>
       <input type="text" id="msTitle" value="${esc(S.title)}" placeholder="给这段起个标题（可选，例如「复膜脱层客诉回复」）" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;outline:none;margin-bottom:8px">
-      <textarea id="msEn" class="write-input" rows="7" spellcheck="false" placeholder="AI 转写的结果会出现在这里；也可以自己直接写英文。">${esc(S.en)}</textarea>
+      <textarea id="msEn" class="write-input" rows="7" spellcheck="false" placeholder="AI 改写的结果会出现在这里；也可以自己直接写英文。">${esc(S.en)}</textarea>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-soft btn-sm" data-action="ms-play">🔊 朗读</button>
         <button class="btn btn-outline btn-sm" data-action="ms-stop">⏹ 停止</button>
@@ -423,14 +425,15 @@
     <div class="card" style="margin-top:12px;padding:16px 18px">
       <label style="font-weight:600;display:block;margin-bottom:6px">③ 接着练（送进站内已有的训练引擎）</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" data-action="ms-stage" ${hasEn ? "" : "disabled"}>🏁 五阶段闯关（盲听→跟读→听写→复述）</button>
-        <button class="btn btn-primary" data-action="ms-eval4" ${hasEn ? "" : "disabled"}>🧭 四维口语实战评分</button>
-        <button class="btn btn-soft" data-action="ms-subtitle" ${hasEn ? "" : "disabled"}>📺 字幕逐句点读</button>
-        <button class="btn btn-soft" data-action="ms-flash" ${hasEn ? "" : "disabled"}>🃏 实词加入单词卡（FSRS）</button>
+        <button class="btn btn-primary" data-action="ms-stage" ${hasEn ? 'title="盲听 → 跟读 → 听写 → 复述，同一段话被耳朵/眼睛/手/嘴各过一遍"' : needEn}>🏁 五阶段闯关（盲听→跟读→听写→复述）</button>
+        <button class="btn btn-primary" data-action="ms-eval4" ${hasEn ? 'title="把这段英文当参考句，朗读得发音/流利分 + AI 判应答/逻辑分"' : needEn}>🧭 四维口语实战评分</button>
+        <button class="btn btn-soft" data-action="ms-subtitle" ${hasEn ? 'title="逐句点读 + 生词按易/中/难/专着色 + 点词查意"' : needEn}>📺 字幕逐句点读</button>
+        <button class="btn btn-soft" data-action="ms-flash" ${hasEn ? 'title="把这段里的实词做成卡片，走 FSRS 间隔重复"' : needEn}>🃏 实词加入单词卡（FSRS）</button>
       </div>
+      ${hasEn ? "" : '<div class="field-note" style="margin-top:8px">⬆️ 上面这 4 个入口要等 <b>②</b> 里有英文稿（AI 改写或自己写）才会亮起。</div>'}
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-outline btn-sm" data-action="ms-save" ${hasEn ? "" : "disabled"}>💾 存进我的自述语料库</button>
-        <button class="btn btn-outline btn-sm" data-action="ms-reset">🗑 清空本次</button>
+        <button class="btn btn-outline btn-sm" data-action="ms-save" ${hasEn ? 'title="存进「我的自述语料库」，之后可反复朗读、跟读、背诵"' : needEn}>💾 存进我的自述语料库</button>
+        <button class="btn btn-outline btn-sm" data-action="ms-reset" title="清空 ① ② 里本次的内容（已存进语料库的作品不受影响）">🗑 清空本次</button>
       </div>
       <div class="field-note" style="margin-top:8px">
         <b>为什么是这几步</b>：读准之前先别急着读快——先在「五阶段闯关」里盲听、逐句跟读、听写、复述各过一遍，再回来点「✓ 已背下来」。<br>

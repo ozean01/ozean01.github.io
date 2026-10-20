@@ -173,7 +173,7 @@
       <div class="td-wk-head">
         <b>📅 本周新料 · ${wkn}</b>
         <span class="td-wk-sub">✅ 本周已投料：<b>${esc(c.topic)}</b>（下周自动换主题，不用管它）</span>
-        <button class="td-lchip on" data-action="wk-done" title="取消本周的「已投料」标记">↺ 撤销</button>
+        <button class="td-lchip on" data-action="wk-done" aria-pressed="true" title="取消本周的「已投料」标记">↺ 撤销</button>
         <a class="td-lchip" href="#/material">📥 再投一篇也行</a>
       </div>
     </section>`;
@@ -183,14 +183,14 @@
       <div class="td-wk-head">
         <b>📅 本周新料 · ${wkn}</b>
         <span class="td-wk-sub">站内 19 单元是静态语料；这一条给它每周续一次<b>新鲜的真实输入</b>（做完就换下一周的主题）</span>
-        <button class="td-lchip" data-action="wk-done" title="标记本周已投料">✓ 标记本周已投料</button>
+        <button class="td-lchip" data-action="wk-done" aria-pressed="false" title="标记本周已投料">✓ 标记本周已投料</button>
       </div>
       <div class="td-wk-topic"><span class="td-wk-ic">${c.icon}</span><b>${esc(c.topic)}</b></div>
       <div class="td-wk-why">${esc(c.why)}</div>
       <div class="td-wk-ops">
         <a class="btn btn-primary btn-sm" href="#/material">📥 去投料（来源已备好）</a>
         ${c.srcs.map(function (s) {
-          return '<button class="btn btn-soft btn-sm" data-action="wk-fetch" data-url="' + esc(s.url) + '">抓 ' + esc(s.name) + "</button>";
+          return '<button class="btn btn-soft btn-sm" data-action="wk-fetch" data-url="' + esc(s.url) + '" title="抓取这个来源，自动拆句后可送进字幕点读 / 五阶段闯关 / 单词卡 / 四维评分">🌐 抓 ' + esc(s.name) + "</button>";
         }).join("")}
       </div>
       <div class="field-note">抓回来会自动拆句，可一键送进<b>字幕点读 / 五阶段闯关 / 单词卡 / 四维评分</b>四个既有引擎。<b>投料本身不计入打卡</b>——打卡只记上面那五步。来源是公开行业媒体，本站不预置英文正文（站内语料有「人工核对」纪律），事实与法规请回到原文核对。</div>
@@ -205,7 +205,7 @@
     <div class="card wk-panel" style="margin-top:8px;padding:14px 16px">
       <div class="td-wk-head">
         <b>📅 本周新料 · 第 ${c.week.week} 周 · ${esc(c.topic)}</b>
-        <button class="td-lchip${done ? " on" : ""}" data-action="wk-done">${done ? "✅ 本周已投料" : "✓ 标记本周已投料"}</button>
+        <button class="td-lchip${done ? " on" : ""}" data-action="wk-done" aria-pressed="${done ? "true" : "false"}" title="${done ? "取消本周的「已投料」标记" : "标记本周已投料"}">${done ? "↺ 撤销已投料" : "✓ 标记本周已投料"}</button>
       </div>
       <div class="td-wk-why">${esc(c.why)}</div>
       <div class="field-note" style="margin:6px 0 8px">${esc(c.look)}</div>
