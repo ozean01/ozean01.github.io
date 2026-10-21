@@ -122,7 +122,10 @@ check("三阶段路径上移为首页骨架（renderHome 直接调用）", /path
 /* P4：统计卡从「3 张并列」改为「能力 / 坚持 两组各 2 张」——见 test-boot.js 里的渲染级断言 */
 check("首页统计卡分为「能力」与「坚持」两组", /prog-h-ability/.test(homeFn) && /prog-h-behavior/.test(homeFn));
 check("首页含「全站地图」折叠区", /id="home-map"/.test(homeFn) && /home-map-box/.test(homeFn));
-check("全站地图内含 6 大区与收藏", /homeZonesHtml\(\)/.test(homeFn) && /homeFavsRowHtml\(\)/.test(homeFn));
+check("全站地图内含 6 大区与收藏", /homeMapBodyHtml\(\)/.test(homeFn) && /homeZonesHtml\(\)/.test(appjs) && /homeFavsRowHtml\(\)/.test(appjs));
+/* P1-4：折叠面板改为「展开才渲染」——内容构建函数仍在，只是不在 renderHome 里同步执行 */
+check("全站地图面板延迟渲染（renderHome 里只留占位）",
+  /data-lazy="home-map"/.test(homeFn) && /function homeMapBodyHtml\(\)[\s\S]*?homeZonesHtml\(\)/.test(appjs));
 check("SOP 入口保留在首页", /sopBannerHtml\(\)/.test(homeFn));
 check("首页不再渲染 19 单元网格（与路径 chip 重复）", homeFn.indexOf("unitCardHtml") === -1);
 check("首页统计区为 4 张卡（能力 2 + 坚持 2）", (homeFn.match(/class="stat-card/g) || []).length === 4,
@@ -131,10 +134,12 @@ check("首页统计区为 4 张卡（能力 2 + 坚持 2）", (homeFn.match(/cla
 check("首页不再有内容规模统计卡（核心词汇/常用短语/场景对话/对话语句）",
   (homeFn.match(/class="lbl">(核心词汇|常用短语|场景对话|对话语句)</g) || []).length === 0);
 
-/* 进度数据折叠面板应已把趋势 / 周回顾并入 */
-const collapseFn = (appjs.match(/function homeDataCollapseHtml\(\)[\s\S]*?\n  \}/) || [])[0] || "";
+/* 进度数据折叠面板应已把趋势 / 周回顾并入（P1-4：内容改由 homeDataBodyHtml 在展开时构建） */
+const collapseFn = (appjs.match(/function homeDataBodyHtml\(\)[\s\S]*?\n  \}/) || [])[0] || "";
 check("进度数据折叠并入学习趋势", /renderTrendHtml/.test(collapseFn));
 check("进度数据折叠并入本周回顾", /weekReviewHtml/.test(collapseFn));
+check("进度数据面板延迟渲染（renderHome 里只留占位）",
+  /homeDataCollapseHtml\(\)/.test(homeFn) && /function homeDataCollapseHtml\(\)[\s\S]*?data-lazy="home-data"/.test(appjs));
 
 /* ---------------- ⑤ 样式 ---------------- */
 const style = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf8");
@@ -443,7 +448,8 @@ check("B2 首页「当前进度卡」仍在（未被 M 复制或替换）",
   (homeVisible.match(/当前进度：/g) || []).length === 1);
 check("B3 「进度数据」历史快照仍在，且 M 不读它（M 必须实时计算）",
   /function renderTrendHtml/.test(appjs) && /recordSnapshot/.test(appjs) && !/recordSnapshot/.test(ruCode));
-check("B4 首页「单元进度（自评标记）」块仍在（P4 改口径：不再叫掌握度）", homeVisible.indexOf("单元进度（自评标记）") !== -1);
+check("B4 首页「单元进度（自评标记）」块仍在（P4 改口径：不再叫掌握度）",
+  /单元进度（自评标记）/.test(appjs));   /* P1-4：该块随「进度数据」面板延迟渲染，改查构建函数源码 */
 check("B5 单元页难度序仍在，且没被写进 M（M 里不含 sortIdx / 难度分量）",
   /站内从易到难第 /.test(appjs) && !/sortIdx|难度/.test(ruCode));
 check("B6 SOP 清单完成度仍是独立口径，未并入 M",

@@ -1273,14 +1273,33 @@
 
     <details class="home-collapse home-map-box" id="home-map">
       <summary><b>🗺 全站地图</b><span class="hc-sub">6 大区 · 按工作目标筛选 · ⭐收藏常用 · 功能亮点（点开查看）</span></summary>
-      <div class="hc-body">
-        ${homeFavsRowHtml()}
-        ${homeZonesHtml()}
-        <h3 class="section-title" style="margin-top:20px">✨ 功能亮点 <span class="sub">有哪些工具可以上手</span></h3>
-        ${featureCardsHtml()}
-      </div>
+      <div class="hc-body" data-lazy="home-map"></div>
     </details>
     `;
+    /* P1-4（投用前检查）：折叠面板改为「首次点开才渲染」。
+       首页原来把「我的进度数据」和「全站地图」两个默认折叠的面板也全量算完 + 塞进 DOM：
+       趋势图、本周回顾、掌握度、保持率、四维、6 大区、功能亮点卡……折叠着也照样付成本，
+       4× CPU 节流实测首页切页 2.1s。现在只生成摘要行，展开时再填内容（每个面板只填一次）。 */
+    bindLazyPanels();
+  }
+
+  /* 折叠面板的延迟渲染：把「首屏不该付的成本」挪到用户真正点开的那一刻。 */
+  function bindLazyPanels() {
+    const bodies = app.querySelectorAll("[data-lazy]");
+    for (let i = 0; i < bodies.length; i++) {
+      const body = bodies[i];
+      const det = body.closest ? body.closest("details") : null;
+      if (!det) continue;
+      const fill = function () {
+        if (body.getAttribute("data-filled")) return;
+        const k = body.getAttribute("data-lazy");
+        if (k === "home-data") body.innerHTML = homeDataBodyHtml();
+        else if (k === "home-map") body.innerHTML = homeMapBodyHtml();
+        body.setAttribute("data-filled", "1");
+      };
+      if (det.open) fill();
+      det.addEventListener("toggle", function () { if (det.open) fill(); });
+    }
   }
 
   /* 首页用户旅程 Tab 栏 + 三个 Tab 面板：P1 已整体移除。
@@ -1297,20 +1316,31 @@
      这几个数据仪表盘收纳起来，默认折叠，要看数据的人再展开——减少无关认知负荷。
      （P1：原「学习中」Tab 的内容并入此处，Tab 本身已删除。） */
   function homeDataCollapseHtml() {
+    return `
+    <details class="home-collapse" id="home-data">
+      <summary><b>📊 我的进度数据</b><span class="hc-sub">学习趋势 · 本周回顾 · 单元进度（自评） · 到期目标保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
+      <div class="hc-body" data-lazy="home-data"></div>
+    </details>`;
+  }
+  /* 面板内容：首次展开时才执行（见 bindLazyPanels） */
+  function homeDataBodyHtml() {
     const trend = renderTrendHtml();
     return `
-    <details class="home-collapse">
-      <summary><b>📊 我的进度数据</b><span class="hc-sub">学习趋势 · 本周回顾 · 单元进度（自评） · 到期目标保持率 · 高频词复现 · 四维口语（点开查看）</span></summary>
-      <div class="hc-body">
         ${trend ? '<h3 class="section-title">📈 学习趋势 <span class="sub">保持率 · 最近走势</span></h3>' + trend : ""}
         ${weekReviewHtml()}
         ${masteryBlockHtml()}
         ${freqRepeatHtml()}
         ${atRiskWordsHtml()}
         ${retentionForecastHtml()}
-        ${eval4OverviewHtml()}
-      </div>
-    </details>`;
+        ${eval4OverviewHtml()}`;
+  }
+  /* 全站地图面板内容：首次展开时才执行 */
+  function homeMapBodyHtml() {
+    return `
+        ${homeFavsRowHtml()}
+        ${homeZonesHtml()}
+        <h3 class="section-title" style="margin-top:20px">✨ 功能亮点 <span class="sub">有哪些工具可以上手</span></h3>
+        ${featureCardsHtml()}`;
   }
 
   /* Tab ③ 实操面板 + 按 id 渲染单元卡的辅助函数：P1 已移除。
@@ -4007,11 +4037,12 @@
         renderRoute();
         break;
       case "home-open-map": {
-        /* hero 里的「🗺 全站地图」按钮：展开折叠区并滚过去（折叠状态下直接锚点跳转看不到内容） */
+        /* hero 里的「🗺 全站地图」按钮：展开折叠区并滚过去（折叠状态下直接锚点跳转看不到内容）。
+           面板现在是「展开才渲染」（bindLazyPanels），所以等一帧再滚，否则按空面板高度定位。 */
         const box = document.getElementById("home-map");
         if (box) {
           if (box.tagName === "DETAILS") box.open = true;
-          box.scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(function () { box.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
         }
         break;
       }

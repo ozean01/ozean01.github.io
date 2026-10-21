@@ -131,8 +131,8 @@ python -m http.server 8000
 4. 单一原子提交 + 打 tag + 推送（本仓库远端名为 `ghio`）：
    ```bash
    git add -A
-   git commit -m "release: v1.13.0（fte-v107）"
-   git tag v1.13.0
+   git commit -m "release: v1.13.1（fte-v108）"
+   git tag v1.13.1
    git push ghio main --tags
    ```
 5. 等 Actions 的 `Deploy to GitHub Pages` 变绿，再核验线上（不核验等于没发布）：
@@ -1465,3 +1465,10 @@ index.html / app.js / player.js / eval4.js / storage-keys.js 里的全部接线�
 **验收**：`node tools/test-all.js` = exit 0 · 全部门禁通过；无头 Chrome 真机走一遍跟读五步闭环，
 确认在**拿不到识别**的情况下仍给出音量/节奏反馈与明确出路（而不是报错或假装评了分）。
 
+
+## 已知取舍（诚实清单）
+
+- **触控目标**：主要操作（播放/跟读/朗读/开关、页头控件）的命中区已撑到 44×44（视觉尺寸不变，用透明伪元素扩边；	ools/ui-probe.js 会按真实命中区核算）。但**密集列表里的小图标**（词卡 32px 操作钮、术语卡内联图标、SOP 行内按钮）仍按视觉尺寸——继续放大会互相抢点击，属刻意保留的取舍。
+- **长列表性能**：术语速查 324 条、SOP 27 步、课程 19 卡在低端手机上首屏渲染仍需数百毫秒；首页两个折叠面板已改为「展开才渲染」。进一步优化（分批渲染 / 虚拟列表）需要改门禁与交互，未在本版做。
+- **js/app.js 体积**：约 5600 行 / 330KB，esc 等工具函数有重复实现；拆分会动到大量模块边界，未在本版做。
+- **分享网速**：GitHub Pages 国内访问受网络环境影响，本站无法控制；需要更稳入口时按 README 方案 B 用 Cloudflare Pages。

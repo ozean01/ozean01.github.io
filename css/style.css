@@ -1,4 +1,4 @@
-﻿/* ============ 软包装外贸英语 样式 ============ */
+/* ============ 软包装外贸英语 样式 ============ */
 /* ---------------------------------------------------------------------
    目录（按区块检索样式；行号为大致范围，随文件增长会漂移）：
    [01] 变量与基调 .......... ~2–60     :root 颜色/排版/间距变量
@@ -2298,3 +2298,19 @@ html.immerse-on:not(.immerse-peek) .td-listen-cn{display:none}
 .td-tm-ops{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
 .td-tomorrow .field-note{font-size:12px;color:var(--muted);line-height:1.7}
 
+
+
+
+/* ============ P2-1 触控目标（投用前检查）============
+   视觉尺寸不动，把真实命中区撑到 44×44（ui-probe 用 elementsFromPoint 量真实命中区，
+   伪元素扩边会被计入）。这里只处理**成簇的高频控件**；密集行内小图标（如词卡 32px
+   操作钮）仍按视觉尺寸，属已知取舍（见 README「已知取舍」）。 */
+#searchInput,#searchBtn,#settingsBtn,#navToggle{min-height:44px}
+.ob-bar-x{min-height:44px;min-width:44px}
+a.brand{padding-top:6px;padding-bottom:6px}
+.hr-shadow{min-width:44px}
+.sop-practice,.td-tick,.td-lchip,.urg-chip,.ps-chip,.gl-head .btn{position:relative}
+.sop-practice::after,.td-tick::after,.td-lchip::after,.urg-chip::after,.ps-chip::after,.gl-head .btn::after{
+  content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+
+#searchBtn,#settingsBtn,#navToggle{min-width:44px}
