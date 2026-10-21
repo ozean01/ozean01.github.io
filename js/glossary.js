@@ -27,6 +27,23 @@
 
   var state = { q: "", cat: "all" };
 
+  /* 分批渲染（P1-4）：术语库 324 条条在一次 innerHTML 里塞进去，低端手机要 1s+。
+     先画首屏一批（GL_CHUNK 条），其余用 rAF 分片追加；**没有 rAF 的环境（Node 门禁 /
+     老浏览器）同步补齐**，保证最终 DOM 与「一次性渲染」完全等价（test-glossary 仍按 324 条断言）。
+     另外把它从「每条渲染各绑一次 click」改成文档级事件委托——324 条 = 324 次绑定，
+     这笔开销在分批渲染后还会重复付，委托一次即可。 */
+  var GL_CHUNK = 60;
+  var renderGen = 0;
+  function scheduleChunk(fn) {
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(fn);
+    else fn();
+  }
+  function appendHtml(el, html) {
+    if (!html) return;
+    if (el.insertAdjacentHTML) el.insertAdjacentHTML("beforeend", html);
+    else el.innerHTML += html;
+  }
+
   function norm(s) { return String(s == null ? "" : s).toLowerCase(); }
 
   /* 搜索命中：英文主词、中文、同义中文、音标都算 */
@@ -91,6 +108,7 @@
   function render() {
     var app = document.getElementById("app");
     if (!app) return;
+    var myGen = ++renderGen;   /* 作废上一次搜索留下的待追加分片 */
 
     var q = norm(state.q).trim();
     var list = (G.terms || []).filter(function (t) {
@@ -108,7 +126,13 @@
         return chip(c + " " + (counts[c] || 0), c, state.cat === c);
       })).join("");
 
-    var body = list.map(termCard).join("");
+    /* 有没有 rAF 决定「分批」还是「一次性」：
+       浏览器有 rAF → 先画前 GL_CHUNK 条，其余分片追加；
+       没有 rAF（Node 门禁 / 老浏览器）→ 一次性渲染全部，DOM 与旧行为逐字节等价。 */
+    var canChunk = typeof requestAnimationFrame === "function";
+    var body = list.length
+      ? '<div id="glList">' + (canChunk ? list.slice(0, GL_CHUNK) : list).map(termCard).join("") + '</div>'
+      : "";
     var al = aliasHits(q);
     var total = (G.terms || []).length;
     var ipaTxt = withIpa >= total
@@ -163,9 +187,18 @@
         if (el && el.focus) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (err) { /* 老浏览器忽略 */ } }
       });
     }
-    app.querySelectorAll("[data-s]").forEach(function (el) {
-      el.addEventListener("click", onAction);
-    });
+    /* 其余分片：rAF 逐批追加（首屏先出前 GL_CHUNK 条） */
+    var i = GL_CHUNK;
+    function more() {
+      if (myGen !== renderGen) return;
+      var box = document.getElementById("glList");
+      if (!box || i >= list.length) return;
+      var end = Math.min(i + GL_CHUNK, list.length);
+      appendHtml(box, list.slice(i, end).map(termCard).join(""));
+      i = end;
+      if (i < list.length) scheduleChunk(more);
+    }
+    if (canChunk && i < list.length) scheduleChunk(more);
   }
 
   function onAction(e) {
@@ -178,6 +211,9 @@
       if (window.Player && t) window.Player.speak(t, { rate: 0.9 });
     }
   }
+
+  /* 事件委托（只绑一次）：卡片分批追加，逐条绑定会漏掉后追加的那批；绑在 document 上最省。 */
+  try { document.addEventListener("click", onAction); } catch (e) { /* 老环境忽略 */ }
 
   window.Glossary = { render: render, DATA: G, state: state, _hits: hits };
 })();

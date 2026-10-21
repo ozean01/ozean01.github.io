@@ -9,6 +9,17 @@
   var KEY = "fte-sop-v1";
   var State = { tab: "flow", checks: {}, tplOut: "" };
 
+  /* 分批渲染（P1-4）：流程页一次要出 4 个阶段 / 27 个动作块（每块含勾选框、说明、
+     英文句与朗读/复制/练按钮），低端手机上 DOM 解析与布局是大头。
+     先把前两个阶段放进 DOM，其余阶段与红线自查用 rAF 逐段追加；
+     没有 rAF（Node 门禁 / 老浏览器）时一次性全渲染，DOM 与旧行为逐字节等价。 */
+  var SOP_CHUNK_MARK = "<!--SOP-CHUNK-->";
+  var sopRenderGen = 0;
+  function scheduleSopChunk(fn) {
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(fn);
+    else fn();
+  }
+
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -798,7 +809,7 @@
   function flowHtml() {
     var all = allSteps();
     var pct = Math.round(doneCount(all) / all.length * 100);
-    var stages = STAGES.map(function (s) {
+    var stageBlocks = STAGES.map(function (s) {
       var d = doneCount(s.steps);
       var sp = Math.round(d / s.steps.length * 100);
       var steps = s.steps.map(function (st, i) {
@@ -826,7 +837,8 @@
         '</div>' +
         steps +
         '</div>';
-    }).join("");
+    });
+    var stages = stageBlocks.join(SOP_CHUNK_MARK);
 
     var self = SELFCHECK.map(function (x, i) {
       return '<details class="sop-qa"><summary><b>Q' + (i + 1) + '.</b> ' + esc(x.q) + '</summary><p>' + esc(x.a) + '</p></details>';
@@ -842,7 +854,7 @@
       '<button class="btn btn-outline btn-sm" data-action="sop-reset">↺ 清空勾选</button>' +
       '<span class="sop-hint">勾选状态保存在本浏览器，下次打开继续。每接一单可以清空重走一遍。上面这些英文都能直接拿去练——不只看和复制。</span>' +
       '</div></div>' +
-      stages +
+      stages + SOP_CHUNK_MARK +
       '<div class="card"><div class="chat-head"><span>🚧 红线自查 10 问 · 你做对了吗？</span><span class="sop-hint">点开看答案</span></div>' + self + '</div>';
   }
 
@@ -1212,6 +1224,12 @@
               : State.tab === "docgen" ? docgenHtml()
               : flowHtml();
 
+    /* 流程页分批：首帧只放「规则 + 完成度 + 第 1 阶段」，其余阶段与红线自查按 rAF 逐段追加。
+       其它 tab 不分批（内容短）；没有 rAF 时一次性全渲染（与旧行为逐字节等价）。 */
+    var footer = footerHtml();
+    var parts = (State.tab === "flow" && typeof requestAnimationFrame === "function")
+      ? body.split(SOP_CHUNK_MARK) : [body];
+
     app.innerHTML = '<div class="page-head">' +
       '<h2>🧭 外贸实操 SOP · 你做对了吗？</h2>' +
       '<div class="en">Export Operations SOP — from order confirmation to payment collection</div>' +
@@ -1220,11 +1238,53 @@
       '<div class="tabs">' + TABS.map(function (t) {
         return '<button class="tab' + (State.tab === t.k ? " active" : "") + '" data-action="sop-tab" data-tab="' + t.k + '">' + t.label + '</button>';
       }).join("") + '</div>' +
-      '<div id="sopBody">' + body + footerHtml() + '</div>';
+      '<div id="sopBody">' + parts[0] + (parts.length === 1 ? footer : "") + '</div>';
+    if (parts.length > 1) {
+      var gen = ++sopRenderGen;
+      (function next(k) {
+        if (gen !== sopRenderGen) return;                 /* 期间切了 tab：这批作废 */
+        var box = document.getElementById("sopBody");
+        if (!box || !box.insertAdjacentHTML) return;
+        if (k < parts.length) {
+          box.insertAdjacentHTML("beforeend", parts[k]);
+          scheduleSopChunk(function () { next(k + 1); });
+        } else {
+          box.insertAdjacentHTML("beforeend", footer);
+        }
+      })(1);
+    }
     if (State.tab === "docgen") dgLineBody();
   }
 
-  /* ================= 交互 ================= */
+  /* 勾选后就地刷新：这一步的样式 + 整页/各阶段的完成度计数（不重建 DOM）。 */
+  function syncCheckUi(el) {
+    var step = el.closest ? el.closest(".sop-step") : null;
+    if (step && step.classList) step.classList.toggle("done", !!el.checked);
+    var all = allSteps();
+    if (!all.length) return;
+    var done = doneCount(all);
+    var pct = Math.round(done / all.length * 100);
+    var overall = document.querySelector(".sop-overall");
+    if (overall) {
+      var span = overall.querySelector(".sop-overall-h span");
+      if (span) span.textContent = done + " / " + all.length + "（" + pct + "%）";
+      var obar = overall.querySelector(".progressbar i");
+      if (obar) { obar.style.width = pct + "%"; if (pct === 100) obar.classList.add("full"); else obar.classList.remove("full"); }
+    }
+    var stageEls = document.querySelectorAll(".sop-stage");
+    for (var i = 0; i < stageEls.length; i++) {
+      var s = STAGES[i];
+      if (!s) continue;
+      var d = doneCount(s.steps);
+      var sp = Math.round(d / s.steps.length * 100);
+      var pctEl = stageEls[i].querySelector(".sop-stage-pct");
+      if (pctEl) pctEl.textContent = d + " / " + s.steps.length;
+      var bar = stageEls[i].querySelector(".progressbar i");
+      if (bar) { bar.style.width = sp + "%"; if (sp === 100) bar.classList.add("full"); else bar.classList.remove("full"); }
+    }
+  }
+
+  /* 勾选状态变化后的下一步（供事件委托调用） */
   /* 集装箱内尺寸（经验值，米）。实际以货代/船公司实测为准。 */
   var CONTAINERS = [
     { k: "20GP", name: "20GP", L: 5.90, W: 2.35, H: 2.39, cbm: 33.2, pay: 17500 },
@@ -1783,7 +1843,9 @@
       var k = el.getAttribute("data-k");
       if (el.checked) State.checks[k] = 1; else delete State.checks[k];
       save();
-      render();
+      /* 不再整页重渲：流程页是长列表，重渲会重排全部阶段、还要分帧补内容，
+         表现为「点一下勾选整页闪一下、还可能跳滚动位置」。就地更新勾选态与各处计数即可。 */
+      syncCheckUi(el);
     } else if (act === "sop-reset") {
       State.checks = {};
       save();
