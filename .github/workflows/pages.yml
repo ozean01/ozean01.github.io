@@ -58,6 +58,10 @@ jobs:
       - name: Pre-push release check
         run: node tools/prepush-check.js
 
+      # 与 ci.yml 同步：干净检出里 prepush-check 的升版检查恒真，这里补「内容变 ⇒ CACHE 必须严格变大」。
+      - name: CACHE bump required when precached files change
+        run: node tools/check-cache-bump.js
+
   # ---------- 发布：只有 test 绿才会跑到这里 ----------
   deploy:
     needs: test
@@ -152,3 +156,27 @@ jobs:
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # 投用前检查 P2-5：部署后必须核验线上真的换成了本版（Pages 有传播延迟，故重试）。
+      # 不核验 = 只能靠人工 curl 才能发现「推了但线上没变」。
+      - name: Smoke test deployed site
+        run: |
+          set -euo pipefail
+          want=$(grep -oE 'const CACHE = "fte-v[0-9]+"' sw.js | sed -E 's/.*"([^"]+)"/\1/')
+          base="${{ steps.deployment.outputs.page_url }}"
+          [ -n "$base" ] || base="https://ozean01.github.io/"
+          case "$base" in */) ;; *) base="$base/" ;; esac
+          ok=0
+          for i in $(seq 1 20); do
+            code=$(curl -fsS -o /tmp/sw.js -w "%{http_code}" "${base}sw.js" || echo 000)
+            got=$(grep -oE 'const CACHE = "fte-v[0-9]+"' /tmp/sw.js 2>/dev/null | sed -E 's/.*"([^"]+)"/\1/' || true)
+            if [ "$code" = "200" ] && [ "$got" = "$want" ]; then ok=1; break; fi
+            echo "等待线上生效：第 $i 次，线上 CACHE=$got（期望 $want），HTTP $code"
+            sleep 6
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::线上 sw.js 的 CACHE 与本地不一致（期望 $want）——部署可能没有生效"
+            exit 1
+          fi
+          curl -fsS -o /dev/null "${base}"
+          echo "✅ 线上核验通过：CACHE=$want"

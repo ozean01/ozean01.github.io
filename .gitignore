@@ -6,3 +6,5 @@ models/
 Thumbs.db
 *.log
 node_modules/
+# Pages 部署暂存目录（workflow 里 rm -rf 重建；万一本地跑过部署脚本）
+_site/

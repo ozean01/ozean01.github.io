@@ -11,7 +11,16 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v106";   /* ★ 术语/格式一致性小批（2026-10-20）：只改数据文件内容（不改 PRECACHE 清单），
+const CACHE = "fte-v107";   /* ★ 投用前收口批次（2026-10-21）：PRECACHE 清单不变（57 条），改的是 SW 行为与首屏可读性：
+                             · install 改 addAll 全有或全无（旧实现逐条吞失败 → 弱网可能装出缺文件外壳，
+                               activate 再删旧桶 = 从「能离线」变「不能离线」）；
+                             · 去掉自动 skipWaiting：新外壳停在 waiting，由页脚提示条「立即刷新」触发；
+                             · 预缓存请求 cache:"reload" → "no-cache"（304 校验，首访不再把同一批资源下两遍）；
+                             · 首页 hero 引导句对比度 1.05–1.90:1 → 白系 92%（≤720px 隐藏 hero 装饰层）。
+                             清单内文件（index.html / css / js）内容变了，按纪律 +1。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v106 · 术语/格式一致性小批（2026-10-20）：
                              · 术语速查两条例句句首小写 → 大写，且用词更书面（corrosion / transfer 例）；
                              · 胶水涂布克重单位 gsm → g/m²（纸板仍保留 gsm），与全站 g/m² 口径一致；
                              · 剥离/封口强度单位统一为 N/15mm（原 data-risk 一处 N/15 mm）；
@@ -19,7 +28,6 @@ const CACHE = "fte-v106";   /* ★ 术语/格式一致性小批（2026-10-20）�
                              · 摄氏度统一写法：℃ → °C（含空格），与站内 23 °C / 50 % RH 一致。
                              清单内文件内容变了，按纪律 +1。
 
-                             —— 更早批次（历史记录，仍有效）——
                              fte-v105 · 全站 UI 规范与提升批次（2026-10-12 后一轮）：PRECACHE 清单集合与指纹不变（57 条），
                              但清单内文件**内容**改了（js/app.js · js/sop.js · js/tutor.js · js/mysay.js ·
                              js/material.js · js/listen.js · js/patterns.js · js/phonemes.js · js/radar.js ·
@@ -152,11 +160,18 @@ const PRECACHE = [
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(CACHE).then(function (c) {
-      /* 逐个 add，单个 404 不至于让整个 install 失败 */
-      return Promise.all(PRECACHE.map(function (url) {
-        return c.add(new Request(url, { cache: "reload" })).catch(function () { /* ignore */ });
+      /* 全有或全无（P1-1）：addAll 任一条失败 → install 失败 → **旧版本 SW 继续服务**。
+         旧实现逐条 add 且把失败吞掉，于是弱网更新可能装出一个「缺文件的半成品外壳」，
+         再被 activate 删掉旧桶 —— 结果是从「能离线」变成「不能离线」。
+         cache:"no-cache"（P1-2）：让每条资源走 304 条件请求，内容没变就不重下字节；
+         旧实现 cache:"reload" 会绕过 HTTP 缓存，首访把同一批资源下两遍（实测 110 请求 ≈4.19MB）。 */
+      return c.addAll(PRECACHE.map(function (url) {
+        return new Request(url, { cache: "no-cache" });
       }));
-    }).then(function () { return self.skipWaiting(); })
+    })
+    /* 不再自动 skipWaiting（P1-1）：新外壳装好后停在 waiting，由页面提示条
+       「🔄 已下载新版本 · 立即刷新」触发（postMessage "skip-waiting"）。
+       自动接管会让页面停在「旧文档 + 新脚本」的错位状态，用户也看不出更新何时生效。 */
   );
 });
 

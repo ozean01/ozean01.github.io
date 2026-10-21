@@ -162,7 +162,7 @@
   </div>
 </header>
 
-<main id="app" class="app container" aria-live="polite">
+<main id="app" class="app container">
   <!-- P0-5 静态骨架：脚本全部加载成功后会被 app.js 的渲染整体替换。
        它存在的意义是「加载中不至于白屏」，同时配合 js/pwa-init.js 给出可读的失败提示。 -->
   <div id="bootFallback" class="boot-skeleton">
@@ -170,6 +170,9 @@
     <p class="sop-hint">正在准备课程与语音模块。若这条提示长时间不消失，请检查网络后刷新页面（<b>桌面</b>：Ctrl+F5 / Mac 为 Cmd+Shift+R；<b>手机</b>：下拉刷新，或在浏览器菜单里点「重新加载」）。</p>
   </div>
 </main>
+<!-- 路由播报（P2-3）：只播报「当前页面标题」，不再让整个 #app 每次渲染都重播一遍。
+     必须放在 #app 之外：app.js 的 renderRoute 会整体替换 #app 的 innerHTML。 -->
+<div id="routeAnn" class="visually-hidden" role="status" aria-live="polite"></div>
 
 <footer class="site-footer">
   <div class="container footer-inner">
@@ -288,6 +291,33 @@
         · <b>iPhone</b>：用 Safari 打开 → 分享 → 「添加到主屏幕」，之后像 App 一样离线打开。<br>
         · <b>安卓</b>：用 Chrome 打开 → 菜单 → 「安装应用 / 添加到主屏幕」。<br>
         · <b>换设备续学</b>：学习进度只存在本浏览器、不会自动同步；用上面「⬇️ 导出进度备份 / ⬆️ 导入备份」搬运即可。
+      </div>
+    </div>
+    <div class="field">
+      <label>❓ 怎么用（3 分钟看完）</label>
+      <div class="field-note" style="line-height:1.85">
+        <details class="td-why-box"><summary>第一次打开：三天上手路线</summary>
+          <div class="td-why-body">
+            <p><b>第 1 天</b>：点顶部「🎯 测测起点」做一次水平自测 → 按结果自动定级 → 去「📅 今日」按五步走一遍（听 → 录 → 回放 → 标准音 → 对比）。</p>
+            <p><b>第 2 天</b>：按工作场景用「🧭 实操 SOP」：先用哪个流程就点哪个（报价、单据、信用证…），每一步都带可朗读的英文句与「练」按钮。</p>
+            <p><b>第 3 天</b>：把真实的客户来信贴进「✉️ 真实业务邮件」照着回一封；写不出就先用模板句，再对照坑位说明改。</p>
+          </div>
+        </details>
+        <details class="td-why-box"><summary>离线能做什么 / 不能做什么</summary>
+          <div class="td-why-body">
+            <p><b>能</b>（断网也能用）：课程词汇/短语/对话、单词卡、测验、听写、搜索、实操 SOP、错题与写作记录——外壳与课程数据都在本地缓存里。</p>
+            <p><b>需要联网</b>：发音朗读（Google/Azure 音源）、跟读评分与语音识别、AI 陪练与写作批改、汇率查询、素材投料口抓取网页。<b>断网时这些会失败</b>，属预期，不是站点坏了。</p>
+            <p>本机打开的本地副本（快捷方式）同样按这个规则；首次没联网打开过，则离线包还没装好。</p>
+          </div>
+        </details>
+        <details class="td-why-box"><summary>打不开 / 没声音 / 评分不可用，怎么办</summary>
+          <div class="td-why-body">
+            <p>· <b>页面白屏或提示没启动</b>：先 <b>Ctrl+F5</b> 强制刷新（手机下拉刷新；微信内点右上角 ⋯ →「在浏览器中打开」）。</p>
+            <p>· <b>评分不可用</b>：换 <b>Edge</b>（识别走 Azure，国内可达）；火狐没有语音识别 API，但跟读的录音/回放/对比仍可用。</p>
+            <p>· <b>双击快捷方式提示端口被占</b>：多半是上一个服务窗口没关——关掉旧窗口再开；新版启动器发现是本站自己占用时会直接复用并打开浏览器。</p>
+            <p>· <b>换电脑 / 清过浏览器数据</b>：学习进度只存在本浏览器，用「⬇️ 导出进度备份 / ⬆️ 导入备份」搬运。</p>
+          </div>
+        </details>
       </div>
     </div>
     <div class="field" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">

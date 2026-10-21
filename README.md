@@ -67,12 +67,14 @@
 
 ### 方式一：双击一键启动脚本（推荐）
 
-双击 `启动外贸英语网站.bat` —— 自动检测 Python/Node、**先探测端口再启动服务器、确认端口可连后才打开浏览器**，访问 **`http://localhost:8000`**。
-关闭弹出的启动窗口即自动停止服务器。此方式下语音（发音/评测/语音输入）功能完整可用。
+双击 `启动外贸英语网站.bat` —— 检测本机 Python（站点零构建、零 npm 依赖；**一键启动需要本机有 Python**，Windows 上 `python` 或 `py` 均可）、**先探测端口再启动服务器、确认端口可连后才打开浏览器**，访问 **`http://localhost:8000`**。若站点其实已在运行（旧服务窗口没关），新版启动器会**直接复用并打开浏览器**，不再报「端口被占」。
+关闭弹出的启动窗口即自动停止服务器。此方式下语音（发音/评测/语音输入）功能完整可用。没有 Python 时：用方式二（仅浏览）或方式三换任意静态服务器。
+
+> **更新提示条**：新版本 Sw 装好后，页面底部会弹出「🔄 已下载新版本 · 立即刷新」；点它才切到新版（不会静默接管），弱网下宁可继续用旧版也不装半成品离线包。
 
 > **端口的"绝不自动换"原则（重要）**：`localStorage` 按 **origin（协议+主机+端口）** 隔离，而你的词卡状态、打卡、错题、逐句笔记全都在里面。**换端口不是换个数字，而是让这些进度"看起来丢了"**（其实还在旧 origin 下）。所以：
 > - 默认就是 **8000 + `localhost`**，与历史完全一致 → **老用户零迁移**；
-> - **8000 被占用时脚本不会自作主张换端口**，而是停下让**你**选：① 关掉占用它的程序再启动（推荐，进度不受影响）；② 明确同意换端口继续（会打印 origin 变更与迁移办法）；
+> - **8000 被占用时脚本不会自作主张换端口**：若占用者是**本站自己上一次启动的服务**，直接复用并打开浏览器（进度不受影响）；**其它程序**占用时才停下让**你**选：① 关掉占用它的程序再启动（推荐，进度不受影响）；② 明确同意换端口继续（会打印 origin 变更与迁移办法）；
 > - 非交互场景（脚本 / CI / `-NoBrowser`）**一律默认"停下"**，绝不静默改 origin；
 > - 想省掉每次询问，可以显式放行：`启动外贸英语网站.bat -AllowPortChange`。
 >
@@ -129,13 +131,13 @@ python -m http.server 8000
 4. 单一原子提交 + 打 tag + 推送（本仓库远端名为 `ghio`）：
    ```bash
    git add -A
-   git commit -m "release: v1.12.0（fte-v106）"
-   git tag v1.12.0
+   git commit -m "release: v1.13.0（fte-v107）"
+   git tag v1.13.0
    git push ghio main --tags
    ```
 5. 等 Actions 的 `Deploy to GitHub Pages` 变绿，再核验线上（不核验等于没发布）：
    ```bash
-   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v106"'
+   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v107"'
    curl -fsS -o NUL -w "%{http_code}\n" https://ozean01.github.io/
    ```
    出现新 `CACHE` 且首页 200 才算发布成功。
@@ -578,7 +580,7 @@ pwsh -File tools/build-assets.ps1
 | 备份全覆盖 | 新建**存储键唯一权威注册表 `js/storage-keys.js`**（29 个 localStorage 键）。此前备份只覆盖 4 个键，SOP 勾选 / 学习走势 / 雷达原始分 / 自述语料库 / 写作作品 / 单证草稿 / 看板 / 自测基线**全部静默丢失**，而页面承诺「导入即可续学」。现在备份清单由注册表生成，并支持裸字符串键（`uk`/`all` 这类原先整类丢失） | `js/storage-keys.js`、`js/export.js` |
 | 凭据不外泄 | 备份**绝不包含** AI 陪练配置（`fte-tutor-cfg`）与 `progress.azureKey` 字段；导入时同样跳过，不写回 | `js/export.js` |
 | 隐私声明 | 设置页新增「🔍 数据去向」逐项表：哪个功能会向哪个域名发什么（含此前未披露的 `r.jina.ai` 网页抓取与录音上行），页脚同步 | `index.html` |
-| 首屏兜底 | 全部 45 个脚本加 `defer`；`#app` 加静态骨架（加载中不再白屏）；新增 `js/pwa-init.js` 安装**启动失败面板**——`app.js` 渲染成功后置 `window.FTE_BOOTED`，若始终未置位则显示可读的中文错误与重试按钮，并声明学习数据不受影响 | `index.html`、`js/pwa-init.js`、`js/app.js` |
+| 首屏兜底 | 全部 48 个脚本加 `defer`；`#app` 加静态骨架（加载中不再白屏）；新增 `js/pwa-init.js` 安装**启动失败面板**——`app.js` 渲染成功后置 `window.FTE_BOOTED`，若始终未置位则显示可读的中文错误与重试按钮，并声明学习数据不受影响 | `index.html`、`js/pwa-init.js`、`js/app.js` |
 
 ### B. 评分诚实化与「完成≠证据」（Phase 1）
 

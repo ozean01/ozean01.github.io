@@ -57,6 +57,11 @@ jobs:
       - name: Pre-push release check
         run: node tools/prepush-check.js
 
+      # 投用前检查 P2-3：prepush-check 的升版检查在 CI 干净检出里恒真（版本≥自身），
+      # 这里补一条真正看「HEAD^ → HEAD 预缓存文件内容有没有变、CACHE 有没有严格变大」的门禁。
+      - name: CACHE bump required when precached files change
+        run: node tools/check-cache-bump.js
+
       - name: Build data reports (fresh count/IPA)
         run: node tools/audit-count.js && node tools/audit-ipa.js
         env:

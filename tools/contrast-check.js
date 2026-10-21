@@ -33,6 +33,14 @@ function lineOf(text, i) { let n = 1; for (let j = 0; j < i && j < text.length; 
 function parseRules(text) {
   const out = []; let i = 0;
   while (i < text.length) {
+    /* 跳过空白与注释（历史盲区：注释里写的示例 CSS 花括号会被当成真规则，
+       解析出一条选择器是注释文字的假条目，报出的行号也不是真实位置）。 */
+    for (;;) {
+      const m = /^(?:\s+|\/\*[\s\S]*?\*\/)/.exec(text.slice(i));
+      if (!m) break;
+      i += m[0].length;
+    }
+    if (i >= text.length) break;
     const open = text.indexOf("{", i);
     if (open < 0) break;
     const sel = text.slice(i, open).replace(/\/\*[\s\S]*?\*\//g, "").trim();
@@ -64,15 +72,60 @@ function resolve(v, th) {
 }
 function strip(sel) { return sel.replace(/::?[a-z-]+(\([^)]*\))?/gi, "").replace(/\s+/g, " ").trim(); }
 
+/* 颜色声明 → 可参与核算的 8 位 hex（token / hex / rgb() / rgba() 都认）。
+   历史盲区：文本常用 rgba(255,255,255,.92) 写「92% 白」，旧实现只认 hex，
+   于是这类声明整条被跳过，门禁看不到它 —— hero 那句 1.05:1 就是这么漏掉的。 */
+function colorHex(v, th) {
+  if (!v) return null;
+  if (/transparent/i.test(v)) return null;
+  const m = v.match(/var\(\s*--([a-z0-9-]+)\s*\)/i);
+  if (m) return th[m[1]] ? colorHex(th[m[1]], th) : null;
+  const h = firstHex(v);
+  if (h) return h;
+  const g = v.match(/rgba?\(([^)]+)\)/i);
+  if (!g) return null;
+  const p = g[1].split(",").map(function (s) { return Number(String(s).replace(/[^\d.]/g, "")); });
+  if (p.length < 3 || p.some(function (n) { return !Number.isFinite(n); })) return null;
+  const a = p.length > 3 && Number.isFinite(p[3]) ? p[3] : 1;
+  const to = function (n) { return Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0"); };
+  return "#" + to(p[0]) + to(p[1]) + to(p[2]) + to(a * 255);
+}
+
+/* 渐变底的可解析色标（hex 与 var(--token) 都解析；rgba(255,255,255,.06) 之类是装饰层，不当作底色）。
+   为什么必须解析 var()：`.home-goal-path` 的渐变端色随主题走，只认 hex 会把暗色主题误判成「浅底」。 */
+function gradientStops(v, th) {
+  if (!v || !/gradient\(/i.test(v)) return null;
+  const out = [];
+  const re = /#[0-9a-fA-F]{3,8}|var\(\s*--([a-z0-9-]+)\s*\)/gi;
+  let m;
+  while ((m = re.exec(v)) !== null) {
+    let hex = null;
+    if (m[1]) hex = th && th[m[1]] ? th[m[1]] : null;
+    else hex = m[0];
+    if (hex && out.indexOf(hex) < 0) out.push(hex);
+  }
+  return out.length ? out : null;
+}
+
 function analyze(css) {
   const rules = parseRules(css);
   const light = tokensAt(css, 0);
   const darkAt = css.indexOf("@media (prefers-color-scheme: dark)");
   const dark = Object.assign({}, light, darkAt < 0 ? {} : tokensAt(css, darkAt));
 
-  /* 背景解析：规则自身 → 逐级祖先选择器 → 任何「前缀选择器」→ 页面底 --bg */
+  /* 背景解析：规则自身 → 逐级祖先选择器 → 任意「前缀选择器」→ 页面底 --bg。
+     返回 { hex } 或 { stops }；stops 表示静态可解析的渐变底（逐色标取最差对比度），
+     这修的是历史盲区：.hero-sub 坐在 .hero 的深色渐变上，旧实现见到 gradient() 就退回页面底。 */
+  function ownBgInfo(rule, th) {
+    const v = decl(rule.body, "background(?:-color)?");
+    const h = resolve(v, th);
+    if (h) return { hex: h };
+    const gs = gradientStops(v, th);
+    if (gs) return { stops: gs };
+    return null;
+  }
   function bgFor(rule, th) {
-    const own = resolve(decl(rule.body, "background(?:-color)?"), th);
+    const own = ownBgInfo(rule, th);
     if (own) return own;
     let plain = strip(rule.sel);
     for (let hop = 0; hop < 5 && plain; hop++) {
@@ -81,8 +134,8 @@ function analyze(css) {
       if (!anc) break;
       for (const r of rules) {
         if (r.at || strip(r.sel) !== anc) continue;
-        const h = resolve(decl(r.body, "background(?:-color)?"), th);
-        if (h) return h;
+        const info = ownBgInfo(r, th);
+        if (info) return info;
       }
       plain = anc;
     }
@@ -90,18 +143,26 @@ function analyze(css) {
     let best = null, bl = -1;
     for (const r of rules) {
       if (r.at) continue;
-      const h = resolve(decl(r.body, "background(?:-color)?"), th);
-      if (!h) continue;
+      const info = ownBgInfo(r, th);
+      if (!info) continue;
       for (const part of strip(r.sel).split(",")) {
         const t = part.trim();
         if (!t || t === p0) continue;
         if (p0.startsWith(t + " ") || p0.startsWith(t + ".") || p0.startsWith(t + ":") || p0.startsWith(t + "[")) {
-          if (t.length > bl) { bl = t.length; best = r; }
+          if (t.length > bl) { bl = t.length; best = info; }
         }
       }
     }
-    if (best) return resolve(decl(best.body, "background(?:-color)?"), th);
-    return th.bg;
+    if (best) return best;
+    return { hex: th.bg };
+  }
+  /* 对比度：纯色底直接算；渐变底逐色标算，取最差的那个（对深/浅底同理）。 */
+  function ratio(fg, bg) {
+    if (!bg) return null;
+    if (bg.stops) {
+      return Math.min.apply(null, bg.stops.map(function (s) { return contrast(blend(fg, s), s); }));
+    }
+    return contrast(blend(fg, bg.hex), bg.hex);
   }
 
   const rows = [];
@@ -109,13 +170,16 @@ function analyze(css) {
     if (r.at) continue;
     const c = decl(r.body, "color");
     if (!c) continue;
-    const lf = resolve(c, light), df = resolve(c, dark);
+    const lf = colorHex(c, light), df = colorHex(c, dark);
     if (!lf || !df) continue;                        /* 前景是渐变文字之类，跳过 */
     const lb = bgFor(r, light), db = bgFor(r, dark);
     rows.push({
       line: r.line, sel: r.sel, decl: c, hard: !!firstHex(c),
-      lightFg: lf, lightBg: lb, darkFg: df, darkBg: db,
-      light: contrast(blend(lf, lb), lb), dark: contrast(blend(df, db), db),
+      lightFg: lf, lightBg: lb.hex || (lb.stops ? lb.stops[0] : null),
+      darkFg: df, darkBg: db.hex || (db.stops ? db.stops[0] : null),
+      light: ratio(lf, lb), dark: ratio(df, db),
+      /* 渐变底（通常是祖父级深色面）：门禁现在能看见它，报告中单列 */
+      gradient: !!((lb && lb.stops) || (db && db.stops)),
       /* 自身声明了背景 = 前景/背景是同元素内的配对，最可信 */
       pairedBg: !!(resolve(decl(r.body, "background(?:-color)?"), light) ||
                    resolve(decl(r.body, "background(?:-color)?"), dark)),

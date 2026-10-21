@@ -78,6 +78,10 @@
   _need("口语雷达 radar.js", !!window.SpeakingRadar);
   if (_missing.length) {
     console.error("[软包装外贸英语] ⚠️ 以下脚本未加载或顺序错误（站点可能部分功能异常，请核对 index.html 的 <script> 顺序）：\n  - " + _missing.join("\n  - "));
+    /* P1-3（投用前检查）：缺脚本不能只写 console —— 用户看不到，页面会「看起来正常」，
+       点进去才发现某个功能是空的。挂到 window 上，由 pwa-init.js 的兜底面板明说
+       「部分模块未加载，可重试」；不阻断已加载模块的使用。 */
+    window.FTE_BOOT_FAILED = _missing.slice();
   }
 
   const app = document.getElementById("app");
@@ -670,6 +674,15 @@
       console.error(err);
       app.innerHTML = '<div class="empty"><div class="e-icon">😵</div>页面渲染出错：' + esc(err.message) + '</div>';
     }
+    /* 路由播报（P2-3）：只把「当前页面标题」丢给读屏器，而不是把整页重播。
+       原来 #app 自身 aria-live="polite"，任何渲染都会念一遍整页内容。 */
+    try {
+      var ann = document.getElementById("routeAnn");
+      if (ann) {
+        var h = app.querySelector(".page-head h2, .page-head h1, h1");
+        ann.textContent = h ? String(h.textContent || "").trim() : "";
+      }
+    } catch (e) { /* 播报失败不影响渲染 */ }
     window.scrollTo(0, 0);
   }
 
@@ -5290,7 +5303,19 @@
     }
     function restoreFocus() { if (lastFocus && lastFocus.focus) lastFocus.focus(); }
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && modal && !modal.hidden) { close(); restoreFocus(); }
+      if (!modal || modal.hidden) return;
+      if (e.key === "Escape") { close(); restoreFocus(); return; }
+      /* P2-3（投用前检查）：aria-modal 承诺了「弹窗内自洽」，但 Tab 仍会跑到被遮住的页面上。
+         这里把 Tab / Shift+Tab 收在弹窗内（首尾循环）。 */
+      if (e.key !== "Tab") return;
+      const items = Array.prototype.filter.call(
+        modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])'),
+        function (el) { return el.offsetParent !== null || el === document.activeElement; }
+      );
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
     btn.addEventListener("click", function () { lastFocus = document.activeElement; open(); focusIn(); });
     engineSel.addEventListener("change", syncAzureField);

@@ -1,4 +1,4 @@
-/* ============ 软包装外贸英语 样式 ============ */
+﻿/* ============ 软包装外贸英语 样式 ============ */
 /* ---------------------------------------------------------------------
    目录（按区块检索样式；行号为大致范围，随文件增长会漂移）：
    [01] 变量与基调 .......... ~2–60     :root 颜色/排版/间距变量
@@ -249,7 +249,7 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
   background:
     linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 22%),  /* 斜向“薄膜”高光 */
     repeating-linear-gradient(115deg,rgba(255,255,255,.045) 0 22px,rgba(255,255,255,0) 22px 44px), /* 印刷薄膜细密横纹 */
-    linear-gradient(135deg,#1e3a8a 0%,#2563eb 55%,#7c3aed 100%);
+    linear-gradient(135deg,#1e3a8a 0%,#1e40af 55%,#5b21b6 100%);
   color:#fff;border-radius:22px;padding:46px 40px;margin:26px 0 30px;
   box-shadow:0 20px 50px -20px rgba(37,99,235,.55);
 }
@@ -267,7 +267,7 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
 .hero h1{font-size:32px;font-weight:800;margin-bottom:10px;position:relative;z-index:1}
 .hero p{font-size:16px;opacity:.92;max-width:640px;position:relative;z-index:1}
 .hero .hero-tags{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}
-.hero .hero-tags span{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:4px 12px;border-radius:999px;font-size:13px}
+.hero .hero-tags span{background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.25);padding:4px 12px;border-radius:999px;font-size:13px}
 .hero-cta{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
 .btn{
   display:inline-flex;align-items:center;gap:7px;
@@ -1790,7 +1790,7 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .starter-chip.starter-mode:hover{background:#fef3c7}
 
 /* 🎯 三步上手向导（app.js homeGoalPath） */
-.home-goal-path{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(90deg,var(--primary-soft),#eef7ff);border:1px solid #dbeafe;border-radius:var(--radius);padding:12px 16px;margin:6px 0 14px}
+.home-goal-path{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(90deg,var(--primary-soft),var(--card));border:1px solid #dbeafe;border-radius:var(--radius);padding:12px 16px;margin:6px 0 14px}
 .home-goal-path b{font-size:14px;color:var(--primary-2);white-space:nowrap}
 .home-goal-path ol{display:flex;gap:10px;flex-wrap:wrap;list-style:none;margin:0;padding:0}
 .home-goal-path li a{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--primary-text);border-radius:10px;padding:6px 12px;text-decoration:none;color:var(--ink)}
@@ -1970,7 +1970,15 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 }
 
 /* ============ 首页 P1 重构：首页降级为「全站地图」 ============ */
-.hero-sub{margin-top:14px;font-size:13.5px;color:var(--muted);position:relative;z-index:1;max-width:660px;line-height:1.75}
+/* 对比度 1.05–1.90:1 修复（2026-10-21）：hero 的底是固定深蓝→蓝→紫渐变，
+   原先 .hero-sub 用 --muted（为浅色页面配的灰），压在这块深底上几乎读不出来；
+   改白系 92%，与 .hero p 同口径。静态对比度门禁过去只按「页面底」估算、看不见渐变父母，
+   本次同步让 tools/contrast-check.js 解析祖父级渐变底（逐色标取最差比值）。 */
+.hero .hero-sub{margin-top:14px;font-size:13.5px;color:rgba(255,255,255,.92);position:relative;z-index:1;max-width:660px;line-height:1.75}
+/* 引导句里那个「展开全站地图」是深色面上的行内按钮：继承 .linklike 的深蓝字会看不见，改白系 */
+.hero .hero-sub .linklike{color:#fff;text-decoration-color:rgba(255,255,255,.55)}
+/* ≤720px 隐藏右侧装饰层：它与引导句抢横向空间，窄屏下还会压字 */
+@media (max-width:720px){.hero .hero-layers{display:none}}
 .linklike{background:none;border:none;padding:0;font:inherit;color:var(--primary-text);font-weight:700;cursor:pointer;
           text-decoration:underline;text-underline-offset:3px}
 .linklike:hover{color:var(--primary-2)}
