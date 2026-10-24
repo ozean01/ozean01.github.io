@@ -1,6 +1,6 @@
 {
   "name": "softpackaging-english",
-  "version": "1.14.3",
+  "version": "1.14.4",
   "private": true,
   "description": "软包装外贸英语学习网站（纯静态 PWA，零构建、零 npm 依赖；本地用 Python 起静态服务，双击快捷方式即可）。",
   "scripts": {

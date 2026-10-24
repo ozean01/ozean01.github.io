@@ -13,13 +13,14 @@
   "use strict";
 
   window.MaterialImport = { render: render };
-  /* 供自动化测试/诊断使用的钩子（不影响运行时） */
-  window.MaterialImport._t = { splitSentences: splitSentences, isMostlyEnglish: isMostlyEnglish, fetchText: fetchText, extractWords: extractWords };
+  /* 供 Node 门禁测试：挖掘是纯函数（句 × 站内词库 × 掌握集），必须可离线校验 */
+  /* 供自动化测试/诊断使用的钩子（不影响运行时）：含 i+1 挖掘纯函数（句 × 站内词库 × 掌握集） */
+  window.MaterialImport._t = { splitSentences: splitSentences, isMostlyEnglish: isMostlyEnglish, fetchText: fetchText, extractWords: extractWords, buildTermIndex: buildTermIndex, mineI1: mineI1, termRegex: termRegex, activeSentences: activeSentences };
 
   /* 会话状态：本次导入的原始文本、标题、拆出的句子 */
   /* P1-C · fetchedUrl：记住"框里那段链接的正文已经取回来了"，供「📌 拆成句子」判断，
      避免拿上一次抓取的正文去拆这一次的链接（S01 的投料口顺序陷阱）。 */
-  const S = window.MaterialImport._state = { raw: "", title: "", sentences: [], parsed: false, error: "", fetchedUrl: "" };
+  const S = window.MaterialImport._state = { raw: "", title: "", sentences: [], parsed: false, error: "", fetchedUrl: "", mineOnly: false, mined: null };
 
   const E = function () { return window.TutorEnv || {}; };
   const esc = function (s) { const ev = E().esc || window.FTE_BOOT.esc; return ev ? ev(s) : String(s == null ? "" : s); };
@@ -177,11 +178,93 @@
     return out;
   }
 
+  /* ---------------- i+1 句子挖掘（对标 Migaku/LingQ 的方法论核心）----------------
+     输入法的黄金工作流：消费略高于当前水平的内容 → 找出「只含 1 个生词」的句子（i+1）
+     → 连语境挖进 SRS。本站的实现条件是全行业少有的齐全：学习者的掌握状态就在本地。
+     口径（诚实，不越界）：「生词」只统计【站内 798 词】里你还没自评标记掌握的词
+     （progress.learned）；词库外的普通英文词**不判生熟**——本站不是通用词频工具，
+     不假装知道你的真实词汇量边界。i+1 = 恰好 1 个未掌握的站内词：复习已会的、只新增一个。 */
+  function buildTermIndex(units) {
+    const out = [];
+    (units || []).forEach(function (u) {
+      (u.vocab || []).forEach(function (v, i) {
+        const w = String(v.w || "").trim().toLowerCase();
+        if (!w || !/^[a-z]/.test(w)) return;
+        out.push({ id: u.id + "-" + i, w: w, cn: v.cn || "" });
+      });
+    });
+    /* 长词组优先，防止 "trade" 吞掉 "trade fair" 的匹配机会 */
+    out.sort(function (a, b) { return b.w.length - a.w.length; });
+    return out;
+  }
+  function termRegex(w) {
+    const esc = String(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    /* 带 g：mineI1 的遮罩循环需要 exec 沿 lastIndex 前进（跳过被长词组遮住的命中） */
+    return new RegExp("(?<![a-z'-])" + esc + "(?![a-z'-])", "gi");
+  }
+  function mineI1(sentences, terms, knownIds) {
+    const known = knownIds || {};
+    /* 同名术语可能出现在多个单元：任一 id 已掌握 → 该词整体视为已掌握（按词去重，不按词条重复计数） */
+    const byWord = {};
+    terms.forEach(function (t) {
+      const g = byWord[t.w] || (byWord[t.w] = { w: t.w, cn: t.cn, ids: [] });
+      g.ids.push(t.id);
+      if (t.cn && !g.cn) g.cn = t.cn;
+    });
+    /* 长词组优先匹配；命中的区间不再被更短的词重复计数——
+       "trade fair" 不能再吐出一个 "trade"（真机实测抓到的重复计数 bug） */
+    const ordered = Object.keys(byWord).map(function (k) { return byWord[k]; })
+      .sort(function (a, b) { return b.w.length - a.w.length; });
+    return (sentences || []).map(function (sent) {
+      const lower = String(sent).toLowerCase();
+      const taken = [];
+      const unknown = [], knownHits = [];
+      ordered.forEach(function (t) {
+        if (!t.re) t.re = termRegex(t.w);
+        t.re.lastIndex = 0;
+        let m;
+        while ((m = t.re.exec(lower)) !== null) {
+          const s0 = m.index, e0 = m.index + m[0].length;
+          if (taken.some(function (r) { return s0 < r[1] && e0 > r[0]; })) {
+            if (m.index === t.re.lastIndex) t.re.lastIndex++;
+            continue;
+          }
+          taken.push([s0, e0]);
+          const isKnown = t.ids.some(function (id) { return known[id]; });
+          (isKnown ? knownHits : unknown).push({ w: t.w, cn: t.cn, id: t.ids[0] });
+          break;   /* 每个词每句只计一次 */
+        }
+      });
+      return {
+        sent: sent,
+        unknown: unknown,
+        unknownCount: unknown.length,
+        i1: unknown.length === 1
+      };
+    });
+  }
+  /* 当前应送进流水线的句子：开了「只送 i+1 句」就过滤（挖掘结果为空时不筛，避免空转） */
+  function activeSentences() {
+    if (S.mineOnly && S.mined) {
+      const i1 = S.mined.filter(function (m) { return m.i1; }).map(function (m) { return m.sent; });
+      if (i1.length) return i1;
+    }
+    return S.sentences;
+  }
+  function computeMine() {
+    const boot = window.FTE_BOOT;
+    const units = unitBox();
+    if (!units || !units.length) return null;
+    const terms = buildTermIndex(units);
+    const knownIds = (boot && boot.progress && boot.progress.learned) || {};
+    return mineI1(S.sentences, terms, knownIds);
+  }
+
   /* ③a 送去「记忆单词卡 · FSRS」：直接给 State.flash 建一套复用现有卡片引擎 */
   function sendToFlash() {
     const boot = window.FTE_BOOT;
     if (!boot || !boot.State) { toast("⚠️ 主应用未就绪"); return; }
-    const cards = extractWords(S.sentences);
+    const cards = extractWords(activeSentences());
     if (!cards.length) { toast("未从这些句子里提取到可用实词（至少需要含字母的英文词）"); return; }
     const cap = cards.slice(0, 30);
     boot.State.flash = {
@@ -200,7 +283,7 @@
   function sendToEval4() {
     if (!window.Eval4 || !window.Eval4.registerScenes) { toast("⚠️ 四维口语引擎未加载"); return; }
     const D = (typeof FTE_DIFF !== "undefined") ? FTE_DIFF : null;
-    const scenes = S.sentences.slice(0, 8).map(function (sent, i) {
+    const scenes = activeSentences().slice(0, 8).map(function (sent, i) {
       /* 行业术语（FTE_DIFF.dom）自动抽出来做「术语发音」重点标注 */
       const terms = [];
       sent.toLowerCase().replace(/[^a-z'-]/g, " ").split(/\s+/).forEach(function (tok) {
@@ -215,17 +298,18 @@
 
   function sendToSubtitle() {
     if (!S.sentences.length) { toast("请先「📌 拆成句子」再送去点读"); return; }
+    const sents = activeSentences();
     const ST = window.Subtitle && window.Subtitle.state;
     if (!ST) { toast("⚠️ 字幕引擎未加载，无法送去点读"); return; }
     /* 无媒资时用 TTS 逐句点读，time 仅用于排序/显示，用渐进间隔即可 */
-    ST.cues = S.sentences.map(function (s, i) {
+    ST.cues = sents.map(function (s, i) {
       return { start: i * 4, end: i * 4 + 3.5, text: s };
     });
     ST.current = 0;
     ST.mediaUrl = null;
     ST.fileName = S.title && /[A-Za-z0-9]{4,}/.test(S.title) ? S.title : "导入素材";
     location.hash = "#/subtitle";
-    toast("✓ 已送入「字幕逐句点读」：" + S.sentences.length + " 句（无媒资时点▶用 TTS 朗读）");
+    toast("✓ 已送入「字幕逐句点读」：" + sents.length + " 句（无媒资时点▶用 TTS 朗读）");
   }
 
   /* ② 送到「听说训练 · 五阶段闯关」（复用 State.speak + #/speak 的盲听/跟读/听写/复述） */
@@ -245,7 +329,7 @@
       phrases: [],
       dialogues: [{
         title: title,
-        lines: S.sentences.map(function (s) { return { sp: "A", en: s, cn: "" }; })
+        lines: activeSentences().map(function (s) { return { sp: "A", en: s, cn: "" }; })
       }]
     };
     units.push(unit);
@@ -270,13 +354,30 @@
   function render() {
     const app = document.getElementById("app");
     const n = S.sentences.length;
+    /* i+1 挖掘：拆句后即时计算（纯函数，基于站内词库 + 本机掌握状态） */
+    S.mined = (n && S.parsed) ? computeMine() : null;
+    const mineStats = (function () {
+      if (!S.mined) return null;
+      let i1 = 0, fresh = 0, mastered = 0;
+      S.mined.forEach(function (m) {
+        if (m.i1) i1++;
+        else if (m.unknownCount === 0) mastered++;
+        else fresh++;
+      });
+      return { i1: i1, fresh: fresh, mastered: mastered, total: S.mined.length };
+    })();
+    const activeCount = activeSentences().length;
     /* disabled 按钮也必须说清「为什么不能点」，否则用户只看到一个灰钮不知道下一步做什么 */
     const needSplit = 'disabled title="先在上面点「📌 拆成句子」：拆出句子后这里才会亮起"';
-    const preview = n
-      ? S.sentences.slice(0, 40).map(function (s, i) {
+    const preview = (n && S.mined)
+      ? S.mined.slice(0, 40).map(function (m, i) {
+        const tag = m.i1 ? '<span class="badge badge-ok">i+1</span> '
+          : (m.unknownCount === 0 ? '<span class="badge badge-muted">全熟</span> '
+            : '<span class="badge badge-muted">+' + m.unknownCount + ' 生词</span> ');
+        const unk = m.unknown.length ? '<span style="color:var(--muted)">（未掌握：' + esc(m.unknown.map(function (u) { return u.w; }).join(", ")) + '）</span>' : "";
         return `<div class="sub-row" data-idx="${i}">
           <span class="sub-time">${i + 1}</span>
-          <span class="sub-text">${esc(s)}</span>
+          <span class="sub-text">${tag}${esc(m.sent)} ${unk}</span>
         </div>`;
       }).join("") + (n > 40 ? '<div class="field-note" style="padding:6px 4px 0">…（已拆出 ' + n + ' 句，仅预览前 40 句，全部会送去训练）</div>' : "")
       : "";
@@ -313,6 +414,17 @@
 
     <div class="card" style="margin-top:12px;padding:16px 18px">
       <label style="font-weight:600;display:block;margin-bottom:6px">② 把它送进流水线 ${n ? '<span class="badge badge-ok">已拆出 ' + n + ' 句</span>' : ""}</label>
+      ${(function () {
+        if (!mineStats) return "";
+        const html = '<div class="card" style="margin:0 0 10px;padding:10px 12px;background:var(--primary-soft,#eef2ff)">' +
+          '<b>🎯 i+1 挖掘</b>（按你的掌握状态）：' +
+          '<span class="badge badge-ok">i+1 句 ' + mineStats.i1 + '</span> ' +
+          '<span class="badge badge-muted">全熟 ' + mineStats.mastered + '</span> ' +
+          '<span class="badge badge-muted">待学 ' + mineStats.fresh + '</span> ' +
+          '<button class="btn btn-soft btn-sm" style="margin-left:6px" data-action="mat-mine-toggle">' + (S.mineOnly ? "✓ 只送 i+1 句（" + activeCount + " 句）——点此取消" : "只送 i+1 句（" + mineStats.i1 + " 句）") + '</button>' +
+          '<div style="margin-top:4px;font-size:12px;color:var(--muted)">口径：生词只统计站内 798 词里你还没自评掌握的（progress.learned）；词库外的普通英文词不判生熟。i+1 = 全句恰好 1 个这样的生词——复习已会的、只新增一个（Krashen 输入假说的可执行版）。开启后，下面四个出口只送 i+1 句。</div></div>';
+        return html;
+      })()}
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" data-action="mat-subtitle" ${n ? 'title="逐句点读 + 生词按易/中/难/专着色 + 点词查意"' : needSplit}>📺 送进「字幕逐句点读」</button>
         <button class="btn btn-primary" data-action="mat-stage" ${n ? 'title="同一批句子按 盲听 → 精听跟读 → 听写 → 复述 串成一次"' : needSplit}>🏁 送进「听说训练 · 五阶段闯关」</button>
@@ -428,16 +540,23 @@
       render();
       return;
     }
+    if (act === "mat-mine-toggle") {
+      S.mineOnly = !S.mineOnly;
+      render();
+      return;
+    }
     if (act === "mat-subtitle") sendToSubtitle();
     else if (act === "mat-stage") sendToStage();
     else if (act === "mat-flash") sendToFlash();
     else if (act === "mat-eval4") sendToEval4();
   }
 
-  document.addEventListener("click", function (e) {
-    const el = e.target.closest("[data-action]");
-    if (!el) return;
-    const act = el.getAttribute("data-action");
-    if (act && act.indexOf("mat-") === 0) doAction(act);
-  });
+  if (typeof document !== "undefined") {
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("[data-action]");
+      if (!el) return;
+      const act = el.getAttribute("data-action");
+      if (act && act.indexOf("mat-") === 0) doAction(act);
+    });
+  }
 })();

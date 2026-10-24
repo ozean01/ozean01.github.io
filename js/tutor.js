@@ -797,7 +797,7 @@
   const RP_KEY = "fte-tutor-rp-v1";
   const RP_SCENARIOS = [
     {
-      id: "price", title: "客户压价 15%", goal: "守住价格底线并达成折中",
+      id: "price", tasks: ["quote"], title: "客户压价 15%", goal: "守住价格底线并达成折中",
       buyer: "You are the purchasing manager of a mid-size US flexible-packaging converter. You have budget pressure from above and you enjoy negotiating hard, but you value long-term suppliers.",
       opener: "Look, I like your pouch quality, but your quote is 15% above what I pay now. You need to sharpen your pencil if we're going to do business.",
       stages: [
@@ -808,7 +808,7 @@
       ]
     },
     {
-      id: "delivery", title: "客户要求提前两周交货", goal: "诚实评估产能并给出分批方案",
+      id: "delivery", tasks: ["order", "logistics"], title: "客户要求提前两周交货", goal: "诚实评估产能并给出分批方案",
       buyer: "You are the supply-chain director of a European coffee brand. Your marketing team moved the launch forward and you are under real pressure, but you respect suppliers who are honest about capacity.",
       opener: "Change of plan — we need the goods two weeks earlier than the contract says. Can you make it or not? Our launch is fixed.",
       stages: [
@@ -819,7 +819,7 @@
       ]
     },
     {
-      id: "claim", title: "客户投诉复合脱层", goal: "安抚取证、给临时对策并承诺调查",
+      id: "claim", tasks: ["claim"], title: "客户投诉复合脱层", goal: "安抚取证、给临时对策并承诺调查",
       buyer: "You are the quality manager of a food producer. A batch of laminated pouches is delaminating at the seal edge on your packing line. You are angry but professional — you want facts and a plan, not apologies alone.",
       opener: "Your pouches are delaminating on our line — right at the seal edge. Two pallets already. What are you going to do about it?",
       stages: [
@@ -830,7 +830,7 @@
       ]
     },
     {
-      id: "coldcall", title: "新客户首次电话询盘", goal: "从陌生来电到约定下一步",
+      id: "coldcall", tasks: ["quote", "exhibition"], title: "新客户首次电话询盘", goal: "从陌生来电到约定下一步",
       buyer: "You are the owner of a small snack brand in Southeast Asia. You called a factory you found online. You are busy and slightly skeptical of cold answers full of marketing talk.",
       opener: "Hello? I saw your website — you do laminated pouches? I need something for my snack products, but I'm comparing three suppliers. Make it quick.",
       stages: [
@@ -841,7 +841,7 @@
       ]
     },
     {
-      id: "payment", title: "客户要求 60 天账期", goal: "说明风险并谈成折中付款条件",
+      id: "payment", tasks: ["payment"], title: "客户要求 60 天账期", goal: "说明风险并谈成折中付款条件",
       buyer: "You are the finance manager of a long-standing but cash-tight distributor. You always push for longer credit terms; your company pays eventually, but slowly.",
       opener: "We've worked together for two years. This time we need 60 days credit — our cash flow is tight this quarter. Otherwise we'll have to reduce the order.",
       stages: [
@@ -852,7 +852,7 @@
       ]
     },
     {
-      id: "launch", title: "视频会议介绍无溶剂胶新品", goal: "讲清技术卖点并接住质疑",
+      id: "launch", tasks: ["tech", "meeting"], title: "视频会议介绍无溶剂胶新品", goal: "讲清技术卖点并接住质疑",
       buyer: "You are the technical director of a packaging factory currently using solvent-based adhesive. You are skeptical about switching: curing time, bond strength on your old laminator, and migration compliance all worry you.",
       opener: "So you say your solvent-free adhesive can replace what we use now. Convince me — we can't afford line stops or failed migration tests.",
       stages: [
@@ -904,7 +904,21 @@
       return '<div class="card" style="margin-top:12px;padding:12px 14px">' +
         '<div class="chat-head" style="margin-bottom:6px"><span>🎯 实战关卡 <span style="font-size:12px;color:var(--muted);font-weight:400"> · 选一个场景，AI 扮演客户、按阶段推进；复用下面的输入框与 🎤/🔁 免按键通话</span></span></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        RP_SCENARIOS.map(function (s) { return '<button class="scen-chip" data-action="rp-start" data-id="' + s.id + '" title="' + esc(s.goal) + '">' + esc(s.title) + "</button>"; }).join("") +
+        (function () {
+          /* ESP 任务画像联动：勾了岗位任务时，覆盖这些任务的关卡标「荐」并排到最前（PATS 研究：
+             persona/场景相关的 role-play 是最高影响策略——推荐哪场练习同样重要） */
+          const p0 = E().getProgress ? E().getProgress() : null;
+          const prof = (p0 && Array.isArray(p0.taskProfile)) ? p0.taskProfile : [];
+          const list = RP_SCENARIOS.slice().sort(function (a, b) {
+            const sa = (a.tasks || []).some(function (t) { return prof.indexOf(t) !== -1; }) ? 0 : 1;
+            const sb = (b.tasks || []).some(function (t) { return prof.indexOf(t) !== -1; }) ? 0 : 1;
+            return sa - sb;
+          });
+          return list.map(function (s) {
+            const rec = (s.tasks || []).some(function (t) { return prof.indexOf(t) !== -1; });
+            return '<button class="scen-chip" data-action="rp-start" data-id="' + s.id + '" title="' + esc(s.goal) + '">' + esc(s.title) + (rec ? " · <b style=\"color:var(--ok)\">荐</b>" : "") + "</button>";
+          }).join("");
+        })() +
         "</div></div>";
     }
     const steps = sc.stages.map(function (s, i) {

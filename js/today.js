@@ -363,7 +363,63 @@
         if (p && !doneOf(p)) u = p;
       }
     }
+    /* ESP 任务画像：显式勾选的岗位任务 > 默认顺序（仍让位于水平自测的位置建议） */
+    if (taskProfile(prog).length) {
+      const pick = pickUnitByProfile(units, prog, doneOf);
+      if (pick) u = pick.unit;
+    }
     return u || { id: 1, title: "第 1 单元", icon: "📘", dialogues: [] };
+  }
+
+  /* ---------------- 🎯 岗位任务画像（ESP needs analysis）----------------
+     由来（外部方法论对标 2026-10-24）：ESP 教学法的标准工作流是「需求分析 → 围绕真实
+     岗位任务设计 → 任务型评估」。本站「测起点」测的是 CEFR 水平，但从不问「你的工作里
+     哪几件事最常发生」。这里补上第一块：多选岗位任务 → 驱动「今日」的单元推荐与
+     AI 实战关卡的推荐（通识 App 结构性做不到，垂直站的护城河）。
+     口径：画像只影响**推荐顺序**，不锁死任何内容；不选则维持默认顺序。 */
+  const PROFILE_TASKS = [
+    { k: "quote", label: "询盘与报价" },
+    { k: "order", label: "催单与跟单" },
+    { k: "payment", label: "收款与付款" },
+    { k: "claim", label: "客诉与纠纷" },
+    { k: "logistics", label: "物流与订舱" },
+    { k: "exhibition", label: "展会接待" },
+    { k: "tech", label: "技术沟通" },
+    { k: "compliance", label: "合规与认证" },
+    { k: "meeting", label: "会议与汇报" }
+  ];
+  /* 单元 → 任务映射（按单元 summary/对话场景人工标注；新增单元时同步补） */
+  const UNIT_TASKS = {
+    1: ["quote"], 2: ["exhibition"], 3: ["quote"], 4: ["quote"], 5: ["quote"],
+    6: ["payment"], 7: ["logistics", "compliance"], 8: ["meeting", "order"],
+    9: ["claim"], 10: ["claim"], 11: ["tech"], 12: ["order", "logistics"],
+    13: ["logistics"], 14: ["quote"], 15: ["payment"], 16: ["claim", "compliance"],
+    17: ["tech"], 18: ["compliance", "claim"], 19: ["meeting"]
+  };
+  function taskProfile(prog) {
+    return (prog && Array.isArray(prog.taskProfile)) ? prog.taskProfile : [];
+  }
+  function unitTaskOverlap(u, profile) {
+    const tags = UNIT_TASKS[u && u.id] || [];
+    return tags.filter(function (t) { return profile.indexOf(t) !== -1; }).length;
+  }
+  /* 纯函数：按画像在未完成单元里挑重叠任务最多的（平手取靠前的）；无画像/无命中 → null */
+  function pickUnitByProfile(units, prog, doneOf) {
+    const profile = taskProfile(prog);
+    if (!profile.length) return null;
+    let best = null, bestScore = 0;
+    (units || []).forEach(function (u) {
+      if (doneOf && doneOf(u)) return;
+      const score = unitTaskOverlap(u, profile);
+      if (score > bestScore) { bestScore = score; best = u; }
+    });
+    if (!best) return null;
+    const matched = (UNIT_TASKS[best.id] || []).filter(function (t) { return profile.indexOf(t) !== -1; })
+      .map(function (t) {
+        const h = PROFILE_TASKS.filter(function (x) { return x.k === t; })[0];
+        return h ? h.label : t;
+      });
+    return { unit: best, score: bestScore, matched: matched };
   }
 
   /* ---------------- 发音提醒（行为设计） ----------------
@@ -455,6 +511,8 @@
     const pctOf = boot.unitPct || function () { return 0; };
 
     const nextUnit = startUnit(units, prog);
+    const doneOf2 = boot.unitDone || function (u) { return (boot.unitPct ? boot.unitPct(u) : 0) >= 100; };
+    const profPick = taskProfile(prog).length ? pickUnitByProfile(units, prog, doneOf2) : null;
     const unitPctVal = pctOf(nextUnit);
     const dlgN = (nextUnit.dialogues || []).length;
     const fresh = isNewbie(prog);
@@ -482,9 +540,11 @@
       {
         key: "unit", icon: "📖", title: "学第 " + nextUnit.id + " 单元",
         sub: nextUnit.title, min: 5, href: "#/unit/" + nextUnit.id,
-        why: (fresh && placed && nextUnit.id === placed)
-          ? ("按你的水平自测结果，从这里开始（U" + placed + "）")
-          : ("当前进度停在 U" + nextUnit.id + "（已自评标记 " + unitPctVal + "%，达 " + threshold + "% 即算完成）"),
+        why: (profPick && profPick.unit.id === nextUnit.id)
+          ? ("按你的岗位任务画像：U" + nextUnit.id + " 覆盖你选的「" + profPick.matched.join("、") + "」（已自评标记 " + unitPctVal + "%）")
+          : ((fresh && placed && nextUnit.id === placed)
+            ? ("按你的水平自测结果，从这里开始（U" + placed + "）")
+            : ("当前进度停在 U" + nextUnit.id + "（已自评标记 " + unitPctVal + "%，达 " + threshold + "% 即算完成）")),
         credit: "自报：做完点「✓ 完成」才计入打卡（进度按上面的自评标记百分比算）",
         auto: false
       },
@@ -910,6 +970,22 @@
         '系统会跟上次逐项对比。</div>';
     })()}
 
+    ${(function () {
+      const prof = taskProfile(boot.progress);
+      return '<details class="td-profile" style="margin:10px 0 0">' +
+        '<summary style="cursor:pointer;font-size:13.5px"><b>🎯 岗位任务画像</b>' +
+        (prof.length ? '<span class="badge badge-ok" style="margin-left:6px">已选 ' + prof.length + ' 项 · 今日推荐已按此倾斜</span>' : '<span class="badge badge-muted" style="margin-left:6px">未设置</span>') +
+        '<span style="color:var(--muted);font-size:12px;margin-left:6px">（ESP 需求分析：选你工作里最常做的事，今日的单元与关卡推荐向它倾斜）</span></summary>' +
+        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+        PROFILE_TASKS.map(function (t) {
+          const on = prof.indexOf(t.k) !== -1;
+          return '<button class="td-lchip' + (on ? " on" : "") + '" data-action="td-profile" data-k="' + t.k + '" aria-pressed="' + (on ? "true" : "false") + '">' + t.label + "</button>";
+        }).join("") +
+        "</div>" +
+        '<div style="margin-top:6px;font-size:12px;color:var(--muted)">只影响推荐顺序，不锁死内容；随时可改。存在本机（progress.taskProfile），随备份迁移。</div>' +
+        "</details>";
+    })()}
+
     <section class="td-list-head">
       <b>今天的清单</b>
       <span class="td-count">${doneN} / ${steps.length} 完成 · 约 ${totalMin(steps, S.short)} 分钟</span>
@@ -1051,6 +1127,18 @@
        不新增任何机制——它就是把站内已有的「今天只有 5 分钟」按一次。 */
     if (act === "td-comeback-min") { S.short = true; render(); return; }
 
+    if (act === "td-profile") {
+      const k = el.getAttribute("data-k");
+      const boot2 = E();
+      const p = boot2.progress || {};
+      const prof = taskProfile(p).slice();
+      const i = prof.indexOf(k);
+      if (i !== -1) prof.splice(i, 1); else prof.push(k);
+      p.taskProfile = prof;
+      if (boot2.saveProgress) boot2.saveProgress();
+      render();
+      return;
+    }
     if (act === "td-tick") {
       const key = el.getAttribute("data-key");
       const step = buildSteps().filter(function (s) { return s.key === key; })[0];
@@ -1071,6 +1159,8 @@
     pronFocus: pronFocus,
     /* 🎧 连听本单元（P7）：清单构建是纯函数，必须有测试盯着——它决定"连听到底读什么" */
     listenItems: listenItems, LISTEN_SCOPES: LISTEN_SCOPES, listenUnit: listenUnit,
+    /* 🎯 岗位任务画像（ESP）：映射与挑选是纯函数，必须测试盯着 */
+    PROFILE_TASKS: PROFILE_TASKS, UNIT_TASKS: UNIT_TASKS, taskProfile: taskProfile, pickUnitByProfile: pickUnitByProfile,
     /* 🎯 听后测（P1-8）：题目生成是纯函数（rnd 可注入），必须测试盯着：
        选项去重、正确答案必在、素材不足明确拒判——测出假题比不测更糟 */
     makeListenQuiz: makeListenQuiz, QUIZ_COUNT: QUIZ_COUNT,
