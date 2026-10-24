@@ -193,7 +193,7 @@
         <option value="azure">Azure 语音（微软神经人声 · 需填 Key）</option>
         <option value="google">Google 在线音源（遗留 · 不推荐，下版移除）</option>
       </select>
-      <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得接近真人的微软神经网络人声（免费、无需 Key）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为第三方免费端点，常被 Google 封禁而失效，失败时会自动回退浏览器语音，故不再推荐。</p>
+      <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得微软的<b>云端神经网络语音</b>（免费、无需 Key，需联网——被朗读的文本会上行到微软，见下方「🔍 数据去向」）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为非官方公开端点，无可用性承诺，常被限流或拦截，失败时会自动回退浏览器语音，故不再推荐。</p>
       <p class="field-note" id="engineQuality" style="margin-top:6px;font-weight:600"></p>
     </div>
     <div class="field" id="setAzureField" hidden>
@@ -207,9 +207,9 @@
         <button class="btn btn-outline btn-sm" data-action="settings-test-azure">🧪 测试 Azure 发音</button>
         <span class="field-note" id="azureTestResult" style="display:inline-block;margin:0 0 0 8px"></span>
       </div>
-      <p class="field-note">填写后在 Azure 门户创建「Speech」资源，复制 Key 与区域填入即可。常见英文人声：en-US-JennyNeural、en-US-AriaNeural、en-US-GuyNeural、en-GB-SoniaNeural。失败时会自动回退浏览器语音。</p>
-      <label class="step-toggle" style="margin-top:8px" title="在「四维口语实战」中用同一 Key 调用 Azure 发音评测，可输出逐词与逐音素分（准确率/流利度/完整性/发音），跨浏览器可用，无需下载本地模型">
-        <input type="checkbox" id="setAzurePA" checked> 🎯 同时用此 Key 做「音素级发音评测」（四维口语实战）
+      <p class="field-note">常见英文神经人声：en-US-JennyNeural、en-US-AriaNeural、en-US-GuyNeural、en-GB-SoniaNeural（开通步骤与免费额度见下方「开通三步」）。合成失败时会自动逐句回退浏览器语音。</p>
+      <label class="step-toggle" style="margin-top:8px" title="在「四维口语实战」中用同一 Key 调用 Azure 发音评测（Pronunciation Assessment）：输出参考句内逐词与音素级准确度，以及句子级流利度 / 完整度 / 韵律（prosody）分；跨浏览器可用，无需下载本地模型">
+        <input type="checkbox" id="setAzurePA" checked> 🎯 同时用此 Key 做「音素级发音评测」——逐词/音素准确度 + 流利度 / 完整度 / 韵律（prosody）（四维口语实战）
       </label>
       <label class="step-toggle" style="margin-top:6px" title="用 Azure 的 customerservice 语气风格朗读（仅对支持的神经人声生效，其他人声自动忽略）。更贴合「跟客户说话」的练习场景">
         <input type="checkbox" id="setAzureStyle" checked> 🎭 对白风格朗读（customerservice 语气）
@@ -234,7 +234,7 @@
         <button type="button" class="btn btn-outline btn-sm" data-accent="uk" aria-pressed="false">🇬🇧 英音（听辨训练）</button>
       </div>
       <p class="field-note" id="accentNote"></p>
-      <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎下切口音会<b>自动</b>换用对应人声——英音即 <code>en-GB-SoniaNeural</code>，无需手动改，除非你想指定别人；Google 在线音源固定美音。）</p>
+      <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音（General American，GA）—— 换的只是朗读人声。（Azure 引擎下切口音会<b>自动</b>换用对应人声——英音即 <code>en-GB-SoniaNeural</code>，无需手动改，除非你想指定别人；Google 在线音源固定美音。）</p>
     </div>
     <div class="field">
       <label>🌐 全英模式（隐藏与英文并排的中文）</label>
@@ -250,12 +250,14 @@
         <input type="range" id="setRate" min="0.5" max="1.5" step="0.1" value="1">
         <span>1.5×</span>
       </div>
+      <p class="field-note">相对倍率：1.0× 即该人声的正常语速（英文约 140–160 词/分钟），倍率只改变快慢、不改内容。跟读建议 0.85–1.0×；听力磨耳朵可用变异听里的 1.15×。</p>
     </div>
     <div class="field">
       <label>🗣 识别来源（跟读评测 / AI 陪练语音输入）</label>
-      <p class="field-note" id="asrSourceNote">跟着读的评分走<b>浏览器自带的语音识别</b>（Web Speech API）。<br>
-        📌 <b>推荐用 Edge 打开本站</b>：Edge 的识别走 Azure，<b>国内可达</b>；Chrome 的实现走 Google，国内通常连不上；火狐没有这个 API。<br>
-        ⚠️ 拿不到识别时<b>照样能练</b>：跟读仍会给「回放你的 → 再放标准音」的 A/B 对照与音量/节奏反馈，只是不出逐词分。<br>
+      <p class="field-note" id="asrSourceNote">跟着读的评分走<b>浏览器内置的在线语音识别</b>（Web Speech API 的 SpeechRecognition 接口，即 ASR / 自动语音识别）。<br>
+        ⚙️ <b>它的工作方式决定了分数的性质</b>：识别返回的是<b>转写文本</b>，逐词分由站内把转写与参考句做文本比对得出——所以它是<b>发音清晰度的参考</b>，不是声学发音评分：口音重但能被识别的词一样会给高分（识别 ≠ 发音）。音素级评分请用下方 Azure 发音评测。<br>
+        📌 <b>推荐用 Edge 打开本站</b>：Edge 的识别走 Azure，<b>国内可达</b>；Chrome 的实现走 Google，国内通常连不上；火狐没有实现这个接口。<br>
+        ⚠️ 拿不到识别时<b>照样能练</b>：跟读仍会给「回放你的 → 再放标准音」的 A/B 对照与音高曲线/节奏反馈，只是不出逐词分。<br>
         <span style="color:var(--muted)">（2026-10-12 起本站<b>已移除本地离线识别</b>：实测那个小模型在行业术语上错得太多——`isocyanate` 会被听成 "isis i and eight"——给出的分会误导人。详见 README §6-8。）</span></p>
     </div>
     <div class="field">
@@ -284,7 +286,7 @@
         <button class="btn btn-outline btn-sm" data-action="data-csv-wrong">❗ 错题 CSV</button>
       </div>
       <input type="file" id="dataImportFile" accept=".json,application/json" hidden>
-      <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>（掌握词、单词卡两条线、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、偏好设置等）；换电脑或换浏览器时导入即可续学。<b>不含</b>上面「🔍 数据去向」说明的站内行为计数 <code>fte-trace-v1</code>（该项只写在本机、不随备份外流）。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
+      <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>：掌握词（自评标记）、单词卡（FSRS，Free Spaced Repetition Scheduler 开源间隔重复算法，接受/产出两条调度线）、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、岗位任务画像、AI 陪练对话记录、精听闭环进度、连听听后测、偏好设置；换电脑或换浏览器时导入即可续学。<b>不含</b>上面「🔍 数据去向」说明的站内行为计数 <code>fte-trace-v1</code>（该项只写在本机、不随备份外流）。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
     </div>
     <div class="field">
       <label>📱 在微信里打开 · 分享给同事</label>

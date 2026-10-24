@@ -43,5 +43,23 @@ check("「质量对标 Google 在线语音」过时参照已移除", html.indexO
 check("无障碍守卫：azurePlan 的英音自动映射实现仍在（文案与实现一致）",
   read("js/player.js").indexOf('uk: "en-GB-SoniaNeural"') !== -1);
 
+/* ---------- 设置页说明的科学与规范口径（2026-10-24 第二轮）---------- */
+check("引擎说明：浏览器语音注明「云端神经语音 + 需联网 + 文本上行」并与数据去向交叉引用",
+  html.indexOf("云端神经网络语音") !== -1 && html.indexOf("被朗读的文本会上行到微软，见下方「🔍 数据去向」") !== -1);
+check("Google 端点措辞规范化（非官方公开接口、无可用性承诺，不再用「封禁」这种拟人说法）",
+  html.indexOf("非官方公开端点，无可用性承诺") !== -1 && html.indexOf("常被 Google 封禁") === -1);
+check("Azure PA 维度规范化：准确度/流利度/完整度/韵律（prosody），不再是自造的「完整性/发音」",
+  html.indexOf("流利度 / 完整度 / 韵律（prosody）") !== -1 && html.indexOf("准确率/流利度/完整性/发音") === -1);
+check("ASR 机制说明：识别返回转写文本、逐词分是站内文本比对——「识别 ≠ 发音」有机制依据",
+  html.indexOf("SpeechRecognition") !== -1 && html.indexOf("转写文本") !== -1 &&
+  html.indexOf("不是声学发音评分") !== -1 && html.indexOf("识别 ≠ 发音") !== -1);
+check("GA 首次出现给全称（General American）", html.indexOf("General American，GA") !== -1);
+check("语速给科学口径（1.0× ≈ 140–160 词/分钟 + 跟读建议档）",
+  html.indexOf("140–160 词/分钟") !== -1 && html.indexOf("跟读建议 0.85–1.0×") !== -1);
+check("导出清单补齐新备份项（FSRS 全称 / 岗位任务画像 / AI 陪练对话 / 听后测）",
+  html.indexOf("Free Spaced Repetition Scheduler") !== -1 && html.indexOf("岗位任务画像、AI 陪练对话记录、精听闭环进度、连听听后测") !== -1);
+check("Azure 冗余旧说明已并入「开通三步」（不再两处重复人声清单）",
+  (html.match(/常见英文神经人声/g) || []).length === 1);
+
 console.log(pass ? "\n=== 设置页诚实性修正门禁全部通过 ===" : "\n=== 有断言失败 ===");
 process.exit(pass ? 0 : 1);
