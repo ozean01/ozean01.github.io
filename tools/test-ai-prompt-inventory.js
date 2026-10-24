@@ -74,25 +74,26 @@ const RENDER_POINTS = [
    ======================================================================= */
 const BASELINE = {
   calls: [
-    "js/app.js:2782:call:system",
-    "js/eval4.js:156:call:def",
-    "js/eval4.js:159:fetch:transport",
-    "js/eval4.js:190:call:system",
+    /* P2-12（2026-10-24）：传输层收敛进 js/llm.js（chat + probe 两处 fetch），
+       eval4/speech/tutor 的原 transport 实现改为 LLM.chat/probe 薄委托——
+       本基线随之刷新（--dump-baseline 输出）。提示词组装点（call:system）数量与归属未变。 */
+    "js/app.js:3479:call:system",
+    "js/eval4.js:162:call:def",
+    "js/eval4.js:181:call:system",
+    "js/llm.js:46:fetch:probe",
+    "js/llm.js:76:fetch:probe",
     "js/mysay.js:188:call:system",
-    "js/speech.js:146:call:def",
-    "js/speech.js:148:fetch:transport",
-    "js/speech.js:177:call:system",
-    "js/tutor.js:685:call:system",
-    "js/tutor.js:752:call:def",
-    "js/tutor.js:753:fetch:transport",
-    "js/tutor.js:792:call:system",
-    "js/tutor.js:964:call:system",
-    "js/tutor.js:1144:call:system",
-    "js/tutor.js:1189:call:system",
-    "js/tutor.js:1381:fetch:probe",
-    "js/tutor.js:1652:call:system",
+    "js/speech.js:140:call:def",
+    "js/speech.js:158:call:system",
+    "js/tutor.js:714:call:system",
+    "js/tutor.js:783:call:def",
+    "js/tutor.js:942:call:system",
+    "js/tutor.js:1136:call:system",
+    "js/tutor.js:1316:call:system",
+    "js/tutor.js:1361:call:system",
+    "js/tutor.js:1852:call:system",
     "js/urgent.js:306:call:system",
-    "js/write.js:757:call:system"
+    "js/write.js:767:call:system"
   ],
   renders: RENDER_POINTS.map(function (r) { return r.file + "::" + r.fn; })
 };

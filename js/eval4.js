@@ -162,23 +162,8 @@
   async function callLLM(messages) {
     const cfg = loadLLMCfg();
     if (!cfg) throw new Error("请先到「AI 陪练」配置模型（填 API Key，或选本地 Ollama —— 免 Key）");
-    const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-    const hdr = { "Content-Type": "application/json" };
-    if (cfg.apiKey) hdr["Authorization"] = "Bearer " + cfg.apiKey;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: hdr,
-      body: JSON.stringify({ model: cfg.model, messages: messages, temperature: 0.3, max_tokens: 700 })
-    });
-    if (!res.ok) {
-      let detail = "";
-      try { detail = (await res.text()).slice(0, 160); } catch (e) { /* ignore */ }
-      throw new Error("API 错误 " + res.status + (detail ? "：" + detail : ""));
-    }
-    const data = await res.json();
-    const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!content) throw new Error("接口返回格式异常");
-    return content;
+    /* 传输层收敛到 js/llm.js（P2-12）；判分类语义：temperature 0.3 / max_tokens 700 */
+    return window.LLM.chat(messages, { temperature: 0.3, maxTokens: 700, cfg: cfg });
   }
 
   /* 让 LLM 给「开放应答」打 准确性/逻辑 两维分（0-100 每维）+ 一句依据 + 一句改进建议。
@@ -1059,12 +1044,20 @@
       ensurePhonemizer().then(function (mod) { return callPhonemize(mod, said); })
     ]).then(function (ips) { renderDeepDx(out, scene, { text: said, refIpa: ips[0], recIpa: ips[1] }); });
   }
-  /* 近似诊断用的识别：走浏览器语音识别（本地离线识别已于 2026-10-12 移除）。返回识别文本。 */
+  /* 录音兜底时长：按参考句长度自适应（英语口语约 12–15 字符/秒，留出开口与收尾余量）。
+     旧实现固定 2.5s/3s——整句还没读完就被硬切，诊断只对两三个词的短句有效。 */
+  function diagBudgetMs(ref) {
+    var len = String(ref || "").length;
+    return Math.max(4000, Math.min(15000, len * 110 + 4000));
+  }
+  /* 近似诊断用的识别：走浏览器语音识别（本地离线识别已于 2026-10-12 移除）。返回识别文本。
+     浏览器识别在用户停止说话后会自行结束，这里的 setTimeout 只是防挂死的兜底。 */
   function offlineTranscribe() {
+    var scene = SCENES[state.sceneIdx];
     return new Promise(function (resolve) {
       var rec = U().Player.recognize({ lang: "en-US", onError: function () { resolve(""); }, onEnd: function (t) { resolve(t || ""); } });
       if (!rec) return resolve("");
-      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 2500);
+      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, diagBudgetMs(scene && scene.ref));
     });
   }
   /* 近似版音素诊断：不下载大模型，用浏览器识别 + phonemizer 简化比对 */
@@ -1106,7 +1099,7 @@
           toast("音素深度诊断失败，已回退参考评测");
         });
       });
-      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, 3000);
+      setTimeout(function () { try { rec && rec.stop(); } catch (e) {} }, diagBudgetMs(scene.ref));
     }).catch(function (e) {
       if (out) out.innerHTML = '<p class="sop-warn">麦克风不可用：' + esc((e && e.message) || e) + '</p>';
     });

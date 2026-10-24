@@ -343,6 +343,9 @@
 <script src="js/data-risk.js" defer></script>
 <script src="js/data-deep.js" defer></script>
 <script src="js/data-meeting.js" defer></script>
+<!-- 对话语料扩容（P1-5）：向既有单元追加 19 段对话（总 47 段、行业向过半）。
+     必须在所有 data-*.js（含 data-meeting.js）之后加载——它 push 进已存在的单元。 -->
+<script src="js/data-dialogues2.js" defer></script>
 <script src="js/data-mnemonic.js" defer></script>
 <script src="js/data-glossary.js" defer></script>
 <script src="js/lvl-map.js" defer></script>
@@ -357,11 +360,21 @@
 <!-- 跟读评分 / 词相似度的【全站唯一实现】。必须前置加载：app.js、patterns.js、eval4.js
      都依赖它；此前 patterns.js 因加载顺序拿不到 app.js 的实现，只能自己抄一份。 -->
 <script src="js/score.js" defer></script>
+<!-- 🎙 声学反馈（P0-1）：音高曲线/停顿统计的纯函数实现。只依赖被传入的 PCM，
+     必须在 app.js（跟读面板调用方）之前加载；与 score.js 同属「评分口径」前置区。 -->
+<script src="js/acoustic.js" defer></script>
+<!-- 🧩 LLM 传输层（P2-12）：全站唯一的 chat/completions fetch 实现。
+     必须在 tutor.js / eval4.js / speech.js 之前——三者的 callChat/callLLM 是薄委托。
+     提示词与 FACT_GUARD 不在这里（门禁钉在各调用方/tutor.js）。 -->
+<script src="js/llm.js" defer></script>
 <script src="js/flashcards.js" defer></script>
 <script src="js/quiz.js" defer></script>
 <script src="js/tutor.js" defer></script>
 <script src="js/eval4.js" defer></script>
 <script src="js/listen.js" defer></script>
+<!-- 🔗 连读弱读（P1-7）：句级听辨卡（缩读/同化/连读/弱化），挂在「音素与辨音」合并页第三个 tab；
+     自包含模块，只依赖 Player（speak/录音），Node 门禁可直接加载校验语料不变量。 -->
+<script src="js/listen-linkers.js" defer></script>
 <script src="js/sop.js" defer></script>
 <script src="js/data-ports.js" defer></script>
 <script src="js/export.js" defer></script>

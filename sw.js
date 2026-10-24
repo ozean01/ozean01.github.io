@@ -11,13 +11,41 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v109";   /* ★ 长列表分批渲染（2026-10-21 第三轮）：PRECACHE 清单不变（57 条），改的是长列表首屏成本：
+const CACHE = "fte-v119";   /* ★ P1-6/P1-8（2026-10-24）：PRECACHE 清单不变（58 条），改的是听力训练质量：
+                             · 盲听新增「🎲 变异听」——每句随机 口音×语速（0.85/1.0/1.15），
+                               非 native 引擎诚实降级为只变速（accentVoiceName 覆盖不到 azure/google）；
+                             · 连听完毕自动出「听后测」：从刚播过的句子里抽 3 句「听句选意」，
+                               题目全部本地生成（站内已核对语料），结果进 progress.listenCheck 作能力参考，不计打卡。
+                             清单内文件（js/app.js · js/today.js）内容变了，按纪律 +1。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v112 · P0-3/P0-4（2026-10-24）：PRECACHE 清单不变（58 条），改的是「练完不丢」：
+                             · AI 陪练对话持久化（fte-tutor-chat-v1，最近 40 条，刷新/跨天恢复，可随备份迁移）；
+                             · 自由表达分析录音留档（IndexedDB fte-speech-audio，最近 30 条）+ 本次/历史回听，
+                               语速/流利度计时改用真实音频时长（不再被尾部长静音污染）；
+                             · 录音只存本机、blob 不进导出备份（storage-keys.js 已登记两条新键）。
+                             清单内文件（js/tutor.js · js/speech.js · js/storage-keys.js）内容变了，按纪律 +1。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v111 · P0-1 声学反馈（2026-10-24）：PRECACHE 57 → 58 条（新增 ./js/acoustic.js）：
+                             · 跟读五步闭环⑤「对比与评分」新增「🎙 你的音高曲线（声学实测）」——
+                               录音 blob 解码出 PCM，自相关测基频 + 停顿统计（js/acoustic.js 纯函数）；
+                             · js/player.js 新增 Player.decodeMonoPcm（复用波形解码缓存，不改录音管线）；
+                             · 诚实边界：只测用户自己的录音，不做假的「原声对照曲线」（TTS 无音频流）。
+                             清单内文件（js/app.js · js/player.js）内容变了 + 清单本身变了，按纪律 +1。
+                             fte-v110 · P0 修正批（2026-10-24）：PRECACHE 清单不变（57 条），改的是内容修正与录音上限：
+                             · U1「首次询盘」对话从 LED 灯具改写为软包装复合袋场景（句数不变，仍是 12 句）；
+                             · 音素诊断录音兜底从固定 2.5s/3s 改为按参考句长度自适应（4–15s），
+                               整句还没读完就被硬切的问题修正；
+                             · tutor 追问上限文案 off-by-one、coachWeekly 周口径改 ISO 周（与 weekly.js 同算法）、
+                               speech.js 填充词死代码清理、app.js 两处 PCM 过期注释更正。
+                             清单内文件（js/data.js · js/tutor.js · js/speech.js · js/app.js · js/eval4.js）内容变了，按纪律 +1。
+
+                             fte-v109 · 长列表分批渲染（2026-10-21 第三轮）：PRECACHE 清单不变（57 条），改的是长列表首屏成本：
                              · 术语库 324 条与 SOP 27 步改「首屏先画一批 + rAF 逐批追加」；
                              · 术语卡从「每条绑一次 click」改成文档级事件委托（324 次绑定 → 1 次）；
                              · Node 门禁 / 无 rAF 环境仍一次性全渲染，DOM 与旧行为等价。
                              清单内文件（js/glossary.js · js/sop.js）内容变了，按纪律 +1。
-
-                             —— 更早批次（历史记录，仍有效）——
                              fte-v108 · 性能与触控收口（2026-10-21 第二轮）：PRECACHE 清单不变（57 条），改的是首屏成本与命中区：
                              · 首页「我的进度数据」「全站地图」两个默认折叠面板改为**展开才渲染**
                                （原来折叠也全量算趋势/周回顾/掌握度/保持率/四维/6 大区/功能卡；
@@ -135,6 +163,7 @@ const PRECACHE = [
   "./js/data-deep.js",
   "./js/data-meeting.js",
   "./js/data-mnemonic.js",
+  "./js/data-dialogues2.js",
   "./js/data-glossary.js",
   "./js/data-ports.js",
   "./js/lvl-map.js",
@@ -144,11 +173,14 @@ const PRECACHE = [
   "./js/player.js",
   "./js/parser.js",
   "./js/score.js",
+  "./js/acoustic.js",
   "./js/flashcards.js",
   "./js/quiz.js",
+  "./js/llm.js",
   "./js/tutor.js",
   "./js/eval4.js",
   "./js/listen.js",
+  "./js/listen-linkers.js",
   "./js/sop.js",
   "./js/export.js",
   "./js/sources.js",

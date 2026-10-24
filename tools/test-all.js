@@ -26,6 +26,8 @@ const JOBS = [
   { cmd: "node", args: ["tools/audit-fsrs.js"],   gate: true,  label: "FSRS 参数/公式对齐官方 ts-fsrs" },
   { cmd: "node", args: ["tools/test-boot.js"],    gate: true,  label: "启动完整性：全部脚本按序执行 / 模块全局就绪" },
   { cmd: "node", args: ["tools/test-score.js"],   gate: true,  label: "跟读评分全站唯一实现（算法等价 / 无重复实现）" },
+  { cmd: "node", args: ["tools/test-acoustic.js"],gate: true,  label: "声学反馈 P0-1：F0 检出/八度防护/停顿边界/诚实边界/接线" },
+  { cmd: "node", args: ["tools/test-p034.js"],    gate: true,  label: "P0-3/P0-4：AI 对练会话持久化 + 自由表达录音留档回听" },
   { cmd: "node", args: ["tools/test-fsrs.js"],    gate: true,  label: "FSRS 四档评分行为" },
   { cmd: "node", args: ["tools/test-flashprod.js"],gate: true, label: "产出性调度：接受/产出两条线互不影响" },
   { cmd: "node", args: ["tools/test-parser.js"],  gate: true,  label: "句块切分器" },

@@ -56,6 +56,7 @@
   _need("句块 parser.js", !!window.SentenceParser);
   _need("跟读评分 score.js", !!window.SpeechScore);
   _need("辨音 listen.js", !!window.Listen);
+  _need("连读弱读 listen-linkers.js", !!window.ListenLinkers);
   _need("四维口语 eval4.js", !!window.Eval4);
   _need("AI 陪练 tutor.js", !!window.Tutor);
   _need("实操 SOP sop.js", !!window.SOP);
@@ -506,7 +507,8 @@
     phonemes: {
       tabs: [
         { k: "phonemes", label: "🔤 音素与高危音", render: function () { window.Phonemes.render(); } },
-        { k: "listen", label: "👂 辨音 · 最小音对", render: function () { window.Listen.render(); } }
+        { k: "listen", label: "👂 辨音 · 最小音对", render: function () { window.Listen.render(); } },
+        { k: "linkers", label: "🔗 连读弱读", render: function () { window.ListenLinkers.render(); } }
       ]
     },
     /* 素材：投料口（导入/拆句）与字幕点读（逐句精听）是工序的上下游。
@@ -2398,7 +2400,7 @@
         '<div id="shadowTimer" style="margin-top:5px;font-size:12.5px;color:var(--muted)">0.0s · 还没听到声音，请出声</div>' +
         '<div style="margin-top:9px"><button class="btn btn-primary btn-sm" data-action="shadow-stop">⏹ 我说完了</button></div>');
       P.startRecording({
-        capturePcm: true,                            /* 录一次就够：PCM 直接喂本机识别，评分不用再读一遍 */
+        capturePcm: true,                            /* 保留原始 PCM（本地离线识别已移除，当前评分只走在线识别；PCM 暂无消费者，留给声学反馈复用） */
         onLevel: function (rms) {
           if (!alive() || !stat || stat.done) return;
           stat.levels.push(rms);
@@ -2462,12 +2464,47 @@
       if (State.shadowGuard) { clearTimeout(State.shadowGuard); State.shadowGuard = null; }
       out('<div style="font-weight:700">⑤ 对比与评分</div>' +
         shadowAccentHtml(stat, text, rate) +
+        '<div id="shadowAcoustic" style="margin-top:9px"></div>' +
         '<div id="shadowScore" style="margin-top:9px"></div>' +
         (hist.n ? '<div style="margin-top:7px;font-size:12.5px;color:var(--muted)">📈 这个词你已经练了 <b>' + hist.n +
           '</b> 次' + (hist.best ? '，历史最好 <b>' + hist.best + '%</b>' : "") + '。</div>' : ""));
+      fillAcoustic();
       scoreIt();
     }
-    /* 评分：优先本机离线（复用刚录到的 PCM，一次录音即可）→ 再退浏览器在线识别 */
+    /* 🎙 声学细节（P0-1）：把刚录的 blob 解码出 PCM，测音高曲线与停顿——只测你自己的录音。
+       TTS 原声（speechSynthesis）不给页面音频流，没有对照曲线可画；诚实边界见 js/acoustic.js 头注释。 */
+    function fillAcoustic() {
+      const box = document.getElementById("shadowAcoustic");
+      if (!box || !window.Acoustic || !Player.decodeMonoPcm || !State.shadowUrl) return;
+      Player.decodeMonoPcm(State.shadowUrl).then(function (d) {
+        if (!alive() || !box) return;
+        const an = window.Acoustic.analyzePcm(d.pcm, d.sr);
+        if (!an || !an.ok) { box.innerHTML = ""; return; }
+        box.innerHTML =
+          '<div style="font-weight:700">🎙 你的音高曲线（声学实测）</div>' +
+          '<div style="margin-top:4px;color:var(--muted)">纵轴：音高（上高下低）；灰带：≥0.4s 的停顿。平直一条线 = 语调单调。放标准音 A/B 时对照看：句尾该降的降了没、关键词有没有读出高低差。</div>' +
+          '<canvas id="shadowPitchCv" width="640" height="96" style="width:100%;max-width:640px;margin-top:6px;border:1px solid var(--line);border-radius:8px"></canvas>' +
+          '<div style="margin-top:6px;font-size:12.5px;color:var(--muted)">' + esc(window.Acoustic.describe(an)) + '</div>' +
+          (function () {
+            /* 节奏反馈（P2-11）：开口延迟 / 出声时长 / 有效语速——用真实声学数据，仍标「参考」。
+               逐词起始延迟需要 ASR 时间戳，浏览器识别不给——诚实不做，不发明假对齐。 */
+            const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
+            const spSec = an.silence ? an.silence.speechSec : 0;
+            const rate = (spSec > 0.3 && words) ? Math.round(words / (spSec / 60)) : null;
+            const onset = an.onsetSec != null ? an.onsetSec.toFixed(1) : "—";
+            return '<div style="margin-top:4px;font-size:12.5px;color:var(--muted)">⏱ 开口延迟 <b>' + onset + 's</b>' +
+              ' · 出声 <b>' + spSec.toFixed(1) + 's</b>' +
+              (rate ? ' · 有效语速 ≈ <b>' + rate + ' 词/分</b>（跟读场景原声已停，这是你的复述语速，与 B 感受互相印证）' : '') +
+              '。逐词延迟需语音识别时间戳，本页诚实不做。</div>';
+          })() +
+          '<div style="margin-top:3px;font-size:12px;color:var(--muted)">口径：只测你自己的录音（TTS 原声无法采集对照曲线，请配合 🔁 A/B 回听）。' + (an.capped ? '本次只分析前 30 秒。' : '') + '</div>';
+        const cv = document.getElementById("shadowPitchCv");
+        if (cv) window.Acoustic.drawPitchCurve(cv, an);
+      }).catch(function () {
+        if (box) box.innerHTML = "";   /* 解码失败/环境不支持就不展示，不留假面板 */
+      });
+    }
+    /* 评分：浏览器在线识别（本地离线识别已于 2026-10-12 整体移除，见 git d5f05d6；录到的 PCM 暂不参与评分） */
     function scoreIt() {
       const box2 = document.getElementById("shadowScore");
       if (!box2) return;
@@ -2582,6 +2619,24 @@
     return u && u.vocab[i] ? { id: id, u: u, v: u.vocab[i] } : null;
   }
 
+  /* 变异听（P1-6）：盲听时每句随机一次「口音×语速」。
+     目的：同一段材料换着人声/语速听，逼耳朵适应「同一个词听起来不一样」——
+     这是 TTS 材料能做到的最接近真实口音变异的训练。
+     边界：口音随机只在内置语音引擎（native）生效（accentVoiceName 覆盖不到 azure/google，
+     那两路会静默用回用户口音设置——所以这里显式降级为只变速，不假装换了口音）。 */
+  const VARY_RATES = [0.85, 1.0, 1.15];
+  function variedLineOpts(baseRate) {
+    const rate = Math.round((baseRate || 1) * VARY_RATES[Math.floor(Math.random() * VARY_RATES.length)] * 100) / 100;
+    const o = { rate: rate };
+    if (Player.engine === "native") {
+      const acc = Math.random() < 0.5 ? "us" : "uk";
+      if (Player.hasAccent && Player.hasAccent(acc) && Player.accentVoiceName) {
+        o.voice = Player.accentVoiceName(acc);
+      }
+    }
+    return o;
+  }
+
   function playDialogue(uid, dlgIdx, opts) {
     opts = opts || {};
     const u = getUnit(uid);
@@ -2640,12 +2695,13 @@
         }, 4200);
         return;
       }
-      Player.speak(line.en, {
-        rate: opts.rate || 1,
-        onend: function () {
+      Player.speak(line.en, (function () {
+        const o = opts.vary ? variedLineOpts(opts.rate) : { rate: opts.rate || 1 };
+        o.onend = function () {
           if (!stopped && State.audioToken === token) { i++; step(); }
-        }
-      });
+        };
+        return o;
+      })());
     }
     step();
   }
@@ -3509,8 +3565,10 @@
         <p style="font-size:13px;color:var(--muted)">先纯听，抓住大意与语音节奏，不急着看文字。</p>
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" data-action="play-dlg" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" data-role="">🔊 播放整段</button>
+          <button class="btn btn-outline" data-action="play-dlg-varied" data-id="${s.unit.id}" data-idx="${s.dlgIdx}" title="每一句随机换口音/语速——逼耳朵适应「同一个词听起来不一样」">🎲 变异听（随机口音×语速）</button>
           <button class="btn btn-ok" data-action="stage-next" data-phase="shadow">🎧 我听得差不多了，进入精听</button>
         </div>
+        <p style="margin-top:8px;font-size:12.5px;color:var(--muted)">变异听：每一句随机 🇺🇸/🇬🇧 口音 × 0.85/1.0/1.15 语速${Player.engine === "native" ? "" : "（当前引擎 " + esc(Player.engine) + " 不支持换口音，本次只随机语速）"}。第二轮盲听建议用它——第一轮先听熟悉的标准音。</p>
       </div>`;
       drawWave();
       return;
@@ -3742,8 +3800,11 @@
       return shadowLineHtml(s, l, li, cls) + evalBoxHtml(s, l, li);
     }).join("")}
     <button class="btn btn-outline btn-sm" style="margin-top:10px" data-action="speak-back">← 返回设置</button>`;
-    /* 重新渲染后，为已有录音补画波形 */
-    Object.keys(s.recordings).forEach(function (li) { drawWave(li); });
+    /* 重新渲染后，为已有录音补画波形与音高曲线（音高逐条错开，避免整批 DSP 挤在一帧） */
+    Object.keys(s.recordings).forEach(function (li, k) {
+      drawWave(li);
+      setTimeout(function () { if (State.speak === s) drawPitch(li); }, k * 90);
+    });
   }
 
   function shadowLineHtml(s, l, li, extraCls) {
@@ -3756,7 +3817,8 @@
         ${isRole
           ? '<div class="en" style="color:var(--accent)">🎤 请你说：' + esc(l.cn) + "</div>"
           : '<div class="en">' + esc(l.en) + '</div><div class="cn">' + esc(l.cn) + "</div>"}
-        ${rec ? '<div class="wave-wrap"><canvas class="wave" data-wave="' + li + '" width="220" height="42" title="我的录音波形"></canvas></div>' : ""}
+        ${rec ? '<div class="wave-wrap"><canvas class="wave" data-wave="' + li + '" width="220" height="42" title="我的录音波形"></canvas></div>' +
+                '<div class="wave-wrap"><canvas class="wave" data-pitch="' + li + '" width="220" height="42" title="我的音高曲线（声学实测：上高下低，灰带=停顿）"></canvas></div>' : ""}
       </div>
       <span class="side">
         ${isRole ? "" : '<button class="play-btn" data-action="play-line" data-id="' + s.unit.id + '" data-idx="' + s.dlgIdx + '" data-li="' + li + '" title="播放本句">🔊</button>'}
@@ -4136,6 +4198,11 @@
         playDialogue(id, parseInt(idx, 10), { role: role, rate: (State.speak ? State.speak.rate : progress.rate) || 1 });
         break;
       }
+      case "play-dlg-varied": {
+        /* 变异听（P1-6）：整段播放但每句随机口音×语速；无角色扮演（变异听是纯听力练习） */
+        playDialogue(id, parseInt(idx, 10), { role: "", rate: (State.speak ? State.speak.rate : progress.rate) || 1, vary: true });
+        break;
+      }
       case "stop-dlg":
         if (State.stopPlay) State.stopPlay.cancel();
         break;
@@ -4367,6 +4434,20 @@
     Player.waveform(url, canvas);
   }
 
+  /* 绘制某句已录音的音高曲线（P0-1 声学反馈；只测用户自己的录音，解码失败就不画，不留假面板） */
+  function drawPitch(li) {
+    const s = State.speak;
+    if (!s) return;
+    const url = s.recordings[li];
+    const canvas = document.querySelector('[data-pitch="' + li + '"]');
+    if (!url || !canvas || !window.Acoustic || !Player.decodeMonoPcm) return;
+    Player.decodeMonoPcm(url).then(function (d) {
+      if (!document.querySelector('[data-pitch="' + li + '"]') || State.speak !== s) return;
+      const an = window.Acoustic.analyzePcm(d.pcm, d.sr);
+      if (an && an.ok) window.Acoustic.drawPitchCurve(canvas, an);
+    }).catch(function () { /* 不展示 */ });
+  }
+
   function recToggle(li) {
     const s = State.speak;
     if (!s) return;
@@ -4380,6 +4461,7 @@
         State.recLine = null;
         renderSpeak();
         if (url) drawWave(li);
+        if (url) drawPitch(li);
       });
     } else {
       Player.startRecording()

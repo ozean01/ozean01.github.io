@@ -65,11 +65,11 @@
       let isFiller = false;
       if (/^(u?m+)$/.test(w) || /^u?h+$/.test(w) || /^er+$/.test(w)) isFiller = true;
       else if (w === "you" && /^you$/i.test(words[i]) && words[i + 1] && /^know$/i.test(words[i + 1])) isFiller = true; /* you know */
-      else if (w === "yeah" || w === "ya" || w === "uhm" || w === "uhm" || w === "alright") isFiller = true;
+      else if (w === "yeah" || w === "ya" || w === "uhm" || w === "alright") isFiller = true;
       else if (w === "like" && isFillerLike(words, i)) isFiller = true;
       else if (w === "so" && isFillerSo(words, i)) isFiller = true;
       else if (w === "well" && isFillerWell(words, i)) isFiller = true;
-      else if (w === "right" && isFillerRight(words, i)) isFiller = true;
+      /* "right" 不计入填充：口语里多为止言确认（all right / right now 是实义），误报率高，刻意不测 */
       if (isFiller) {
         counts[w] = (counts[w] || 0) + 1;                      /* +1 每次 */
         if (found.indexOf(w) === -1) found.push(w);
@@ -98,12 +98,6 @@
     if ((words[i + 1] || "").toLowerCase() === "known") return false;
     if ((words[i + 1] || "").toLowerCase() === "understood") return false;
     return i === 0 || /[.,!?]$/.test(words[i - 1] || "");
-  }
-  function isFillerRight(words, i) {
-    /* 'all right' 'right now' 'right here' 'right away' 实义；句尾's right 非 */
-    const next = (words[i + 1] || "").toLowerCase();
-    if (/^(now|here|away|there|up)$/.test(next)) return false;
-    return false; /* right 严格口语填充度低，不误报 */
   }
 
   /* 口语语速（估算）：用“开始定位到识别结束”的时长近似。无录音时不精确，醒目标“估算”。 */
@@ -143,24 +137,11 @@
     } catch (e) { /* ignore */ }
     return null;
   }
-  async function callLLM(messages, maxTokens) {    const cfg = loadLLMCfg();
+  async function callLLM(messages, maxTokens) {
+    const cfg = loadLLMCfg();
     if (!cfg) throw new Error("no-key");
-    const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-    const hdr = { "Content-Type": "application/json" };
-    if (cfg.apiKey) hdr["Authorization"] = "Bearer " + cfg.apiKey;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: hdr,
-      body: JSON.stringify({ model: cfg.model, messages: messages, temperature: 0.3, max_tokens: maxTokens || 520 })
-    });
-    if (!res.ok) {
-      let d = ""; try { d = (await res.text()).slice(0, 160); } catch (e) { /* ignore */ }
-      throw new Error("API 错误 " + res.status + (d ? "：" + d : ""));
-    }
-    const data = await res.json();
-    const c = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!c) throw new Error("接口返回格式异常");
-    return c;
+    /* 传输层收敛到 js/llm.js（P2-12）；反馈语义：temperature 0.3 / maxTokens 默认 520 */
+    return window.LLM.chat(messages, { temperature: 0.3, maxTokens: maxTokens || 520, cfg: cfg });
   }
 
   /* 让 LLM 给“自由表达”的语法/表达反馈（点到为止：2 个改进 + 1 个更自然版本 + 1 句总结 + 术语核验）。
@@ -211,15 +192,92 @@
     fluency: null,
     ai: null,
     busy: false,
-    err: ""
+    err: "",
+    audioUrl: null,          /* 本次录音的 blob URL（会话内回听） */
+    audioId: null            /* 落入 IndexedDB 的 take id（历史回听） */
   };
   let recHandle = null;
   let listenStart = 0;
   let firstResultAt = 0;
+  /* ---- 录音留档（P0-4）----
+     原先「说完就完」：只存转写文本，录完的语音直接丢弃，练完无法回听自己的原声。
+     现在：识别的同时用 MediaRecorder 录一份（Player.startRecording，与 ASR 并行开麦），
+     分析完成后把 blob 落 IndexedDB（只存本机，不进导出备份——体积原因，见 storage-keys.js），
+     本次结果与历史条目都给「▶ 回听」。录音失败不阻断主流程（ASR 才是主路径）。 */
+  const AUDIO_DB = "fte-speech-audio";
+  const AUDIO_STORE = "takes";
+  const AUDIO_KEEP = 30;
+  let recAudioOn = false;
+
+  function audioDb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) return reject(new Error("no-idb"));
+      const req = indexedDB.open(AUDIO_DB, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(AUDIO_STORE, { keyPath: "id" }); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error || new Error("idb-open")); };
+    });
+  }
+  function audioPut(id, blob) {
+    return audioDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const tx = db.transaction(AUDIO_STORE, "readwrite");
+        tx.objectStore(AUDIO_STORE).put({ id: id, blob: blob, t: Date.now() });
+        tx.oncomplete = function () { db.close(); resolve(); };
+        tx.onerror = function () { db.close(); reject(tx.error); };
+      });
+    });
+  }
+  function audioGet(id) {
+    return audioDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const req = db.transaction(AUDIO_STORE, "readonly").objectStore(AUDIO_STORE).get(id);
+        req.onsuccess = function () { db.close(); resolve(req.result || null); };
+        req.onerror = function () { db.close(); reject(req.error); };
+      });
+    });
+  }
+  function audioClear() {
+    return audioDb().then(function (db) {
+      return new Promise(function (resolve) {
+        const tx = db.transaction(AUDIO_STORE, "readwrite");
+        tx.objectStore(AUDIO_STORE).clear();
+        tx.oncomplete = function () { db.close(); resolve(); };
+        tx.onerror = function () { db.close(); resolve(); };
+      });
+    }).catch(function () { /* 没有库就等于已清空 */ });
+  }
+  /* 超出 AUDIO_KEEP 的旧 take 删除（id 以 "t"+时间戳开头，字典序即时间序） */
+  function audioPrune() {
+    return audioDb().then(function (db) {
+      return new Promise(function (resolve) {
+        let keys = [];
+        const tx = db.transaction(AUDIO_STORE, "readwrite");
+        const store = tx.objectStore(AUDIO_STORE);
+        const creq = store.openCursor();
+        creq.onsuccess = function () {
+          const c = creq.result;
+          if (c) { keys.push(c.key); c.continue(); }
+        };
+        tx.oncomplete = function () {
+          keys.sort();
+          const del = keys.slice(0, Math.max(0, keys.length - AUDIO_KEEP));
+          del.forEach(function (k) { store.delete(k); });
+          db.close();
+          resolve();
+        };
+        tx.onerror = function () { db.close(); resolve(); };
+      });
+    }).catch(function () { /* 清理失败不影响主流程 */ });
+  }
 
   function reset() {
-    st = { phase: "idle", transcript: "", words: 0, uniq: 0, fillers: null, seconds: 0, rate: null, fluency: null, ai: null, busy: false, err: "" };
+    st = { phase: "idle", transcript: "", words: 0, uniq: 0, fillers: null, seconds: 0, rate: null, fluency: null, ai: null, busy: false, err: "", audioUrl: null, audioId: null };
     if (recHandle) { try { recHandle.stop(); } catch (e) { /* ignore */ } recHandle = null; }
+    if (recAudioOn) {
+      recAudioOn = false;
+      try { window.Player.stopRecording(); } catch (e) { /* ignore */ }
+    }
   }
   function onRouteCleanup() { reset(); }
 
@@ -348,7 +406,9 @@
       <div class="sp-controls" style="margin-top:12px">
         <button class="btn btn-primary" data-sp="again">🎙️ 再说一遍</button>
         <button class="btn btn-outline" data-sp="copy" ${transcript ? "" : "disabled"}>📋 复制文本</button>
+        ${(st.audioUrl || st.audioId) ? '<button class="btn btn-outline" data-sp="replay">▶ 回听这次录音</button>' : ""}
       </div>
+      ${(st.audioUrl || st.audioId) ? '<p class="field-note" style="margin-top:4px">录音只存在<b>本机浏览器</b>（IndexedDB，最近 30 条）；历史里可随时回听，清空历史会一并删除。</p>' : ""}
     </div>`;
   }
 
@@ -358,7 +418,8 @@
     <h3 class="section-title">🕘 最近分析</h3>
     <div class="sp-hist">
       ${hist.map(function (r, i) {
-        return '<button class="sp-hist-item" data-sp="load" data-i="' + i + '"><b>' + esc(String(r.words || 0)) + " 词</b> · 流利 " + (r.fluency == null ? "—" : r.fluency + "/100") + " · " + esc(String(r.transcript || "").slice(0, 40)) + "…</button>";
+        return '<button class="sp-hist-item" data-sp="load" data-i="' + i + '"><b>' + esc(String(r.words || 0)) + " 词</b> · 流利 " + (r.fluency == null ? "—" : r.fluency + "/100") + " · " + esc(String(r.transcript || "").slice(0, 40)) + "…</button>" +
+        (r.audioId ? '<button class="sp-hist-item" data-sp="hist-audio" data-i="' + i + '" title="回听这次录音（存在本机）">▶ 回听</button>' : "");
       }).join("")}
       <button class="sp-hist-item sp-hist-clear" data-sp="clear">🗑 清空历史</button>
     </div>`;
@@ -379,7 +440,12 @@
     else if (act === "again") { reset(); render(); }
     else if (act === "copy") { copyTranscript(); }
     else if (act === "load") { loadHistItem(parseInt(i, 10)); }
-    else if (act === "clear") { localStorage.removeItem(KEY); render(); }
+    else if (act === "replay") { replayCurrent(); }
+    else if (act === "hist-audio") {
+      const r = loadHist()[parseInt(i, 10)];
+      if (r && r.audioId) audioGet(r.audioId).then(playTake).catch(function () { toast("录音已不在本机"); });
+    }
+    else if (act === "clear") { localStorage.removeItem(KEY); audioClear(); render(); }
   }
 
   function startListen() {
@@ -391,6 +457,11 @@
     /* 先请求麦克风权限（前置清晰提示） */
     P.micRequest().then(function () {
       listenStart = Date.now(); firstResultAt = 0;
+      /* 同时开一路 MediaRecorder 录音（P0-4，与 ASR 并行）；失败静默——ASR 才是主路径 */
+      st.audioUrl = null; st.audioId = null;
+      if (P.canRecord && P.canRecord()) {
+        P.startRecording().then(function () { recAudioOn = true; }).catch(function () { recAudioOn = false; });
+      }
       recHandle = P.recognize({
         lang: "en-US",
         onResult: function (t) { if (!firstResultAt) firstResultAt = Date.now(); st.transcript = t; },
@@ -413,6 +484,30 @@
 
   function afterSpeak() {
     st.phase = "done"; st.busy = false;
+    /* 收录音（P0-4）：异步拿到 blob URL 后补一次渲染；拿不到就让「回听」按钮不出现。
+       顺带把语速/流利度的计时口径从「首个识别结果→现在」换成**真实音频时长**——
+       尾部长静音与 ASR 提前结束不再污染语速（评估报告 3.4-#10）。 */
+    if (recAudioOn) {
+      recAudioOn = false;
+      const P2 = window.Player;
+      if (P2 && P2.stopRecording) {
+        P2.stopRecording().then(function (url) {
+          if (!url || st.phase !== "done") return;
+          st.audioUrl = url;
+          render();
+          if (P2.decodeMonoPcm && window.Acoustic) {
+            P2.decodeMonoPcm(url).then(function (d) {
+              if (d && d.duration > 0.5 && st.phase === "done") {
+                st.seconds = Math.round(d.duration * 10) / 10;
+                st.rate = estWordsPerMin(st.words, st.seconds);
+                st.fluency = heuristicFluency(st.words, (st.fillers || { total: 0 }).total, st.rate, st.seconds);
+                render();
+              }
+            }).catch(function () { /* 计时增强失败保留原估算 */ });
+          }
+        }).catch(function () { /* 回听是增强项，拿不到就算了 */ });
+      }
+    }
     const text = cleanWords(st.transcript);
     const words = (st.transcript || "").trim().split(/\s+/).filter(Boolean);
     st.words = words.length;
@@ -479,16 +574,48 @@
     st.seconds = r.seconds || 0; st.phase = "done"; st.err = "";
     st.fillers = r.fillers || { list: [], counts: {}, total: 0 };
     st.ai = r.ai || null;
+    st.audioUrl = null;
+    st.audioId = r.audioId || null;
     render();
   }
 
-  /* 保存历史（每条除指标外还存原文，供回看）。只在一次分析完成后落一次：无 Key 立即写，有 Key 等 AI 返回后再写。 */
+  /* 回听：优先用本次会话的 blob URL；历史条目从 IndexedDB 取回 blob 再播 */
+  function playTake(rec) {
+    if (rec && rec.blob) {
+      const url = URL.createObjectURL(rec.blob);
+      const a = new Audio(url);
+      a.play().catch(function () { toast("回放失败，请重试"); });
+      return;
+    }
+    toast("录音已不在本机（可能已被清理或来自其它浏览器）");
+  }
+  function replayCurrent() {
+    if (st.audioUrl) {
+      new Audio(st.audioUrl).play().catch(function () { toast("回放失败，请重试"); });
+      return;
+    }
+    if (st.audioId) {
+      audioGet(st.audioId).then(playTake).catch(function () { toast("录音已不在本机"); });
+    }
+  }
+
+  /* 保存历史（每条除指标外还存原文，供回看）。只在一次分析完成后落一次：无 Key 立即写，有 Key 等 AI 返回后再写。
+     录音（P0-4）：有 blob 就落 IndexedDB（最近 AUDIO_KEEP 条），历史记录里只存 take id。 */
   function saveHistNow() {
     if (st.phase !== "done" || !st.transcript || !st.words) return;
-    saveHist({
+    const rec = {
       t: Date.now(), transcript: st.transcript, words: st.words, uniq: st.uniq, seconds: Math.round(st.seconds),
-      rate: st.rate, fluency: st.fluency, fillers: st.fillers || { list: [], counts: {}, total: 0 }, ai: st.ai
-    });
+      rate: st.rate, fluency: st.fluency, fillers: st.fillers || { list: [], counts: {}, total: 0 }, ai: st.ai,
+      audioId: null
+    };
+    if (st.audioUrl) {
+      rec.audioId = "t" + rec.t + "-" + Math.random().toString(36).slice(2, 8);
+      st.audioId = rec.audioId;
+      fetch(st.audioUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+        return audioPut(rec.audioId, blob);
+      }).then(audioPrune).catch(function () { /* 录音留档失败不影响文本历史 */ });
+    }
+    saveHist(rec);
   }
 
   window.SpeechAnalyzer = {

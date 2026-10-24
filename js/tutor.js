@@ -265,7 +265,34 @@
   function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ } }
 
   let cfg = loadCfg();
-  let chatHistory = [];   // [{role:"user"|"assistant", content}]
+  /* ---------------- 会话持久化（P0-3）----------------
+     chatHistory 原是内存变量，刷新即丢——练完的对话是复盘的原料，丢了等于白练。
+     落 localStorage（storage-keys.js 登记：fte-tutor-chat-v1，可随备份迁移）：
+     · 只留最近 CHAT_KEEP 条、每条截断到 CHAT_MSG_MAX 字符，防止 localStorage 被写爆；
+     · 恢复时校验形状（role/content），坏数据静默回退为空对话；
+     · 语义：不点「🗑 清空对话」就一直接着上次聊（跨刷新、跨天）。 */
+  const CHAT_KEY = "fte-tutor-chat-v1";
+  const CHAT_KEEP = 40;
+  const CHAT_MSG_MAX = 4000;
+  function loadChat() {
+    try {
+      const v = JSON.parse(localStorage.getItem(CHAT_KEY) || "[]");
+      if (!Array.isArray(v)) return [];
+      return v.filter(function (m) {
+        return m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content;
+      }).slice(-CHAT_KEEP);
+    } catch (e) { return []; }
+  }
+  function saveChat() {
+    try {
+      const v = chatHistory.slice(-CHAT_KEEP).map(function (m) {
+        return { role: m.role, content: String(m.content || "").slice(0, CHAT_MSG_MAX) };
+      });
+      localStorage.setItem(CHAT_KEY, JSON.stringify(v));
+    } catch (e) { /* 存储满 / 隐私模式：持久化失败不阻断对话 */ }
+  }
+  let chatHistory = loadChat();   // [{role:"user"|"assistant", content}]，刷新后恢复
+  let chatRestored = chatHistory.length;   // >0 时在对话头部提示「已恢复」
   let sending = false;
   let rec = null;
   let autoMic = false;         // 🔁 免按键通话模式（VAD 静音自动断句）
@@ -291,6 +318,7 @@
         </div>
       </div>
       ${configHtml(hasKey)}
+      ${rpBarHtml()}
       ${hasKey ? chatHtml() : noKeyHtml()}
       ${hasKey ? drillHtml() : ""}
       ${wordbookHtml()}
@@ -462,6 +490,7 @@
       </details>
       <div class="chat-head">
         <span>💬 对话${msgs.length ? "（" + msgs.length + " 条）" : " —— 打个招呼开始吧！"}</span>
+        ${chatRestored ? '<span style="color:var(--muted);font-size:12.5px">↩️ 已恢复上次对话（刷新不丢，点「🗑 清空对话」重新开始）</span>' : ""}
         <span style="display:inline-flex;gap:6px;flex-shrink:0">
           ${msgs.length ? '<button class="btn btn-soft btn-sm" data-action="tutor-eval4" title="把本场你的英文应答带到「四维口语实战」评分">🎯 四维评分本场对话</button>' : ""}
           <button class="btn btn-outline btn-sm" data-action="tutor-clear">🗑 清空对话</button>
@@ -748,30 +777,149 @@
     </div>`;
   }
 
-  /* ---------------- API 调用 ---------------- */
+  /* ---------------- API 调用 ----------------
+     传输层已收敛到 js/llm.js（P2-12）：本文件只保留教学语义（temperature 0.7 / max_tokens 600）
+     与 cfg 的「当前编辑值」语义；提示词组装与 FACT_GUARD 仍在本文件（门禁钉在这里）。 */
   async function callChat(messages) {
-    const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-    const hdr = { "Content-Type": "application/json" };
-    if (cfg.apiKey && cfg.apiKey.trim()) hdr["Authorization"] = "Bearer " + cfg.apiKey.trim();
-    const res = await fetch(url, {
-      method: "POST",
-      headers: hdr,
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 600
-      })
-    });
-    if (!res.ok) {
-      let detail = "";
-      try { detail = (await res.text()).slice(0, 200); } catch (e) { /* ignore */ }
-      throw new Error("API 错误 " + res.status + (detail ? "：" + detail : ""));
+    return window.LLM.chat(messages, { temperature: 0.7, maxTokens: 600, cfg: cfg });
+  }
+
+  /* ---------------- 🎯 实战关卡 · 场景状态机（P2-10）----------------
+     由来（评估报告：缺「对话压力」闭环）：角色扮演原是「点击填一段提示词」的一次性轻实现，
+     无阶段目标、无完成判定。真实口语 = 在不可预测的追问下组织语言——本机制给对话装上状态机：
+     结构化场景（客户人设 / 阶段目标 / 判定标准），AI 按 JSON 协议回复，逐阶段推进。
+     设计边界：
+     ① 复用既有对话回路（输入框 / 🎤 / 免按键 VAD / chatHistory 持久化 / 生词采集）——
+       关卡期间只替换 system 提示词，普通聊天随时可退出回正常模式；
+     ② AI 只负责「扮演客户 + 判定阶段是否达成」，评分仍归 eval4/四维，本模块不打分；
+     ③ FACT_GUARD 无条件追加（关卡里客户会报法规号/数值——正是需要守边界的场景）；
+     ④ 模型不守 JSON 协议时降级为普通对话显示，状态不动，绝不假装推进。 */
+  const RP_KEY = "fte-tutor-rp-v1";
+  const RP_SCENARIOS = [
+    {
+      id: "price", title: "客户压价 15%", goal: "守住价格底线并达成折中",
+      buyer: "You are the purchasing manager of a mid-size US flexible-packaging converter. You have budget pressure from above and you enjoy negotiating hard, but you value long-term suppliers.",
+      opener: "Look, I like your pouch quality, but your quote is 15% above what I pay now. You need to sharpen your pencil if we're going to do business.",
+      stages: [
+        { label: "先探真实顾虑", judge: "the student asks what matters most (price only, or total cost / payment terms / quality) and acknowledges the concern BEFORE defending the price" },
+        { label: "用价值守住底线", judge: "the student defends the price with concrete value points (food-grade material, certifications, defect rate, delivery record) instead of just apologizing" },
+        { label: "给非价格让步", judge: "the student offers at least one non-price concession: payment terms, freight, free samples, faster lead time, or a volume break" },
+        { label: "达成折中", judge: "the student proposes a concrete middle path (e.g. small discount tied to larger order or longer contract) and confirms the next step" }
+      ]
+    },
+    {
+      id: "delivery", title: "客户要求提前两周交货", goal: "诚实评估产能并给出分批方案",
+      buyer: "You are the supply-chain director of a European coffee brand. Your marketing team moved the launch forward and you are under real pressure, but you respect suppliers who are honest about capacity.",
+      opener: "Change of plan — we need the goods two weeks earlier than the contract says. Can you make it or not? Our launch is fixed.",
+      stages: [
+        { label: "问清真实需求", judge: "the student probes WHY the date moved and what quantity is truly urgent, instead of promising immediately" },
+        { label: "诚实评估产能", judge: "the student checks/represents the schedule honestly and does NOT promise what cannot be verified" },
+        { label: "提出分批方案", judge: "the student proposes splitting the order: urgent part expedited (air freight or priority line), rest on original schedule" },
+        { label: "书面确认新计划", judge: "the student summarizes the new dates and offers a written confirmation" }
+      ]
+    },
+    {
+      id: "claim", title: "客户投诉复合脱层", goal: "安抚取证、给临时对策并承诺调查",
+      buyer: "You are the quality manager of a food producer. A batch of laminated pouches is delaminating at the seal edge on your packing line. You are angry but professional — you want facts and a plan, not apologies alone.",
+      opener: "Your pouches are delaminating on our line — right at the seal edge. Two pallets already. What are you going to do about it?",
+      stages: [
+        { label: "安抚并记录", judge: "the student stays calm, takes the complaint seriously, and records batch/carton details before jumping to conclusions" },
+        { label: "索取证据", judge: "the student asks for evidence: photos/videos of the defect, roll numbers, storage and laminating conditions" },
+        { label: "给出临时对策", judge: "the student proposes an interim measure: quarantine the affected stock, switch to retained good batch, or adjust line parameters" },
+        { label: "承诺调查与跟进", judge: "the student commits to a concrete investigation with a timeline and a follow-up date" }
+      ]
+    },
+    {
+      id: "coldcall", title: "新客户首次电话询盘", goal: "从陌生来电到约定下一步",
+      buyer: "You are the owner of a small snack brand in Southeast Asia. You called a factory you found online. You are busy and slightly skeptical of cold answers full of marketing talk.",
+      opener: "Hello? I saw your website — you do laminated pouches? I need something for my snack products, but I'm comparing three suppliers. Make it quick.",
+      stages: [
+        { label: "简短自我介绍建立信任", judge: "the student gives a brief, concrete intro (who they are, one verifiable fact) without a sales pitch" },
+        { label: "挖掘需求", judge: "the student asks about the product structure, quantity, use case and target price instead of quoting blindly" },
+        { label: "给初步方向", judge: "the student gives an honest preliminary direction (suitable structure or 'need samples to confirm') without overpromising" },
+        { label: "约定下一步", judge: "the student closes with a concrete next step: samples, a quotation after details, or a scheduled call" }
+      ]
+    },
+    {
+      id: "payment", title: "客户要求 60 天账期", goal: "说明风险并谈成折中付款条件",
+      buyer: "You are the finance manager of a long-standing but cash-tight distributor. You always push for longer credit terms; your company pays eventually, but slowly.",
+      opener: "We've worked together for two years. This time we need 60 days credit — our cash flow is tight this quarter. Otherwise we'll have to reduce the order.",
+      stages: [
+        { label: "弄清客户顾虑", judge: "the student asks what drives the request (cash flow timing, sales cycle) and shows understanding" },
+        { label: "说明我方风险", judge: "the student explains the supplier's real risk and cost of long credit (capital, order size) honestly" },
+        { label: "提出折中方案", judge: "the student proposes a workable middle: partial deposit + shorter credit, credit limit tied to order size, or L/C" },
+        { label: "达成一致", judge: "the student settles concrete terms and confirms them in one clear sentence" }
+      ]
+    },
+    {
+      id: "launch", title: "视频会议介绍无溶剂胶新品", goal: "讲清技术卖点并接住质疑",
+      buyer: "You are the technical director of a packaging factory currently using solvent-based adhesive. You are skeptical about switching: curing time, bond strength on your old laminator, and migration compliance all worry you.",
+      opener: "So you say your solvent-free adhesive can replace what we use now. Convince me — we can't afford line stops or failed migration tests.",
+      stages: [
+        { label: "开场并定议程", judge: "the student opens professionally: short intro, confirms the meeting goal and agenda" },
+        { label: "讲清技术卖点", judge: "the student presents 2-3 concrete benefits (no solvent residue, food-contact compliance, line efficiency) with honest limits flagged for human verification" },
+        { label: "接住技术质疑", judge: "the student handles at least one objection (curing time / old machine compatibility / migration) with facts plus honest 'needs lab verification' framing" },
+        { label: "总结与下一步", judge: "the student summarizes agreements and proposes a next step: sample trial on their line, TDS download, or a pilot run" }
+      ]
     }
-    const data = await res.json();
-    const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!content) throw new Error("接口返回格式异常");
-    return content;
+  ];
+  function rpLoad() {
+    try {
+      const v = JSON.parse(localStorage.getItem(RP_KEY));
+      if (v && typeof v === "object" && v.id && RP_SCENARIOS.some(function (s) { return s.id === v.id; })) return v;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function rpSave() { try { localStorage.setItem(RP_KEY, JSON.stringify(rp)); } catch (e) { /* ignore */ } }
+  let rp = rpLoad();   // { id, stage, done } | null
+  function rpScenario() { return rp ? RP_SCENARIOS.filter(function (s) { return s.id === rp.id; })[0] : null; }
+  function rpParseReply(reply) {
+    try {
+      const m = String(reply).match(/\{[\s\S]*\}/);
+      const j = JSON.parse(m ? m[0] : reply);
+      if (j && typeof j.say === "string" && j.say) return { say: j.say, stageDone: j.stageDone === true, coach: String(j.coach || "") };
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function rpSystemPrompt(sc) {
+    const st = sc.stages.map(function (s, i) { return (i + 1) + ". " + s.label + " — achieved when: " + s.judge; }).join("\n");
+    return [
+      "ROLE-PLAY PRACTICE (state-machine mode). You are roleplaying a business counterpart for a Chinese foreign-trade professional (the student).",
+      "YOUR CHARACTER: " + sc.buyer,
+      "SCENARIO GOAL (for context): " + sc.goal,
+      "STAGES — the conversation advances stage by stage. Judge the student's LAST message against the CURRENT stage only:",
+      st,
+      "CURRENT STAGE: " + ((rp ? rp.stage : 0) + 1) + " of " + sc.stages.length + ".",
+      "RULES:",
+      "- Always speak in English, fully in character as the counterpart. Never break character, never lecture.",
+      "- After the student's message, set stageDone=true ONLY if the current stage goal is genuinely achieved; then move the conversation forward naturally to the next stage's topic. If the final stage is achieved, give a natural in-character closing.",
+      "- If the student is off track, stay in character and keep the pressure on — do not hand them the answers.",
+      "- Reply with ONLY a JSON object, no other text, in exactly this shape: {\"say\":\"<your in-character English reply>\",\"stageDone\":false,\"coach\":\"<one short Chinese tip: what the student did well or should do next>\"}",
+      FACT_GUARD
+    ].join("\n\n");
+  }
+  function rpBarHtml() {
+    const sc = rpScenario();
+    if (!sc) {
+      return '<div class="card" style="margin-top:12px;padding:12px 14px">' +
+        '<div class="chat-head" style="margin-bottom:6px"><span>🎯 实战关卡 <span style="font-size:12px;color:var(--muted);font-weight:400"> · 选一个场景，AI 扮演客户、按阶段推进；复用下面的输入框与 🎤/🔁 免按键通话</span></span></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        RP_SCENARIOS.map(function (s) { return '<button class="scen-chip" data-action="rp-start" data-id="' + s.id + '" title="' + esc(s.goal) + '">' + esc(s.title) + "</button>"; }).join("") +
+        "</div></div>";
+    }
+    const steps = sc.stages.map(function (s, i) {
+      const cls = i < rp.stage ? "badge-ok" : (i === rp.stage && !rp.done ? "" : "badge-muted");
+      const mark = i < rp.stage ? "✓" : (i + 1);
+      return '<span class="badge ' + cls + '">' + mark + " " + esc(s.label) + "</span>";
+    }).join(" ");
+    return '<div class="card" style="margin-top:12px;padding:12px 14px;border-color:var(--accent)">' +
+      '<div class="chat-head" style="margin-bottom:6px"><span><b>🎯 关卡进行中：' + esc(sc.title) + "</b>" +
+      '<span style="font-size:12px;color:var(--muted);font-weight:400"> · 目标：' + esc(sc.goal) + "（AI 扮演客户 · 逐阶段判定）</span></span>" +
+      '<span><button class="btn btn-soft btn-sm" data-action="rp-exit">结束关卡</button></span></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + steps +
+      (rp.done ? '<span class="badge badge-ok">🏁 完成</span>' : "") + "</div>" +
+      '<div style="margin-top:6px;font-size:12px;color:var(--muted)">对话会照常进入历史与「今日错题」；结束关卡后可让 AI 提炼本场错句。不打分——评分请到「🎯 四维口语实战」。</div>' +
+      "</div>";
   }
 
   function send() {
@@ -782,15 +930,38 @@
     if (!readyToChat()) { toast("请先在上方模型设置中填写 API Key，或改选「🖥 本地 Ollama」（免 Key）"); return; }
     input.value = "";
     chatHistory.push({ role: "user", content: text });
+    saveChat();
     appendWeekly("user", text);
     sending = true;
     render();
 
-    const msgs = [{ role: "system", content: effectiveSystem(cfg) }]
+    const sys = (rp && rpScenario()) ? rpSystemPrompt(rpScenario()) : effectiveSystem(cfg);
+    const msgs = [{ role: "system", content: sys }]
       .concat(chatHistory.slice(-MAX_HISTORY));
 
     callChat(msgs).then(function (reply) {
-      chatHistory.push({ role: "assistant", content: reply });
+      let content = reply;
+      const sc = rpScenario();
+      if (rp && sc) {
+        const p = rpParseReply(reply);
+        if (p) {
+          content = p.say + (p.coach ? "\n\n💡 " + p.coach : "");
+          if (p.stageDone && !rp.done && rp.stage < sc.stages.length - 1) {
+            rp.stage++;
+            rpSave();
+            toast("✅ 阶段达成：" + sc.stages[rp.stage - 1].label + "（进入下一阶段）");
+          } else if (p.stageDone && !rp.done && rp.stage === sc.stages.length - 1) {
+            rp.done = true;
+            rpSave();
+            toast("🏁 关卡完成：" + sc.title);
+          }
+        } else {
+          /* 模型没守 JSON 协议：原样显示、状态不动——绝不假装推进 */
+          toast("⚠️ 本轮模型未按关卡协议回复，已按普通对话显示（可重试一次）");
+        }
+      }
+      chatHistory.push({ role: "assistant", content: content });
+      saveChat();
       collectVocab(reply);
       appendWeekly("assistant", reply);
       sending = false;
@@ -803,6 +974,7 @@
         content: "⚠️ " + (err && err.message ? err.message : "请求失败") +
           "\n\n（若提示跨域/网络错误：可尝试切换到 DeepSeek 服务商，或确认 Key 与网络正常后重试）"
       });
+      saveChat();
       sending = false;
       render();
       /* 免按键通话中出错：不要把麦克风留在关闭状态，稍等再开麦，用户可以直接接着说 */
@@ -1129,7 +1301,7 @@
   }
   function drillMoreFu() {
     const d = getDrill();
-    if (d.fuCount + d._pendingFu >= 5) { toast("已经追问 4 轮了，可以直接点「✨ 够了」进入复盘"); return; }
+    if (d.fuCount + d._pendingFu >= 5) { toast("已经追问 5 轮了，可以直接点「✨ 够了」进入复盘"); return; }
     toast("🤔 教练正在想下一问…");
     const transcript = [
       "Topic: " + d.topic,
@@ -1378,23 +1550,14 @@
     if (!b || !m) { toast("请先填写 Base URL 和模型名"); return; }
     if (!k && !isLocalCfg({ provider: cfg.provider, baseUrl: b })) { toast("请先填写 API Key（若用本地 Ollama 请把 Base URL 填成 http://localhost:11434/v1）"); return; }
     toast("🔍 正在测试连接…");
-    const url = b + "/chat/completions";
-    const isLocal = isLocalCfg({ provider: cfg.provider, baseUrl: b });
-    const hdr = { "Content-Type": "application/json" };
-    if (k) hdr["Authorization"] = "Bearer " + k;
-    fetch(url, {
-      method: "POST",
-      headers: hdr,
-      body: JSON.stringify({ model: m, messages: [{ role: "user", content: "hi" }], max_tokens: 5 })
-    }).then(function (res) {
-      if (res.ok) { toast(isLocal ? "✅ 本地模型连通！数据不出本机，可直接开始对话" : "✅ 连接成功！Key 有效，可开始对话"); return; }
-      return res.text().then(function (body) {
-        let extra = "";
-        try { const j = JSON.parse(body); const msg = j && j.error && (j.error.message || j.error.code); if (msg) extra = "：" + String(msg).slice(0, 160); } catch (e) { /* ignore */ }
-        if (res.status === 401) toast("⚠️ API 401——Key 无效或无权限。请到 DeepSeek 开放平台确认 Key 未过期、未停用，并完整复制后重试" + extra);
-        else if (res.status === 402 || res.status === 400 && /balance|credit|quota|insufficient/i.test(body)) toast("⚠️ API 提示余额/配额不足——请到 DeepSeek 开放平台充值" + extra);
-        else toast("⚠️ 接口返回 " + res.status + extra);
-      });
+    window.LLM.probe(b, m, k).then(function (r) {
+      if (r.ok) { toast(isLocal ? "✅ 本地模型连通！数据不出本机，可直接开始对话" : "✅ 连接成功！Key 有效，可开始对话"); return; }
+      const body = r.body || "";
+      let extra = "";
+      try { const j = JSON.parse(body); const msg = j && j.error && (j.error.message || j.error.code); if (msg) extra = "：" + String(msg).slice(0, 160); } catch (e) { /* ignore */ }
+      if (r.status === 401) toast("⚠️ API 401——Key 无效或无权限。请到 DeepSeek 开放平台确认 Key 未过期、未停用，并完整复制后重试" + extra);
+      else if (r.status === 402 || r.status === 400 && /balance|credit|quota|insufficient/i.test(body)) toast("⚠️ API 提示余额/配额不足——请到 DeepSeek 开放平台充值" + extra);
+      else toast("⚠️ 接口返回 " + r.status + extra);
     }).catch(function (err) {
       const msg = err && err.message ? err.message : "请求异常";
       if (isLocal) {
@@ -1409,7 +1572,7 @@
     const el = e.target.closest("[data-action]");
     if (!el) return;
     const act = el.getAttribute("data-action");
-    if (act.indexOf("tutor-") !== 0 && act.indexOf("wb-") !== 0 && act.indexOf("drill-") !== 0) return;
+    if (act.indexOf("tutor-") !== 0 && act.indexOf("wb-") !== 0 && act.indexOf("drill-") !== 0 && act.indexOf("rp-") !== 0) return;
 
     switch (act) {
       case "tutor-save": saveSettings(); break;
@@ -1479,8 +1642,28 @@
       }
       case "tutor-clear":
         chatHistory = [];
+        chatRestored = 0;
+        saveChat();
         render();
         toast("对话已清空，重新开始吧！");
+        break;
+      case "rp-start": {
+        const sc = RP_SCENARIOS.filter(function (s) { return s.id === el.getAttribute("data-id"); })[0];
+        if (!sc) break;
+        rp = { id: sc.id, stage: 0, done: false };
+        rpSave();
+        /* 客户的开场白入历史：对话一开始就在角色里（并让后续上下文一致） */
+        chatHistory.push({ role: "assistant", content: sc.opener });
+        saveChat();
+        render();
+        toast("🎯 关卡开始：" + sc.title + " —— 对着客户说第一句吧");
+        break;
+      }
+      case "rp-exit":
+        rp = null;
+        rpSave();
+        render();
+        toast("已退出关卡，回到普通对话（本场对话仍在历史里，可让 AI 提炼错句）");
         break;
       case "wb-add": {
         const word = el.getAttribute("data-word");
@@ -1584,12 +1767,18 @@
   });
 
   /* ---------------- 周学习记录（供「周学习报告」使用） ----------------
-     把本周对话沉淀到本地，周末/第 7 天让 AI 生成本周学习报告（文章第 06 节）。 */
+     把本周对话沉淀到本地，周末/第 7 天让 AI 生成本周学习报告（文章第 06 节）。
+     周口径必须是 ISO 周（周一为一周之始、跨年归属按 ISO 8601），与 js/weekly.js 的
+     weekIndex 同一算法——否则 coachWeekly 的周桶会在年末与「本周新料」错位两周。 */
   function weekKey(t) {
     const d = t || new Date();
-    const start = new Date(d.getFullYear(), 0, 1);
-    const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
-    return d.getFullYear() + "-W" + week;
+    const u = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = u.getUTCDay() || 7;                 // 周一=1 … 周日=7
+    u.setUTCDate(u.getUTCDate() + 4 - day);         // 移到本周的周四
+    const y = u.getUTCFullYear();
+    const yStart = new Date(Date.UTC(y, 0, 1));
+    const n = Math.ceil(((u - yStart) / 86400000 + 1) / 7);
+    return y + "-W" + String(n).padStart(2, "0");
   }
   function appendWeekly(role, content) {
     try {
