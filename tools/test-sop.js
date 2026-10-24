@@ -185,7 +185,7 @@ const navBlock = (htmlSrc.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\
 const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
 /* 16 → 17：术语速查（#/glossary）是一次**有意**的新增——站内文案多处让用户「到术语库核对」，
    而此前并没有这个页面；它不新增一级入口（挂在「工具箱」分组内），故这里同步门口数。 */
-check("架构冻结：导航仍为 17 项（术语速查 +1）", navCount === 17, "n=" + navCount);
+check("架构冻结：导航仍为 18 项（2026-10-24 IA 修订）", navCount === 18, "n=" + navCount);
 check("未新增路由（复用 #/speak 与 #/flash）",
   !/"sop-practice"/.test(fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")));
 

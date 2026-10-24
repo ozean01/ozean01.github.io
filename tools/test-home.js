@@ -26,18 +26,24 @@ let g;
 while ((g = reGroup.exec(navBlock)) !== null) {
   groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z0-9]+"/g) || []).length });
 }
-check("导航为 6 个功能分组", groups.length === 6, groups.map(function (x) { return x.id; }).join(", "));
-check("分组为任务维度 course/practice/memory/writing/tools/progress",
-  groups.map(function (x) { return x.id; }).join(",") === "course,practice,memory,writing,tools,progress",
+check("导航为 4 个功能分组（2026-10-24 IA 修订：单链接的 course/writing 提为一级直链）",
+  groups.length === 4, groups.map(function (x) { return x.id; }).join(", "));
+check("分组为任务维度 practice/memory/tools/progress",
+  groups.map(function (x) { return x.id; }).join(",") === "practice,memory,tools,progress",
   groups.map(function (x) { return x.id; }).join(","));
 check("每组都有入口", groups.every(function (x) { return x.links > 0; }));
+check("progress 组至少 2 个入口（坚持 + 能力证据，IA 对齐「坚持≠能力」分栏纪律）",
+  (groups.filter(function (x) { return x.id === "progress"; })[0] || { links: 0 }).links >= 2);
 console.log("  分组入口数：" + groups.map(function (x) { return x.id + "=" + x.links; }).join(" · "));
 
 ["today", "home", "sop"].forEach(function (k) {
   check("「" + k + "」是一级入口（不在任何分组里）",
     new RegExp('<a class="nav-home-link" href="#/' + k + '"').test(navBlock));
 });
-check("写作已从「背与测」拆出，独立成组", /data-group="writing"/.test(navBlock));
+check("写作已提升为一级入口（原独立成组 → IA 修订提直链）",
+  /<a class="nav-home-link" href="#\/write" data-nav="write">/.test(navBlock) && !/data-group="writing"/.test(navBlock));
+check("课程已提升为一级入口（原单链接分组提直链）",
+  /<a class="nav-home-link" href="#\/units" data-nav="units">/.test(navBlock) && !/data-group="course"/.test(navBlock));
 check("「记与测」已改名为任务导向的「背与测」", /ng-name">背与测</.test(navBlock) && !/ng-name">记与测</.test(navBlock));
 /* 「背与测」组内顺序：先输入（背）→ 后检验（测）→ 再纠偏（易错点） */
 const memBlk = (navBlock.match(/data-group="memory">([\s\S]*?)<\/details>/) || [])[1] || "";

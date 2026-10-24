@@ -134,5 +134,22 @@ if (rc) {
     });
 }
 
+/* ---------- 断言：导航入口数（IA）与 README 一致（2026-10-24 导航专项评估后新增）----------
+   由来：README 声称「16 个入口」而实测 17——IA 数字此前不在任何对账门禁里，
+   与「统计漏 1 单元」是同一型漂移。这里把导航链接数与 README 宣称钉在一起。 */
+const navHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+const navBlock2 = (navHtml.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
+const navLinkCount = (navBlock2.match(/<a [^>]*href="#\//g) || []).length;
+const mIA = readme.match(/共 \*\*(\d+) 个入口\*\*/);
+check("README 的「导航入口」宣称存在", !!mIA);
+if (mIA) {
+  check("README 导航入口数 = 实测导航链接数", Number(mIA[1]) === navLinkCount,
+    "README " + mIA[1] + " vs 实测 " + navLinkCount + "（改导航必须同步改 README 这一行）");
+}
+check("导航含「能力证据」入口（坚持≠能力分栏纪律在导航层的落点）",
+  navBlock2.indexOf("能力证据") !== -1 && navBlock2.indexOf('data-nav="ability"') !== -1);
+check("导航无单链接分组（课程/写作已提直链）",
+  !/data-group="course"/.test(navBlock2) && !/data-group="writing"/.test(navBlock2));
+
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");
 process.exit(pass ? 0 : 1);
