@@ -146,6 +146,7 @@
     const total = parts.length;
     let idx = 0;
     let stopped = false;
+    let noNeuralFired = false;
 
     function pickVoice() {
       return opts.voice || Player.voiceByName(Player.defaultVoiceName) || accentVoice() || preferredVoice;
@@ -181,9 +182,27 @@
       u.rate = clampRate(opts.rate || 1);
       u.pitch = 1;
       u.volume = 1;
-      u.onstart = function () { if (opts.onstart) opts.onstart(idx, total); };
-      u.onend = function () { idx++; speakNext(); };
-      u.onerror = function () { idx++; speakNext(); };
+      /* 无声 watchdog（语音可靠性批次）：Online Natural 等在线人声依赖网络，首次加载/断网时
+         部分浏览器既不播也不报错（onstart/onerror 都不来）——静默失败比失败更糟。
+         7 秒未 started 就记 lastEngineIssue 并通知 UI；不自动重播（避免双声）。 */
+      let startedFlag = false;
+      const startTimer = setTimeout(function () {
+        if (startedFlag || stopped) return;
+        Player.lastEngineIssue = { at: Date.now(), engine: "native", kind: "no-start", voice: (v && v.name) || "", chunk: idx };
+        if (Player.onEngineIssue) { try { Player.onEngineIssue(Player.lastEngineIssue); } catch (e) { /* UI 回调不拖垮朗读 */ } }
+      }, 7000);
+      const clearWatch = function () { if (startTimer) { clearTimeout(startTimer); } };
+      u.onstart = function () { startedFlag = true; clearWatch(); if (opts.onstart) opts.onstart(idx, total); };
+      u.onend = function () { clearWatch(); idx++; speakNext(); };
+      u.onerror = function () { clearWatch(); idx++; speakNext(); };
+      /* 无神经人声一次性提示：本机只有普通本地音时，首次朗读通知 UI（由 app 决定去重/落存储） */
+      if (!noNeuralFired && v && !HIGH_QUALITY.test(String(v.name || ""))) {
+        const hasNeural = voices.some(function (x) { return HIGH_QUALITY.test(String(x.name || "")); });
+        if (!hasNeural) {
+          noNeuralFired = true;
+          if (Player.onNoNeuralNotice) { try { Player.onNoNeuralNotice({ name: v.name }); } catch (e) { /* ignore */ } }
+        }
+      }
       window.speechSynthesis.speak(u);
     }
     speakNext();
@@ -343,6 +362,13 @@
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   }
   function azureRatePct(rate) { return Math.round((clampRate(rate) - 1) * 100); }
+  /* 支持 mstts:express-as 风格的英文神经人声白名单（不在此名单上的 voice 忽略 style 也安全，
+     但显式白名单可避免无谓的 SSML 复杂度）。 */
+  const AZURE_STYLE_VOICES = /Aria|Jenny|Guy|Davis|Jane|Jason|Sara|Tony|Nancy|Lisa|Michelle|Sonia|Ryan|Libby|Natasha|Emma|Brian|Ava|Andrew/i;
+  function azureOutputFormat() {
+    /* 高音质开关（progress.azureHQ → Player.azure.hq）：48kHz 档清晰度更好，流量约 ×4，默认关 */
+    return (Player.azure && Player.azure.hq) ? "audio-48khz-192kbitrate-mono-mp3" : "audio-24khz-48kbitrate-mono-mp3";
+  }
   function azureFetchSSML(chunk, rate, opts) {
     const a = Player.azure;
     const region = String(a.region).replace(/[^A-Za-z0-9]/g, "");
@@ -350,14 +376,19 @@
     const pct = azureRatePct(rate);
     /* P1-B：口音真正生效的地方——xml:lang 与 voice 都按 azurePlan 走，不再写死 en-US/Jenny。 */
     const plan = azurePlan(opts);
+    /* 对白风格（customerservice）：仅白名单人声 + 用户未关（progress.azureStyle）时启用。
+       customerservice 语气贴合「跟客户说话」的练习场景，F0 免费额度不变。 */
+    const useStyle = (a.style !== false) && AZURE_STYLE_VOICES.test(plan.voice);
+    const inner = azureXmlEscape(chunk);
+    const styled = useStyle ? '<mstts:express-as style="customerservice">' + inner + "</mstts:express-as>" : inner;
     const ssml = '<speak version="1.0" xml:lang="' + plan.lang + '"><voice name="' + plan.voice + '">' +
-      '<prosody rate="' + (pct >= 0 ? "+" : "") + pct + '%">' + azureXmlEscape(chunk) + '</prosody></voice></speak>';
+      '<prosody rate="' + (pct >= 0 ? "+" : "") + pct + '%">' + styled + '</prosody></voice></speak>';
     return fetch(url, {
       method: "POST",
       headers: {
         "Ocp-Apim-Subscription-Key": a.key,
         "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+        "X-Microsoft-OutputFormat": azureOutputFormat(),
         "User-Agent": "fte-tutor"
       },
       body: ssml
@@ -427,7 +458,7 @@
       headers: {
         "Ocp-Apim-Subscription-Key": a.key,
         "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"
+        "X-Microsoft-OutputFormat": azureOutputFormat()
       },
       body: ssml
     }).then(function (res) {
@@ -456,6 +487,9 @@
        · 手动指定了发音人 → 以手动为准，effectiveAccent 如实回报（不等同 requested）。
      返回 { requested, accent, engine, supported, verified, effectiveVoice, effectiveAccent, reason }。 */
   Player.lastAccentIssue = null;
+  Player.lastEngineIssue = null;
+  Player.onEngineIssue = null;      /* 无声 watchdog 通知（app 注入，用于一次性提示） */
+  Player.onNoNeuralNotice = null;   /* 本机无神经人声的首读通知（app 注入，去重/落存储由 app 管） */
   /* UI 可注入：口音确实没切过去时被调用一次（与 Player.onEngineFallback 同一套「由 app 注入」的模式）。 */
   Player.onAccentUnsupported = null;
 

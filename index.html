@@ -200,7 +200,7 @@
       <select id="setEngine">
         <option value="native">浏览器语音（含高音质在线人声）</option>
         <option value="azure">Azure 语音（微软神经人声 · 需填 Key）</option>
-        <option value="google">Google 在线音源（第三方接口 · 不稳定）</option>
+        <option value="google">Google 在线音源（遗留 · 不推荐，下版移除）</option>
       </select>
       <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得接近真人的微软神经网络人声（免费、无需 Key，质量对标 Google 在线语音）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为第三方免费端点，常被 Google 封禁而失效，失败时会自动回退浏览器语音，故不再推荐。</p>
       <p class="field-note" id="engineQuality" style="margin-top:6px;font-weight:600"></p>
@@ -220,6 +220,13 @@
       <label class="step-toggle" style="margin-top:8px" title="在「四维口语实战」中用同一 Key 调用 Azure 发音评测，可输出逐词与逐音素分（准确率/流利度/完整性/发音），跨浏览器可用，无需下载本地模型">
         <input type="checkbox" id="setAzurePA" checked> 🎯 同时用此 Key 做「音素级发音评测」（四维口语实战）
       </label>
+      <label class="step-toggle" style="margin-top:6px" title="用 Azure 的 customerservice 语气风格朗读（仅对支持的神经人声生效，其他人声自动忽略）。更贴合「跟客户说话」的练习场景">
+        <input type="checkbox" id="setAzureStyle" checked> 🎭 对白风格朗读（customerservice 语气）
+      </label>
+      <label class="step-toggle" style="margin-top:6px" title="48kHz 高码率输出，清晰度更好，流量约为默认档的 4 倍">
+        <input type="checkbox" id="setAzureHQ"> 🎧 高音质输出（48kHz · 流量约 ×4）
+      </label>
+      <p class="field-note" style="margin-top:8px"><b>开通三步</b>：① <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> → 创建资源 → 搜索「Speech」→ 免费层 F0 即可；② 资源页 →「密钥和终结点」→ 复制 <b>Key 1</b> 粘贴到上面；③ <b>Region 必须与建资源时选的区域一致</b>（如 eastasia）——不配对会 403。<br>免费额度 0.5M 字符/月（F0）：本站连听一个单元一遍 ≈ 5K 字符，约够 100 遍/月；价格以 Azure 官网为准。常见英文人声：en-US-JennyNeural、en-US-AriaNeural、en-US-GuyNeural、en-GB-SoniaNeural。失败时会自动回退浏览器语音。</p>
     </div>
     <div class="field">
       <label>发音人（浏览器语音时生效）</label>

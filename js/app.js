@@ -145,7 +145,7 @@
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
     return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, flashChunk: {}, done: {}, rate: 1, voice: "",
-      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true };
+      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, azureStyle: true, azureHQ: false };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
      首次迁移时把未手动关闭过它的旧设置切回浏览器语音，避免后续覆盖用户手动选择。 */
@@ -233,7 +233,22 @@
     Player.engine = progress.engine || "native";
     Player.defaultVoiceName = progress.voice || "";
     if (Player.setAccent) Player.setAccent(progress.accent === "uk" ? "uk" : "us");
-    Player.azure = { key: progress.azureKey || "", region: progress.azureRegion || "", voice: progress.azureVoice || "en-US-JennyNeural" };
+    Player.azure = { key: progress.azureKey || "", region: progress.azureRegion || "", voice: progress.azureVoice || "en-US-JennyNeural", style: progress.azureStyle !== false, hq: !!progress.azureHQ };
+    /* 无神经人声一次性提示（fte-tts-nudge）：首次用普通本地音朗读时引导升级； dismissal 落存储 */
+    Player.onNoNeuralNotice = function (info) {
+      try {
+        if (localStorage.getItem("fte-tts-nudge") === "1") return;
+        localStorage.setItem("fte-tts-nudge", "1");
+        toast("💡 当前是普通本地音（" + ((info && info.name) || "") + "）。用 Edge 打开本站可免费获得神经人声，或在 ⚙ 设置选 Azure——详见设置页质量徽章");
+      } catch (e) { /* ignore */ }
+    };
+    /* 无声 watchdog 提示：30 秒内只提示一次，连听场景不刷屏 */
+    Player.onEngineIssue = function (issue) {
+      const now = Date.now();
+      if (Player._lastIssueToast && now - Player._lastIssueToast < 30000) return;
+      Player._lastIssueToast = now;
+      toast("⚠️ 在线人声 7 秒未出声（可能断网或音源未就绪）——可在 ⚙ 设置点「试听当前发音人」排查，或改用本地人声");
+    };
     Player.onEngineFallback = function () {
       /* 在线音源一旦失败就永久切回浏览器语音，避免每句都失败/反复提示 */
       if (progress.engine && progress.engine !== "native") {
@@ -5316,6 +5331,8 @@
     const azureRegion = document.getElementById("setAzureRegion");
     const azureVoice = document.getElementById("setAzureVoice");
     const azurePA = document.getElementById("setAzurePA");
+    const azureStyle = document.getElementById("setAzureStyle");
+    const azureHQ = document.getElementById("setAzureHQ");
     /* 🌐 全英模式：显示偏好，与「听力口音」同一节奏——弹窗里只暂存，点「保存」才落库。
        它是 js/immerse.js 的偏好（键 fte-immerse），不写进 progress，也不影响任何学习数据。 */
     const setImmerse = document.getElementById("setImmerse");
@@ -5406,6 +5423,8 @@
       azureRegion.value = progress.azureRegion || "";
       azureVoice.value = progress.azureVoice || "en-US-JennyNeural";
       if (azurePA) azurePA.checked = progress.azurePA !== false;
+      if (azureStyle) azureStyle.checked = progress.azureStyle !== false;
+      if (azureHQ) azureHQ.checked = !!progress.azureHQ;
       if (setImmerse) setImmerse.checked = !!(window.Immerse && window.Immerse.on());
       voiceSel.value = progress.voice || "";
       rateRange.value = progress.rate || 1;
@@ -5425,6 +5444,8 @@
         progress.azureRegion = azureRegion.value.trim();
         progress.azureVoice = azureVoice.value.trim() || "en-US-JennyNeural";
         progress.azurePA = azurePA ? azurePA.checked : true;
+        progress.azureStyle = azureStyle ? azureStyle.checked : true;
+        progress.azureHQ = azureHQ ? !!azureHQ.checked : false;
         progress.voice = voiceSel.value;
         progress.accent = pendingAccent;
         progress.rate = parseFloat(rateRange.value) || 1;
