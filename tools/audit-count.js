@@ -23,7 +23,7 @@ const READ_ONLY = process.env.FTE_NO_WRITE === "1" || process.argv.indexOf("--no
 const JSDIR = path.join(__dirname, "..", "js");
 /* 参与课程结构的所有数据文件（data-mistakes.js 是易错点语料，另计，不并入 units）
    ⚠️ 新增单元时务必同步这里：此前漏了 data-meeting.js（U19），导致统计少 1 单元 / 20 词。 */
-const FILES = ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js", "data-risk.js", "data-deep.js", "data-meeting.js"];
+const FILES = ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js", "data-risk.js", "data-deep.js", "data-meeting.js", "data-dialogues2.js"];
 const OUT = path.join(__dirname, "report-count.json");
 
 function loadUnits() {

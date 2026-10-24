@@ -26,7 +26,7 @@ function loadSite() {
   ctx.window = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
   ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js",
-    "data-risk.js", "data-deep.js", "data-meeting.js", "data-mail.js",
+    "data-risk.js", "data-deep.js", "data-meeting.js", "data-dialogues2.js", "data-mail.js",
     "parser.js", "patterns.js"].forEach(function (f) {
     let src = fs.readFileSync(path.join(WEB_JS, f), "utf8");
     if (f === "data.js") src += "\nglobalThis.FTE_DATA = FTE_DATA;";

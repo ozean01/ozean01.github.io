@@ -150,6 +150,37 @@
 
   window.Sources = { render: render, DATA: window.FTE_SOURCES };
 
+  /* ---------------- 精听闭环（P1-9）----------------
+     「四步听练闭环」原先只是文字方法论——看完就完，没有可勾选的账。
+     现在每个音源一张可勾选清单（盲听→精听→跟读复述→拾遗）+ 听懂自评（五档）+
+     一键带着上下文去 AI 陪练复盘。数据存 localStorage（storage-keys.js 已登记），
+     不计入打卡（这是「找材料/磨耳朵」，坚持口径只记那五步）。 */
+  const DRILL_KEY = "fte-source-drill-v1";
+  const DRILL_STEPS = [
+    { k: "blind", label: "🎧 盲听一遍", hint: "不看字幕整段听，能懂多少算多少" },
+    { k: "intensive", label: "🔍 精听一遍", hint: "对着文稿/字幕把没听出的词、连读找出来" },
+    { k: "shadow", label: "🗣 跟读 30 秒", hint: "挑一段逐句模仿，再关稿复述 2 句" },
+    { k: "vocab", label: "🗒 生词进卡", hint: "把生词/顺句收进单词卡（FSRS 排期复习）" }
+  ];
+  function loadDrills() {
+    try { const v = JSON.parse(localStorage.getItem(DRILL_KEY) || "{}"); return (v && typeof v === "object" && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; }
+  }
+  function saveDrill(name, patch) {
+    const all = loadDrills();
+    const cur = all[name] || { steps: {}, self: null, t: 0 };
+    Object.keys(patch).forEach(function (k) { cur[k] = patch[k]; });
+    cur.t = Date.now();
+    all[name] = cur;
+    try { localStorage.setItem(DRILL_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+  }
+  /* 干扰最少的名字键：音源名就是它的稳定 ID（DATA 是静态清单） */
+  function drillOf(name) { return loadDrills()[name] || null; }
+  function srcTutorPrompt(name, d) {
+    return "我刚在「" + name + "」听了一段真实英语音频" +
+      (d && d.self != null ? "（自评听懂约 " + d.self * 25 + "%）" : "") +
+      "。请当我的口语教练做听力复盘：用英语问我 2-3 个关于这段内容的问题，我尽量用英语回答；我答完后指出我的语法与用词问题（点到为止），并把值得记的生词用【新词: word|meaning|example】格式给我。";
+  }
+
   /* ---------------- 渲染 ---------------- */
   function esc(s) {
     return String(s == null ? "" : s)
@@ -208,6 +239,7 @@
           <button class="btn btn-outline btn-sm" data-s="src-warm" data-t="${esc(S.warm)}">🔊 先热身（站内 TTS 读一遍，再听真实音频）</button>
           <button class="btn btn-outline btn-sm" data-s="src-eval" data-t="${esc(S.warm)}">🎯 跟读热身句</button>
         </div>
+        ${drillHtml(it)}
       </div>`;
     }).join("");
 
@@ -250,17 +282,70 @@
     });
   }
 
+  /* 每个音源的精听闭环卡：可勾选四步 + 听懂自评 + AI 复盘跳转 */
+  function drillHtml(it) {
+    const d = drillOf(it.name) || { steps: {}, self: null };
+    const doneCount = DRILL_STEPS.filter(function (s) { return d.steps && d.steps[s.k]; }).length;
+    return `
+    <details class="src-drill" style="margin-top:10px;border-top:1px dashed var(--line,#e2e8f0);padding-top:8px">
+      <summary style="cursor:pointer;font-size:13px"><b>🎯 本音源精听闭环</b>
+        <span class="badge badge-muted">${doneCount}/4 步</span>
+        ${d.self != null ? '<span class="badge badge-ok">自评听懂 ' + d.self * 25 + '%</span>' : ""}
+        <span style="color:var(--muted);font-size:12px">（存在本机，不计入打卡）</span></summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        ${DRILL_STEPS.map(function (s) {
+          const on = !!(d.steps && d.steps[s.k]);
+          return '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer">' +
+            '<input type="checkbox" data-s="src-step" data-n="' + esc(it.name) + '" data-k="' + s.k + '"' + (on ? " checked" : "") + ">" +
+            "<span><b>" + esc(s.label) + "</b> <span style=\"color:var(--muted)\">" + esc(s.hint) + "</span></span></label>";
+        }).join("")}
+      </div>
+      <div style="margin-top:8px;font-size:13px">
+        <span style="color:var(--muted)">听完自评（诚实选，下次对比）：</span>
+        ${[0, 1, 2, 3, 4].map(function (v) {
+          return '<button class="chip' + (d.self === v ? " active" : "") + '" data-s="src-self" data-n="' + esc(it.name) + '" data-v="' + v + '">' + v * 25 + "%</button>";
+        }).join("")}
+      </div>
+      <button class="btn btn-soft btn-sm" style="margin-top:8px" data-s="src-tutor" data-n="${esc(it.name)}">🤖 带着这段音频去 AI 陪练复盘</button>
+    </details>`;
+  }
+
   function onAction(e) {
     const el = e.target.closest("[data-s]");
     if (!el) return;
     const act = el.getAttribute("data-s");
     const v = el.getAttribute("data-v");
     const t = el.getAttribute("data-t");
+    const n = el.getAttribute("data-n");
     const Player = window.Player;
     if (!window.Sources) return;
 
     if (act === "src-level") { window.Sources.state.level = v || "all"; render(); }
     else if (act === "src-dom") { window.Sources.state.dom = v || "all"; render(); }
+    else if (act === "src-warm") { if (Player && t) Player.speak(t, { rate: 1 }); }
+    else if (act === "src-step") {
+      /* checkbox 的 checked 已被浏览器翻转，读当前状态存回 */
+      const all = loadDrills();
+      const cur = all[n] || { steps: {}, self: null, t: 0 };
+      cur.steps = cur.steps || {};
+      cur.steps[el.getAttribute("data-k")] = !!el.checked;
+      saveDrill(n, { steps: cur.steps });
+      /* 只更新徽章，不整卡重渲染（避免 checkbox 失焦/详情收起） */
+      const card = el.closest(".src-card");
+      if (card) {
+        const det = card.querySelector("details.src-drill summary");
+        const cnt = DRILL_STEPS.filter(function (s) { return cur.steps[s.k]; }).length;
+        if (det) det.querySelector(".badge").textContent = cnt + "/4 步";
+      }
+    }
+    else if (act === "src-self") {
+      saveDrill(n, { self: parseInt(v, 10) });
+      render();
+    }
+    else if (act === "src-tutor") {
+      try { localStorage.setItem("fte-tutor-fill", srcTutorPrompt(n, drillOf(n))); } catch (e) { /* ignore */ }
+      location.hash = "#/tutor";
+    }
     else if (act === "src-warm") { if (Player && t) Player.speak(t, { rate: 1 }); }
     else if (act === "src-eval") {
       /* 跳站内四维/跟读前，先请求麦克风权限以有更好的跟读体验 */

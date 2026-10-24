@@ -575,6 +575,9 @@
       L.on = false; L.i = items.length - 1;
       paintListen();
       toast("🎧 连听完毕（" + items.length + " 句）");
+      /* 听后测（P1-8）：听完测「听懂了多少」——从刚播过的句子里抽 3 句选意 */
+      S.listenQuizItems = items;
+      listenQuizStart(items);
       return;
     }
     const it = items[L.i];
@@ -664,7 +667,121 @@
         <span class="field-note">共 ${n} 句 · 听力口音跟随「⚙️ 发音设置」（可切 🇬🇧 英音）；这里只做复习，<b>不计入打卡</b>——打卡只记上面那五步。</span>
       </div>
       <div class="td-listen-now" id="tdListenNow">点「开始连听」，一句接一句自动读完。</div>
+      <div id="tdListenQuiz"></div>
+      ${lastListenCheckHtml()}
     </section>`;
+  }
+
+  /* ---------------- 🎯 连听听懂率检验（P1-8）----------------
+     由来：连听（P7）是「放过型」泛听——听完无任何理解度检验，「听过」≠「听懂」。
+     做法：连听完毕后，从**刚播过的**句子里抽 3 句，再听一遍 + 从 3 个中文意思里选出听到的那个；
+     题目与选项全部本地生成（en/cn 都来自已人工核对的站内语料，零新增未核对英文/中文）。
+     口径：结果标「自选听后测」，只作为能力参考展示在连听块内；不计入打卡（坚持/能力分栏纪律）。
+     泛听混进"练了多少"的账会污染坚持口径——它记的是「听懂了多少」。 */
+  const QUIZ_COUNT = 3;
+  /* 纯函数（rnd 可注入便于测试）：从 items 里抽 count 题造「听句选意」题。
+     素材不足（可用的带中文释义句子 < 4：1 题 + 至少 3 个不同选项）时返回 null。 */
+  function makeListenQuiz(items, count, rnd) {
+    const rand = rnd || Math.random;
+    const pool = (items || []).filter(function (it) {
+      return it && it.en && it.cn && String(it.cn).trim().length > 1;
+    });
+    if (pool.length < 4) return null;
+    const shuffled = pool.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      const t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+    }
+    const qs = [];
+    for (let k = 0; k < shuffled.length && qs.length < (count || QUIZ_COUNT); k++) {
+      const correct = shuffled[k];
+      /* 干扰项：与正确答案中文不同的其它句子的释义 */
+      const others = pool.filter(function (it) { return it !== correct && it.cn !== correct.cn; });
+      if (others.length < 2) continue;
+      const distract = [];
+      const seen = {};
+      for (let j = 0; j < others.length && distract.length < 2; j++) {
+        const c = others[j].cn;
+        if (!seen[c]) { seen[c] = true; distract.push(c); }
+      }
+      if (distract.length < 2) continue;
+      const opts = [correct.cn, distract[0], distract[1]];
+      for (let i = opts.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        const t = opts[i]; opts[i] = opts[j]; opts[j] = t;
+      }
+      qs.push({ en: correct.en, cn: correct.cn, tag: correct.tag, opts: opts });
+    }
+    return qs.length ? qs : null;
+  }
+  function lastListenCheckHtml() {
+    try {
+      const p = E().progress || null;   /* FTE_BOOT 只暴露 progress getter（无 getProgress 方法） */
+      const lc = p && p.listenCheck;
+      if (!lc || !lc.n) return "";
+      return '<div class="field-note" style="margin-top:6px">📊 最近一次听后测：<b>' + lc.right + "/" + lc.n + "</b>" +
+        (lc.t ? " · " + new Date(lc.t).toLocaleDateString() : "") + "（自选听后测，能力参考，不计入打卡）</div>";
+    } catch (e) { return ""; }
+  }
+  function listenQuizStart(items) {
+    const qs = makeListenQuiz(items, QUIZ_COUNT);
+    if (!qs) { toast("这个范围的句子太少（至少 4 句不同释义），先多听几句再来测"); return; }
+    S.listenQuiz = { qs: qs, idx: 0, right: 0, picked: null, phase: "ask" };
+    paintListenQuiz();
+    const q = qs[0];
+    if (window.Player && window.Player.speak) window.Player.speak(q.en, { rate: 0.95 });
+  }
+  function paintListenQuiz() {
+    const box = document.getElementById("tdListenQuiz");
+    if (!box) return;
+    const Q = S.listenQuiz;
+    if (!Q) { box.innerHTML = ""; return; }
+    if (Q.phase === "done") {
+      box.innerHTML =
+        '<div class="td-listen-now" style="margin-top:8px"><b>🎯 听后测完成：' + Q.right + " / " + Q.qs.length + "</b><br>" +
+        '<span style="font-size:12.5px;color:var(--muted)">' +
+        (Q.right === Q.qs.length ? "全对——这段材料你真的听懂了。" : "错的句子回「精听跟读」里逐句过一遍，下周连听再测一次。") +
+        "（自选听后测，能力参考，不计入打卡）</span> " +
+        '<button class="btn btn-soft btn-sm" data-action="td-quiz-redo" style="margin-left:6px">🔁 换 3 句再测</button></div>';
+      return;
+    }
+    const q = Q.qs[Q.idx];
+    const answered = Q.picked != null;
+    box.innerHTML =
+      '<div class="td-listen-now" style="margin-top:8px"><span class="td-listen-tag">听后测 ' + (Q.idx + 1) + "/" + Q.qs.length + "</span>你听到的是哪个意思？" +
+      '<button class="btn btn-soft btn-sm" data-action="td-quiz-replay" style="margin-left:6px">🔊 再听一遍</button>' +
+      '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:stretch">' +
+      q.opts.map(function (opt, k) {
+        let cls = "btn btn-outline btn-sm";
+        if (answered) {
+          if (opt === q.cn) cls = "btn btn-ok btn-sm";
+          else if (k === Q.picked) cls = "btn btn-outline btn-sm";
+          else cls = "btn btn-soft btn-sm";
+        }
+        return '<button class="' + cls + '" data-action="td-quiz-pick" data-k="' + k + '"' + (answered ? " disabled" : "") + ">" +
+          esc(opt) + (answered && opt === q.cn ? " ✓" : "") + "</button>";
+      }).join("") +
+      "</div>" +
+      (answered
+        ? '<div style="margin-top:6px;font-size:12.5px;color:' + (Q.picked === q.opts.indexOf(q.cn) ? "var(--ok)" : "var(--bad)") + '">' +
+          (Q.picked === q.opts.indexOf(q.cn) ? "✓ 答对了" : "✗ 正确答案：") + ' <b>' + esc(q.cn) + "</b></div>" +
+          '<button class="btn btn-primary btn-sm" data-action="td-quiz-next" style="margin-top:6px">' + (Q.idx + 1 >= Q.qs.length ? "看结果 →" : "下一题 →") + "</button>"
+        : "") +
+      "</div>";
+  }
+  function listenQuizFinish() {
+    const Q = S.listenQuiz;
+    if (!Q) return;
+    Q.phase = "done";
+    paintListenQuiz();
+    try {
+      const boot = E();
+      const p = boot.progress || null;  /* 同上：progress getter + saveProgress */
+      if (p && boot.saveProgress) {
+        p.listenCheck = { t: Date.now(), n: Q.qs.length, right: Q.right };
+        boot.saveProgress();
+      }
+    } catch (e) { /* 留存失败不影响展示 */ }
   }
 
   /* ---------------- 记账：打勾即计入连续打卡 / 今日时长 ---------------- */
@@ -890,8 +1007,43 @@
       listenStop();
       L.i = -1;
       L.items = listenItems(null, L.scope);
+      S.listenQuiz = null;
       paintListen();
+      const qb2 = document.getElementById("tdListenQuiz");
+      if (qb2) qb2.innerHTML = "";
       toast("连听范围：" + (LISTEN_SCOPES.filter(function (s) { return s.key === L.scope; })[0] || {}).label + "（" + L.items.length + " 句）");
+      return;
+    }
+
+    /* 🎯 听后测（P1-8）：纯局部 DOM 更新，与连听同一位置策略 */
+    if (act === "td-quiz-replay") {
+      const Q = S.listenQuiz;
+      if (Q && Q.qs[Q.idx]) { const P = window.Player; if (P && P.speak) P.speak(Q.qs[Q.idx].en, { rate: 0.95 }); }
+      return;
+    }
+    if (act === "td-quiz-pick") {
+      const Q = S.listenQuiz;
+      if (!Q || Q.picked != null) return;
+      const q = Q.qs[Q.idx];
+      Q.picked = parseInt(el.getAttribute("data-k"), 10);
+      if (q.opts[Q.picked] === q.cn) Q.right++;
+      paintListenQuiz();
+      return;
+    }
+    if (act === "td-quiz-next") {
+      const Q = S.listenQuiz;
+      if (!Q || Q.picked == null) return;
+      Q.picked = null;
+      Q.idx++;
+      if (Q.idx >= Q.qs.length) { listenQuizFinish(); return; }
+      paintListenQuiz();
+      const q = Q.qs[Q.idx];
+      const P = window.Player;
+      if (P && P.speak) P.speak(q.en, { rate: 0.95 });
+      return;
+    }
+    if (act === "td-quiz-redo") {
+      listenQuizStart(S.listenQuizItems || S.listen && S.listen.items || []);
       return;
     }
 
@@ -919,6 +1071,9 @@
     pronFocus: pronFocus,
     /* 🎧 连听本单元（P7）：清单构建是纯函数，必须有测试盯着——它决定"连听到底读什么" */
     listenItems: listenItems, LISTEN_SCOPES: LISTEN_SCOPES, listenUnit: listenUnit,
+    /* 🎯 听后测（P1-8）：题目生成是纯函数（rnd 可注入），必须测试盯着：
+       选项去重、正确答案必在、素材不足明确拒判——测出假题比不测更糟 */
+    makeListenQuiz: makeListenQuiz, QUIZ_COUNT: QUIZ_COUNT,
     /* 中断回归 + 复测到期：AI 无法自动判定的部分是「态度」，但这两者都是**可算的**
        （日期差 / 排期锚点），所以必须有测试盯着，见 tools/test-today.js。 */
     comeback: comeback, retestDue: retestDue, dayGap: dayGap,

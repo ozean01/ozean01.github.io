@@ -10,7 +10,7 @@ const vm = require("vm");
 const WEB_JS = path.join(__dirname, "..", "js");
 /* 参与课程结构的所有数据文件（data-mistakes/data-mnemonic 为易错点与助记语料，
    不属于单元结构，小程序版不合并，与 audit-count 口径一致） */
-const FILES = ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js", "data-risk.js", "data-deep.js", "data-meeting.js"];
+const FILES = ["data.js", "data-ops.js", "data-ocean.js", "data-incoterms.js", "data-settle.js", "data-risk.js", "data-deep.js", "data-meeting.js", "data-dialogues2.js"];
 
 function loadFTE() {
   const ctx = { console };

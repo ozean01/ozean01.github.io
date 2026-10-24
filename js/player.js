@@ -819,6 +819,19 @@
     }).catch(function () { return false; });
   };
 
+  /* 对外：取录音的单声道 PCM（P0-1 声学反馈用：音高曲线 / 停顿统计）。
+     复用 decodeWave 的解码缓存——同一份 blob 在波形与声学分析之间不重复解码。
+     返回 Promise<{ pcm, sr, duration } | null>；null = 解码失败/不支持，由调用方决定是否展示。 */
+  Player.decodeMonoPcm = function (url) {
+    return decodeWave(url).then(function (audioBuf) {
+      if (!audioBuf) return null;
+      const ch = audioBuf.getChannelData(0);
+      const pcm = new Float32Array(ch.length);   /* 复制一份：AudioBuffer 可能被复用/回收 */
+      pcm.set(ch);
+      return { pcm: pcm, sr: audioBuf.sampleRate, duration: audioBuf.duration };
+    });
+  };
+
   /* ---------------- 语音识别评测（逐词打分） ---------------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
