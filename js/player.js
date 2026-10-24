@@ -55,6 +55,35 @@
   Player.voiceList = function () {
     return voices.filter(function (v) { return v.lang && v.lang.toLowerCase().indexOf("en") === 0; });
   };
+  /* 质量打分导出：设置页发音人下拉按此排序/标注（与内部优选同一口径，勿另写一套） */
+  Player.voiceScore = voiceScore;
+
+  /* ---------------- 音源质量感知（设置页徽章用）----------------
+     由来：设置页的「用 Edge / 用 Azure」是静态说明书——用户不知道自己当前听的是
+     神经网络人声还是普通本地音、离最佳差几步。本 API 把「会实际生效的那个人声」
+     的质量分级出来（neural / local / none），UI 据此给「当前状态 + 下一步动作」。
+     口径：manual 发音人 > 口音映射人声 > 全局优选（与 speakNative 的 pickVoice 一致）。 */
+  function voiceLevelOf(v) {
+    if (!v) return "none";
+    return HIGH_QUALITY.test(String(v.name || "")) ? "neural" : "local";
+  }
+  Player.voiceQualityInfo = function () {
+    const en = Player.voiceList();
+    const byName = Player.voiceByName(Player.defaultVoiceName);
+    let target = byName;
+    if (!target) {
+      const accName = (typeof Player.accentVoiceName === "function") ? (Player.accentVoiceName(Player.accent) || "") : "";
+      target = (accName && Player.voiceByName(accName)) || null;
+    }
+    if (!target) {
+      target = en.slice().sort(function (a, b) { return voiceScore(b) - voiceScore(a); })[0] || null;
+    }
+    return {
+      level: voiceLevelOf(target),
+      name: target ? target.name : "",
+      hasNeural: en.some(function (v) { return HIGH_QUALITY.test(String(v.name || "")); })
+    };
+  };
   Player.voiceByName = function (name) {
     if (!name) return null;
     return voices.find(function (v) { return v.name === name; }) || null;

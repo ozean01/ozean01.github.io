@@ -5350,13 +5350,53 @@
     }
 
     function populateVoices() {
+      /* 按站内质量分排序并标注：⭐ = 在线/神经网络人声（Edge Online (Natural) 等）。
+         option 的 value 仍是原始人声名（与已保存的 progress.voice 兼容）。 */
+      const list = Player.voiceList().slice().sort(function (a, b) { return Player.voiceScore(b) - Player.voiceScore(a); });
       voiceSel.innerHTML = '<option value="">自动选择（优选高质量发音人）</option>' +
-        Player.voiceList().map(function (v) {
-          return '<option value="' + esc(v.name) + '">' + esc(v.name) + "</option>";
+        list.map(function (v) {
+          const star = /natural|online|neural|premium|enhanced/i.test(String(v.name || "")) ? "⭐ " : "";
+          return '<option value="' + esc(v.name) + '">' + star + esc(v.name) + "</option>";
         }).join("");
+    }
+    /* 音源质量徽章（质量感知层）：把「你现在的音源是什么等级、离最佳差几步」讲成一句实话 */
+    function paintEngineQuality() {
+      const el = document.getElementById("engineQuality");
+      if (!el) return;
+      const eng = engineSel.value || "native";
+      if (eng === "azure") {
+        el.textContent = (azureKey.value.trim() && azureRegion.value.trim())
+          ? "🔊 当前音源质量：神经网络（旗舰）· Region " + azureRegion.value.trim() + " · 免费额度 0.5M 字符/月（Key 与 Region 必须配对）"
+          : "🔊 Azure 语音（神经人声 · 旗舰）：填好 Key / Region 后点下方「🧪 测试 Azure 发音」——Key 与 Region 必须配对，否则 403";
+        el.style.color = azureKey.value.trim() && azureRegion.value.trim() ? "var(--ok)" : "var(--muted)";
+        return;
+      }
+      if (eng === "google") {
+        el.textContent = "🔊 当前音源质量：第三方免费端点（不稳定，常被拦截）——不推荐；失败会自动回退浏览器语音";
+        el.style.color = "var(--muted)";
+        return;
+      }
+      /* native：按当前会实际生效的人声分级（manual > 口音 > 全局优选，与 pickVoice 同口径） */
+      let info = null;
+      try { info = Player.voiceQualityInfo(); } catch (e) { info = null; }
+      if (!info || info.level === "none") {
+        el.textContent = "🔊 本浏览器还没有英语发音人——重进页面或检查系统语音包";
+        el.style.color = "var(--bad)";
+        return;
+      }
+      if (info.level === "neural") {
+        el.textContent = "🔊 当前音源质量：神经网络 ✓（人声：" + info.name + "）——免费、接近真人，已是最省事的最优档";
+        el.style.color = "var(--ok)";
+        return;
+      }
+      el.textContent = info.hasNeural
+        ? "🔊 当前音源质量：普通本地音（人声：" + info.name + "）——本机已装有神经人声，在上方「发音人」里选 ⭐ 标记的那一个即可升级"
+        : "🔊 当前音源质量：普通本地音（人声：" + info.name + "）——升级两条路：① 换 Edge 打开本站（首选发音设为 Online (Natural)，零成本）；② 下方选「Azure 语音」填 Key（旗舰）";
+      el.style.color = "var(--warn, #b45309)";
     }
     function syncAzureField() {
       if (azureField) azureField.hidden = engineSel.value !== "azure";
+      paintEngineQuality();
     }
     function open() {
       populateVoices();
@@ -5444,6 +5484,12 @@
     rateRange.addEventListener("input", function () {
       rateVal.textContent = parseFloat(rateRange.value).toFixed(1) + "×";
     });
+    /* 试听当前 native 发音人（质量感知层配套）：用固定商务句验证人声与网络就绪 */
+    function testNative() {
+      const info = Player.voiceQualityInfo ? Player.voiceQualityInfo() : null;
+      toast("🔊 试听中：" + (info && info.name ? info.name : "默认发音人") + (info && info.level === "neural" ? "（神经网络）" : ""));
+      Player.speakNative("Let me walk you through our quotation and lead time, then we can confirm the shipment schedule.", { rate: 1 });
+    }
     function testAzure() {
       const res = document.getElementById("azureTestResult");
       if (res) res.textContent = "";
@@ -5466,7 +5512,10 @@
       if (t.closest('[data-action="settings-close"]')) { close(); restoreFocus(); }
       else if (t.closest('[data-action="settings-save"]')) save();
       else if (t.closest('[data-action="settings-test-azure"]')) testAzure();
+      else if (t.closest('[data-action="settings-test-native"]')) testNative();
     });
+    azureKey.addEventListener("input", paintEngineQuality);
+    azureRegion.addEventListener("input", paintEngineQuality);
   }
 
   /* ---------------- 启动 ---------------- */
