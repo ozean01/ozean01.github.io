@@ -202,7 +202,7 @@
         <option value="azure">Azure 语音（微软神经人声 · 需填 Key）</option>
         <option value="google">Google 在线音源（遗留 · 不推荐，下版移除）</option>
       </select>
-      <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得接近真人的微软神经网络人声（免费、无需 Key，质量对标 Google 在线语音）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为第三方免费端点，常被 Google 封禁而失效，失败时会自动回退浏览器语音，故不再推荐。</p>
+      <p class="field-note"><b>【最省事·推荐】用 Microsoft Edge 打开本站</b>：在 Edge 设置 → 语音 → 首选发音设为 Online (Natural)，选择「浏览器语音」即可获得接近真人的微软神经网络人声（免费、无需 Key）。若用 Chrome 想要同等音质，改选「Azure 语音」并填入下方 Key / Region（免费额度，质量旗舰）；「Google 在线音源」为第三方免费端点，常被 Google 封禁而失效，失败时会自动回退浏览器语音，故不再推荐。</p>
       <p class="field-note" id="engineQuality" style="margin-top:6px;font-weight:600"></p>
     </div>
     <div class="field" id="setAzureField" hidden>
@@ -243,7 +243,7 @@
         <button type="button" class="btn btn-outline btn-sm" data-accent="uk" aria-pressed="false">🇬🇧 英音（听辨训练）</button>
       </div>
       <p class="field-note" id="accentNote"></p>
-      <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎若要英音，请把上面的发音人改成 <code>en-GB-SoniaNeural</code>；Google 在线音源固定美音。）</p>
+      <p class="field-note">外贸场景的用法：同一段材料<b>两种口音各过一遍</b>，适应不同国家买家的发音。站内音标、课程数据与 IPA 审计基线仍全部是美式通用口音 GA —— 换的只是朗读人声。（Azure 引擎下切口音会<b>自动</b>换用对应人声——英音即 <code>en-GB-SoniaNeural</code>，无需手动改，除非你想指定别人；Google 在线音源固定美音。）</p>
     </div>
     <div class="field">
       <label>🌐 全英模式（隐藏与英文并排的中文）</label>
@@ -272,7 +272,7 @@
       <div class="field-note" style="line-height:1.85">
         <b>本站不接收任何数据</b>：学习记录（掌握词、单词卡、成绩、作品、打卡）全部只写本机 localStorage，站点没有后端、<b>不向任何服务器发送你的数据</b>；站内另有一项<b>只存在本机、可随时关闭的粗略使用计数</b>（记什么 / 存在哪 / 是否外发 / 怎么关，见本表最后一段）。<br>
         下面这些是<b>你主动使用某个联网功能</b>时才会发生的上行：<br>
-        · <b>发音朗读（浏览器语音）</b>：在本机合成，不出网。<br>
+        · <b>发音朗读（浏览器语音）</b>：本地人声（如 Microsoft Huihui）在<b>本机合成，不出网</b>；Edge 的 <b>Online (Natural) 人声由微软云端合成</b>——被朗读的文本会上行到微软服务器（免 Key，但与 Azure 同域）。<br>
         · <b>发音朗读（Google 在线音源）</b> → <code>translate.google.com</code>：发送<b>被朗读的英文文本</b>。<br>
         · <b>发音朗读 / 音素级评测（Azure）</b> → <code>&lt;区域&gt;.tts.speech.microsoft.com</code>、<code>&lt;区域&gt;.stt.speech.microsoft.com</code>：发送<b>文本或你的录音</b> + 你填的订阅 Key。<br>
         · <b>跟读评分 / 语音输入（浏览器在线识别）</b> → Google（Chrome）或 Azure（Edge）：发送<b>你的录音</b>（不发送文本）。<br>
@@ -318,7 +318,7 @@
         <details class="td-why-box"><summary>离线能做什么 / 不能做什么</summary>
           <div class="td-why-body">
             <p><b>能</b>（断网也能用）：课程词汇/短语/对话、单词卡、测验、听写、搜索、实操 SOP、错题与写作记录——外壳与课程数据都在本地缓存里。</p>
-            <p><b>需要联网</b>：发音朗读（Google/Azure 音源）、跟读评分与语音识别、AI 陪练与写作批改、汇率查询、素材投料口抓取网页。<b>断网时这些会失败</b>，属预期，不是站点坏了。</p>
+            <p><b>需要联网</b>：发音朗读的在线音源（Edge 的 Online (Natural)、Google/Azure）、跟读评分与语音识别、AI 陪练与写作批改、汇率查询、素材投料口抓取网页。<b>浏览器语音的本地人声（名字里没有 Online/Natural 的）断网可用</b>；在线音源断网时会失败或自动回落，属预期，不是站点坏了。</p>
             <p>本机打开的本地副本（快捷方式）同样按这个规则；首次没联网打开过，则离线包还没装好。</p>
           </div>
         </details>

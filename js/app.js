@@ -5349,13 +5349,20 @@
       });
       if (!accentNote) return;
       const name = pendingAccent === "uk" ? "英音" : "美音";
-      let t = "当前：" + name;
+      /* 口径统一（P1-3）：手动指定优先于口音映射——只显示【实际生效】的人声，
+         被覆盖的映射人声如实标注「未生效」，不再并排两个名字让用户猜哪个在响。 */
       const vn = Player.accentVoiceName ? Player.accentVoiceName(pendingAccent) : "";
-      if (vn) t += "（人声：" + vn + "）";
-      else if (Player.hasAccent && !Player.hasAccent(pendingAccent)) {
+      const manualName = voiceSel.value || "";
+      let t = "当前：" + name;
+      if (manualName) {
+        t += "（实际生效：手动指定的「" + manualName + "」）";
+        if (vn && vn !== manualName) t += " · 口音映射人声「" + vn + "」未生效（已手动指定发音人）";
+      } else if (vn) {
+        t += "（人声：" + vn + "）";
+      } else if (Player.hasAccent && !Player.hasAccent(pendingAccent)) {
         t += "（⚠️ 本机没找到" + name + "人声，会回退默认发音人；建议用 Edge 并在系统「语音」里安装该口音的语音包）";
       }
-      if (voiceSel.value) t += " · 下方已手动指定发音人，切口音会自动改回「自动选择」。";
+      if (manualName) t += " 切口音会先清除手动指定（自动改回「自动选择」）。";
       /* P1-B 接线：口音能力的真话。旧写法在 Azure/Google 引擎下仍显示「当前：英音」，
          而实际 SSML 写死美音——等于骗用户。现在按 Player.accentCapability 的结论补一句：
          只有 supported 才谈"切到"，Google 一律 verified:false（只能说"已按英音请求"）。 */
