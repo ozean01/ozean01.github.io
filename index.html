@@ -292,6 +292,14 @@
       <p class="field-note">导出的 JSON 覆盖<b>全部可备份的学习记录</b>：掌握词（自评标记）、单词卡（FSRS，Free Spaced Repetition Scheduler 开源间隔重复算法，接受/产出两条调度线）、测验成绩、打卡与错题、SOP 勾选、学习走势、口语雷达原始分、自述语料库、写作作品、看板、水平自测基线、岗位任务画像、AI 陪练对话记录、精听闭环进度、连听听后测、偏好设置；换电脑或换浏览器时导入即可续学。<b>不含</b>上面「🔍 数据去向」说明的站内行为计数 <code>fte-trace-v1</code>（该项只写在本机、不随备份外流）。<b>不会导出任何 API Key</b>（AI 陪练配置与 Azure 订阅 Key 都被排除，导入时也不会写回）。词表 CSV 为「单词 / 音标 / 词性 / 中文 / 例句 / 例句翻译 / 单元」，可直接在 Anki 里「导入文件」建卡。</p>
     </div>
     <div class="field">
+      <label>💬 反馈（帮我们改得更好 · 不写库不联网）</label>
+      <textarea id="feedbackText" rows="3" placeholder="哪里好用、哪里卡住、最想要什么功能——写完点右边导出" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;outline:none;font-size:13.5px;line-height:1.6"></textarea>
+      <div style="margin-top:8px">
+        <button class="btn btn-outline btn-sm" data-action="settings-feedback">⬇️ 导出反馈文件</button>
+        <span class="field-note" style="display:inline-block;margin:0 0 0 8px">生成一个 .txt 文件（含版本号与时间戳），发给维护者即可。<b>不写库、不联网</b>——清空输入框或关掉设置即消失。</span>
+      </div>
+    </div>
+    <div class="field">
       <label>📱 在微信里打开 · 分享给同事</label>
       <div class="field-note" style="line-height:1.85">
         本站是纯静态站点，<b>不用下载、不用注册</b>——把链接发出去，对方点开就能学。<br>
@@ -379,6 +387,7 @@
 <script src="js/quiz.js" defer></script>
 <script src="js/tutor.js" defer></script>
 <script src="js/eval4.js" defer></script>
+<script src="js/mistakes-page.js" defer></script>
 <script src="js/listen.js" defer></script>
 <!-- 🔗 连读弱读（P1-7）：句级听辨卡（缩读/同化/连读/弱化），挂在「音素与辨音」合并页第三个 tab；
      自包含模块，只依赖 Player（speak/录音），Node 门禁可直接加载校验语料不变量。 -->

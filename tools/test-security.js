@@ -135,7 +135,7 @@ check("注册表无重复键", dup.length === 0, dup.join(", "));
 check("注册表规模与站点实际使用的键数量相符", regKeys.length >= 25, "n=" + regKeys.length);
 
 /* 代码里出现的每个 "fte-*" 字面量都必须登记（否则新增存储键会静默漏出备份） */
-const NON_STORAGE = ["fte-tutor", "fte-eval4-probe"]; // 前者是 UA 字符串，后者是 sessionStorage
+const NON_STORAGE = ["fte-tutor", "fte-eval4-probe", "fte-feedback-"]; // fte-tutor 是 UA 字符串；fte-eval4-probe 是 sessionStorage；fte-feedback- 是导出文件名前缀（批次 B），非存储键
 const seen = {};
 fs.readdirSync(path.join(ROOT, "js")).filter(function (f) { return /\.js$/.test(f); }).forEach(function (f) {
   const src = read("js/" + f);
