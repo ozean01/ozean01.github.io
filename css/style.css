@@ -2314,3 +2314,16 @@ a.brand{padding-top:6px;padding-bottom:6px}
   content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 
 #searchBtn,#settingsBtn,#navToggle{min-width:44px}
+
+/* ============ 启动骨架（性能批次 A，2026-10-24）============
+   由来：Lighthouse 实测 CLS 0.824——boot-skeleton 原是无样式的裸 div（约 100px 高），
+   慢网络下「骨架 → 今日页」的整体替换发生在首屏视口内，整个页面被顶下去。
+   修法：骨架撑满首屏视口（header+footer 约占 160px），替换就发生在折叠线以下，
+   视口内的布局不再跳动；骨架块模拟首屏卡片的排布，加载中也有「页面形状」。 */
+.boot-skeleton{min-height:calc(100vh - 170px);padding:0 4px}
+.boot-skeleton .page-head{margin-bottom:16px}
+.boot-skeleton .sk-block{height:88px;border-radius:14px;background:linear-gradient(90deg,var(--bg-soft,#f1f5f9),var(--line,#e2e8f0),var(--bg-soft,#f1f5f9));background-size:200% 100%;animation:sk-pulse 1.2s ease-in-out infinite;margin-bottom:14px}
+.boot-skeleton .sk-block:nth-child(3){height:120px}
+.boot-skeleton .sk-block:nth-child(4){height:220px}
+@keyframes sk-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.boot-skeleton .sk-block{animation:none}}
