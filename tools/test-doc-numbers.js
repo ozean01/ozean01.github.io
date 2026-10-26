@@ -148,7 +148,7 @@ if (mIA) {
 }
 check("导航含「能力证据」入口（坚持≠能力分栏纪律在导航层的落点）",
   navBlock2.indexOf("能力证据") !== -1 && navBlock2.indexOf('data-nav="ability"') !== -1);
-check("导航无单链接分组（课程/写作已提直链）",
+check("导航无单链接分组（课程仍是直链；P13 起写作/实操 SOP 收进「写 · 用」组，不再单独成组或直链）",
   !/data-group="course"/.test(navBlock2) && !/data-group="writing"/.test(navBlock2));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");

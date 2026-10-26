@@ -384,7 +384,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 素材投料口</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 素材投料口</div>
       <h2>📥 素材投料口</h2>
       <div class="en">把任意英文材料变成「听·读·写·说」一起练的素材</div>
       <p style="margin-top:8px;max-width:780px;color:var(--muted)">粘贴一篇英文文章、一个网页链接，或一段 YouTube/美剧字幕文本，拆成句子后，直接<b>送进站内已有的流水线</b>练（复用字幕点读 & 听说训练引擎）。数据默认只在本浏览器；网页正文抓取走 Jina Reader 文本端点（需联网），隐私要求高就直接<strong>粘贴正文</strong>，完全离线。</p>

@@ -897,7 +897,7 @@
       ? '<div class="td-stage">' +
         (stage ? '<span class="td-stage-n">' + stage.emoji + " 第 " + stage.idx + " / " + stage.total + " 阶段</span>" +
           '<b>' + esc(stage.name.replace(/^第[一二三]阶段\s*·\s*/, "")) + "</b>" : "") +
-        (plan ? '<span class="td-goal" title="在首页「🗺 全站地图 → 按你的目标筛选」里修改">🎯 目标：' + esc(plan.label) + "</span>" : "") +
+        (plan ? '<span class="td-goal" title="在「🗺 全站地图 → 按你的目标筛选」里修改">🎯 目标：' + esc(plan.label) + "</span>" : "") +
         '<span class="td-stage-d">' + esc(stage ? stage.desc : "") + "</span>" +
         "</div>"
       : "";
@@ -934,6 +934,11 @@
     //    js/urgent.js 自述的「不打断当天进度」、本文件「一屏一决策」自相矛盾）。
     //    现在它**后移到五步清单之下**，并保持 js/urgent.js 自带的默认折叠形态（details 未展开，
     //    入口文案仍是「🚨 客户马上要谈什么？」）——功能一个都不删，只是不再抢首屏。
+    //
+    // 🎯 P12 · 「岗位任务画像」的位置（外部反馈：首访找不到重点、不知道从哪开始）：
+    //    它原来在五步清单**之前**，是首访首屏第 3 个可点元素，把「第 1 步做什么」往下推。
+    //    与急救同一处理：功能不删，挪到「记账口径」之后——新访客先看到今天要做的事，
+    //    想按岗位调推荐的人往下一点就能找到。
     app.innerHTML = `
     <div class="page-head">
       <div class="crumbs">今日</div>
@@ -988,6 +993,16 @@
         '系统会跟上次逐项对比。</div>';
     })()}
 
+    <section class="td-list-head">
+      <b>今天的清单</b>
+      <span class="td-count">${doneN} / ${steps.length} 完成 · 约 ${totalMin(steps, S.short)} 分钟</span>
+      <button class="td-short${S.short ? " on" : ""}" data-action="td-short">${S.short ? "↺ 看完整清单" : "⏱ 今天只有 5 分钟"}</button>
+    </section>
+
+    <section class="td-list">${rows}</section>
+
+    <div class="field-note" data-credit-legend="1">记账口径：五步各自写明了怎么才算完成——四步由你自己点「✓ 完成」（自报，点了才计入打卡），写作那一步由站内按词数自动判定。连听与场景急救只做练习，<b>不计入打卡</b>；打卡只记上面那五步。</div>
+
     ${(function () {
       const prof = taskProfile(boot.progress);
       return '<details class="td-profile" style="margin:10px 0 0">' +
@@ -1003,16 +1018,6 @@
         '<div style="margin-top:6px;font-size:12px;color:var(--muted)">只影响推荐顺序，不锁死内容；随时可改。存在本机（progress.taskProfile），随备份迁移。</div>' +
         "</details>";
     })()}
-
-    <section class="td-list-head">
-      <b>今天的清单</b>
-      <span class="td-count">${doneN} / ${steps.length} 完成 · 约 ${totalMin(steps, S.short)} 分钟</span>
-      <button class="td-short${S.short ? " on" : ""}" data-action="td-short">${S.short ? "↺ 看完整清单" : "⏱ 今天只有 5 分钟"}</button>
-    </section>
-
-    <section class="td-list">${rows}</section>
-
-    <div class="field-note" data-credit-legend="1">记账口径：五步各自写明了怎么才算完成——四步由你自己点「✓ 完成」（自报，点了才计入打卡），写作那一步由站内按词数自动判定。连听与场景急救只做练习，<b>不计入打卡</b>；打卡只记上面那五步。</div>
 
     ${(window.Urgent && window.Urgent.html) ? window.Urgent.html() : ""}
 
@@ -1047,7 +1052,7 @@
       <div class="td-why-body">
         <p>这条日循环不是新发明的，是站内两样东西装到一起：<b>20 分钟模板</b>（3 热身 / 8 主题 / 5 复盘 / 4 重说）与<b>今日任务</b>（句型 10 句 · 写作 1 篇）。</p>
         <p><b>顺序有讲究</b>：先复习到期词（记忆保质）→ 再学当前单元（输入新知）→ 立刻开口跟读（把刚学的说出来）→ 产出 1 篇（逼自己用出去）→ 最后复盘错题（把坑填上）。中间任何一步做完就算数，不用一次做完。</p>
-        <p><b>想自己选？</b>全站功能在 <a href="#/home">🏠 首页</a>的「全站地图」里，随便逛；这里是「不知道练什么就直接照做」的那一条路。</p>
+        <p><b>想自己选？</b>全站功能在 <a href="#/home">🗺 全站地图</a>页里，随便逛；这里是「不知道练什么就直接照做」的那一条路。</p>
       </div>
     </details>
     `;

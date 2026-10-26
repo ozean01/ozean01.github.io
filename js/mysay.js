@@ -386,7 +386,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 说我想说</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 说我想说</div>
       <h2>🗣 说我想说 <span class="en">写你想说的话 → 变成能说出口的地道英文 → 跟读、背诵、记住</span></h2>
       <p style="margin-top:8px;max-width:800px;color:var(--muted)">跟「📥 素材投料口」正好互补：投料口练<b>别人的话</b>（导入文章/字幕），这里练<b>你自己的话</b>——外贸场景里就是你真要发出去的那封邮件、真要当着客户说的那件事。素材是你自己写的，背起来才真的用得上。</p>
     </div>

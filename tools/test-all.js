@@ -51,6 +51,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/x-repro-injection.js"], gate: true, label: "注入复现 P0′：5 个历史未转义出口现在必须全部挡住" },
   { cmd: "node", args: ["tools/test-placement.js"],gate: true, label: "水平自测 v2：基线落日期并锁定 / 分项定级 / 复测排期" },
   { cmd: "node", args: ["tools/test-home.js"],    gate: true,  label: "首页 P1：导航↔路由双向对账 / 旧机制未复活" },
+  { cmd: "node", args: ["tools/test-ia-firstscreen.js"], gate: true, label: "首访首屏 P12：导航入口棘轮 / 横幅只有一个主行动 / 清单前无画像块" },
   { cmd: "node", args: ["tools/test-urgent.js"],  gate: true,  label: "场景急救：每个场景都能给出话 / 架构冻结守卫" },
   { cmd: "node", args: ["tools/test-sop.js"],     gate: true,  label: "SOP 英文接入练习引擎：每句都有练习路径" },
   { cmd: "node", args: ["tools/test-assets.js"],  gate: true,  label: "静态资源接线：引用存在 + 预缓存完整" },

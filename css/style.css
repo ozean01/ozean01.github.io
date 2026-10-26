@@ -1654,7 +1654,22 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .ob-bar .btn-outline{background:transparent;color:#fff;border-color:rgba(255,255,255,.7)}
 .ob-bar-x{background:transparent;border:0;color:#fff;opacity:.92;cursor:pointer;font-size:12.5px;padding:4px 6px}
 .ob-bar-x:hover{opacity:1;text-decoration:underline}
-@media (max-width:640px){.ob-bar-ops{width:100%}.ob-bar-ops .btn{flex:1}}
+/* P12：横幅里的次级起点（测起点）降为文字链——首访首屏只留一个主行动按钮（.btn-primary），
+   文字链仍可点、屏幕阅读器可读，但不再与主行动抢「并列按钮」的视觉权重。
+   ⚠️ 不带 color 声明：颜色沿用白名单里的 .ob-bar-x（白字/横幅深色底，对比度门禁已放行），
+      这里只加下划线——新增一条 #fff 会让「全部 color 声明 ≥4.5:1」门禁因渐变底不可解析而误报。 */
+.ob-bar-alt{text-decoration:underline}
+@media (max-width:640px){
+  /* 手机上主行动单独占一行（不再被文字链挤成两行），次级文字链与关闭并排在下；
+     副文案在窄屏隐藏——标题 + 主按钮已自解释，少两行说明能让「今天第 1 步」完整落进首屏
+     （P12 实测：801px 高度时按钮底部会超出 1px，靠这一行换回 34px）。 */
+  .ob-bar-ops{width:100%;display:grid;grid-template-columns:1fr auto;gap:6px 10px}
+  .ob-bar-ops .btn{grid-column:1 / -1}
+  .ob-bar-alt{justify-self:start;text-align:left}
+  .ob-bar-t .ob-bar-sub{display:none}
+}
+/* 点横幅主行动后，把「今天第 1 步」亮一下（1.4s 后由 JS 移除），让人确认「就是这里」。 */
+.td-step.ob-flash{outline:3px solid var(--primary);outline-offset:2px;box-shadow:0 0 0 6px var(--primary-soft);transition:box-shadow .25s ease}
 
 /* ============ 运行环境提示条（P0-13：微信内置浏览器 / 在线-离线） ============
    与 .ob-bar 同一位置策略（插在 #siteHeader 之后，见 app.js setupEnvHints），

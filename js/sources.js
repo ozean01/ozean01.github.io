@@ -249,7 +249,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 真实听音源</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 真实听音源</div>
       <h2>🎧 真实商务听音源</h2>
       <div class="en">把「真实母语者声音」补进你的听力练场 · 链出去听，回本站练</div>
       <p style="margin-top:8px;max-width:760px;color:var(--muted)">${esc(S.note)}</p>

@@ -501,7 +501,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 音素课</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 音素课</div>
       <h2>🔤 音素与辨音 <span class="en">只练会出事故的那几组，其余当参考</span></h2>
       <p style="margin-top:8px;max-width:820px;color:var(--muted)"><b>发音不是练完 41 个音素才算过关。</b>对四级荒废多年的在职业务员，真正会让你在客户面前出事的只有十来个——所以这一页的主次很明确：<b>上面那十组先练</b>，下面的完整音素表只作<b>查阅</b>（想知道某个音出现在哪些行业词里时再展开）。</p>
       <p style="margin-top:6px;max-width:820px;color:var(--muted)">每组配的例词都<b>不是教材里的 apple / banana</b>，而是从本站 ${totalWords} 条行业词里自动索引出来的——复合膜、上胶量、剥离强度、订舱、信用证。你练的就是真要发的那些音。</p>

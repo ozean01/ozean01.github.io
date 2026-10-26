@@ -5812,8 +5812,10 @@
   /* ---------------- 首次上手导流：非阻塞横幅（替代原全屏 3 步引导） ----------------
      科学依据（first-run / HCI 最佳实践）：首次进入的引导应【不阻塞内容】、可随时关闭、
      低负担，且只推向真正的价值点；全屏强制答题会挡掉首页核心价值（progressive disclosure）。
-     本方案改为：首次访问在导航下方常驻一条可关闭横幅，只做三件事——测起点 / 进第 1 单元 / 关闭；
-     点击任意一项或 ✕ 即写入 fte-onboarded，此后永不再显示。 */
+     P12（外部反馈「找不到重点和如何开始」）：横幅原来并排给 2 个起点（测起点 / 从第 1 单元开始），
+     加上今日页自己的第 1 步，首访首屏出现 3 个并列「开始」。现在收敛为**一个主行动**
+     （就是今天清单的第 1 步），「测起点」降为横幅内的文字链（30 秒，可选），关闭仍在。
+     点主行动 / 文字链 / ✕ 均写入 fte-onboarded，此后永不再显示。 */
   function showOnboarding() {
     /* localStorage 不可用（隐私模式 / 配额满 / 被策略禁用）时不许把启动流程带崩：
        读不到 ⇒ 当作「没看过导流」，横幅照常出现（只是每次都会出现）；
@@ -5824,16 +5826,15 @@
     const header = document.getElementById("siteHeader");
     if (!header) return;
 
-    const firstUnitId = (DATA.units && DATA.units[0]) ? DATA.units[0].id : 1;
     const bar = document.createElement("div");
     bar.className = "ob-bar";
     bar.setAttribute("role", "note");
     bar.innerHTML =
       '<div class="ob-bar-t"><b>👋 从这里开始</b>' +
-      '<span class="ob-bar-sub">不用一次学完：先 30 秒定位起点，或直接从第 1 单元学起。</span></div>' +
+      '<span class="ob-bar-sub">不用先选方向：点右边就是今天该做的第 1 步（约 20 分钟）。想先定位起点，再花 30 秒测一下。</span></div>' +
       '<div class="ob-bar-ops">' +
-      '<button class="btn btn-primary btn-sm" data-act="ob-start">🎯 测测起点</button>' +
-      '<button class="btn btn-outline btn-sm" data-act="ob-unit">📚 从第 1 单元开始</button>' +
+      '<button class="btn btn-primary btn-sm" data-act="ob-go">▶ 开始今天的第 1 步</button>' +
+      '<button class="ob-bar-x ob-bar-alt" data-act="ob-start">🎯 先测起点（30 秒）</button>' +
       '<button class="ob-bar-x" data-act="ob-close" title="关闭，不再显示">✕ 不再显示</button>' +
       '</div>';
 
@@ -5844,13 +5845,28 @@
       bannerMark("ob");
       if (bar.parentNode) bar.parentNode.removeChild(bar);
     }
+    /* 主行动：把「今天第 1 步」本身亮出来。已在今日页就滚到清单首项（横幅收起后布局会回正，
+       用 rAF 等一帧再滚，避免按旧位置计算），否则先去今日页。 */
+    function gotoFirstStep() {
+      done();
+      const highlight = function () {
+        const first = document.querySelector(".td-step");
+        if (!first) return;
+        first.scrollIntoView({ block: "center", behavior: "smooth" });
+        first.classList.add("ob-flash");
+        setTimeout(function () { first.classList.remove("ob-flash"); }, 1400);
+      };
+      const onToday = !location.hash || location.hash.indexOf("#/today") === 0;
+      if (onToday) { requestAnimationFrame(function () { requestAnimationFrame(highlight); }); }
+      else { location.hash = "#/today"; setTimeout(function () { renderRoute(); highlight(); }, 0); }
+    }
     bar.addEventListener("click", function (e) {
       const b = e.target.closest("[data-act]");
       if (!b) return;
       const a = b.getAttribute("data-act");
       if (a === "ob-close") { done(); }
+      else if (a === "ob-go") { gotoFirstStep(); }
       else if (a === "ob-start") { done(); location.hash = "#/placement"; setTimeout(function () { renderRoute(); }, 0); }
-      else if (a === "ob-unit") { done(); location.hash = "#/unit/" + firstUnitId; setTimeout(function () { renderRoute(); }, 0); }
     });
   }
 })();

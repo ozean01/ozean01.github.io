@@ -211,8 +211,15 @@ check("CACHE 版本已升到 ≥ fte-v130（清单变了必须换缓存桶）",
   /^fte-v\d+$/.test(cache) && parseInt(cache.replace(/\D/g, ""), 10) >= 130, cache);
 const pkg = JSON.parse(read("package.json"));
 const pwa = read("js/pwa-init.js");
-check("版本同源：package.json 1.15.0 = pwa-init.js FTE_VERSION",
-  pkg.version === "1.15.0" && pwa.indexOf('window.FTE_VERSION = "1.15.0"') !== -1, pkg.version);
+/* 不写死版本号：每次发版都会变，写死会让「改版本」误伤无关门禁（本批实测踩过）。
+   真正要守的是「两处同源」+「版本 ≥ P11 首次发布的 1.15.0」。 */
+check("版本同源：package.json 与 pwa-init.js FTE_VERSION 逐字一致",
+  pwa.indexOf('window.FTE_VERSION = "' + pkg.version + '"') !== -1, pkg.version);
+check("版本不低于 P11 首次发布的 1.15.0（防回退）",
+  (function () {
+    const p = String(pkg.version).split(".").map(function (n) { return parseInt(n, 10); });
+    return p[0] > 1 || (p[0] === 1 && p[1] > 15) || (p[0] === 1 && p[1] === 15 && p[2] >= 0);
+  })());
 
 console.log("\n" + (pass ? "=== ALL PASS ===" : "=== SOME FAILED ==="));
 process.exit(pass ? 0 : 1);

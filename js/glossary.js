@@ -144,7 +144,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 专业术语速查</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 专业术语速查</div>
       <h2>🔍 专业术语速查</h2>
       <div class="en">软包装 / 复膜胶 / 印刷复合术语 · 中英对照 · 可搜索 · 可朗读</div>
       <p style="margin-top:8px;max-width:780px;color:var(--muted)">${esc(G.note || "")}</p>

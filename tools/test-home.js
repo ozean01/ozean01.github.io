@@ -16,7 +16,10 @@ const appjs = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
 let pass = true;
 function check(name, cond, info) { console.log((cond ? "✅ " : "❌ ") + name + (info ? "  " + info : "")); if (!cond) pass = false; }
 
-/* ---------------- ① 导航分组：同维度 ---------------- */
+/* ---------------- ① 导航分组：任务维度 + 一级收敛（P13） ----------------
+   背景：外部反馈「菜单很多、找不到重点和如何开始」+ IA 实测（18 入口 / 9 个一级项）。
+   P13 把一级项 9 → 6（2 直链 + 4 任务分组），入口总数保持 18（棘轮只许降不许升）。
+   这里守的是「收敛后的结构」：别再退回 9 个一级项、别把「前后端」又提成直链。 */
 const navBlock = (html.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
 check("提取到主导航块", navBlock.length > 200, "len=" + navBlock.length);
 
@@ -26,25 +29,35 @@ let g;
 while ((g = reGroup.exec(navBlock)) !== null) {
   groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z0-9]+"/g) || []).length });
 }
-check("导航为 4 个功能分组（2026-10-24 IA 修订：单链接的 course/writing 提为一级直链）",
+check("导航为 4 个任务分组（P13：练 / 背与测 / 写·用 / 地图·进度）",
   groups.length === 4, groups.map(function (x) { return x.id; }).join(", "));
-check("分组为任务维度 practice/memory/tools/progress",
-  groups.map(function (x) { return x.id; }).join(",") === "practice,memory,tools,progress",
+check("分组为任务维度 practice/memory/use/map",
+  groups.map(function (x) { return x.id; }).join(",") === "practice,memory,use,map",
   groups.map(function (x) { return x.id; }).join(","));
 check("每组都有入口", groups.every(function (x) { return x.links > 0; }));
-check("progress 组至少 2 个入口（坚持 + 能力证据，IA 对齐「坚持≠能力」分栏纪律）",
-  (groups.filter(function (x) { return x.id === "progress"; })[0] || { links: 0 }).links >= 2);
+check("「地图 · 进度」组含 3 个入口（全站地图 + 计划打卡 + 能力证据，坚持≠能力分栏纪律的落点）",
+  (groups.filter(function (x) { return x.id === "map"; })[0] || { links: 0 }).links === 3);
 console.log("  分组入口数：" + groups.map(function (x) { return x.id + "=" + x.links; }).join(" · "));
 
-["today", "home", "sop"].forEach(function (k) {
-  check("「" + k + "」是一级入口（不在任何分组里）",
+/* 一级收敛：9 → 6 = 2 直链（今日 / 课程）+ 4 分组 */
+const directLinks = (navBlock.match(/<a class="nav-home-link"/g) || []).length;
+check("一级直链只剩 2 个（今日 / 课程）", directLinks === 2, "n=" + directLinks);
+check("一级项总数为 6（2 直链 + 4 分组；P13 目标 3~6，不许回到 9）",
+  directLinks + groups.length === 6, "n=" + (directLinks + groups.length));
+["today", "units"].forEach(function (k) {
+  check("「" + k + "」是一级直链（不在任何分组里）",
     new RegExp('<a class="nav-home-link" href="#/' + k + '"').test(navBlock));
 });
-check("写作已提升为一级入口（原独立成组 → IA 修订提直链）",
-  /<a class="nav-home-link" href="#\/write" data-nav="write">/.test(navBlock) && !/data-group="writing"/.test(navBlock));
-check("课程已提升为一级入口（原单链接分组提直链）",
-  /<a class="nav-home-link" href="#\/units" data-nav="units">/.test(navBlock) && !/data-group="course"/.test(navBlock));
-check("「记与测」已改名为任务导向的「背与测」", /ng-name">背与测</.test(navBlock) && !/ng-name">记与测</.test(navBlock));
+check("「全站地图」（原首页）不再是一级直链，收进「地图 · 进度」组",
+  !/<a class="nav-home-link" href="#\/home"/.test(navBlock) &&
+  /data-group="map"[\s\S]*?href="#\/home"/.test(navBlock));
+check("P4：「首页」标签已改名「全站地图」（默认落地是今日，地图页不是起点）",
+  /🗺 全站地图/.test(navBlock) && !/>🏠 首页</.test(navBlock));
+check("「实操 SOP」与「写作」收进「写 · 用」组（工作辅助/产出不再各自占一个一级项）",
+  !/<a class="nav-home-link" href="#\/sop"/.test(navBlock) &&
+  !/<a class="nav-home-link" href="#\/write"/.test(navBlock) &&
+  /data-group="use"[\s\S]*?href="#\/write"[\s\S]*?href="#\/sop"/.test(navBlock));
+check("「背与测」命名保留（P0 修订：先输入后检验）", /ng-name">背与测</.test(navBlock) && !/ng-name">记与测</.test(navBlock));
 /* 「背与测」组内顺序：先输入（背）→ 后检验（测）→ 再纠偏（易错点） */
 const memBlk = (navBlock.match(/data-group="memory">([\s\S]*?)<\/details>/) || [])[1] || "";
 const memOrder = (memBlk.match(/href="#\/([a-z0-9]+)"/g) || [])
@@ -67,7 +80,7 @@ check("提取到路由表", ROUTES.length >= 20, "n=" + ROUTES.length);
 
 const NAV = [];
 /* 注意：一级入口是 <a class="nav-home-link" href="#/today">，href 前还有 class，
-   所以正则必须允许 href 前面出现其它属性——只写 <a href= 会漏掉今日与首页。
+   所以正则必须允许 href 前面出现其它属性——只写 <a href= 会漏掉今日与课程。
    同理字符集要含数字，否则会漏掉 eval4。 */
 const reNav = /<a [^>]*href="#\/([a-z0-9]+)"/g;
 let n;
@@ -210,7 +223,7 @@ check("导航链接禁止词内断行（white-space:nowrap）", /white-space:now
 check("导航分组标签同样禁止词内断行", /white-space:nowrap/.test(navSummary), navSummary.slice(0, 90));
 check("导航子项不被 flex 压扁（flex:0 0 auto）", /flex:0 0 auto/.test(navA));
 check("导航容器允许整块换行（flex-wrap:wrap）", /flex-wrap:wrap/.test(navBox), navBox.slice(0, 70));
-check("桌面端导航独占一行（否则 9 个中文项挤不进 1120px）",
+check("桌面端导航独占一行（否则 6 个中文一级项 + 分组仍会挤到品牌行，换行位置不可控）",
   /@media \(min-width:721px\)\{[\s\S]{0,200}?\.main-nav\{order:3;flex:1 0 100%/.test(css));
 
 /* ---------------- ⑦ 首页难度角标的**渲染级**回归（T16-1 / P1-B 配套） ----------------

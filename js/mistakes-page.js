@@ -114,7 +114,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 易错点</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 易错点</div>
       <h2>⚠️ 中国外贸人高频易错点</h2>
       <div class="en">提前把你"自己都不知道自己会犯的错"挖出来，再逐个讲清</div>
       <p style="margin-top:8px;max-width:760px;color:var(--muted)">${esc(MK.note || "")}<br>

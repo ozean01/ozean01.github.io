@@ -490,7 +490,7 @@
 
     app.innerHTML = `
     <div class="page-head">
-      <div class="crumbs"><a href="#/home">首页</a> / 字幕点读</div>
+      <div class="crumbs"><a href="#/home">全站地图</a> / 字幕点读</div>
       <h2>📺 字幕逐句点读</h2>
       <div class="en">点一句 → 播这一句 → 自动停 · 生词按难度自动着色（CEFR + 行业术语）· 四档字幕（全部/英语/隐藏/中文）</div>
       <p style="margin-top:8px;max-width:760px;color:var(--muted)">把美剧、演讲、YouTube 视频的<b>字幕</b>和<b>音/视频</b>载入进来，一句一句主动点读：点击任意句子即播放对应片段，读完自动暂停，句与句之间留出思考时间，避免连听走神。生词按 <b>易/中/难/专</b> 自动着色，点击词看解释。<b>中英双语字幕自动分轨</b>，可按 <b>全部 → 英语 → 隐藏 → 中文</b> 逐步加难度；中文档留到最后做<b>回译检查</b>。全程本地，不上传任何文件。</p>

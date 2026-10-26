@@ -97,7 +97,7 @@
 
     app.innerHTML =
       '<div class="page-head">' +
-      '<div class="crumbs"><a href="#/home">首页</a> / 连读弱读</div>' +
+      '<div class="crumbs"><a href="#/home">全站地图</a> / 连读弱读</div>' +
       "<h2>🔗 连读弱读 <span class=\"en\">词都认识、连起来听不出——专治这个</span></h2>" +
       '<p style="margin-top:8px;max-width:820px;color:var(--muted)">真实语流里，功能词几乎从不「按拼写」说：want to 说成 <b>wanna</b>、did you 说成 <b>didja</b>。听不懂客户的话，十有八九不是词难，是这些「糊成一团」的形没认过。每组先<b>慢速对照</b>完整形与缩读形，再听<b>常速整句</b>，最后跟读录音回放。</p>' +
       '<p style="margin-top:6px;max-width:820px;color:var(--muted)"><b>诚实边界：</b>本页<b>不打分</b>（识别不等于发音，A/B 对照是诚实的上限）；TTS 按拼写读，真正的母语连读请去「🧰 工具箱 → 真实听音源」链出去听。例句都是外贸场景，缩读形就是母语者实际说的话的拼写。</p>' +
