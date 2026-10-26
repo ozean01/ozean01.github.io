@@ -350,6 +350,8 @@
 <script src="js/pwa-init.js" defer></script>
 <!-- 存储键唯一权威注册表（P0-3）：纯数据、无依赖，export.js 与安全门禁都读它 -->
 <script src="js/storage-keys.js" defer></script>
+<!-- P11 段级间隔复听（段=有到期日/完成态/断点的学习对象）：无 DOM 依赖，today.js 与 app.js 都读它 -->
+<script src="js/seg-review.js" defer></script>
 <script src="js/data.js" defer></script>
 <script src="js/data-ops.js" defer></script>
 <script src="js/data-ocean.js" defer></script>
@@ -363,6 +365,7 @@
      必须在所有 data-*.js（含 data-meeting.js）之后加载——它 push 进已存在的单元。 -->
 <script src="js/data-dialogues2.js" defer></script>
 <script src="js/data-mnemonic.js" defer></script>
+<script src="js/data-cando.js" defer></script>
 <script src="js/data-glossary.js" defer></script>
 <script src="js/lvl-map.js" defer></script>
 <script src="js/difficulty-map.js" defer></script>

@@ -146,7 +146,7 @@
        封禁/需要真实客户端令牌，普通前端调用经常失败，因此不再作为默认；
        仍可在发音设置里手动开启，开启失败时会自动回退到浏览器语音。 */
     return { schema: (window.FTE_SCHEMA && window.FTE_SCHEMA.SCHEMA) || 1, learned: {}, quizBest: {}, dict: {}, flash: {}, flashProd: {}, flashChunk: {}, done: {}, rate: 1, voice: "",
-      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, azureStyle: true, azureHQ: false };
+      engine: "native", useGoogle: false, azureKey: "", azureRegion: "", azureVoice: "en-US-JennyNeural", azurePA: true, azureStyle: true, azureHQ: false, cando: {} };
   }
   /* 一次性迁移标记：旧版本把在线 Google 音源当作默认，而该音源现已不可靠，
      首次迁移时把未手动关闭过它的旧设置切回浏览器语音，避免后续覆盖用户手动选择。 */
@@ -621,6 +621,9 @@
     if (!parts.length) return { view: "home" };
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
+    /* P11：段级复听深链 #/speak/<单元>-<对话序号>（同一个「听说训练」页，只是预选到期段，
+       不新增导航项、不新增页面；供「今日」第 3 步指到具体一段） */
+    if (parts[0] === "speak" && parts[1] && /^\d+-\d+$/.test(parts[1])) return { view: "speak", seg: parts[1] };
     /* 整页重定向（如 #/board → #/today）先于别名与普通路由处理 */
     if (REDIRECT_ROUTES[parts[0]]) return { view: REDIRECT_ROUTES[parts[0]] };
     /* 合并页的别名路由（#/listen、#/subtitle、#/placement、#/eval4、#/speech、#/patterns）
@@ -674,7 +677,7 @@
       else if (route.view === "unit") renderUnit(route);
       else if (route.view === "flash") renderFlash();
       else if (route.view === "quiz") renderQuiz();
-      else if (route.view === "speak") renderSpeak();
+      else if (route.view === "speak") renderSpeak(route);
       else if (route.view === "eval4") window.Eval4.render();
       else if (route.view === "tutor") window.Tutor.render();
       else if (route.view === "coach") renderCoach();
@@ -1028,6 +1031,41 @@
     };
     toast("已生成 " + cards.length + " 张易忘词复习卡" + (reinforce ? "（启用 3 天加急）" : ""));
     location.hash = "#/flash";
+
+  /* ---------------- 💬 台词入 SRS（批次 C1 · P3 遗留项重开）----------------
+     P3 评审曾记录「对话台词未入池：往返回合难切分」——现在听后测/闯关已天然把台词
+     切成可产出单元，切分难题实际已绕开。做法：一段对话 = 一组**产出性卡**
+     （正面中文台词 → 背面英文台词），走 FSRS flashProd 线，与单词卡两条线互不影响。
+     id 稳定（dlg-单元-对话-行号），重复进入复用同一张卡的排期。 */
+  function startDialogueFlash() {
+    const s = State.speak;
+    if (!s || !s.dlg || !s.dlg.lines) { toast("先选一段对话再来"); return; }
+    const cards = s.dlg.lines
+      .map(function (l, i) { return { l: l, i: i }; })
+      .filter(function (x) { return x.l.en && x.l.sp !== "✉"; })
+      .map(function (x) {
+        return {
+          id: "dlg-" + s.unit.id + "-" + s.dlgIdx + "-" + x.i,
+          w: x.l.en,          /* 背面：英文台词 */
+          ipa: "",
+          cn: x.l.cn || "",   /* 正面：中文台词 */
+          ex: "", exCn: "", why: ""
+        };
+      });
+    if (!cards.length) { toast("这段对话没有可制卡的台词"); return; }
+    State.flash = {
+      unit: { id: "dlgline", title: "💬 台词 · " + (s.dlg.title || "对话"), vocab: [] },
+      queue: cards,
+      idx: 0,
+      stats: { known: 0, unknown: 0 },
+      freshLeft: 0, dueLeft: 0,
+      deck: "word",
+      prod: true,
+      hadCards: cards.length > 0
+    };
+    location.hash = "#/flash";
+    toast("💬 已把 " + cards.length + " 句台词做成产出卡（看中文说英文，FSRS 排期）。台词卡与词卡各自排期、互不影响。");
+  }
   }
 
   /* 首页：学习效果走势（本地快照趋势）。纯本地、零网络；把每日「已掌握/保持率/到期/完成」画成折线，
@@ -1693,6 +1731,27 @@
         }).join("")}
       </aside>
       <div class="content-main">
+        ${(function () {
+          const C = window.FTE_CANDO || {};
+          const list = C[u.id] || [];
+          if (!list.length) return "";
+          const st = (progress.cando && progress.cando[u.id]) || [];
+          const doneN = list.filter(function (_, i) { return st[i]; }).length;
+          return '<div class="card" style="margin-top:14px;padding:14px 18px">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+            '<b>✅ 学完能做到（can-do）</b>' +
+            '<span class="badge ' + (doneN === list.length ? "badge-ok" : "badge-muted") + '">' + doneN + ' / ' + list.length + '</span>' +
+            '</div>' +
+            '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">' +
+            list.map(function (stmt, i) {
+              return '<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:13.5px">' +
+                '<input type="checkbox" data-action="cando-toggle" data-i="' + i + '"' + (st[i] ? " checked" : "") + '>' +
+                '<span>' + esc(stmt) + '</span></label>';
+            }).join("") +
+            '</div>' +
+            '<div style="margin-top:6px;font-size:12px;color:var(--muted)">任务型自评（学完真的能做到再勾）；与上面的「自评标记掌握度（词频口径）」并列显示、互不替代。来自本单元对话场景，只影响展示。</div>' +
+            '</div>';
+        })()}
         <div class="tabs" role="tablist" aria-label="单元内容（词汇 / 短语 / 对话 / 技巧）">
           <button class="tab ${tab === "vocab" ? "active" : ""}" role="tab" aria-selected="${tab === "vocab" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="vocab">词汇 (${u.vocab.length})</button>
           <button class="tab ${tab === "phrases" ? "active" : ""}" role="tab" aria-selected="${tab === "phrases" ? "true" : "false"}" aria-controls="unitContent" data-action="unit-tab" data-tab="phrases">短语 (${u.phrases.length})</button>
@@ -2632,6 +2691,7 @@
     const N = s.dlg.lines.length;
     if (dir === 1 && s.stepIdx < N - 1) s.stepIdx++;
     else if (dir === -1 && s.stepIdx > 0) s.stepIdx--;
+    saveSpeakPos(s);   /* 每走一句落一次断点（只在五阶段闯关的 ② 里生效） */
     renderSpeak();
     playLineOnly(s.unit.id, s.dlgIdx, s.stepIdx);
     if (dir !== 0) scrollLineIntoView(s.dlgIdx, s.stepIdx);
@@ -3408,9 +3468,13 @@
   }
 
   /* ================= 听说训练 ================= */
-  function renderSpeak() {
+  function renderSpeak(route) {
+    const dueSeg = route && route.seg;
+    /* 从「今日」的到期深链进来时，若手上还留着**另一段**的会话，先放掉它，
+       否则会继续显示上一段，用户以为点错了。同一段则保持原会话（不打断正在进行的练习）。 */
+    if (dueSeg && State.speak && (State.speak.unit.id + "-" + State.speak.dlgIdx) !== dueSeg) State.speak = null;
     const s = State.speak;
-    if (!s) { renderSpeakSetup(); return; }
+    if (!s) { renderSpeakSetup(dueSeg); return; }
     if (s.mode === "dict") renderDict(s);
     else if (s.mode === "stage") renderStage(s);
     else renderShadow(s);
@@ -3450,16 +3514,58 @@
     if (advance && idx + 1 > cur) { progress.stage[KEY] = idx + 1; saveProgress(); }
   }
 
-  function setStage(s, k) { s.stage = k; markStage(s, true); renderSpeak(); }
+  /* P11 · 段级复习与断点的接线（唯一实现都在 js/seg-review.js，这里只负责「什么时候调用」）
+     - 段键 = 单元号-对话序号，与 progress.stage 的键一致；
+     - 只有「真正走完五阶段（点 🏁 完成本段闯关）」才推进复习轮次；
+     - ②③④ 离开时存句子断点（①盲听与⑤完成没有句级位置）。 */
+  function segKeyOf(s) { return (s && s.unit) ? (s.unit.id + "-" + s.dlgIdx) : ""; }
+  function saveSpeakPos(s) {
+    if (!s || !window.SegReview || s.mode !== "stage") return;
+    const idx = STAGE_DEFS.findIndex(function (d) { return d.k === s.stage; });
+    if (idx < 1 || idx > 3) return;
+    const line = (s.stage === "shadow" && s.stepMode) ? s.stepIdx : 0;
+    window.SegReview.savePos(segKeyOf(s), idx + 1, line);
+  }
+  function resumeBanner(s) {
+    if (!s.resumed) return "";
+    const st = STAGE_DEFS[s.resumed.s - 1];
+    const dt = Math.max(0, Date.now() - (s.resumed.t || 0));
+    const ago = dt < 3600000 ? Math.max(1, Math.round(dt / 60000)) + " 分钟前"
+      : dt < 86400000 ? Math.round(dt / 3600000) + " 小时前"
+        : Math.round(dt / 86400000) + " 天前";
+    return '<div class="card sop-hint" style="margin-top:12px;border-left:4px solid var(--accent)">' +
+      "⏩ <b>接着上次：</b>已从「" + (st ? st.n + " " + st.label : "") + "」继续" +
+      (s.resumed.s === 2 && s.resumed.i > 0 ? "（第 " + (s.resumed.i + 1) + " 句）" : "") +
+      "，上次保存于 " + ago + "。想从头再练点「🔁 重新挑战本段」。" +
+      "</div>";
+  }
+  /* 本段的复习状态一句话（完成页用）：到期日/轮次都从 seg-review.js 取，不在页面里另算 */
+  function segmentReviewHtml(s, res) {
+    const SR = window.SegReview;
+    if (!SR) return "";
+    const KEY = segKeyOf(s);
+    const st = SR.statusOf(KEY);
+    let line;
+    if (res && SR.verdictText(res)) line = SR.verdictText(res);
+    else if (st.state === "graduated") line = "✅ 这一段七轮间隔复习已全部走完。想保状态随时可以再走一遍。";
+    else if (st.state === "due") line = "🔁 这一段已到复习日（" + SR.whenText(st.due) + "）——现在走一遍就记一轮。";
+    else if (st.state === "waiting") line = "🗓 下一次复听：" + SR.whenText(st.due) + "（" + SR.dateText(st.due) + "），当前 " + st.round + " / " + SR.TOTAL + " 轮。";
+    else line = "🗓 走完这一段后会自动排入段级复习（6 小时后第一轮）。";
+    return '<div class="field-note" data-seg-review="1" style="margin-top:10px;text-align:left">' +
+      line + '<br><span style="color:var(--muted)">口径：轮次只由「真正走完五阶段」推进；今天清单里那一步的「✓ 完成」只记打卡，不推进轮次。</span></div>';
+  }
+
+  function setStage(s, k) { s.stage = k; s.resumed = null; markStage(s, true); renderSpeak(); }
 
   function renderStage(s) {
     const KEY = s.unit.id + "-" + s.dlgIdx;
     markStage(s, false);
     const head = `<div class="page-head"><div class="crumbs"><a href="#/speak" data-action="speak-back">听说训练</a> / 闯关 · ${esc(s.dlg.title)}</div>
       <h2>🏁 五阶段闯关</h2><div class="en">盲听 → 精听跟读 → 听写 → 复述 → 完成</div></div>`;
+    const banner = resumeBanner(s);
 
     if (s.stage === "listen") {
-      app.innerHTML = head + stageStepper(s) + `
+      app.innerHTML = head + stageStepper(s) + banner + `
       <div class="card" style="margin-top:12px">
         <div class="chat-head"><span>① 盲听 · 不看文字，先整体听一遍</span></div>
         <p style="font-size:13px;color:var(--muted)">先纯听，抓住大意与语音节奏，不急着看文字。</p>
@@ -3476,7 +3582,7 @@
 
     if (s.stage === "shadow") {
       renderShadow(s);
-      app.insertAdjacentHTML("afterbegin", head + stageStepper(s) +
+      app.insertAdjacentHTML("afterbegin", head + stageStepper(s) + banner +
         '<div class="card sop-hint" style="margin-top:12px">② 精听跟读：逐句听 + 跟读 + 🎯 评测；只听不读写即可进入下一句。</div>');
       appendStageAdvance(s, "dict", "③ 跟读完成，进入听写");
       return;
@@ -3484,7 +3590,7 @@
 
     if (s.stage === "dict") {
       renderDict(s);
-      app.insertAdjacentHTML("afterbegin", head + stageStepper(s) +
+      app.insertAdjacentHTML("afterbegin", head + stageStepper(s) + banner +
         '<div class="card sop-hint" style="margin-top:12px">③ 听写：听原声，打出你听到的英文，点「检查」。</div>');
       appendStageAdvance(s, "retell", "④ 听写完成，进入复述");
       return;
@@ -3492,7 +3598,7 @@
 
     if (s.stage === "retell") {
       /* 复述：不看文字，听一句 → 用自己的话说/录音 → 与原文逐词对比 */
-      app.innerHTML = head + stageStepper(s) + `
+      app.innerHTML = head + stageStepper(s) + banner + `
       <div class="card" style="margin-top:12px"><div class="chat-head"><span>④ 复述 · 不看原文，听完用自己的话重说</span></div>
         <p class="sop-hint">逐句进行：🔊 播放 → ● 录音后对着麦克风复述 → 🎯 看与原文的相似度（也可打字后再对照）。</p>
         ${s.dlg.lines.map(function (l, li) {
@@ -3536,6 +3642,7 @@
           : '<div style="font-size:40px">🌟</div><b style="font-size:18px">你已完成本段闯关</b>'}
         <p style="font-size:13.5px;color:var(--muted);margin-top:8px">
           建议：把②③④里出错的句子记到错题本（AI 陪练可提炼），第二天先复述。闯关完成后可换一段对话继续。</p>
+        ${segmentReviewHtml(s, s.reviewMsg)}
         <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
           <button class="btn btn-primary" data-action="stage-restart" title="从①盲听重新开始本段闯关">🔁 重新挑战本段</button>
           <button class="btn btn-outline" data-action="speak-back">🗂 换一段对话</button>
@@ -3556,24 +3663,42 @@
   }
 
 
-  function renderSpeakSetup() {
+  /* dueKey：从「今日」第 3 步的深链进来时预选的那一段（P11 段级复听）。
+     只做「预选 + 说明 + 默认五阶段」，不自动开始——用户仍要自己点「开始训练 →」。 */
+  function renderSpeakSetup(dueKey) {
     const voices = Player.voiceList();
+    const SR = window.SegReview;
+    const dueInfo = (SR && dueKey) ? SR.statusOf(dueKey) : null;
+    const dueLab = (SR && dueKey) ? SR.labelOf(dueKey) : null;
+    const isDue = !!(dueInfo && (dueInfo.state === "due" || dueInfo.state === "waiting"));
+    const dueHtml = (isDue && dueLab)
+      ? '<div class="card" style="max-width:640px;margin-top:14px;border-left:4px solid var(--accent);padding:12px 16px">' +
+        '<b>🔁 到期复听：U' + dueLab.uid + ' · ' + esc(dueLab.title || "对话") + '</b>' +
+        '<div style="font-size:13px;color:var(--muted);margin-top:6px">' +
+        '这一段已完成 ' + dueInfo.round + ' / ' + SR.TOTAL + ' 轮间隔复习，' +
+        (dueInfo.state === "due"
+          ? ('<b style="color:var(--accent)">已到复习日（' + SR.whenText(dueInfo.due) + '）</b>。')
+          : ('下一次复习在 ' + SR.whenText(dueInfo.due) + '（' + SR.dateText(dueInfo.due) + '），现在练只算练、不记轮次。')) +
+        '走完一遍五阶段才记一轮 —— <b>点「✓ 完成」不算</b>（打卡与复习轮次是两本账）。</div>' +
+        '</div>'
+      : "";
     app.innerHTML = `
     <div class="page-head"><h2>🎤 听说训练</h2>
       <div class="en">跟读录音对比 · 听写训练 · 角色扮演，专攻听力和口语</div>
     </div>
+    ${dueHtml}
     <div class="card" style="max-width:640px;margin-top:18px">
       <div class="form-row">
         <div class="field">
           <label>选择对话</label>
-          <select id="speakDlg">${allDialogueOptions()}</select>
+          <select id="speakDlg">${allDialogueOptions(dueKey || "")}</select>
         </div>
         <div class="field">
           <label>训练模式</label>
           <div class="checks">
-            <label><input type="radio" name="speakMode" value="shadow" checked> 跟读</label>
+            <label><input type="radio" name="speakMode" value="shadow" ${isDue ? "" : "checked"}> 跟读</label>
             <label><input type="radio" name="speakMode" value="dict"> 听写</label>
-            <label><input type="radio" name="speakMode" value="stage"> 五阶段闯关</label>
+            <label><input type="radio" name="speakMode" value="stage" ${isDue ? "checked" : ""}> 五阶段闯关</label>
           </div>
         </div>
       </div>
@@ -3599,6 +3724,7 @@
         '<option value="">自动选择</option>' +
         voices.map(function (v) { return '<option value="' + esc(v.name) + '"' + (progress.voice === v.name ? " selected" : "") + '>' + esc(v.name) + "</option>"; }).join("") +
         "</select></div>" : ""}
+      <button class="btn btn-outline" data-action="dlg-flash" title="把这段对话的台词做成「看中文说英文」的产出卡，进 FSRS 间隔重复——把整段对话练成条件反射">🃏 台词进单词卡</button>
       <button class="btn btn-primary" data-action="speak-start" style="margin-top:10px">开始训练 →</button>
       <button class="btn btn-outline btn-sm" style="margin-top:10px;margin-left:8px" data-action="diag-voice" title="检查浏览器语音识别与 Google 是否可达">🧪 诊断语音服务</button>
       <a class="btn btn-soft btn-sm" style="margin-top:10px;margin-left:8px" href="#/listen">👂 辨音训练（最小音对）</a>
@@ -3612,11 +3738,12 @@
     </div>`;
   }
 
-  function allDialogueOptions() {
+  function allDialogueOptions(selectedKey) {
     let out = "";
     DATA.units.forEach(function (u) {
       u.dialogues.forEach(function (d, di) {
-        out += '<option value="' + u.id + ":" + di + '">U' + u.id + ' · ' + esc(d.title) + "</option>";
+        const k = u.id + "-" + di;
+        out += '<option value="' + u.id + ":" + di + '"' + (k === selectedKey ? " selected" : "") + '>U' + u.id + ' · ' + esc(d.title) + "</option>";
       });
     });
     return out;
@@ -3645,6 +3772,22 @@
       dictResults: {},
       recordings: {}
     };
+    /* P11-b · 阶段内断点续学：只在「五阶段闯关」里生效，且这一段**还没走完**（走完就从头重练）。
+       只恢复 ②③④（①盲听没有句级位置、⑤是完成态）；>3 天由 SegReview.posOf 自己作废。 */
+    const SR = window.SegReview;
+    if (SR && mode === "stage") {
+      const KEY = State.speak.unit.id + "-" + State.speak.dlgIdx;
+      const doneN = (progress.stage || {})[KEY] || 0;
+      const p = SR.posOf(KEY);
+      if (p && doneN < STAGE_DONE_N && p.s >= 2 && p.s <= 4) {
+        State.speak.stage = STAGE_DEFS[p.s - 1].k;
+        if (State.speak.stage === "shadow" && p.i > 0) {
+          State.speak.stepMode = true;
+          State.speak.stepIdx = Math.min(p.i, State.speak.dlg.lines.length - 1);
+        }
+        State.speak.resumed = { s: p.s, i: p.i, t: p.t };
+      }
+    }
     renderSpeak();
   }
 
@@ -4194,7 +4337,24 @@
         break;
 
       case "speak-start": startSpeak(); break;
+      case "dlg-flash": startDialogueFlash(); break;
+      case "cando-toggle": {
+        const ci = parseInt(el.getAttribute("data-i"), 10);
+        const uid = State.unitId || (function () {
+          /* 从当前路由取单元号（renderUnit 的 State.unitTab 同款取法） */
+          const um = location.hash.match(/#\/unit\/(\d+)/);
+          return um ? parseInt(um[1], 10) : null;
+        })();
+        if (!uid) break;
+        if (!progress.cando) progress.cando = {};
+        const arr = progress.cando[uid] || [];
+        arr[ci] = !!el.checked;
+        progress.cando[uid] = arr;
+        saveProgress();
+        break;
+      }
       case "speak-back":
+        saveSpeakPos(State.speak);   /* 离开前落一次断点（P11-b），回来能接着上次那句 */
         State.speak = null;
         renderRoute();
         break;
@@ -4222,8 +4382,28 @@
       case "eval": evalLine(parseInt(li, 10)); break;
       case "dict-play": playLineOnly(id, parseInt(idx, 10), parseInt(li, 10)); break;
       case "dict-check": checkDict(parseInt(li, 10)); break;
-      case "stage-next": { const s = State.speak; if (s) setStage(s, el.getAttribute("data-phase") || "shadow"); break; }
-      case "stage-restart": { const s = State.speak; if (s) { s.stage = "listen"; s.dictResults = {}; s.recordings = {}; renderSpeak(); } break; }
+      case "stage-next": {
+        const s = State.speak;
+        if (!s) break;
+        const phase = el.getAttribute("data-phase") || "shadow";
+        saveSpeakPos(s);                       /* 离开当前阶段前存断点 */
+        if (phase === "done" && window.SegReview) {
+          /* 只有「真正走完五阶段」才推进段级复习轮次（提前练不推进，口径在 seg-review.js） */
+          s.reviewMsg = window.SegReview.markDone(segKeyOf(s));
+          if (window.SegReview) window.SegReview.clearPos(segKeyOf(s));   /* 这一段走完了，断点作废 */
+        }
+        setStage(s, phase);
+        break;
+      }
+      case "stage-restart": {
+        const s = State.speak;
+        if (s) {
+          if (window.SegReview) window.SegReview.clearPos(segKeyOf(s));
+          s.stage = "listen"; s.dictResults = {}; s.recordings = {}; s.resumed = null; s.reviewMsg = null;
+          renderSpeak();
+        }
+        break;
+      }
       case "stage-reveal": {
         const s = State.speak;
         if (s) { if (!s.revealed) s.revealed = {}; s.revealed[li] = !s.revealed[li]; renderSpeak(); }
@@ -4286,6 +4466,7 @@
     if (e.target && e.target.id === "stepMode" && State.speak) {
       State.speak.stepMode = e.target.checked;
       State.speak.stepIdx = 0;
+      saveSpeakPos(State.speak);   /* 切换逐句/连播也算一次位置变化（P11-b） */
       renderSpeak();
       if (State.speak.stepMode) {
         playLineOnly(State.speak.unit.id, State.speak.dlgIdx, 0);

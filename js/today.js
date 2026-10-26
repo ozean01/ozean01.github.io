@@ -527,6 +527,13 @@
     const writeDone = goal.write.done >= goal.write.target;
     const stageN = boot.unitStageDone ? boot.unitStageDone(nextUnit) : 0;
     const threshold = boot.UNIT_DONE_PCT || 80;
+    /* P11 · 段级复听：到期段优先（唯一数据源 js/seg-review.js；模块缺失时静默回落到原逻辑，
+       因为今日页在 tools/test-today.js 里会被单独加载，没有该模块也必须有完整行为）。 */
+    const SR = window.SegReview;
+    let dueSegs = [];
+    try { dueSegs = (SR && SR.dueList) ? SR.dueList(Date.now()) : []; } catch (e) { dueSegs = []; }
+    const firstDue = dueSegs[0] || null;
+    const dueLabel = firstDue ? ("U" + firstDue.uid + " · " + (firstDue.title || "对话")) : "";
 
     return [
       {
@@ -549,12 +556,23 @@
         auto: false
       },
       {
-        key: "speak", icon: "🎤", title: "开口跟读", min: 5, href: "#/speak",
-        why: plan
-          ? ("你的目标「" + plan.label + "」→ 建议练「" + plan.scene + "」场景")
-          : (dlgN > 0 ? ("U" + nextUnit.id + " 有 " + dlgN + " 段对话可以跟" + (stageN > 0 ? "（已闯关 " + stageN + " 段）" : "")) : "用五阶段闯关练一段"),
-        credit: "自报：练完点「✓ 完成」才计入打卡（站内不核对录音）",
-        auto: false
+        key: "speak",
+        icon: firstDue ? "🔁" : "🎤",
+        title: firstDue ? "复听到期段" : "开口跟读",
+        min: 5,
+        href: firstDue ? ("#/speak/" + firstDue.key) : "#/speak",
+        why: firstDue
+          ? ("⏰ " + dueSegs.length + " 段到点复听（最早：" + dueLabel + "，" + firstDue.whenText + "）。" +
+            (plan ? "目标「" + plan.label + "」的「" + plan.scene + "」可在复听完后补" : "走完五阶段才算记一轮"))
+          : (plan
+            ? ("你的目标「" + plan.label + "」→ 建议练「" + plan.scene + "」场景")
+            : (dlgN > 0 ? ("U" + nextUnit.id + " 有 " + dlgN + " 段对话可以跟" + (stageN > 0 ? "（已闯关 " + stageN + " 段）" : "")) : "用五阶段闯关练一段")),
+        credit: firstDue
+          ? "自报：点「✓ 完成」只记打卡；复听轮次由「真正走完五阶段」推进（勾完成不推进轮次）"
+          : "自报：练完点「✓ 完成」才计入打卡（站内不核对录音）",
+        auto: false,
+        dueN: dueSegs.length,
+        dueKey: firstDue ? firstDue.key : ""
       },
       {
         key: "write", icon: "✍️", title: "写 1 篇", min: 4, href: "#/write",

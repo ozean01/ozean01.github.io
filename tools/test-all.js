@@ -45,6 +45,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-phonemes.js"],gate: true,  label: "音素课：分词器覆盖全语料/索引/接线" },
   { cmd: "node", args: ["tools/test-shadow.js"],  gate: true,  label: "词级跟读 P10：复读次数/间隔夹取 + onDone 只一次 + 接线" },
   { cmd: "node", args: ["tools/test-today.js"],   gate: true,  label: "今日：日循环五步 / 深链交叉校验 / 接线" },
+  { cmd: "node", args: ["tools/test-seg-review.js"], gate: true, label: "段级复听 P11：七轮阶梯 / 提前练不推进 / 断点 3 天 / 唯一实现与资产接线" },
   /* P1（门禁时钟解耦）+ P3（活跃日台账）+ P0′（注入复现）——第一阶段补的三道门禁 */
   { cmd: "node", args: ["tools/test-activedays.js"], gate: true, label: "活跃日台账 P3：旗舰路径记账 / 撤销删键 / 历史迁移 / 受控时钟" },
   { cmd: "node", args: ["tools/x-repro-injection.js"], gate: true, label: "注入复现 P0′：5 个历史未转义出口现在必须全部挡住" },

@@ -56,6 +56,7 @@
       { key: "fte-weekly-v1", kind: "progress", owner: "weekly.js", backup: true, note: "「本周新料」的已投料标记（按 ISO 周，跨周自动归零）" },
       { key: "fte-subtitle-mode", kind: "pref", owner: "subtitle.js", backup: true, note: "字幕四档位选择" },
       { key: "fte-sub-notes-v1", kind: "progress", owner: "subtitle.js", backup: true, note: "字幕逐句笔记（按 文件名+起始秒 定位，换字幕不串位）" },
+      { key: "fte-seg-review-v1", kind: "progress", owner: "seg-review.js", backup: true, note: "段级间隔复听调度（P11：每段对话 6h→28d 七轮 + 阶段内句子断点；只按真正走完五阶段推进，不计入打卡）" },
       { key: "fte-tts-nudge", kind: "pref", owner: "app.js", backup: false, note: "无神经人声的一次性升级提示已展示（只弹一次；纯 UI 状态，不进备份）" },
       { key: "fte-tutor-fill", kind: "pref", owner: "tutor.js", backup: true, note: "AI 陪练场景预填/临时输入" },
       { key: "fte-tutor-chat-v1", kind: "progress", owner: "tutor.js", backup: true, note: "AI 陪练对话记录（P0-3：最近 40 条，跨刷新/跨天恢复；清空对话即删除）" },

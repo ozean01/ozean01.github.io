@@ -33,11 +33,18 @@ scripts.concat(styles).forEach(function (f) {
 const subResources = scripts.length + styles.length;
 const kb = function (n) { return Math.round(n / 1024) + "KB"; };
 
-/* 棘轮上限（2026-10-24 首次设定：基于当日实测 +2% 余量） */
+/* 棘轮上限（2026-10-24 首次设定：基于当日实测 +2% 余量）
+   P11（2026-10-26）唯一一次上调：subResources 55 → 56，理由如下（按本文件第 11 行的规矩）：
+     · 段级复听调度器必须**独立于 app.js / today.js** 才能被 tools/test-seg-review.js 直接单测
+       （推进/提前练/断点过期这些边界在页面里测不出来）；塞进 today.js 会让今日页在无 FTE_BOOT
+       的测试环境里被调度逻辑绑死，塞进 app.js 则无法验证「只有一处实现」。
+     · 代价只有一个请求：gzip 总量仍在上限内（749KB / 751KB，未动 gzTotalKB），
+       最大单文件仍是 app.js（113KB / 114KB，未动 biggestGzKB）。
+     · 其余两条上限**不放松**；若今后还要加脚本，须先给旧脚本减负或按同一格式写明理由。 */
 const BUDGET = {
-  subResources: 55,      // 实测 53（52 脚本 + 1 样式表）
-  gzTotalKB: 751,        // 实测 735KB
-  biggestGzKB: 114       // 实测 app.js 111KB
+  subResources: 56,      // 实测 56（55 脚本 + 1 样式表；P11 新增 js/seg-review.js）
+  gzTotalKB: 751,        // 实测 749KB
+  biggestGzKB: 114       // 实测 app.js 113KB
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

@@ -11,7 +11,14 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v129";   /* ★ P1-6/P1-8（2026-10-24）：PRECACHE 清单不变（58 条），改的是听力训练质量：
+const CACHE = "fte-v130";   /* ★ P11（2026-10-26）：段级间隔复听 + 阶段内断点续学（Echo Loop 评估的落地批）：
+                             · 新增 ./js/seg-review.js（段=有到期日/完成态/学习对象；7 轮 6h→28d 阶梯）；
+                             · PRECACHE 63 → 64 条（新增 ./js/seg-review.js；./js/data-cando.js 随本批一并入库）；
+                             · app.js（闯关完成打点 + 断点续学）、today.js（第 3 步到期段优先）内容也变了。
+                             按纪律**先升 CACHE，再刷新 tools/precache-baseline.json**。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v129 · P1-6/P1-8（2026-10-24）：PRECACHE 清单不变（58 条），改的是听力训练质量：
                              · 盲听新增「🎲 变异听」——每句随机 口音×语速（0.85/1.0/1.15），
                                非 native 引擎诚实降级为只变速（accentVoiceName 覆盖不到 azure/google）；
                              · 连听完毕自动出「听后测」：从刚播过的句子里抽 3 句「听句选意」，
@@ -153,6 +160,7 @@ const PRECACHE = [
   "./manifest.webmanifest",
   "./js/pwa-init.js",
   "./js/storage-keys.js",
+  "./js/seg-review.js",
   "./js/data.js",
   "./js/data-ops.js",
   "./js/data-ocean.js",
@@ -163,6 +171,7 @@ const PRECACHE = [
   "./js/data-deep.js",
   "./js/data-meeting.js",
   "./js/data-mnemonic.js",
+  "./js/data-cando.js",
   "./js/data-dialogues2.js",
   "./js/data-glossary.js",
   "./js/data-ports.js",

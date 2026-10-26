@@ -15,7 +15,7 @@
   /* 版本号唯一来源（P2-6）：页脚原先硬编码 v2.0、package.json 是 1.7.0、SW 缓存号又是另一串，
      三处口径不一致，无法对账。此后**只在这里写一次**，页脚由它渲染；`tools/test-security.js`
      会断言它与 package.json 的 version 逐字一致。SW 的 CACHE 是缓存失效用的代号，不是版本号。 */
-  window.FTE_VERSION = "1.14.7";
+  window.FTE_VERSION = "1.15.0";
 
   /* 运行环境判定只在这里做一次（P0-13）。为什么放本文件：它是**第一个**加载的脚本
      （见 index.html 的 script 顺序），且不依赖任何其它模块，所以 js/player.js 与
