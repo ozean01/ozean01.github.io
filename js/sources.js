@@ -136,6 +136,132 @@
       desc: "《新概念英语》1–4 册的在线点读版（开源项目 iChochy/NCE）：整篇朗读可整段听、也可单句点读，中英逐句对照，手机/平板/电脑通用；四册按「基础→语法→阅读→高阶表达」递进，是目前少见的「按册爬坡 + 句级点读」材料，适合零基础到 A2。⚠️ 两条须知情：① 课文正文与录音版权归原出版方（外研社/朗文），本站只作外链引用、不搬运其内容，授权与可访问性以对方站点为准；② 字幕/中译含 AI 生成成分、偶有错误，务必对照原文核对，录音口音以站内实际为准。",
       why: "本站 A 档此前只有真实新闻/口语（VOA / ELLLO），缺一条「从零起步、按册递进」的教材型来源——它补的正是这一格。用法：只在该站内用它练听读（整段听、单句点读、跟读），不要把它站上的课文取下来，也请勿把受版权保护的课文导入本站任何入口。若你想把「逐句精听、进单词卡、做四维评测」跑一遍，请换成你自己有权使用的材料——例如你本人已获授权可数字化的教材、你自己写的英文、或已明确许可再利用的公开语料。",
       free: true
+    },
+    {
+      name: "Business English Pod · 商务英语情景课",
+      url: "https://www.businessenglishpod.com/",
+      level: "b", domain: ["business"],
+      region: "🌍 英美混合口音",
+      desc: "Business English Pod 制作的商务英语音频课程：每集围绕一个真实职场任务（做演示、开会、打电话、谈判）做情景对话，配讲解与文字稿；官网可试听部分单集，完整课程与 App 为付费。",
+      why: "外贸日常就是开会、报价、打电话——先听它把同一场景的标准说法过一遍，再回站内「外贸实操 SOP / 听说训练」照着练，话术能直接搬去跟客户对话。",
+      free: false
+    },
+    {
+      name: "Speak Confident English Podcast · 职场开口训练",
+      url: "https://www.speakconfidentenglish.com/podcast/",
+      level: "b", domain: ["business", "ds"],
+      region: "🇺🇸 美音",
+      desc: "美国英语教练 Annemarie 主理的每周播客，讲怎样在工作与日常对话中把话说清楚、说得有底气；单集围绕具体表达与沟通策略，官网附文字版。节目免费，网站另有付费课程。",
+      why: "客户电话、展会寒暄、催单沟通这些「必须开口」的场景，它给的是能直接套用的句式和语气；听完挑一段跟读，再去站内「四维实战」复述。",
+      free: true
+    },
+    {
+      name: "Monocle · The Entrepreneurs（全球商业访谈）",
+      url: "https://monocle.com/radio/shows/the-entrepreneurs/",
+      level: "c", domain: ["business", "industry"],
+      region: "🌍 多国口音（英音为主）",
+      desc: "Monocle 电台的每周商业节目，走访从初创到老牌的公司，聊产品、品牌与经营；采访对象来自多国，语速接近真实电台。节目可在网页与播客平台免费收听。",
+      why: "做外贸要听懂买家怎么讲自己的生意与市场；这档节目练「听商业故事、抓关键信息」，还能积累介绍公司、产品与市场的表达。",
+      free: true
+    },
+    {
+      name: "The Irish Times · Inside Business（爱尔兰商业播客）",
+      url: "https://www.irishtimes.com/podcasts/inside-business/",
+      level: "c", domain: ["business", "news"],
+      region: "🇮🇪 爱尔兰口音",
+      desc: "爱尔兰《The Irish Times》的商业播客，主持人每周与商界、政策界嘉宾谈爱尔兰与欧洲的商业、经济与公司动态，真实电台语速、无教学降速。",
+      why: "欧洲客户（尤其爱尔兰、英国市场）的口音与商业语境在这里最真实；练熟爱尔兰口音，再听英音、美音会轻松很多，也便于跟欧洲买家聊行业与政策。",
+      free: true
+    },
+    {
+      name: "Trade Talks · 贸易政策播客",
+      url: "https://tradetalkspodcast.com/",
+      level: "c", domain: ["news", "business", "industry"],
+      region: "🇺🇸 美音",
+      desc: "由贸易经济学家 Chad P. Bown 主持的贸易政策播客，已更新多季，每集请学者或政策人士拆解关税、供应链、贸易规则等现实议题，官网可逐集收听。",
+      why: "外贸人常遇到关税、原产地、反倾销这类问题；听懂这档节目，能更准确把握客户与货代口中的政策背景，也便于在邮件里把复杂议题讲清楚。",
+      free: true
+    },
+    {
+      name: "Global Trade Review · GTR Podcasts（贸易金融）",
+      url: "https://www.gtreview.com/podcasts/",
+      level: "c", domain: ["industry", "business", "news"],
+      region: "🌍 多国口音（英音为主）",
+      desc: "《Global Trade Review》的播客平台，旗下有多档节目：Breaking News 梳理贸易与贸易金融要闻，Delving Deeper 做深度分析，Industry Leaders 访谈业内人物。",
+      why: "贸易金融、信用证、出口信用保险是外贸成交的最后一公里；这档节目把这套语汇放进真实访谈里，听完再回站内看支付与单证流程，理解会更牢。",
+      free: true
+    },
+    {
+      name: "Supply Chain Now · 供应链访谈",
+      url: "https://supplychainnow.com/podcasts-and-livestreams/",
+      level: "b", domain: ["industry", "business"],
+      region: "🇺🇸 美音",
+      desc: "美国供应链媒体 Supply Chain Now 的播客与直播栏目，节目按制造、运输、仓储、零售等行业分类，常请企业供应链负责人聊一线实操。",
+      why: "交期、库存、仓配、承运这些词在客户和货代嘴里出现频率最高；用它的行业访谈练耳朵，再回站内对照交货与物流流程，沟通更顺。",
+      free: true
+    },
+    {
+      name: "DC Velocity · Logistics Matters（物流播客）",
+      url: "https://www.dcvelocity.com/podcasts",
+      level: "b", domain: ["industry"],
+      region: "🇺🇸 美音",
+      desc: "美国物流杂志《DC Velocity》的播客 Logistics Matters，围绕仓储、运输、订单履约与配送，采访物流企业与货主的一线负责人。",
+      why: "外贸报价里的运费、时效、旺季舱位都跟物流实操有关；听这档能熟悉美国物流人的说法，跟客户、货代讨论运输方案时更容易听懂对方在担心什么。",
+      free: true
+    },
+    {
+      name: "FreightWaves Podcasts · 货运与供应链",
+      url: "https://www.freightwaves.com/news/category/media/podcast",
+      level: "c", domain: ["industry", "news"],
+      region: "🇺🇸 美音",
+      desc: "美国货运与供应链媒体 FreightWaves 的播客合集，覆盖卡车、海运、铁路、空运与货运市场行情，节目多、更新快。",
+      why: "海运、空运、卡车运价与舱位是外贸报价的核心变量；这档节目把运价、拥堵、旺季等话题讲透，练听力的同时补上物流市场常识。",
+      free: true
+    },
+    {
+      name: "CIPS Podcasts · 采购与供应管理",
+      url: "https://cips-download.cips.org/podcasts",
+      level: "c", domain: ["industry", "business"],
+      region: "🇬🇧 英音",
+      desc: "英国皇家采购与供应学会（CIPS）的播客平台，围绕采购、供应管理与供应商关系，有供应商纠纷、采购合规等系列；需免费注册账号收听。",
+      why: "采购视角就是买家视角；听懂采购人怎么谈合规、比价与供应商管理，报价与谈判时更容易说到对方关心的点上。",
+      free: true
+    },
+    {
+      name: "Packaging Europe · Podcasts（包装行业）",
+      url: "https://www.packagingeurope.com/tag/podcasts/",
+      level: "c", domain: ["industry"],
+      region: "🌍 欧洲口音（英音为主）",
+      desc: "欧洲包装行业媒体 Packaging Europe 的播客栏目，采访包装企业、品牌与材料供应商，话题覆盖软包装、阻隔涂层、可回收与法规趋势。",
+      why: "软包装外贸的客户与同行都在这里：涂层、复合、可回收、法规这些词天天出现在询盘和展会里；用它练行业听力，跟客户聊技术路线更有底气。",
+      free: true
+    },
+    {
+      name: "Chemical Engineering · Podcasts and Videos（化工）",
+      url: "https://www.chemengonline.com/podcasts-and-videos/",
+      level: "c", domain: ["industry"],
+      region: "🇺🇸 美音",
+      desc: "美国《Chemical Engineering》杂志的播客与视频栏目，面向化工与流程工业，内容涉及工艺、设备、安全与工厂运营。",
+      why: "化工、材料类询盘常夹带工艺与设备术语；这档节目帮你把流程工业的常用表达听熟，跟工厂和海外买家对齐技术细节时少卡壳。",
+      free: true
+    },
+    {
+      name: "Learnex · Business English（印度口音商务课）",
+      url: "https://www.learnex.in/c/business-english-course-mumbai-thane-videos/",
+      level: "b", domain: ["ds", "business"],
+      region: "🇮🇳 印度口音",
+      desc: "印度英语教学频道 Learnex 的商务英语视频课，覆盖会议、电话、谈判、职场礼貌用语等场景，由印度老师用清晰、偏慢的英语讲解。",
+      why: "印度是外贸询盘大国，先适应印度口音的节奏与用词，再听其他口音会轻松很多；视频带讲解，适合把商务短语一句句跟读。",
+      free: true
+    },
+    {
+      name: "The National · Business Extra（中东商业播客）",
+      url: "https://www.thenationalnews.com/podcasts/business-extra/",
+      level: "c", domain: ["news", "business"],
+      region: "🇦🇪 中东口音（阿联酋）",
+      desc: "阿联酋《The National》的商业播客 Business Extra，聚焦中东与全球商业、能源、航空与市场动态，采访当地企业与国际机构人士。",
+      why: "中东买家与展会客户的口音和话题都在这里；听懂海湾地区的商业语境，跟迪拜、沙特客户谈订单与市场时更容易接上话。",
+      free: true
     }
   ];
 

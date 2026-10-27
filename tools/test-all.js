@@ -72,6 +72,8 @@ const JOBS = [
   { cmd: "node", args: ["tools/check-tracked.js"], gate: true, label: "版本库一致性：index.html 的脚本必须已被 git 跟踪（P0-08：已从 gate:false 升为硬门禁）" },
   { cmd: "node", args: ["tools/audit-count.js"],  gate: false, env: { FTE_NO_WRITE: "1" }, label: "全站数字统计（P1-D：只读模式，不写 report-count.json）" },
   { cmd: "node", args: ["tools/audit-ipa.js"],    gate: false, env: { FTE_NO_WRITE: "1" }, label: "IPA / 难度审计（P1-D：只读模式，不写 report-ipa.csv）" },
+  { cmd: "node", args: ["tools/test-p14.js"], gate: true, label: "P14 落地批：首响计时口径/内存态/挂点/诚实边界 + 听音源目录结构与版权纪律" },
+  { cmd: "node", args: ["tools/smoke-p14-render.js"], gate: true, label: "P14 渲染冒烟：AI 对练首响面板/统计/慢轮提示真实渲染（最小 DOM 桩）" },
   { cmd: "node", args: ["tools/test-p1-invariants.js"], gate: true, label: "P1 不变量：口音真话 · 分数构念分桶 · 记账口径 · 投料口校验 · .ics RRULE · 发布链 · 只读审计" },
 ];
 

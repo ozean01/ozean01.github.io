@@ -298,6 +298,54 @@
   let autoMic = false;         // 🔁 免按键通话模式（VAD 静音自动断句）
   let autoMicHandle = null;
 
+  /* ---------------- ⏱ 首响计时（P14 · 外部材料评估的落地批） ----------------
+     只借 Hy-SimulMT 的「延迟—质量权衡」度量（那个 30B 模型本站跑不动，见 README P14）：
+     量「轮到你说话（AI 说完 / 开麦）→ 识别出第一个词」。口径：含识别器启动延迟→**偏保守**；
+     只在 🎤/🔁 语音输入时计，打字不算；**会话内内存态，不落盘、不计入打卡、不是能力证据**。 */
+  const LAT_OK_MS = 3000, LAT_WARN_MS = 6000, LAT_EXPIRE_MS = 60000;
+  const LAT_PHRASES = [
+    { label: "① 争取时间（先别沉默）", en: "That's a fair question — let me pull up the file." },
+    { label: "② 结论先行（先给答案）", en: "The short answer is yes, but there is one condition." },
+    { label: "③ 再补条件（把边界说清）", en: "The catch is the lead time — it moves out by about a week." }
+  ];
+  let latT0 = 0;           // 本轮开始等的时刻（0 = 没在等）
+  let latPendingMs = null; // 已测到、尚未挂到某条用户消息上的首响
+  let latPendingAt = 0;
+
+  function nowMs() {
+    return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+  }
+  function latStart() { latT0 = nowMs(); }
+  function latFirstWord() {
+    if (!latT0) return;
+    const d = nowMs() - latT0;
+    latT0 = 0;
+    if (d > 0 && d < LAT_EXPIRE_MS) { latPendingMs = Math.round(d); latPendingAt = Date.now(); }
+  }
+  function latTier(ms) {
+    if (ms <= LAT_OK_MS) return "ok";
+    if (ms <= LAT_WARN_MS) return "warn";
+    return "slow";
+  }
+  function latBadge(ms) {
+    const tier = latTier(ms);
+    const sec = (ms / 1000).toFixed(1);
+    const word = tier === "ok" ? "达标" : (tier === "warn" ? "偏慢" : "太慢");
+    return '<span class="badge ' + (tier === "ok" ? "badge-ok" : "badge-muted") + '" title="从「轮到你说话」到「识别出第一个词」的间隔：含识别器启动延迟，偏保守；语音输入才有">⏱ 首响 ' + sec + "s · " + word + "</span>";
+  }
+  /* 本次会话的首响统计：只读 chatHistory 上挂的 ms，不落盘 */
+  function latStats() {
+    const list = chatHistory.filter(function (m) { return m && m.role === "user" && typeof m.ms === "number"; })
+      .map(function (m) { return m.ms; });
+    if (!list.length) return null;
+    const sorted = list.slice().sort(function (a, b) { return a - b; });
+    const med = sorted.length % 2 ? sorted[(sorted.length - 1) / 2]
+      : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2);
+    let ok = 0;
+    list.forEach(function (v) { if (latTier(v) === "ok") ok++; });
+    return { n: list.length, median: med, best: sorted[0], ok: ok };
+  }
+
   /* ---------------- 工具 ---------------- */
   const esc = function (s) { return E().esc(s); };
 
@@ -515,7 +563,36 @@
           <button class="btn btn-outline btn-sm" data-action="tutor-mic" title="浏览器在线识别">🎤 试说话</button>
         </span>
       </div>
+      ${latPanelHtml()}
     </div>`;
+  }
+
+  /* ⏱ 首响计时 + 「先给半句」面板（P14）：挂在对话卡内，不新增导航项、不新增存储键 */
+  function latPanelHtml() {
+    const s = latStats();
+    const statLine = s
+      ? '<span class="badge badge-muted">本次 ' + s.n + ' 次 · 中位 ' + (s.median / 1000).toFixed(1) + 's</span>' +
+        '<span class="badge badge-ok">最好 ' + (s.best / 1000).toFixed(1) + 's</span>' +
+        '<span class="badge badge-muted">≤3s ' + s.ok + "/" + s.n + "</span>"
+      : '<span class="badge badge-muted">还没有测量数据</span>';
+    return `
+    <details class="lat-panel" style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">
+      <summary style="cursor:pointer;font-size:13px"><b>⏱ 首响计时 · 「先给半句」训练</b> ${statLine}
+        <span style="color:var(--muted);font-size:12px">（本次会话内存态，不写盘、不计入打卡）</span></summary>
+      <div style="margin-top:8px;font-size:13px">
+        <p style="margin:0 0 6px"><b>为什么要量这个：</b>客户问完停 6 秒，对方多半会以为信号断了、开始重复问题——真实通话里「开口快」本身就是能力。同传模型把约 3 秒的流式延迟当作可用线，人和客户对话的容忍度也差不多。</p>
+        <p style="margin:0 0 8px;color:var(--muted)"><b>口径（诚实说清）：</b>起点是「轮到你说话」（AI 朗读结束，或你点开麦克风），终点是识别器吐出第一个词；含识别器启动/预热延迟，所以<b>偏保守</b>，你真实开口通常更快。只在 🎤 / 🔁 语音输入时计，打字不算。这是<b>过程指标</b>，不是能力证据（能力请到「🎯 四维口语实战」）。</p>
+        <p style="margin:0 0 6px">判定：<span class="badge badge-ok">≤3.0s 达标</span> <span class="badge badge-muted">3.0–6.0s 偏慢</span> <span class="badge badge-muted">&gt;6.0s 太慢</span>${s ? "" : ' · <span style="color:var(--muted)">点 🔁 免按键模式说一句，就能看到第一条测量</span>'}</p>
+        <p style="margin:8px 0 4px"><b>答不上来时别沉默——「先给半句」三件套</b>（第一句压到 8 词以内，先把话轮接住，再补条件）：</p>
+        ${LAT_PHRASES.map(function (p) {
+          return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0">' +
+            '<span style="min-width:150px"><b>' + esc(p.label) + '</b></span>' +
+            '<span style="flex:1;min-width:220px;font-size:12.8px">' + esc(p.en) + "</span>" +
+            '<button class="btn btn-outline btn-sm" data-action="tutor-lat-speak" data-t="' + esc(p.en) + '">🔊 听</button></div>';
+        }).join("")}
+        <p style="margin:6px 0 0;color:var(--muted);font-size:12.5px">练法：进「🔁 免按键」或点「📞 电话-会议质感模式」，让 AI 追问；每次回答前先想「我第一句给什么」——先给结论或先争取时间，都比沉默强。测得的数字只跟自己的上一次比。</p>
+      </div>
+    </details>`;
   }
 
   /* 一次选一个具体场景再练（比一句“练英语”更能持续开口） */
@@ -551,7 +628,12 @@
 
   function msgHtml(m, i) {
     if (m.role === "user") {
-      return '<div class="chat-msg user"><div class="bubble">' + esc(m.content).replace(/\n/g, "<br>") + "</div></div>";
+      const lat = typeof m.ms === "number" ? m.ms : null;
+      const tier = lat != null ? latTier(lat) : "";
+      return '<div class="chat-msg user"><div class="bubble">' + esc(m.content).replace(/\n/g, "<br>") +
+        (lat != null ? '<div style="margin-top:6px">' + latBadge(lat) + "</div>" : "") +
+        (tier === "slow" ? '<div style="margin-top:4px;font-size:12.5px;color:var(--muted)">客户已经等了 ' + (lat / 1000).toFixed(1) + ' 秒。下次试「先给半句」：先接住话轮（That\u2019s a fair question\u2026），再补条件。</div>' : "") +
+        "</div></div>";
     }
     return `
     <div class="chat-msg ai">
@@ -944,6 +1026,12 @@
     if (!readyToChat()) { toast("请先在上方模型设置中填写 API Key，或改选「🖥 本地 Ollama」（免 Key）"); return; }
     input.value = "";
     chatHistory.push({ role: "user", content: text });
+    /* P14：把这一轮的首响挂到消息上（只在 60 秒内有效；不写盘，刷新即失，属过程指标） */
+    if (latPendingMs != null && (Date.now() - latPendingAt) <= LAT_EXPIRE_MS) {
+      chatHistory[chatHistory.length - 1].ms = latPendingMs;
+    }
+    latPendingMs = null;
+    latPendingAt = 0;
     saveChat();
     appendWeekly("user", text);
     sending = true;
@@ -998,7 +1086,11 @@
 
   /* 一轮问答结束后的收尾：通话模式下自动重新开麦（等 AI 朗读完再听，避免把自己的声音录进去） */
   function afterReply() {
-    if (autoMic) setTimeout(startAutoMic, 500);
+    if (autoMic) {
+      /* P14：从「AI 说完」开始计时——这就是"轮到你说话了"，含自动开麦的 0.5s 间隔 */
+      latStart();
+      setTimeout(startAutoMic, 500);
+    }
   }
 
   function speakReply(reply, onDone) {
@@ -1039,9 +1131,11 @@
       if (btn) btn.classList.add("listening");
       const input = document.getElementById("chatInput");
       if (input) { input.placeholder = "🎙 正在听…请英文说话（说完自动填入）"; input.focus(); }
+      latStart();   // P14：从识别真正开始听的那刻计时（权限弹窗时间不算）
       micRec = E().Player.recognize({
         lang: "en-US",
         onResult: function (text, isFinal) {
+          if (text) latFirstWord();   // P14：第一个识别到的词 = 你开口了
           if (isFinal) {
             const inp = document.getElementById("chatInput");
             if (inp) inp.value = text;
@@ -1074,6 +1168,7 @@
 
   function stopMic() {
     micListening = false;
+    latT0 = 0;   // P14：主动掐掉且没开口 → 本轮作废，不把等待时长算进下一句
     if (micRec) { try { micRec.stop(); } catch (e) { /* ignore */ } micRec = null; }
     const b = document.querySelector('[data-action="tutor-mic"]');
     if (b) b.classList.remove("listening");
@@ -1097,6 +1192,7 @@
   }
   function stopAutoMic() {
     autoMic = false;
+    latT0 = 0;   // P14：退出通话模式 → 不再计这一轮
     if (autoMicHandle) { try { autoMicHandle.stop(); } catch (e) { /* ignore */ } autoMicHandle = null; }
     const b = document.querySelector('[data-action="tutor-mic-auto"]');
     if (b) { b.classList.remove("listening"); b.textContent = "🔁"; }
@@ -1109,10 +1205,12 @@
     if (!P || !P.recognizeAuto) { stopAutoMic(); return; }
     const inp = document.getElementById("chatInput");
     if (inp) inp.placeholder = "🎙 免按键：直接说，停 1.2 秒算说完并自动发送…";
+    if (!latT0) latStart();   // P14：afterReply 已开始计时则沿用（含 0.5s 自动开麦间隔），否则从开麦算
     autoMicHandle = P.recognizeAuto({
       lang: "en-US",
       onResult: function (text) {
         if (!autoMic) return;
+        if (text) latFirstWord();   // P14
         const i2 = document.getElementById("chatInput");
         if (i2 && text) i2.value = text;     // 边听边显示，用户能看到识别结果
       },
@@ -1599,6 +1697,11 @@
       case "tutor-send": send(); break;
       case "tutor-mic": micToggle(); break;
       case "tutor-mic-auto": autoMicToggle(); break;
+      case "tutor-lat-speak": {
+        const t = el.getAttribute("data-t") || "";
+        if (t) E().Player.speak(t, { rate: 0.95 });
+        break;
+      }
       case "tutor-diag": {
         toast("🔍 正在检测语音服务…");
         E().Player.testSpeechReach().then(function (r) {
@@ -1658,6 +1761,7 @@
         chatHistory = [];
         chatRestored = 0;
         saveChat();
+        latPendingMs = null; latPendingAt = 0; latT0 = 0;   // P14：清空对话时同时清掉本轮首响
         render();
         toast("对话已清空，重新开始吧！");
         break;
