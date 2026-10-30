@@ -48,10 +48,17 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · 已先按同一纪律**减负**：tutor.js 的注释与面板文案压过一轮（比初稿少约 0.4KB gzip），
        且本批没有新增 PRECACHE 条目、没有新增外部依赖。
      · 余量只留 2KB（≈0.3%，与首次设定的 749→751 同比例）；其余两条上限**不动**，
-       最大单文件仍是 app.js。今后若还要加体积，须先给旧脚本减负，或按同一格式写明理由。 */
+       最大单文件仍是 app.js。今后若还要加体积，须先给旧脚本减负，或按同一格式写明理由。
+   P20（2026-10-30）第三次上调 gzTotalKB 757 → 766（+9KB，约 +1.2%），理由如下：
+     · 本批是**功能批**：js/quiz.js 新增 QuizAI（生成 → 延迟答案 → 逐题讲错，约 4.4KB gzip），
+       app.js / material.js 各一个挂载点与入口文案（约 0.4KB），tutor.js 的 callChat 可选 opts（约 0.1KB）。
+     · 已守两条硬约束：**不新增脚本、不新增请求**（subResources 仍 56，PRECACHE 清单仍 64 条），
+       全站只新增 1 个 LLM 调用点（已进 AI 调用点基线，带 FACT_GUARD 与披露出口）；
+       最大单文件仍是 app.js（未动 biggestGzKB）。
+     · 余量只留 2KB（实测 764KB / 766KB），与 P11/P14 的比例一致；其余两条上限**不放松**。 */
 const BUDGET = {
   subResources: 56,      // 实测 56（55 脚本 + 1 样式表；P11 新增 js/seg-review.js）
-  gzTotalKB: 757,        // 实测 756KB（P14 内容批：14 条听音源 + 首响计时面板）
+  gzTotalKB: 766,        // 实测 764KB（P20：AI 周测 + 投料口 AI 理解题）
   biggestGzKB: 114       // 实测 app.js 113KB
 };
 

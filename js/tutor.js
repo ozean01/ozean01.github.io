@@ -862,8 +862,10 @@
   /* ---------------- API 调用 ----------------
      传输层已收敛到 js/llm.js（P2-12）：本文件只保留教学语义（temperature 0.7 / max_tokens 600）
      与 cfg 的「当前编辑值」语义；提示词组装与 FACT_GUARD 仍在本文件（门禁钉在这里）。 */
-  async function callChat(messages) {
-    return window.LLM.chat(messages, { temperature: 0.7, maxTokens: 600, cfg: cfg });
+  /* opts 可选：P20 的 AI 周测要「低温度 + 更长输出」（一次生成 10 题 JSON），
+     但默认值必须逐字保持 0.7 / 600，否则对话与批改的教学语义会漂移。 */
+  async function callChat(messages, opts) {
+    return window.LLM.chat(messages, Object.assign({ temperature: 0.7, maxTokens: 600, cfg: cfg }, opts || {}));
   }
 
   /* ---------------- 🎯 实战关卡 · 场景状态机（P2-10）----------------

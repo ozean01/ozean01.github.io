@@ -3176,6 +3176,8 @@
     const s = State.quiz;
     if (!s) {
       app.innerHTML = quizSetupHtml();
+      /* P20：AI 周测挂在设置页里（不新增导航/路由）；模块未加载时静默跳过 */
+      if (window.QuizAI) window.QuizAI.mount(document.getElementById("quizAiWeek"), "week");
       return;
     }
     if (s.idx >= s.questions.length) {
@@ -3240,7 +3242,8 @@
         </div>
       </div>
       <button class="btn btn-primary" data-action="quiz-start" style="margin-top:8px">开始测验 →</button>
-    </div>`;
+    </div>
+    <div style="max-width:640px;margin-top:16px" id="quizAiWeek"></div>`;
   }
 
   function quizResultHtml(s) {

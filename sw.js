@@ -11,7 +11,16 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v133";   /* ★ P14（2026-10-27）：外部材料评估的落地批（Hy-SimulMT + 英语学习导航站）：
+const CACHE = "fte-v134";   /* ★ P20（2026-10-30）：外部素材评估的落地批（AI 周测 + 投料口 AI 理解题 + AGENTS.md）：
+                             · js/quiz.js：新增 QuizAI——按「本周学过的单元 + 常错词 + 易错点」出 10 题，
+                               投料口材料出 5 题；作答时不显示对错、交卷后逐题讲错；不写盘/不计成绩/不作能力证据；
+                             · js/app.js / js/material.js：各挂一个挂载点（不新增导航、不新增存储键、不新增脚本）；
+                             · js/tutor.js：callChat 加可选 opts（默认 0.7/600 不变），本批用 0.35/1800；
+                             · css/style.css：.option.selected 选中态（AI 题作答用）。
+                             PRECACHE 清单不变（64 条），按纪律先升 CACHE 再刷新 tools/precache-baseline.json 的 cache/minVersion。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v133 · P14（2026-10-27）：外部材料评估的落地批（Hy-SimulMT + 英语学习导航站）：
                              · tutor.js：新增「⏱ 首响计时 + 先给半句」——量「轮到你说话 → 识别出第一个词」，
                                会话内内存态（不落盘/不计入打卡/不作为能力证据），超 6s 给可执行提示；
                              · sources.js：真实听音源目录补库存（商务/外贸/制造/多国口音向），全部站外外链；

@@ -441,9 +441,19 @@
     </div>
 
     ${preview ? '<div class="card" style="margin-top:12px;padding:12px 14px"><div class="chat-head" style="margin-bottom:8px"><span>📄 句子预览</span></div><div class="sub-list">' + preview + "</div></div>" : ""}
+
+    <div style="margin-top:12px" id="matAIQ"></div>
     `;
 
     bind();
+    /* P20：读后理解题——投料口此前只有听/说/写三个出口，缺「读完这段材料，你读懂了没有」。
+       共用 js/quiz.js 的 QuizAI（生成 → 延迟答案 → 逐题讲错），不新增导航与存储。 */
+    if (window.QuizAI) {
+      window.QuizAI.mount(document.getElementById("matAIQ"), "material", {
+        text: activeSentences().join(" "),
+        title: S.title
+      });
+    }
   }
 
   function bind() {

@@ -64,7 +64,8 @@ const RENDER_POINTS = [
   { id: "eval4-content",      file: "js/eval4.js",  fn: "contentHtml",        what: "四维口语实战：AI 内容评分卡片" },
   { id: "eval4-fourdim",      file: "js/eval4.js",  fn: "resultFourDimHtml",  what: "四维口语实战：四维总分卡" },
   { id: "speech-result",      file: "js/speech.js", fn: "resultCardHtml",     what: "自由表达分析：语法/表达反馈卡" },
-  { id: "quiz-write-ai",      file: "js/app.js",    fn: "writeAi",            what: "测验写作的「AI 润色/批改」出口" }
+  { id: "quiz-write-ai",      file: "js/app.js",    fn: "writeAi",            what: "测验写作的「AI 润色/批改」出口" },
+  { id: "quiz-ai-result",     file: "js/quiz.js",   fn: "aiqResultHtml",      what: "AI 周测 / 投料口理解题的逐题讲错结果（P20：只作练习，不计成绩/不作为能力证据）" }
 ];
 
 /* =======================================================================
@@ -76,22 +77,25 @@ const BASELINE = {
   calls: [
     /* P2-12（2026-10-24）：传输层收敛进 js/llm.js（chat + probe 两处 fetch），
        eval4/speech/tutor 的原 transport 实现改为 LLM.chat/probe 薄委托——
-       本基线随之刷新（--dump-baseline 输出）。提示词组装点（call:system）数量与归属未变。 */
-    "js/app.js:3479:call:system",
+       本基线随之刷新（--dump-baseline 输出）。提示词组装点（call:system）数量与归属未变。
+       P20（2026-10-30）：新增 js/quiz.js 一处 call:system（AI 周测 / 投料口理解题共用），
+       提示词经 aiqSystem() → aiqFactGuard() → window.Tutor.FACT_GUARD 解析到事实守卫。 */
+    "js/app.js:3442:call:system",
     "js/eval4.js:162:call:def",
     "js/eval4.js:181:call:system",
     "js/llm.js:46:fetch:probe",
     "js/llm.js:76:fetch:probe",
     "js/mysay.js:188:call:system",
+    "js/quiz.js:346:call:system",
     "js/speech.js:140:call:def",
     "js/speech.js:158:call:system",
-    "js/tutor.js:714:call:system",
-    "js/tutor.js:783:call:def",
-    "js/tutor.js:942:call:system",
-    "js/tutor.js:1136:call:system",
-    "js/tutor.js:1316:call:system",
-    "js/tutor.js:1361:call:system",
-    "js/tutor.js:1852:call:system",
+    "js/tutor.js:796:call:system",
+    "js/tutor.js:867:call:def",
+    "js/tutor.js:1046:call:system",
+    "js/tutor.js:1250:call:system",
+    "js/tutor.js:1430:call:system",
+    "js/tutor.js:1475:call:system",
+    "js/tutor.js:1972:call:system",
     "js/urgent.js:306:call:system",
     "js/write.js:767:call:system"
   ],

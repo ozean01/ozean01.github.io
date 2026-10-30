@@ -75,6 +75,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-p14.js"], gate: true, label: "P14 落地批：首响计时口径/内存态/挂点/诚实边界 + 听音源目录结构与版权纪律" },
   { cmd: "node", args: ["tools/smoke-p14-render.js"], gate: true, label: "P14 渲染冒烟：AI 对练首响面板/统计/慢轮提示真实渲染（最小 DOM 桩）" },
   { cmd: "node", args: ["tools/test-p1-invariants.js"], gate: true, label: "P1 不变量：口音真话 · 分数构念分桶 · 记账口径 · 投料口校验 · .ics RRULE · 发布链 · 只读审计" },
+  { cmd: "node", args: ["tools/test-p20.js"], gate: true, label: "P20 落地批：AI 周测/材料理解题（延迟答案·只作练习·FACT_GUARD·披露·挂点·CACHE 同步）" },
 ];
 
 let failed = 0;

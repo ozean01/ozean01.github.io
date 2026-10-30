@@ -676,6 +676,7 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 }
 .option:hover:not(:disabled){border-color:var(--primary);background:var(--primary-soft)}
 .option:disabled{cursor:default}
+.option.selected{border-color:var(--primary);background:var(--primary-soft)}
 .option.correct{border-color:var(--ok);background:var(--ok-soft);color:var(--ok-text-deep)}
 .option.wrong{border-color:var(--bad);background:var(--bad-soft);color:var(--bad-text-deep)}
 .quiz-progress{height:8px;background:var(--track);border-radius:999px;overflow:hidden;margin:14px 0}
