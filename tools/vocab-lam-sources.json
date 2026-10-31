@@ -1,8 +1,8 @@
 {
   "_note": "A 批（+67，上游原料与化学）词条的讲义依据。讲义=《复膜胶系统学习资料 v3.1 完整讲义》2026-10-27（679 页）；page 为讲义 PDF 页（对应文本里的 === PAGE n ===）。enInLecture 表示该英文词是否在讲义中字面出现；false 表示讲义只有中文概念/表格，英文为行业标准对应词（在 note 里写明），供审计复核，不随站点发布。",
-  "batch": "A",
+  "batch": "A（上游原料与化学，67 条）+ B（复合工艺与设备，67 条）",
   "source": "复膜胶系统学习资料 v3.1 完整讲义（2026-10-27）",
-  "count": 67,
+  "count": 134,
   "terms": {
     "polyester polyol": {
       "section": "2.5 上游原料产业链 · 1.1 核心原料树",
@@ -405,6 +405,408 @@
       "page": 205,
       "enInLecture": false,
       "note": "P205 原料树「助剂」：抗氧剂/抗水解剂；P76 纤维素薄膜配抗氧剂；P212 内置抗氧剂消耗氧化性物质；P297 热熔胶抗氧剂。讲义以中文「抗氧剂」出现，英文 antioxidant 为行业标准对应词。"
+    },
+    "preheating section": {
+      "section": "3.2.4 复合系统 · 预热部",
+      "page": 258,
+      "enInLecture": false,
+      "note": "P258 3.2.4 复合系统：复合系统由第二基材的预热部、复合部、冷却部组成；预热可提高初粘力并消除第二基材应力。讲义中文原词「预热部」，英文 preheating section 为行业标准对应词。"
+    },
+    "laminating section": {
+      "section": "3.2.4 复合系统 · 复合部",
+      "page": 258,
+      "enInLecture": false,
+      "note": "P258–259 3.2.4 复合系统 · 2. 复合部：由复合钢辊和橡胶压辊组成，提供温度与压力使胶层二次流平。讲义中文原词「复合部」，英文 laminating section 为行业标准对应词。"
+    },
+    "cooling section": {
+      "section": "3.2.4 复合系统 · 冷却部",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 3.2.4 复合系统 · 3. 冷却部：复合膜出复合辊后、收卷前应冷却，否则蠕变降低初粘并造成梅花芯。讲义中文原词「冷却部」，英文 cooling section 为行业标准对应词。"
+    },
+    "adhesive pan": {
+      "section": "3.2.3 涂胶系统控制",
+      "page": 255,
+      "enInLecture": false,
+      "note": "P255 3.2.3 涂胶系统控制：上胶部分由网纹辊、涂胶压辊、刮刀、胶盘、匀胶辊、胶液循环系统等组成。讲义中文原词「胶盘」，英文 adhesive pan 为行业标准对应词。"
+    },
+    "reverse doctor blade": {
+      "section": "3.2.3 涂胶系统控制 · 封闭胶腔式上胶系统",
+      "page": 258,
+      "enInLecture": false,
+      "note": "P258 3.2.3 涂胶系统控制第 5 点：封闭胶腔式上胶系统由正向刮刀和反向刮刀组成腔体，粘合剂在正压无空气状态下不产生气泡。讲义中文原词「反向刮刀」，英文 reverse doctor blade 为行业标准对应词。"
+    },
+    "back-up roll": {
+      "section": "3.2.4 复合系统 · 复合部（三辊式结构）",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 3.2.4 复合部：三辊式结构中复合压力通过背压辊（钢辊）传向胶辊再传向复合钢辊，背压辊形变很小，压力更均匀。讲义中文原词「背压辊」，英文 back-up roll 为行业标准对应词。"
+    },
+    "wrap angle": {
+      "section": "3.2.4 复合系统 · 冷却部/预热部",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 冷却部：冷却效果与冷却水水温和薄膜对冷却辊的包角有关，穿膜时应尽可能提高包角；P258 预热部另提到加大第二基材对复合辊包角。讲义中文原词「包角」，英文 wrap angle 为行业标准对应词。"
+    },
+    "laminating roll": {
+      "section": "3.2.4 复合系统 · 复合部",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 3.2.4 复合部：复合辊的温度和压力在不影响质量的前提下应尽可能高；P228 表 2.8-8 给出复合辊温度 50–90 ℃。讲义中文原词「复合辊」，英文 laminating roll 为行业标准对应词。"
+    },
+    "cooling water": {
+      "section": "10.4.5 复合系统（挤出复合）",
+      "page": 312,
+      "enInLecture": false,
+      "note": "P312 10.4.5 复合系统：冷却辊为表面镀铬钢辊、双层夹套螺旋式冷却流道，冷却水温 10~20 ℃。讲义中文原词「冷却水」，英文 cooling water 为行业标准对应词。"
+    },
+    "guide roller": {
+      "section": "3.2.2 干燥控制（烘箱导辊）",
+      "page": 255,
+      "enInLecture": false,
+      "note": "P255 3.2.2 干燥控制：烘箱中的导辊为主动辊，导辊表面线速度必须与机器线速度相一致。讲义中文原词「导辊」，英文 guide roller 为行业标准对应词。"
+    },
+    "pre-extraction chamber": {
+      "section": "3.2.2 干燥控制",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 3.2.2 干燥控制：干燥部分由预抽箱、烘道、干燥温度控制装置、蒸汽通道（电加热器）、导辊等组成；预抽箱不加热，通过大量抽吸使溶剂在加热前急剧减少。讲义中文原词「预抽箱」，英文 pre-extraction chamber 为行业标准对应词。"
+    },
+    "air velocity": {
+      "section": "3.2.2 干燥控制（表 3.2-4）",
+      "page": 255,
+      "enInLecture": false,
+      "note": "P255 表 3.2-4 干燥控制：风速（出风喷嘴处测定）最低 25 米/秒，最好达 35 米/秒。讲义中文原词「风速」，英文 air velocity 为行业标准对应词。"
+    },
+    "working concentration": {
+      "section": "3.2.3 涂胶系统控制 · 粘合剂的工作浓度",
+      "page": 258,
+      "enInLecture": false,
+      "note": "P258 3.2.3 第 5 点「粘合剂的工作浓度与涂布状态」：高工作浓度下流平性变差，需抹平辊强制流平。讲义中文原词「工作浓度」，英文 working concentration 为行业标准对应词。"
+    },
+    "cooling room": {
+      "section": "3.3 无溶剂复合工艺（铝箔蒸煮专项）",
+      "page": 287,
+      "enInLecture": false,
+      "note": "P287 铝箔蒸煮专项六条：要有冷却室，保持 25 ℃；与溶残、针眼控制并列。讲义中文原词「冷却室」，英文 cooling room 为行业标准对应词。"
+    },
+    "chiller": {
+      "section": "3.2.4 复合系统 · 冷却部",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 冷却部：有条件的企业应在冷却系统上加装水冷机和循环系统。讲义中文原词「水冷机」，英文 chiller 为行业标准对应词。"
+    },
+    "magnetic particle brake": {
+      "section": "3.2.1 张力控制 · 放卷张力系统",
+      "page": 253,
+      "enInLecture": false,
+      "note": "P253 3.2.1 放卷张力系统：放卷张力控制系统由磁粉制动器、电机和变频器、张力传感器、浮动辊装置、电气控制系统组成。讲义中文原词「磁粉制动器」，英文 magnetic particle brake 为行业标准对应词。"
+    },
+    "dancer roll": {
+      "section": "3.2.1 张力控制 · 放卷张力系统",
+      "page": 253,
+      "enInLecture": false,
+      "note": "P253 放卷张力系统：浮动辊可在张力不稳定时（换卷、薄膜有接头、拉伸不均匀等）将张力补偿过来。讲义中文原词「浮动辊」，英文 dancer roll 为行业标准对应词。"
+    },
+    "load cell": {
+      "section": "3.2.1 张力控制 · 放卷张力系统",
+      "page": 253,
+      "enInLecture": false,
+      "note": "P253 放卷张力系统：张力传感器是放卷/收卷张力控制系统的组成部件。讲义中文原词「张力传感器」，英文 load cell 为行业标准对应词。"
+    },
+    "frequency converter": {
+      "section": "3.2.1 张力控制 · 放卷张力系统",
+      "page": 253,
+      "enInLecture": false,
+      "note": "P253 放卷张力系统：控制系统由磁粉制动器、电机和变频器、张力传感器、浮动辊装置组成。讲义中文原词「变频器」，英文 frequency converter 为行业标准对应词。"
+    },
+    "taper tension": {
+      "section": "3.2.1 张力控制 · 收卷张力系统",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 收卷张力系统：收卷张力一般采用锥度张力控制，保证不产生内松外紧；表 3.2-3 锥度值设定范围 20%~60%。讲义中文原词「锥度张力」，英文 taper tension 为行业标准对应词。"
+    },
+    "winding tension": {
+      "section": "3.2.1 张力控制 · 收卷张力系统",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 收卷张力系统：始终用不变张力收卷会产生扭格、梅花芯；P275 把收卷张力列为四个张力子系统之一。讲义中文原词「收卷张力」，英文 winding tension 为行业标准对应词。"
+    },
+    "center winding": {
+      "section": "3.2.1 张力控制 · 三种收卷方式",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 图 3-3 中心卷曲：很难消除静电、附着空气层的影响，不适于高速和收大卷。讲义中文原词「中心卷曲」，英文 center winding 为行业标准对应词。"
+    },
+    "surface winding": {
+      "section": "3.2.1 张力控制 · 三种收卷方式",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 图 3-4 表面卷曲：辊 A、辊 B 为主动辊，料卷被动，可收很大但不能不停机自动换料。讲义中文原词「表面卷曲」，英文 surface winding 为行业标准对应词。"
+    },
+    "center-surface winding": {
+      "section": "3.2.1 张力控制 · 三种收卷方式",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 图 3-5 中心表面卷曲：膜卷主动、辊 C 被动加压，可消除静电与空气层且可不停机换料，多用于大型高速干式复合机。讲义中文原词「中心表面卷曲」，英文 center-surface winding 为行业标准对应词。"
+    },
+    "static electricity": {
+      "section": "3.2.1 张力控制 · 收卷张力系统",
+      "page": 254,
+      "enInLecture": false,
+      "note": "P254 收卷张力系统：高速运动的薄膜由于摩擦、解卷、收卷产生大量静电，静电加大表面附着空气层，导致收卷不齐、竹笋状。讲义中文原词「静电」，英文 static electricity 为行业标准对应词。"
+    },
+    "roll diameter": {
+      "section": "3.2.1 张力控制 · 放卷张力系统",
+      "page": 253,
+      "enInLecture": false,
+      "note": "P253 放卷张力系统：放卷过程中随着卷径逐渐减少，张力保持恒定；P254 收卷随卷径增大需用锥度张力。讲义中文原词「卷径」，英文 roll diameter 为行业标准对应词。"
+    },
+    "splice": {
+      "section": "10.4.3 放卷系统（翻转架接料装置）",
+      "page": 312,
+      "enInLecture": false,
+      "note": "P312 10.4.3 放卷系统：翻转架接料装置可手动/自动、不减速换卷；P275 提到自动换卷时应有新膜卷预驱动装置、同步后接纸。讲义中文原词「接料」，英文 splice 为行业标准对应词。"
+    },
+    "viscosity cup": {
+      "section": "8.4 粘度和粘度杯",
+      "page": 268,
+      "enInLecture": false,
+      "note": "P268 8.4「粘度和粘度杯」：粘度杯由毛细管粘度仪演变而来，测量简单、便于现场操作；P235 提到现场选察恩杯或福特杯。讲义中文原词「粘度杯」，英文 viscosity cup 为行业标准对应词。"
+    },
+    "Zahn cup": {
+      "section": "2.4.1 粘合剂的物化性能测试",
+      "page": 235,
+      "enInLecture": false,
+      "note": "P235 原文：粘度杯一般选日本察恩杯或美国福特杯，数据较准确；P232 表列粘度用 3# 察恩杯（秒）测试。讲义中文原词「察恩杯」，英文 Zahn cup 为行业标准对应词。"
+    },
+    "impingement dryer": {
+      "section": "8.3.4 干燥能力估算",
+      "page": 268,
+      "enInLecture": false,
+      "note": "P268 8.3.4：热风冲击干燥器（喷嘴射出高功率热气流，喷嘴冲击点局部传热系数很高，当前复合干燥器的主要种类）一般达 100~200 kcal/(h·m²·℃)。讲义中文原词「热风冲击干燥器」，英文 impingement dryer 为行业标准对应词。"
+    },
+    "convection dryer": {
+      "section": "8.3.4 干燥能力估算",
+      "page": 268,
+      "enInLecture": false,
+      "note": "P268 8.3.4：老式对流干燥器（热风流向平行于薄膜涂层表面、与基材运动方向相反，很多小彩印厂仍使用）传热系数约 30 kcal/(h·m²·℃)。讲义中文原词「对流干燥器」，英文 convection dryer 为行业标准对应词。"
+    },
+    "heat transfer coefficient": {
+      "section": "8.3.4 干燥能力估算",
+      "page": 268,
+      "enInLecture": false,
+      "note": "P268 8.3.4 与公式 8-2：蒸发速率 = 干燥器传热系数 × 干燥器面积 × (热风温度 − 涂层温度) / 溶剂蒸发潜热；静止空气 10、老式对流约 30、热风冲击 100~200 kcal/(h·m²·℃)。讲义中文原词「传热系数」，英文 heat transfer coefficient 为行业标准对应词。"
+    },
+    "constant-rate drying period": {
+      "section": "8.3.1 自然干燥与热风对流干燥",
+      "page": 267,
+      "enInLecture": false,
+      "note": "P267 8.3.1：当涂层吸热与放热平衡时蒸发速率恒定，该阶段称恒干燥段（原文写作「衡干燥段」）；对胶粘剂，涂层固含量从约 40% 上升至 60% 左右。讲义中文原词「恒干燥段」，英文 constant-rate drying period 为行业标准对应词。"
+    },
+    "falling-rate drying period": {
+      "section": "8.3.3 复合机干燥箱第二、三段的干燥状态",
+      "page": 268,
+      "enInLecture": false,
+      "note": "P268 8.3.3：第二、三段都处于降干燥阶段，随涂层溶剂含量减少干燥率逐步下降；降干燥阶段残留溶剂量与涂层厚度成正比。讲义中文原词「降干燥段」，英文 falling-rate drying period 为行业标准对应词。"
+    },
+    "drying curve": {
+      "section": "8.3.1 自然干燥与热风对流干燥",
+      "page": 267,
+      "enInLecture": false,
+      "note": "P267 8.3.1：干燥曲线横坐标为干燥时间，纵坐标可用溶剂占涂层重量百分率或蒸发速率表示（图 8-1）。讲义中文原词「干燥曲线」，英文 drying curve 为行业标准对应词。"
+    },
+    "infrared drying": {
+      "section": "13.2.3 涂布工艺（PVDC 乳胶干燥）",
+      "page": 296,
+      "enInLecture": false,
+      "note": "P296：开始段用红外线加热达快速升温不结皮；红外线干燥段波长 2~3 μm，长度占总干燥段 1/6~1/3。讲义中文原词「红外线干燥段」，英文 infrared drying 为行业标准对应词。"
+    },
+    "air-flow drying": {
+      "section": "13.2.3 涂布工艺（PVDC 乳胶干燥）",
+      "page": 296,
+      "enInLecture": false,
+      "note": "P296：气流干燥前段水分蒸发速率高，气流不能太快（吹皱表面层）也不能太慢（滞流层抑制蒸发）；后段气流速度大都在 30~60 m/s。讲义中文原词「气流干燥」，英文 air-flow drying 为行业标准对应词。"
+    },
+    "over-drying section": {
+      "section": "13.2.3 涂布工艺（PVDC 乳胶干燥）",
+      "page": 296,
+      "enInLecture": false,
+      "note": "P296：过干燥段（PVDC 分子结晶段）水分全部蒸发，表面温度急速升高提供结晶能量；结晶度高低直接影响涂层耐化学性能和阻隔性能。讲义中文原词「过干燥段」，英文 over-drying section 为行业标准对应词。"
+    },
+    "smooth roll coating": {
+      "section": "13.1.1 溶剂型涂布",
+      "page": 293,
+      "enInLecture": false,
+      "note": "P293 13.1.1 光辊涂布：调上胶辊与涂布辊间隙调涂布量，涂布精度高、应用最广；P255 也把光辊涂布列为干复涂胶方式之一。讲义中文原词「光辊涂布」，英文 smooth roll coating 为行业标准对应词。"
+    },
+    "reverse roll coating": {
+      "section": "13.1.1 溶剂型涂布（表 13-1）",
+      "page": 294,
+      "enInLecture": false,
+      "note": "P294 表 13-1：逆向辊式能处理由薄涂到高达 50 Pa·s 黏度范围的涂料，涂布量可控制在 3~50 g/m²。讲义中文原词「逆向辊式」，英文 reverse roll coating 为行业标准对应词。"
+    },
+    "air knife coating": {
+      "section": "13.1.1 溶剂型涂布（表 13-1）",
+      "page": 294,
+      "enInLecture": false,
+      "note": "P294 表 13-1：无接触气刀式不会出现条痕，能对表面粗糙的纸板做较好的表面覆盖。讲义中文原词「无接触气刀式」，英文 air knife coating 为行业标准对应词。"
+    },
+    "curtain coating": {
+      "section": "13.1.2 热熔胶喷涂及蜡涂布",
+      "page": 294,
+      "enInLecture": false,
+      "note": "P294 13.1.2：蜡涂布采用淋洒、幕帘涂及网纹辊涂布法把蜡层涂到纸张上。讲义中文原词「幕帘涂」，英文 curtain coating 为行业标准对应词。"
+    },
+    "slot die": {
+      "section": "13.4.2 涂布工艺",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 13.4.2：热熔胶可用泵式挤出和供料，通过狭缝口模涂布到基材上，常用网辊涂法。讲义中文原词「狭缝口模」，英文 slot die 为行业标准对应词。"
+    },
+    "knife coating": {
+      "section": "13.1.1 溶剂型涂布（表 13-1）",
+      "page": 294,
+      "enInLecture": false,
+      "note": "P294 表 13-1：各种刮刀式借改变刀片对纸或薄膜的压力调节最终涂布量，有倒置刮刀、倒角刮刀等。讲义中文原词「刮刀式」，英文 knife coating 为行业标准对应词。"
+    },
+    "electron beam engraving": {
+      "section": "13.1.1 溶剂型涂布 · 网纹辊涂布",
+      "page": 293,
+      "enInLecture": false,
+      "note": "P293：网纹凹辊为高精度钢辊镀铜后电子束雕刻网孔；电子束雕刻最深 55~60 μm，更深需激光。讲义中文原词「电子束雕刻」，英文 electron beam engraving 为行业标准对应词。"
+    },
+    "laser engraving": {
+      "section": "16.4 网穴尺寸与转移形态",
+      "page": 632,
+      "enInLecture": false,
+      "note": "P632 16.4：涂胶辊加工方式含电子雕刻、机械压花、激光腐蚀、激光雕刻；P293 亦说明更深网孔需激光。讲义中文原词「激光雕刻」，英文 laser engraving 为行业标准对应词。"
+    },
+    "wax coating": {
+      "section": "13.1.2 热熔胶喷涂及蜡涂布",
+      "page": 294,
+      "enInLecture": false,
+      "note": "P294 13.1.2：蜡涂布采用淋洒、幕帘涂及网纹辊涂布法把蜡层涂到纸张上；涂布产品三类应用之一为阻隔性（涂 PVDC、涂蜡、涂防水层）。讲义中文原词「蜡涂布」，英文 wax coating 为行业标准对应词。"
+    },
+    "cold seal adhesive": {
+      "section": "13.3.1 冷封包装材料特点",
+      "page": 296,
+      "enInLecture": false,
+      "note": "P296 13.3.1：在 PE、PP 等基础上涂布一层或局部涂布冷封胶，不需加热、低温或加压即可封口；适忌热的巧克力、冷食品。讲义中文原词「冷封胶」，英文 cold seal adhesive 为行业标准对应词。"
+    },
+    "cold seal coating": {
+      "section": "13.3.2 冷封胶涂布",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 13.3.2：冷封胶涂布套准精度 ≤±2 mm；两种工艺路线（印刷机连线涂布 / 印刷后复合加工再涂）。讲义中文原词「冷封胶涂布」，英文 cold seal coating 为行业标准对应词。"
+    },
+    "hot-melt coating": {
+      "section": "13.4 热熔胶涂布",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 13.4：热熔胶涂布生产速度最高可达 300~400 m/min，设备简单、100% 固体无溶剂残留。讲义中文原词「热熔胶涂布」，英文 hot-melt coating 为行业标准对应词。"
+    },
+    "melt flow index": {
+      "section": "13.4.1 热熔胶 / 8.5.2",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 13.4.1：EVA 基础树脂常用 VA 含量 18%~33%、熔体流动速率 7 g/10min 以上品种；P271 8.5.2 说明 MFI 更直接与热封性有关。讲义中文原词「熔体流动速率」，英文 melt flow index 为行业标准对应词。"
+    },
+    "vinyl acetate content": {
+      "section": "13.4.1 热熔胶（EVA 树脂 VA 含量）",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 13.4.1：EVA 类基础树脂最常用 VA 含量 18%~33%（质量份）；配压敏型热熔胶需 VA 含量 40% 以上。讲义中文原词「VA 含量」，英文 vinyl acetate content 为行业标准对应词。"
+    },
+    "UV curing": {
+      "section": "11.2 黏合剂（紫外固化黏合剂）",
+      "page": 301,
+      "enInLecture": false,
+      "note": "P301：紫外固化单组分黏合剂主要是阳离子酸催化的环氧体系，复合后 1 h 内即可达到很高的粘合强度。讲义中文原词「紫外固化」，英文 UV curing 为行业标准对应词。"
+    },
+    "photoinitiator": {
+      "section": "11.2 黏合剂（紫外固化黏合剂）",
+      "page": 301,
+      "enInLecture": false,
+      "note": "P301：紫外线照射下，黏合剂中的路易斯酸光引发剂分解，引发环氧嵌段聚合，得到环氧树脂的三维交联结构。讲义中文原词「光引发剂」，英文 photoinitiator 为行业标准对应词。"
+    },
+    "cationic curing": {
+      "section": "11.2 黏合剂（紫外固化黏合剂）",
+      "page": 300,
+      "enInLecture": false,
+      "note": "P300–301：紫外固化黏合剂普遍属阳离子固化类型（酸催化环氧体系）。讲义中文原词「阳离子固化」，英文 cationic curing 为行业标准对应词。"
+    },
+    "air gap": {
+      "section": "10.5.4 气隙",
+      "page": 313,
+      "enInLecture": false,
+      "note": "P313 10.5.4 气隙；P305 另有「气隙矛盾（挤出复合最核心的工艺权衡）」：熔融树脂在气隙中表面氧化产生极性基团，与被覆基材形成化学+物理双重粘接。讲义中文原词「气隙」，英文 air gap 为行业标准对应词。"
+    },
+    "neck-in": {
+      "section": "10.5.5 缩幅控制",
+      "page": 314,
+      "enInLecture": false,
+      "note": "P314 10.5.5 缩幅控制：缩幅与树脂、挤出温度（温度高缩幅大）、牵引速度（速度慢缩幅大）相关。讲义中文原词「缩幅」，英文 neck-in 为行业标准对应词。"
+    },
+    "die width": {
+      "section": "10.5.6 模头幅宽",
+      "page": 314,
+      "enInLecture": false,
+      "note": "P314 10.5.6 模头幅宽：用阻流棒、异形金属板、调幅杆调出料宽度与料流均匀性，出稳定平直的挤出膜。讲义中文原词「模头幅宽」，英文 die width 为行业标准对应词。"
+    },
+    "melt pressure": {
+      "section": "10.5.7 螺杆末压",
+      "page": 314,
+      "enInLecture": false,
+      "note": "P314 10.5.7 螺杆末压：螺杆末端压力反映下游（过滤网、输送管、模具）阻力，依赖几何形状与温度，影响温度、黏度、通过量。讲义中文原词「螺杆末压」，英文 melt pressure 为行业标准对应词。"
+    },
+    "screen pack": {
+      "section": "10.4.1 挤出机 / 10.5.2 过滤网",
+      "page": 313,
+      "enInLecture": false,
+      "note": "P313 10.5.2 过滤网；P309 故障表列「晶点/凝胶粒：树脂降解、混入高熔点杂质、过滤网破损 → 换滤网（定期）」。讲义中文原词「过滤网」，英文 screen pack 为行业标准对应词。"
+    },
+    "anchor coating agent": {
+      "section": "10.3 挤出复合用 AC 剂",
+      "page": 310,
+      "enInLecture": false,
+      "note": "P310 10.3 挤出复合用 AC 剂（作用三项、种类比较、使用）；P304 目录为「3.4 挤出复合与 AC 剂（锚固剂）体系」。讲义中文原词「锚固剂」，英文 anchor coating agent 为行业标准对应词。"
+    },
+    "extrusion die": {
+      "section": "10.4.2 模头",
+      "page": 312,
+      "enInLecture": false,
+      "note": "P312 10.4.2 模头；P14 共挤膜一节说明多台挤出机挤出不同树脂在模头内汇合。讲义中文原词「模头」，英文 extrusion die 为行业标准对应词。"
+    },
+    "corona treater": {
+      "section": "3.9 过程控制 · 电晕处理机的合理应用",
+      "page": 369,
+      "enInLecture": false,
+      "note": "P369 3.9「电晕处理机的合理应用（7 类必须在线电晕的场景）」；P370 表 3.9-3 给出场景判据。讲义中文原词「电晕处理机」，英文 corona treater 为行业标准对应词。"
+    },
+    "EPC": {
+      "section": "5.1 分切（EPC 纠偏）",
+      "page": 301,
+      "enInLecture": true,
+      "note": "P301 5.1 分切：EPC 纠偏，光电型/超声波型/CCD 型探头，EPC 探头需垂直于辊面安装。讲义原文把 EPC 释作 Electronic Power Control，与行业通行 Edge Position Control 不符，本站按行业口径收「纠偏（边缘位置控制）」。讲义原词「EPC」，确为英文缩写。"
+    },
+    "slitting blade": {
+      "section": "5.1 分切 · 分切操作常见问题",
+      "page": 301,
+      "enInLecture": false,
+      "note": "P301 分切常见问题：端面翘曲成因「切刀钝化，切口处产生拉伸，膜卷边缘向外翻卷」，对策「更换/保持刀刃锋利」。讲义中文原词「切刀」，英文 slitting blade 为行业标准对应词。"
+    },
+    "edge trim": {
+      "section": "5.1 分切 · 分切的作用（切边）",
+      "page": 301,
+      "enInLecture": false,
+      "note": "P301 5.1 分切的作用：切边——切去上道工序生产中所需的工艺边料，以便于制袋和其它用途。讲义中文原词「边料」，英文 edge trim 为行业标准对应词。"
+    },
+    "winding hardness": {
+      "section": "过程控制与验收判据表（复合膜收卷硬度）",
+      "page": 591,
+      "enInLecture": false,
+      "note": "P591 过程参数/验收表：「复合膜收卷硬度 ≥90HS」；P629 12.8 另有收卷硬度专节。讲义中文原词「收卷硬度」，英文 winding hardness 为行业标准对应词。"
     }
   }
 }
