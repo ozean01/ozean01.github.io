@@ -1,0 +1,410 @@
+{
+  "_note": "A 批（+67，上游原料与化学）词条的讲义依据。讲义=《复膜胶系统学习资料 v3.1 完整讲义》2026-10-27（679 页）；page 为讲义 PDF 页（对应文本里的 === PAGE n ===）。enInLecture 表示该英文词是否在讲义中字面出现；false 表示讲义只有中文概念/表格，英文为行业标准对应词（在 note 里写明），供审计复核，不随站点发布。",
+  "batch": "A",
+  "source": "复膜胶系统学习资料 v3.1 完整讲义（2026-10-27）",
+  "count": 67,
+  "terms": {
+    "polyester polyol": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": true,
+      "note": "P205 原料树：主剂（A 胶）— 多元醇（Polyol）→ 聚酯多元醇（Polyester Polyol）；P175 另有 15 种聚酯多元醇选型表。"
+    },
+    "polyether polyol": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": true,
+      "note": "P205 原料树：聚醚多元醇（Polyether Polyol），原料为环氧丙烷（PO）/环氧乙烷（EO）+ 起始剂。"
+    },
+    "TDI": {
+      "section": "2.5 上游原料产业链 · 三、TDI 产业链",
+      "page": 207,
+      "enInLecture": true,
+      "note": "P207「3.1 TDI 生产与格局」；P164 溶剂型固化剂代表含 TDI 三聚体、TDI/TMP 加成物。"
+    },
+    "crosslinking": {
+      "section": "2.8 耐高温蒸煮粘合剂设计原理 · 2.2.3 交联密度",
+      "page": 230,
+      "enInLecture": false,
+      "note": "P230：主剂与固化剂官能度一般大于 2，经化学反应扩链后交联，提高耐温性能；讲义中文为「交联」，英文 crosslinking 为行业标准对应词。"
+    },
+    "NCO content": {
+      "section": "2.1 配方化学：A/B 组分与固化剂（表 2.1-1）",
+      "page": 163,
+      "enInLecture": false,
+      "note": "P163 表 2.1-1：固化剂 B 组分 NCO 8%–13%（溶剂型）；讲义中文为「NCO%」，英文 NCO content 为行业标准说法。"
+    },
+    "hydroxyl value": {
+      "section": "3.2 关键结构参数怎么读",
+      "page": 166,
+      "enInLecture": false,
+      "note": "P166：主剂多元醇的关键结构参数含羟值/酸值/分子量/官能度；讲义中文「羟值」，英文 hydroxyl value 为行业标准对应词。"
+    },
+    "acid value": {
+      "section": "3.2 关键结构参数怎么读",
+      "page": 166,
+      "enInLecture": false,
+      "note": "P166 关键结构参数含酸值；P171 配方层错误与判据也用到酸值。英文 acid value 为行业标准对应词。"
+    },
+    "chain extender": {
+      "section": "5.1 胶粘剂类配方（4 种）",
+      "page": 169,
+      "enInLecture": false,
+      "note": "P169：胶粘剂配方「多元醇骨架+异氰酸酯+扩链剂」三件套；BDO 既是聚酯原料也是扩链剂。英文 chain extender 为行业标准对应词。"
+    },
+    "glass transition temperature": {
+      "section": "2.2 多元醇品种体系 · 4.1 全表（判据）",
+      "page": 167,
+      "enInLecture": false,
+      "note": "P167 用玻璃化温度判柔软触感/耐水解；P229 微相分离一节说明软段玻璃化温度低于室温。英文 glass transition temperature 为行业标准对应词。"
+    },
+    "aromatic isocyanate": {
+      "section": "2.1 配方化学 · 2.2 芳香族 vs 脂肪族",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-3：芳香族（TDI/MDI 基）反应活性高、成本低、耐黄变差；英文 aromatic isocyanate 为行业标准对应词。"
+    },
+    "aliphatic isocyanate": {
+      "section": "2.1 配方化学 · 2.2 芳香族 vs 脂肪族",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-3：脂肪族（HDI/IPDI 基）反应活性低、成本高、耐黄变好；P165 决策表要求浅色/透明包装必须选脂肪族。"
+    },
+    "gravure coating": {
+      "section": "13.2 涂布工艺（凹版涂布）",
+      "page": 632,
+      "enInLecture": false,
+      "note": "P295/298/299 讲凹版涂布：适合高速涂布、易发生厚层涂布杆纹理等；P632 讲网穴胶转移率。英文 gravure coating 为行业标准对应词（站内另有 gravure printing 凹版印刷）。"
+    },
+    "chill roll": {
+      "section": "10.10 聚丙烯挤出复合工艺 · 冷却辊控制",
+      "page": 320,
+      "enInLecture": false,
+      "note": "P320：冷却辊表面温度提高可增黏结性、透明性、韧性；过高则卷曲、热合性下降，上升极限约 60 ℃。英文 chill roll 为行业标准对应词。"
+    },
+    "T-peel": {
+      "section": "质量缺陷案例 · T 型剥离复现",
+      "page": 453,
+      "enInLecture": false,
+      "note": "P453 缺陷案例：「T 型剥离查看油墨镀铝不转」；T-peel 即 T 型剥离试验，英文写法为行业标准。"
+    },
+    "COF": {
+      "section": "1.6 来料检验、性能测试与表面张力判据",
+      "page": 34,
+      "enInLecture": true,
+      "note": "P34：COF 动力 0.25（D1894）；P36/38/42 多份薄膜物性表用 COF。术语表未单列，但英文缩写字面出现。"
+    },
+    "RCPP": {
+      "section": "1.3 薄膜材料性能与选型接口",
+      "page": 45,
+      "enInLecture": true,
+      "note": "P45：RCPP = Retort Cast Polypropylene Film，蒸煮级流延聚丙烯薄膜，以 PP 流延挤塑；P10 结构表列作蒸煮内层。"
+    },
+    "MDOPE": {
+      "section": "1.3 薄膜材料性能与选型接口",
+      "page": 11,
+      "enInLecture": true,
+      "note": "P11：PE 层写作 LDPE/LLDPE/MDOPE；P27–29 讲 MDOPE 是单材质可回收方案，爽滑剂迁移是其复合通病。"
+    },
+    "metBOPP": {
+      "section": "1.12 区域内容物-结构偏好（出口视角）",
+      "page": 137,
+      "enInLecture": true,
+      "note": "P137/138：BOPP/metBOPP/PE 用于烘焙、糖果、零食、冷冻；metBOPP 为镀铝 BOPP。"
+    },
+    "AlOx": {
+      "section": "1.5 中高阻隔方案（透明蒸镀）",
+      "page": 93,
+      "enInLecture": true,
+      "note": "P93：AlOx 氧化铝蒸镀层 20–100 nm，透明高阻隔；P12/14/16 亦列。"
+    },
+    "SiOx": {
+      "section": "1.5 中高阻隔方案（透明蒸镀）",
+      "page": 93,
+      "enInLecture": true,
+      "note": "P93：SiOx 氧化硅蒸镀层 20–100 nm，透明高阻隔；P12/14/15/16 亦列。"
+    },
+    "PAA": {
+      "section": "1.7 内容物分类与包装需求 · 6.4 PU 复膜胶专项要求",
+      "page": 114,
+      "enInLecture": true,
+      "note": "P114 表 1.7-18：PAA（伯芳香胺）EU 不得检出（<0.01 mg/kg）；P642 讲 PAA 限制趋势。"
+    },
+    "BPA": {
+      "section": "1.7 内容物分类与包装需求 · 6.4 PU 复膜胶专项要求",
+      "page": 114,
+      "enInLecture": true,
+      "note": "P114：EU 2018/213 双酚 A（BPA）迁移限值 0.05 mg/kg；P650 合规趋势亦提 BPA 收紧。"
+    },
+    "PPWR": {
+      "section": "6.2 PPWR、单一材质与 PAA 限制",
+      "page": 642,
+      "enInLecture": true,
+      "note": "P642 表 6.2-1 PPWR 时间表：2026 年 8 月起所有在欧盟上市 SKU 需提交符合性声明（DoC）。"
+    },
+    "mono-material": {
+      "section": "6.2 PPWR、单一材质与 PAA 限制",
+      "page": 642,
+      "enInLecture": false,
+      "note": "P642：PPWR 推动品牌方转向单一材质（mono-material）包装；P12 列 MDO-PE/PE 等单材质可回收结构。（讲义用中文「单一材质」；英文 mono-material 为行业标准说法）"
+    },
+    "recyclability": {
+      "section": "1.1 结构代码体系与全球结构库",
+      "page": 12,
+      "enInLecture": false,
+      "note": "P12 单材质可回收结构表；P128 区域偏好把「可回收认证（RecyClass/APR）」列为胶水需求热点。（讲义用「可回收」/RecyClass；英文 recyclability 为行业标准对应词）"
+    },
+    "specific migration limit": {
+      "section": "1.7 内容物分类与包装需求 · 6.4 PU 复膜胶专项要求",
+      "page": 114,
+      "enInLecture": false,
+      "note": "P114：EU 10/2011 特定迁移限值（SML）分物质列出；同页 MDI/TDI SML = 1 mg/kg、DOA SML = 18 mg/kg。（与 U18「specific migration 特定迁移量」相关但不同：SML 是限量值）（讲义用 SML 缩写：特定迁移限值（SML））"
+    },
+    "HDI": {
+      "section": "2.1 配方化学：A/B 组分与固化剂（表 2.1-1 / 2.2）",
+      "page": 164,
+      "enInLecture": true,
+      "note": "P163 表 2.1-1：固化剂为多异氰酸酯（TDI/HDI/IPDI 三聚体等）；P164 表 2.1-3：脂肪族（HDI/IPDI 基）耐黄变好、活性低。"
+    },
+    "IPDI": {
+      "section": "2.1 配方化学：A/B 组分与固化剂（表 2.1-1 / 2.2）",
+      "page": 164,
+      "enInLecture": true,
+      "note": "P163/164：IPDI 属脂肪族异氰酸酯，用于耐黄变体系；P164 提到亲水性改性 IPDI 用于水性体系。"
+    },
+    "HDI trimer": {
+      "section": "2.1 三大溶解体系（表 2.1-2）",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-2 溶剂型代表产品：TDI 三聚体、TDI/TMP 加成物、HDI 三聚体（NCO 8%–13%）。英文 HDI trimer 为行业标准写法。（讲义中文「HDI 三聚体」；英文 HDI trimer 为行业标准写法）"
+    },
+    "TDI trimer": {
+      "section": "2.1 三大溶解体系（表 2.1-2）",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-2：溶剂型代表产品 TDI 三聚体；P168 配方表亦用 TDI 三聚体提高官能度/内聚强度。（讲义中文「TDI 三聚体」）"
+    },
+    "TDI/TMP adduct": {
+      "section": "2.1 三大溶解体系（表 2.1-2）",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-2：溶剂型代表产品含 TDI/TMP 加成物（NCO 8%–13%）。加成物英文标准说法为 adduct。（讲义中文「TDI/TMP 加成物」）"
+    },
+    "blocked isocyanate": {
+      "section": "2.1 三大溶解体系 · 封闭型",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 表 2.1-2：封闭型用苯酚封闭、MEKO 封闭、己内酰胺封闭，常温稳定，高温解封释放 −NCO。英文 blocked isocyanate 为行业标准对应词（讲义只写中文「封闭型」）。"
+    },
+    "deblocking temperature": {
+      "section": "2.3 封闭型固化剂解封温度参考（表 2.1-4）",
+      "page": 164,
+      "enInLecture": false,
+      "note": "P164 小节标题「2.3 封闭型固化剂解封温度参考」及表 2.1-4；英文 deblocking temperature 为行业标准对应词。"
+    },
+    "polyisocyanate": {
+      "section": "2.1 配方化学：A/B 组分与固化剂（表 2.1-1）",
+      "page": 163,
+      "enInLecture": false,
+      "note": "P163 表 2.1-1：固化剂化学本质=多异氰酸酯（TDI/HDI/IPDI 三聚体等）；英文 polyisocyanate 为行业标准对应词。"
+    },
+    "curing mechanism": {
+      "section": "2.3 固化机理：三段速度与低温固化不足",
+      "page": 180,
+      "enInLecture": false,
+      "note": "P180 小节标题「2.3 固化机理」；P181 图 2.3 拆为润湿→化学交联→扩散控制三段。英文 curing mechanism 为行业标准对应词。"
+    },
+    "moisture-cure adhesive": {
+      "section": "2.3 固化机理 · 四、单组份：水是反应物",
+      "page": 182,
+      "enInLecture": false,
+      "note": "P182：单组份体系水是反应物（1 个水分子净消耗 2 个 NCO），需算水当量账；P1 封面产品线含「湿固化」。英文 moisture-cure adhesive 为行业标准对应词。"
+    },
+    "low-temperature curing": {
+      "section": "2.3 固化机理：三段速度与低温固化不足",
+      "page": 183,
+      "enInLecture": false,
+      "note": "P183：低温会让反应变慢，但配比错误时延长放置也补不回来；P181 给出每降 10℃ 速率减半的经验值。英文 low-temperature curing 为行业标准对应词。"
+    },
+    "gel time": {
+      "section": "2.3 固化机理 · 三、双组份前段交联控制",
+      "page": 182,
+      "enInLecture": false,
+      "note": "P182：前段 NCO–OH 变慢 → 凝胶时间延长；选型判据用「10℃ 与 25℃ 凝胶时间比值」判断温度敏感性。"
+    },
+    "tack-free time": {
+      "section": "2.3 固化机理 · 表 2.3-1",
+      "page": 181,
+      "enInLecture": false,
+      "note": "P181 表 2.3-1：表干＝表面失粘（指触不粘、棉球不拉丝），分钟～小时；英文 tack-free time 为行业标准对应词。"
+    },
+    "bio-based polyol": {
+      "section": "2.2 多元醇品种体系 · 四、植物油基多元醇",
+      "page": 176,
+      "enInLecture": false,
+      "note": "P176「四、植物油基多元醇（7 种）」；P177 判据：想上生物基先共混 20–30% 掺入现有体系，而非直接替换主剂。"
+    },
+    "modified polyol": {
+      "section": "2.2 多元醇品种体系 · 五、改性多元醇",
+      "page": 177,
+      "enInLecture": false,
+      "note": "P177「五、改性多元醇（5 种）」：有机硅/含氟/阻燃/亲水/环氧基团接枝；例：环氧改性多元醇环氧值 ≥0.2 eq/100g。"
+    },
+    "specialty polyol": {
+      "section": "2.2 多元醇品种体系 · 六、特种多元醇",
+      "page": 178,
+      "enInLecture": false,
+      "note": "P178「六、特种多元醇（3 种）」：低 VOC 低气味（VOC ≤20 ppm、气味等级 ≤2.5）、高耐热（>180℃）、超快干（伯羟基 ≥90%）。"
+    },
+    "adipic acid": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": true,
+      "note": "P205 原料树：聚酯多元醇原料＝己二酸（Adipic Acid）+ 二元醇（EG/DEG/BG/HD）。"
+    },
+    "ethylene glycol": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": false,
+      "note": "P205 原料树：二元醇含 EG（乙二醇）；P75 也提到缩聚用乙二醇（EG）。（讲义用 EG（乙二醇）缩写）"
+    },
+    "propylene oxide": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": false,
+      "note": "P205 原料树：聚醚多元醇原料＝环氧丙烷（PO）/环氧乙烷（EO）+ 起始剂；P186 聚醚型 PU 由环氧丙烷开环聚合。（讲义用 PO（环氧丙烷）缩写）"
+    },
+    "ethylene oxide": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树",
+      "page": 205,
+      "enInLecture": false,
+      "note": "P205 原料树：EO（环氧乙烷）与 PO 一起作为聚醚多元醇原料；P208 多元醇产业链亦提。（讲义用 EO（环氧乙烷）缩写）"
+    },
+    "molecular weight": {
+      "section": "3.2 关键结构参数怎么读（表 2.1-7）",
+      "page": 166,
+      "enInLecture": false,
+      "note": "P166：分子量（Mn）↑→柔韧性↑、初粘↑、耐热↓；冷冻/耐折叠选高 Mn，蒸煮/耐热选中低 Mn。英文 molecular weight 为行业标准对应词。"
+    },
+    "functionality": {
+      "section": "3.2 关键结构参数怎么读（表 2.1-7）",
+      "page": 166,
+      "enInLecture": false,
+      "note": "P166：官能度↑→交联密度↑、耐热↑、柔韧↓；P230 指出耐蒸煮胶主剂/固化剂官能度一般大于 2。"
+    },
+    "equivalent weight": {
+      "section": "5.3 主剂:固化剂配比逻辑（核心数学）",
+      "page": 169,
+      "enInLecture": false,
+      "note": "P169：配比本质是 NCO/OH 当量比 r；给出 W_B 计算公式（羟值/56100 × r × 4200 / NCO%）。英文 equivalent weight 为行业标准对应词。"
+    },
+    "epoxy value": {
+      "section": "2.2 多元醇品种体系 · 五、改性多元醇（表 2.2-6）",
+      "page": 177,
+      "enInLecture": false,
+      "note": "P177 表 2.2-6 #47 环氧改性：环氧值 ≥0.2 eq/100g。⚠️ P173 原文自标待核：「把环氧值 eq/100g 与官能度混列——环氧基≠羟基，环氧值是交联当量参数」。（讲义写「环氧值 eq/100g」，未出现英文词组）"
+    },
+    "stoichiometric ratio": {
+      "section": "5.3 主剂:固化剂配比逻辑（核心数学）",
+      "page": 169,
+      "enInLecture": false,
+      "note": "P169：配比第二层是化学计量逻辑，NCO/OH 当量比 r 通常 1.0–1.2；配比偏差 ±5% 内安全，超出会固化不完全或交联过度。"
+    },
+    "high-solid adhesive": {
+      "section": "2.6 正向胶 vs 反向胶（溶剂型两大路线）",
+      "page": 211,
+      "enInLecture": false,
+      "note": "P211 原文：「国际语境下对应常规溶剂型 vs 高固含快固型（high-solid / fast-cure）路线」；P39 也提高固含量胶黏剂 35–40%。（讲义英文只出现 high-solid / fast-cure 两个词，非完整词组）"
+    },
+    "softening point": {
+      "section": "5.x 印刷-胶水故障 · 油墨连接料",
+      "page": 43,
+      "enInLecture": false,
+      "note": "P43：蒸煮后脱墨/褪色 → 连接料热塑性树脂软化点或 Tg 偏低。英文 softening point 为行业标准对应词。"
+    },
+    "crosslinking density": {
+      "section": "2.8 耐高温蒸煮粘合剂设计原理 · 2.2.3 交联密度",
+      "page": 230,
+      "enInLecture": false,
+      "note": "P230「2.2.3 交联密度」：耐高温蒸煮胶主剂与固化剂官能度一般 >2，提供适度交联提高耐温；P122/125 内容物风险表也要求高交联密度。"
+    },
+    "microphase separation": {
+      "section": "2.8 耐高温蒸煮粘合剂设计原理 · 2.2.2 微相分离",
+      "page": 229,
+      "enInLecture": false,
+      "note": "P229「2.2.2 微相分离」：PU 是软段/硬段嵌段共聚物，软段 Tg 低于室温、硬段形成微区；P230 用两相形态学解释性能。"
+    },
+    "cohesive energy": {
+      "section": "2.8 · 2.2.1 基团的内聚能",
+      "page": 229,
+      "enInLecture": false,
+      "note": "P229「2.2.1 基团的内聚能」：内聚能越大结晶度越高、耐温越好；酯基（−COO−）内聚能是醚基（−C−O−C−）的三倍（P226）。"
+    },
+    "hydrolysis resistance": {
+      "section": "2.8 · 2.2.4 高温耐水解性和高温抗氧化降解性能",
+      "page": 230,
+      "enInLecture": false,
+      "note": "P230「2.2.4 高温耐水解性」；P186 聚酯型 vs 聚醚型：聚醚醚键耐水解更优；P123 蒸煮级要求耐水解+耐高温。"
+    },
+    "coupling agent": {
+      "section": "2.5 上游原料产业链 · 5.2 偶联剂",
+      "page": 209,
+      "enInLecture": false,
+      "note": "P209「5.2 偶联剂」：硅烷偶联剂用于铝箔/玻璃纸底涂提升湿态粘接力；P102 铝箔表面致密 Al₂O₃ 需偶联剂底涂（anchor coating）。"
+    },
+    "silane coupling agent": {
+      "section": "2.5 上游原料产业链 · 5.2 偶联剂",
+      "page": 209,
+      "enInLecture": false,
+      "note": "P209 表 2.5-10：硅烷偶联剂用于铝箔/玻璃纸底涂，提升湿态粘接力；P168 配方例：硅烷偶联剂与金属表面 −OH 缩合。"
+    },
+    "crosslinker": {
+      "section": "2.4 复膜胶选型理论 · 芳香胺迁移改进路径",
+      "page": 203,
+      "enInLecture": false,
+      "note": "P203：降低芳香胺迁移的改进路径之一是「改变交联剂品种/密度」；英文 crosslinker 为行业标准对应词（与已收 crosslinking 为「反应 vs 交联剂」两个概念）。"
+    },
+    "tackifier": {
+      "section": "13.4 热熔胶 · 组成",
+      "page": 297,
+      "enInLecture": false,
+      "note": "P297 热熔胶组成：增黏树脂、稀释剂、防老剂及填料；P96 镀铝前基膜可底涂增黏树脂、P43 提到初粘树脂过量。英文 tackifier 为行业标准对应词。"
+    },
+    "defoamer": {
+      "section": "13.3 冷封胶 · 助剂",
+      "page": 296,
+      "enInLecture": false,
+      "note": "P296 冷封胶组成含消泡剂；P350 油墨气泡对策：添加专用消泡剂（不可滥用）；P177 有机硅改性聚醚用途列消泡剂。"
+    },
+    "plasticizer": {
+      "section": "1.7 · 6.4 PU 复膜胶专项要求（DOA）",
+      "page": 114,
+      "enInLecture": false,
+      "note": "P114：己二酸二辛酯（DOA）为增塑剂，SML = 18 mg/kg，注明增塑剂迁移风险；P61/P74/P76 讲薄膜/涂布树脂需增塑剂。"
+    },
+    "monomer": {
+      "section": "1.3 薄膜材料性能与选型接口 · 残留单体",
+      "page": 74,
+      "enInLecture": false,
+      "note": "P74：残留偏氯乙烯单体有害；P78：PAN 残留单体须 <0.1%；P212：反向胶游离单体相对较多（PAA 风险）。讲义以中文「单体」出现，英文 monomer 为行业标准对应词。"
+    },
+    "oligomer": {
+      "section": "2.8 耐高温蒸煮粘合剂设计原理 · 2.2.2 微相分离",
+      "page": 229,
+      "enInLecture": false,
+      "note": "P229：软段为聚酯/聚醚/聚烯烃等低聚物链段；P75：PET 析出低聚物倾向小；P539：析出物含低聚物。讲义以中文「低聚物」出现，英文 oligomer 为行业标准对应词。"
+    },
+    "hydrolysis stabilizer": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树（助剂）",
+      "page": 205,
+      "enInLecture": false,
+      "note": "P205 原料树「助剂/添加剂」：偶联剂、催化剂、抗氧剂/抗水解剂；P212 提到抗水解多元醇/异氰酸酯结构。讲义以中文「抗水解剂」出现，英文 hydrolysis stabilizer 为行业标准对应词。"
+    },
+    "antioxidant": {
+      "section": "2.5 上游原料产业链 · 1.1 核心原料树（助剂）",
+      "page": 205,
+      "enInLecture": false,
+      "note": "P205 原料树「助剂」：抗氧剂/抗水解剂；P76 纤维素薄膜配抗氧剂；P212 内置抗氧剂消耗氧化性物质；P297 热熔胶抗氧剂。讲义以中文「抗氧剂」出现，英文 antioxidant 为行业标准对应词。"
+    }
+  }
+}

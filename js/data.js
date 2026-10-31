@@ -982,7 +982,92 @@ const FTE_DATA = {
         { w: "die-cut", ipa: "/ˈdaɪ kʌt/", pos: "adj.", cn: "模切", ex: "The die-cut handles are punched out in one step.", exCn: "模切提手一次冲压成型。" },
         { w: "perforation", ipa: "/ˌpɜːrfəˈreɪʃn/", pos: "n.", cn: "打孔；易撕线", ex: "Perforation makes the tear line easy to tear.", exCn: "打孔形成易撕线便于撕开。" },
         { w: "slitting", ipa: "/ˈslɪtɪŋ/", pos: "n.", cn: "分切", ex: "Slitting cuts the wide roll into narrower widths.", exCn: "分切把宽幅卷切成较窄宽度。" },
-        { w: "slitter", ipa: "/ˈslɪtər/", pos: "n.", cn: "分切机", ex: "The slitter rewinds the film on new cores.", exCn: "分切机把膜复卷到新纸芯上。" }
+        { w: "slitter", ipa: "/ˈslɪtər/", pos: "n.", cn: "分切机", ex: "The slitter rewinds the film on new cores.", exCn: "分切机把膜复卷到新纸芯上。" },
+        /* ===== 复膜胶产业链补充（依据《复膜胶系统学习资料 v3.1 完整讲义》2026-10-27 增补 30 条）=====
+           顺序：上游化学 → 复合工艺 → 检测指标 → 材料/结构 → 合规趋势。
+           IPA 已按站内 GA 口径逐条复核（对齐既有 polyol / isocyanate / ratio / heat-seal / BOPP 的写法）。 */
+        /* 上游化学：多元醇 / 异氰酸酯 / 交联体系 */
+        { w: "polyester polyol", ipa: "/ˌpɑːliˈestər ˈpɑːliɔːl/", pos: "n.", cn: "聚酯多元醇", ex: "Polyester polyols give stronger adhesion to PET and aluminum foil than polyether polyols.", exCn: "聚酯多元醇对 PET 和铝箔的粘接力比聚醚多元醇更强。" },
+        { w: "polyether polyol", ipa: "/ˌpɑːliˈiːθər ˈpɑːliɔːl/", pos: "n.", cn: "聚醚多元醇", ex: "Polyether polyols keep the laminate flexible at low temperature but offer lower peel strength.", exCn: "聚醚多元醇让复合膜在低温下更柔韧，但剥离强度较低。" },
+        { w: "TDI", ipa: "/ˌtiː diː ˈaɪ/", pos: "n.", cn: "甲苯二异氰酸酯", ex: "Residual TDI in the cured adhesive must stay within the migration limit.", exCn: "熟化后胶层中残留的 TDI 必须控制在迁移限量以内。" },
+        { w: "crosslinking", ipa: "/ˈkrɔːslɪŋkɪŋ/", pos: "n.", cn: "交联（反应）", ex: "A higher crosslinking density improves heat resistance but makes the film stiffer.", exCn: "交联密度越高耐热性越好，但膜会更硬。" },
+        { w: "NCO content", ipa: "/ˌen siː ˈoʊ ˈkɑːntent/", pos: "n.", cn: "NCO 含量（异氰酸酯含量）", ex: "Please confirm the NCO content of component B in the TDS.", exCn: "请在 TDS 里确认 B 组分的 NCO 含量。" },
+        { w: "hydroxyl value", ipa: "/haɪˈdrɑːksɪl ˈvæljuː/", pos: "n.", cn: "羟值", ex: "The hydroxyl value decides how much curing agent you need to add.", exCn: "羟值决定固化剂要加多少。" },
+        { w: "acid value", ipa: "/ˈæsɪd ˈvæljuː/", pos: "n.", cn: "酸值", ex: "A higher acid value accelerates curing but shortens the pot life.", exCn: "酸值越高固化越快，但适用期会缩短。" },
+        { w: "chain extender", ipa: "/ˈtʃeɪn ɪkˈstendər/", pos: "n.", cn: "扩链剂", ex: "A chain extender raises molecular weight and improves cohesion.", exCn: "扩链剂提高分子量，改善内聚强度。" },
+        { w: "glass transition temperature", ipa: "/ɡlæs trænˈzɪʃn ˈtemprətʃər/", pos: "n.", cn: "玻璃化转变温度（Tg）", ex: "The glass transition temperature tells you how the adhesive behaves at low temperature.", exCn: "玻璃化转变温度决定胶水在低温下的表现。" },
+        { w: "aromatic isocyanate", ipa: "/ˌærəˈmætɪk ˌaɪsoʊˈsaɪəneɪt/", pos: "n.", cn: "芳香族异氰酸酯", ex: "Aromatic isocyanates are cheaper but tend to yellow in sunlight.", exCn: "芳香族异氰酸酯更便宜，但见光易黄变。" },
+        { w: "aliphatic isocyanate", ipa: "/ˌæləˈfætɪk ˌaɪsoʊˈsaɪəneɪt/", pos: "n.", cn: "脂肪族异氰酸酯", ex: "Aliphatic isocyanates resist yellowing, so they are used in clear laminates.", exCn: "脂肪族异氰酸酯抗黄变，用于透明复合结构。" },
+        /* 复合工艺：涂布 / 转移 / 冷却 */
+        { w: "gravure coating", ipa: "/ɡrəˈvjʊr ˈkoʊtɪŋ/", pos: "n.", cn: "凹版涂布", ex: "Gravure coating gives a very even adhesive layer at high line speed.", exCn: "凹版涂布在高速下也能得到很均匀的胶层。" },
+        { w: "chill roll", ipa: "/tʃɪl roʊl/", pos: "n.", cn: "冷却辊", ex: "Check the chill roll temperature before you raise the line speed.", exCn: "提高线速前先确认冷却辊温度。" },
+        /* 检测指标：剥离 / 热封 / 摩擦 */
+        { w: "T-peel", ipa: "/ˈtiː piːl/", pos: "n.", cn: "T 型剥离（试验）", ex: "We ran a T-peel test on the PET/PE laminate after 48 hours of curing.", exCn: "熟化 48 小时后，我们对 PET/PE 复合膜做了 T 型剥离测试。" },
+        { w: "COF", ipa: "/ˌsiː oʊ ˈef/", pos: "n.", cn: "摩擦系数（coefficient of friction）", ex: "The COF on the outer layer must be low enough for smooth filling.", exCn: "外层摩擦系数要足够低，灌装才顺畅。" },
+        /* 材料 / 结构：蒸煮膜、单向拉伸、镀铝与氧化蒸镀 */
+        { w: "RCPP", ipa: "/ˌɑːr siː piː ˈpiː/", pos: "n.", cn: "蒸煮级流延聚丙烯", ex: "RCPP is the standard sealant for retort pouches at 121 °C.", exCn: "RCPP 是 121℃ 蒸煮袋的标准热封层。" },
+        { w: "MDOPE", ipa: "/ˌem diː oʊ piː ˈiː/", pos: "n.", cn: "单向拉伸聚乙烯", ex: "MDOPE helps a mono-PE structure meet both stiffness and recyclability targets.", exCn: "MDOPE 让单一 PE 结构同时满足挺度与可回收要求。" },
+        { w: "metBOPP", ipa: "/met ˌbiː oʊ piː ˈpiː/", pos: "n.", cn: "镀铝双向拉伸聚丙烯", ex: "metBOPP gives a bright barrier layer at a fraction of the cost of aluminum foil.", exCn: "镀铝 BOPP 以远低于铝箔的成本提供亮面阻隔层。" },
+        { w: "AlOx", ipa: "/ˌeɪ el ˈɑːks/", pos: "n.", cn: "氧化铝蒸镀层", ex: "AlOx coating stays transparent and is safe for microwave use.", exCn: "氧化铝蒸镀层保持透明，可用于微波加热。" },
+        { w: "SiOx", ipa: "/ˌes aɪ ˈɑːks/", pos: "n.", cn: "氧化硅蒸镀层", ex: "SiOx coating offers better retort resistance than AlOx in some structures.", exCn: "在某些结构里，氧化硅蒸镀层的耐蒸煮性优于氧化铝。" },
+        /* 合规与趋势：迁移 / 双酚 A / 包装法规 / 可回收 */
+        { w: "PAA", ipa: "/ˌpiː eɪ ˈeɪ/", pos: "n.", cn: "伯芳香胺（primary aromatic amine）", ex: "PAA must not be detectable in food-contact laminates after curing.", exCn: "食品接触复合膜熟化后不得检出伯芳香胺。" },
+        { w: "BPA", ipa: "/ˌbiː piː ˈeɪ/", pos: "n.", cn: "双酚 A", ex: "Our adhesives are BPA-free and meet EU 2018/213.", exCn: "我们的胶水不含双酚 A，符合 EU 2018/213。" },
+        { w: "PPWR", ipa: "/ˌpiː piː ˌdʌbəljuː ˈɑːr/", pos: "n.", cn: "欧盟包装与包装废弃物法规", ex: "PPWR is pushing brand owners toward mono-material packaging.", exCn: "PPWR 正推动品牌方转向单一材质包装。" },
+        { w: "mono-material", ipa: "/ˈmɑːnoʊ məˈtɪriəl/", pos: "n.", cn: "单一材质（结构）", ex: "Mono-material structures are easier to recycle but harder to laminate.", exCn: "单一材质结构更好回收，但复合难度更高。" },
+        { w: "recyclability", ipa: "/ˌriːsaɪkləˈbɪləti/", pos: "n.", cn: "可回收性", ex: "Recyclability is now a selection criterion, not a nice-to-have.", exCn: "可回收性现在是选材标准，不再是加分项。" },
+        { w: "specific migration limit", ipa: "/spəˈsɪfɪk maɪˈɡreɪʃn ˈlɪmɪt/", pos: "n.", cn: "特定迁移限量（SML）", ex: "The specific migration limit for the additive is 0.05 mg/kg.", exCn: "该添加剂的特定迁移限量是 0.05 mg/kg。" },
+        /* ===== 复膜胶产业链词汇 · A 批（+37，上游原料与化学，依据《复膜胶系统学习资料 v3.1 完整讲义》2026-10-27）=====
+           顺序：异氰酸酯体系 → 多元醇/原料 → 结构参数 → 固化机理/耐热 → 助剂。
+           每条依据与页码见 tools/vocab-lam-sources.json（不随站点发布，仅审计用）。 */
+        /* —— 异氰酸酯固化剂体系 —— */
+        { w: "HDI", ipa: "/ˌeɪtʃ diː ˈaɪ/", pos: "n.", cn: "六亚甲基二异氰酸酯（脂肪族，耐黄变）", ex: "HDI-based curing agents are chosen when the laminate must not yellow.", exCn: "要求复合膜不黄变时，会选用 HDI 体系的固化剂。" },
+        { w: "IPDI", ipa: "/ˌaɪ piː diː ˈaɪ/", pos: "n.", cn: "异佛尔酮二异氰酸酯（脂肪族）", ex: "IPDI is used in retort adhesives where colour and heat resistance both matter.", exCn: "既要求颜色稳定又要求耐蒸煮的胶粘剂会用 IPDI。" },
+        { w: "HDI trimer", ipa: "/ˌeɪtʃ diː ˈaɪ ˈtraɪmər/", pos: "n.", cn: "HDI 三聚体", ex: "An HDI trimer is a common aliphatic curing agent for non-yellowing laminates.", exCn: "HDI 三聚体是耐黄变复合膜常用的脂肪族固化剂。" },
+        { w: "TDI trimer", ipa: "/ˌtiː diː ˈaɪ ˈtraɪmər/", pos: "n.", cn: "TDI 三聚体", ex: "TDI trimers are the workhorse curing agents for general solvent-based lamination.", exCn: "TDI 三聚体是通用溶剂型复合的主流固化剂。" },
+        { w: "TDI/TMP adduct", ipa: "/ˌtiː diː ˈaɪ ˌtiː em ˈpiː ˈædʌkt/", pos: "n.", cn: "TDI/TMP 加成物", ex: "A TDI/TMP adduct is a classic solvent-based curing agent with an NCO content of about 8–13%.", exCn: "TDI/TMP 加成物是经典的溶剂型固化剂，NCO 含量约 8–13%。" },
+        { w: "blocked isocyanate", ipa: "/blɑːkt ˌaɪsoʊˈsaɪəneɪt/", pos: "n.", cn: "封闭型异氰酸酯", ex: "A blocked isocyanate stays stable at room temperature and releases NCO only when heated.", exCn: "封闭型异氰酸酯常温稳定，只有加热时才释放 NCO。" },
+        { w: "deblocking temperature", ipa: "/diːˈblɑːkɪŋ ˈtemprətʃər/", pos: "n.", cn: "解封温度", ex: "Check the deblocking temperature before you choose a blocked curing agent.", exCn: "选用封闭型固化剂前先确认它的解封温度。" },
+        { w: "polyisocyanate", ipa: "/ˌpɑːliˌaɪsoʊˈsaɪəneɪt/", pos: "n.", cn: "多异氰酸酯", ex: "The B component is a polyisocyanate; its NCO content decides the mixing ratio.", exCn: "B 组分是多异氰酸酯，它的 NCO 含量决定配比。" },
+        /* —— 固化机理 —— */
+        { w: "curing mechanism", ipa: "/ˈkjʊrɪŋ ˈmekənɪzəm/", pos: "n.", cn: "固化机理", ex: "The curing mechanism has three stages: wetting, chemical crosslinking and diffusion control.", exCn: "固化机理分三段：润湿、化学交联和扩散控制。" },
+        { w: "moisture-cure adhesive", ipa: "/ˈmɔɪstʃər kjʊr ədˈhiːsɪv/", pos: "n.", cn: "湿固化胶粘剂（单组分）", ex: "A moisture-cure adhesive reacts with water in the film, so control the substrate moisture before coating.", exCn: "湿固化胶会与薄膜中的水分反应，涂布前要控制基材含水率。" },
+        { w: "low-temperature curing", ipa: "/ˌloʊ ˈtemprətʃər ˈkjʊrɪŋ/", pos: "n.", cn: "低温固化", ex: "In winter the reaction slows down; adding more curing agent will not fix a wrong ratio.", exCn: "冬季反应会变慢，但多加固化剂救不了配比错误。" },
+        { w: "gel time", ipa: "/dʒel taɪm/", pos: "n.", cn: "凝胶时间", ex: "Compare the gel time at 10 °C and 25 °C to judge the temperature sensitivity of a curing agent.", exCn: "对比 10 ℃ 与 25 ℃ 的凝胶时间，判断固化剂的温度敏感性。" },
+        { w: "tack-free time", ipa: "/tæk friː taɪm/", pos: "n.", cn: "表干时间（表面失粘时间）", ex: "Tack-free time is when the surface no longer sticks to a cotton ball.", exCn: "表干时间就是表面不再粘棉球的时间。" },
+        /* —— 多元醇与上游原料 —— */
+        { w: "bio-based polyol", ipa: "/ˌbaɪoʊ beɪst ˈpɑːliɔːl/", pos: "n.", cn: "生物基多元醇", ex: "Start with 20–30% bio-based polyol in the existing system instead of replacing the whole main agent.", exCn: "先在现有体系里掺入 20–30% 生物基多元醇，而不是直接替换整个主剂。" },
+        { w: "modified polyol", ipa: "/ˈmɑːdɪfaɪd ˈpɑːliɔːl/", pos: "n.", cn: "改性多元醇", ex: "Epoxy-modified polyols are used to raise adhesion and heat resistance.", exCn: "环氧改性多元醇用于提高粘接力和耐热性。" },
+        { w: "specialty polyol", ipa: "/ˈspeʃəlti ˈpɑːliɔːl/", pos: "n.", cn: "特种多元醇", ex: "Low-VOC specialty polyols are used for food-contact and low-odour adhesives.", exCn: "低 VOC 特种多元醇用于食品接触和低气味胶粘剂。" },
+        { w: "adipic acid", ipa: "/əˈdɪpɪk ˈæsɪd/", pos: "n.", cn: "己二酸", ex: "Adipic acid reacts with diols to make the polyester polyol used in laminating adhesives.", exCn: "己二酸与二元醇缩聚，制成复膜胶用的聚酯多元醇。" },
+        { w: "ethylene glycol", ipa: "/ˈeθəliːn ˈɡlaɪkɔːl/", pos: "n.", cn: "乙二醇（EG）", ex: "Ethylene glycol is one of the diols used to adjust the polyester backbone.", exCn: "乙二醇是用来调整聚酯骨架的二元醇之一。" },
+        { w: "propylene oxide", ipa: "/ˈproʊpəliːn ˈɑːksaɪd/", pos: "n.", cn: "环氧丙烷（PO）", ex: "Propylene oxide is the main raw material for polyether polyols.", exCn: "环氧丙烷是聚醚多元醇的主要原料。" },
+        { w: "ethylene oxide", ipa: "/ˈeθəliːn ˈɑːksaɪd/", pos: "n.", cn: "环氧乙烷（EO）", ex: "Ethylene oxide is used with propylene oxide to build polyether chains.", exCn: "环氧乙烷与环氧丙烷一起用于构建聚醚链段。" },
+        /* —— 单体与低聚物 —— */
+        { w: "monomer", ipa: "/ˈmɑːnəmər/", pos: "n.", cn: "单体", ex: "Residual vinyl chloride monomer in PVC film must stay below the food-contact limit.", exCn: "食品接触用 PVC 薄膜中的残留氯乙烯单体必须低于限量。" },
+        { w: "oligomer", ipa: "/əˈlɪɡəmər/", pos: "n.", cn: "低聚物；寡聚物", ex: "Low-molecular-weight oligomers may migrate to the film surface and affect adhesion.", exCn: "低分子量低聚物可能迁移到薄膜表面，影响粘接。" },
+        /* —— 结构参数与配比 —— */
+        { w: "molecular weight", ipa: "/məˈlekjələr weɪt/", pos: "n.", cn: "分子量", ex: "Higher molecular weight improves flexibility and green tack but lowers heat resistance.", exCn: "分子量越高，柔韧性和初粘越好，但耐热性下降。" },
+        { w: "functionality", ipa: "/ˌfʌŋkʃəˈnæləti/", pos: "n.", cn: "官能度", ex: "Higher functionality raises crosslinking density and heat resistance but reduces flexibility.", exCn: "官能度越高，交联密度和耐热性越好，但柔韧性下降。" },
+        { w: "equivalent weight", ipa: "/ɪˈkwɪvələnt weɪt/", pos: "n.", cn: "当量（反应当量）", ex: "Calculate the curing agent weight from the hydroxyl value, equivalent weight and NCO/OH ratio.", exCn: "用羟值、当量和 NCO/OH 配比计算固化剂用量。" },
+        { w: "epoxy value", ipa: "/ɪˈpɑːksi ˈvæljuː/", pos: "n.", cn: "环氧值（eq/100g）", ex: "The epoxy value in eq/100g tells you the crosslinking equivalent of an epoxy-modified polyol.", exCn: "环氧值（eq/100g）表示环氧改性多元醇的交联当量。" },
+        { w: "stoichiometric ratio", ipa: "/ˌstɔɪkiəˈmetrɪk ˈreɪʃioʊ/", pos: "n.", cn: "化学计量比（NCO/OH 当量比 r）", ex: "Keep the stoichiometric ratio r between 1.0 and 1.2; a 5% deviation can leave the film under-cured.", exCn: "化学计量比 r 通常控制在 1.0–1.2；偏差超过 5% 可能导致固化不完全。" },
+        /* —— 配方体系 / 耐热设计 —— */
+        { w: "high-solid adhesive", ipa: "/ˌhaɪ ˈsɑːlɪd ədˈhiːsɪv/", pos: "n.", cn: "高固含胶粘剂", ex: "A high-solid adhesive cuts solvent use but needs tighter coating control.", exCn: "高固含胶粘剂能减少溶剂使用，但对涂布控制要求更高。" },
+        { w: "softening point", ipa: "/ˈsɔːfnɪŋ pɔɪnt/", pos: "n.", cn: "软化点", ex: "A low softening point in the ink resin can reduce heat resistance and cause blocking.", exCn: "油墨树脂软化点偏低会降低耐热性并引起粘连。" },
+        { w: "crosslinking density", ipa: "/ˈkrɔːslɪŋkɪŋ ˈdensəti/", pos: "n.", cn: "交联密度", ex: "Higher crosslinking density improves heat and chemical resistance but makes the film stiffer.", exCn: "交联密度越高，耐热和耐化学性越好，但膜会更硬。" },
+        { w: "microphase separation", ipa: "/ˌmaɪkroʊfeɪz ˌsepəˈreɪʃn/", pos: "n.", cn: "微相分离", ex: "Microphase separation of soft and hard segments controls both flexibility and heat resistance.", exCn: "软段与硬段的微相分离同时决定柔韧性和耐热性。" },
+        { w: "cohesive energy", ipa: "/koʊˈhiːsɪv ˈenərdʒi/", pos: "n.", cn: "内聚能", ex: "Polar groups with high cohesive energy raise the strength and heat resistance of the cured adhesive.", exCn: "高内聚能的极性基团能提高固化后胶层的强度和耐热性。" },
+        { w: "hydrolysis resistance", ipa: "/haɪˈdrɑːləsɪs rɪˈzɪstəns/", pos: "n.", cn: "耐水解性", ex: "Retort adhesives need hydrolysis resistance; polyether polyols resist hydrolysis better than polyester ones.", exCn: "蒸煮胶需要耐水解性；聚醚多元醇比聚酯更耐水解。" },
+        /* —— 助剂 —— */
+        { w: "coupling agent", ipa: "/ˈkʌplɪŋ ˈeɪdʒənt/", pos: "n.", cn: "偶联剂", ex: "A coupling agent improves adhesion to aluminium foil.", exCn: "偶联剂能改善对铝箔的粘接。" },
+        { w: "silane coupling agent", ipa: "/ˈsaɪleɪn ˈkʌplɪŋ ˈeɪdʒənt/", pos: "n.", cn: "硅烷偶联剂", ex: "A silane coupling agent is used as an anchor coating on aluminium foil to improve wet adhesion.", exCn: "硅烷偶联剂用作铝箔底涂，提高湿态粘接力。" },
+        { w: "crosslinker", ipa: "/ˈkrɔːslɪŋkər/", pos: "n.", cn: "交联剂", ex: "Changing the crosslinker type or density can reduce amine migration.", exCn: "改变交联剂品种或密度可以降低芳香胺迁移。" },
+        { w: "tackifier", ipa: "/ˈtækɪfaɪər/", pos: "n.", cn: "增黏树脂", ex: "A tackifier raises initial tack but may reduce heat resistance.", exCn: "增黏树脂能提高初粘，但可能降低耐热性。" },
+        { w: "defoamer", ipa: "/diːˈfoʊmər/", pos: "n.", cn: "消泡剂", ex: "A defoamer is added to prevent bubbles in the adhesive or ink.", exCn: "加入消泡剂可以防止胶水或油墨中产生气泡。" },
+        { w: "plasticizer", ipa: "/ˈplæstɪsaɪzər/", pos: "n.", cn: "增塑剂", ex: "Plasticizers can migrate into the adhesive and lower bond strength; DOA has an SML of 18 mg/kg.", exCn: "增塑剂会迁移进胶层降低粘接强度；DOA 的特定迁移限量为 18 mg/kg。" },
+        { w: "hydrolysis stabilizer", ipa: "/haɪˈdrɑːləsɪs ˈsteɪbəlaɪzər/", pos: "n.", cn: "抗水解剂", ex: "A hydrolysis stabilizer protects the adhesive in retort and high-humidity applications.", exCn: "抗水解剂保护胶层在蒸煮和高湿环境下不降解。" },
+        { w: "antioxidant", ipa: "/ˌæntiˈɑːksɪdənt/", pos: "n.", cn: "抗氧剂；抗氧化剂", ex: "An antioxidant slows thermal oxidation of the adhesive during high-temperature retorting.", exCn: "抗氧剂能减缓胶层在高温蒸煮过程中的热氧化。" }
       ],
       phrases: [
         { p: "check the peel strength", cn: "检测剥离强度", ex: "Check the peel strength after 24 hours of curing.", exCn: "熟化 24 小时后检测剥离强度。" },

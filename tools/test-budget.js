@@ -89,11 +89,21 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        本门禁只量"外壳"。音频由播放器写进独立桶 fte-earpack-v1，首访一个字节都不多下；
        sw.js 的 NO_CACHE_RE 同时把 audio/ 排除在外壳桶之外（防止播放时顺手写进外壳桶）。
      · **biggestGzKB 不升**：app.js 只加了路由与 _need 一行，实测 gzip 116,137B（113.42KB），仍在 114KB 内。
-     · 余量 2KB（实测 787KB / 789KB）；其余两条上限不放松。 */
+     · 余量 2KB（实测 787KB / 789KB）；其余两条上限不放松。
+   内容批 A（2026-10-31）第八次上调：gzTotalKB 793 → 796（+3KB，约 +0.4%），理由如下：
+     · 本批是**内容批 A**：U11 +67 条产业链词汇（首批 30 + 上游原料与化学 37；复核后删 3 条与站内近义
+       重复 + 1 条依据不符，补 monomer / oligomer / hydrolysis stabilizer / antioxidant 4 条，仍为 67 条），
+       六字段齐全、例句为商务/技术语境；js/data.js gzip **+6.4KB（53,020 → 59,489B）**。
+       本门禁口径**实测 794.07KB（813,129B）**，796KB = 实测 + 约 2KB 容差（约 0.25%）——**超过即红**；
+       下一批（B/C）若还要动这条上限，必须重新报实测、重新拍板。
+     · **不新增脚本/请求**：subResources 仍 59、PRECACHE 仍 67 条；biggestGzKB 仍 114（app.js 113.68KB 未动）。
+     · 为什么值得花：A 批补的是复膜胶配方/原料层最常被客户与供应商问到的术语（异氰酸酯体系、多元醇、
+       单体/低聚物、结构参数、固化机理、助剂），内容类体积按站点纪律只能跟着涨，但只涨在 data.js 一个文件里。
+     · 余量 2KB（实测 794.07KB / 796KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 59,      // 实测 59（58 脚本 + 1 样式表；任务2 新增 js/earplay.js）
-  gzTotalKB: 789,        // 实测 787KB（任务2：磨耳朵播放器 +6.8KB gzip；音频不进本预算）
-  biggestGzKB: 114       // 实测 app.js 113KB（未动；音频与播放器都不塞进 app.js）
+  subResources: 59,      // 实测 59（58 脚本 + 1 样式表；本批未新增脚本）
+  gzTotalKB: 796,        // 实测 794.07KB（内容批 A：U11 +67 条词，data.js gzip +6.4KB）
+  biggestGzKB: 114       // 实测 app.js 113.68KB（未动）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,
