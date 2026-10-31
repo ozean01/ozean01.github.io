@@ -16,14 +16,20 @@
         缺失即在控制台醒目报错（而不是静默坏掉），便于定位加载顺序耦合问题。 ---- */
   var _missing = [];
   function _need(name, ok) { if (!ok) _missing.push(name); }
-  var _unitsOk = (typeof FTE_DATA !== "undefined" && FTE_DATA && FTE_DATA.units) ? FTE_DATA.units.length : 0;
+  /* 按「单元 id 是否真的存在」逐个点名（P1-3 修正）：原来用 `units.length >= N` 的累计阈值判断，
+     前面某个 data-*.js 缺失会把后面所有阈值一起拖红，横幅就可能点错模块（实测拦掉 data-ops.js
+     却报「U19 会议/汇报」）。逐单元判断才能把横幅点名到真正缺失的那个文件。 */
+  var _unitIds = (typeof FTE_DATA !== "undefined" && FTE_DATA && FTE_DATA.units)
+    ? FTE_DATA.units.map(function (u) { return Number(u.id); }) : [];
+  function _hasUnit(n) { return _unitIds.indexOf(n) !== -1; }
   _need("课程数据 data.js", typeof FTE_DATA !== "undefined" && !!FTE_DATA);
-  _need("U12 单证 data-ops.js", _unitsOk >= 12);
-  _need("U13 海运 data-ocean.js", _unitsOk >= 13);
-  _need("U14 Incoterms data-incoterms.js", _unitsOk >= 14);
-  _need("U15 收汇 data-settle.js", _unitsOk >= 15);
-  _need("U18 合规/客诉 data-deep.js", _unitsOk >= 18);
-  _need("U19 会议/汇报 data-meeting.js", _unitsOk >= 19);
+  _need("U12 单证 data-ops.js", _hasUnit(12));
+  _need("U13 海运 data-ocean.js", _hasUnit(13));
+  _need("U14 Incoterms data-incoterms.js", _hasUnit(14));
+  _need("U15 收汇 data-settle.js", _hasUnit(15));
+  _need("U16 合同风险 data-risk.js", _hasUnit(16));
+  _need("U17-18 技术/合规 data-deep.js", _hasUnit(17) && _hasUnit(18));
+  _need("U19 会议/汇报 data-meeting.js", _hasUnit(19));
   _need("易错点 data-mistakes.js", !!window.FTE_MISTAKES);
   _need("助记 data-mnemonic.js", !!window.FTE_MEMO);
   _need("难度标定 difficulty-map.js", !!window.FTE_DIFF);

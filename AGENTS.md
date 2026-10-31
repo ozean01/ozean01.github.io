@@ -92,7 +92,7 @@ node tools/prepush-check.js   # 发布前：工作区干净 + CACHE 已升版 + 
 按顺序做，顺序不能反：
 
 1. 改内容；
-2. `sw.js` 的 `CACHE` 数字 +1（`fte-v136` → `fte-v137`），PRECACHE 清单若变化也同步增删；
+2. `sw.js` 的 `CACHE` 数字 +1（`fte-v137` → `fte-v138`），PRECACHE 清单若变化也同步增删；
 3. `tools/precache-baseline.json` 的 `cache` / `minVersion` 同步（清单集合变了才需要改 `sha256` / `count`）；
 4. `js/pwa-init.js` 的 `FTE_VERSION` 与 `package.json` 的 `version` **逐字一致**地升；
 5. `README.md`（若数字/功能变了）与 `CHANGELOG.md`（给用户的变化）同步；

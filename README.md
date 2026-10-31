@@ -134,13 +134,13 @@ python -m http.server 8000
 4. 单一原子提交 + 打 tag + 推送（本仓库远端名为 `ghio`）：
    ```bash
    git add -A
-   git commit -m "release: v1.21.0（fte-v137）"
-   git tag v1.21.0
+   git commit -m "release: v1.22.0（fte-v138）"
+   git tag v1.22.0
    git push ghio main --tags
    ```
 5. 等 Actions 的 `Deploy to GitHub Pages` 变绿，再核验线上（不核验等于没发布）：
    ```bash
-   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v137"'
+   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v138"'
    curl -fsS -o NUL -w "%{http_code}\n" https://ozean01.github.io/
    ```
    出现新 `CACHE` 且首页 200 才算发布成功。
@@ -1638,4 +1638,7 @@ index.html / app.js / player.js / eval4.js / storage-keys.js 里的全部接线�
 - **长列表性能**：术语速查 324 条与 SOP 27 步已改为**分批渲染**（首屏先画一批，其余分帧追加），术语卡事件也改为整页委托；课程 19 卡本身不大。虚拟列表未做——它会改变搜索/滚动行为，收益有限。
 - **磨耳朵音频包的取舍**：100 句是「泛听起步量」，不是全站语料；音频由 `tools/build-audio-pack.js` 调腾讯云 TTS 预生成（`tools/audio-source.json` 决定句子与来源 key，单句 ≤500 字符），产物 `audio/<id>.mp3` + `audio/manifest.json` 进仓库。**Key 只走环境变量 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`（以及 `TENCENT_TTS_VOICE` 1051 女 / 1050 男），绝不写进仓库与页面**；重新生成：设好环境变量后 `node tools/build-audio-pack.js`（已生成的会跳过，失败自动重试）。音频**不参与**体积预算与 SW 预缓存：首访一个字节都不多下，只有用户点「下载整包」才写进独立缓存桶 `fte-earpack-v1`。暂时没做的：播放进度/上次听到哪一句不落盘（避免新增存储键），睡眠定时与倍速是会话内状态。
 - **js/app.js 体积**：约 5600 行 / 330KB，gzip 已贴 114KB 上限（`tools/test-budget.js` 的棘轮）。2026-10-31 任务3 时**删掉了文件头那份整体漂移约 2000 行的分区索引注释**（审计 P2-3：行号全错，反而误导定位），gzip 回落到 113.4KB；找函数请用关键字检索，别再维护行号索引。下次往 app.js 加代码前必须先减负（注释/死代码），不再抬 `biggestGzKB` 上限。
+- **更新与离线的取舍**：SW 的 install 用 `addAll`「全有或全无」——任一条预缓存失败就整次安装失败、旧版本与旧缓存桶原样保留（不会把「能离线」更成「不能离线」）；失败时还会删掉本次新建的空桶。新版本装好后**不自动接管**，停在 waiting，等用户点「🔄 已下载新版本 · 立即刷新」才 `skipWaiting` + reload，避免「旧页面 + 新脚本」错位。首访预缓存走 `cache:"no-cache"`（304 校验，不重复下载同一批资源）；音频不进外壳桶（见上一条）。
+- **缺脚本的取舍**：48+ 个脚本任何一个加载失败，`app.js` 的 `_need` 会把缺失模块写进 `window.FTE_BOOT_FAILED`，`pwa-init` 在页面顶部挂一条**非白屏横幅**点名「部分模块未加载：X」并提供重新加载；页面其余功能与学习数据照常可用（不会整页白屏，也不会静默少功能）。
+- **hero 装饰层的取舍**：右侧「复合薄膜」层叠框纯装饰；**≤1023px 直接隐藏**（没有横向走廊，任何位置都会压住标签/按钮矩形），**≥1024px 才显示**并给 hero 右侧留 260px 走廊，保证与 `.hero-tags` / `.hero-cta` 矩形相交为 0（`tools/test-p1-hardening.js` + CDP 四宽度实测守着）。
 - **分享网速**：GitHub Pages 国内访问受网络环境影响，本站无法控制；需要更稳入口时按 README 方案 B 用 Cloudflare Pages。

@@ -171,8 +171,8 @@ setTimeout(function () {
     const sw = read("sw.js");
     const base = JSON.parse(read("tools/precache-baseline.json"));
     /* 本条是「CACHE 版本 ↔ 预缓存基线」的批次同步快照：每次升 CACHE 的批次随本批同步到当时版本
-       （任务1 → fte-v135；任务3（2026-10-31）→ fte-v136；任务2（2026-10-31）→ fte-v137，因 PRECACHE 新增 js/earplay.js）。 */
-    check("sw.js CACHE 与 precache 基线同步（任务2 批次：fte-v137）", /const CACHE = "fte-v137"/.test(sw) && base.cache === "fte-v137" && base.minVersion === 137);
+       （任务1 → fte-v135；任务3 → fte-v136；任务2 → fte-v137；P1 体验修正批（2026-10-31）→ fte-v138，清单不变只升版）。 */
+    check("sw.js CACHE 与 precache 基线同步（P1 体验修正批：fte-v138）", /const CACHE = "fte-v138"/.test(sw) && base.cache === "fte-v138" && base.minVersion === 138);
 
     console.log(pass ? "\n=== P20 全部通过 ===" : "\n=== P20 有断言失败 ===");
     process.exit(pass ? 0 : 1);

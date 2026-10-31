@@ -1995,6 +1995,16 @@ mark{background:#fde68a;border-radius:3px;padding:0 2px}
 .hero .hero-sub .linklike{color:#fff;text-decoration-color:rgba(255,255,255,.55)}
 /* ≤720px 隐藏右侧装饰层：它与引导句抢横向空间，窄屏下还会压字 */
 @media (max-width:720px){.hero .hero-layers{display:none}}
+/* P1-4（2026-10-31 体验修正批）：721–1023px 同样没有横向走廊，装饰层会压住 .hero-tags/.hero-cta 的矩形
+   （CDP 实测 768 宽：与 tags 相交 13,325 px²、与 cta 6,530 px²）——这一档也隐藏，不在文字下面放半透明框。 */
+@media (max-width:1023px){.hero .hero-layers{display:none}}
+/* ≥1024px：给右侧装饰层留一条独立走廊（padding-right 260 = 层宽 200 + right 28 + 32 余量）。
+   关键点：.hero-tags / .hero-cta 是块级 flex 容器，矩形宽度 = 内容盒宽度，只要装饰层落在内容的右边距里，
+   四个宽度的「矩形相交」都恒为 0（CDP 实测 375/430/768/1280 均为 0 px²）。 */
+@media (min-width:1024px){
+  .hero{padding-right:260px}
+  .hero .hero-layers{display:block;right:28px;opacity:.5}
+}
 .linklike{background:none;border:none;padding:0;font:inherit;color:var(--primary-text);font-weight:700;cursor:pointer;
           text-decoration:underline;text-underline-offset:3px}
 .linklike:hover{color:var(--primary-2)}

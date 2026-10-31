@@ -11,7 +11,17 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v137";   /* ★ 任务2（2026-10-31）：磨耳朵播放器（#/earplay）：
+const CACHE = "fte-v138";   /* ★ P1 体验修正批（2026-10-31）：四项审计收口（不新增功能）：
+                             · SW 更新原子性：install 改 addAll 全有或全无（v107 已做），本批补「失败时删掉本次空桶」；
+                               预缓存请求 cache:"no-cache"（v107 已做，本批补门禁）；不自动 skipWaiting；
+                             · 首访不重复下载：no-cache 走 304 校验（v107 已做，本批补门禁）；
+                             · 缺脚本不静默：app.js 写 FTE_BOOT_FAILED，pwa-init 挂非白屏横幅点名（v113 已做，本批补门禁）；
+                             · hero 可读性：引导句白系 92%（对比度 1.60:1 → 7.66:1）；装饰层 ≤1023px 隐藏、
+                               ≥1024px 留 260px 走廊，与 hero-tags/hero-cta 矩形相交 0（CDP 四宽度实测）。
+                             PRECACHE 清单不变（67 条，只改内容），按纪律升版并刷新基线。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v137 · 任务2（2026-10-31）：磨耳朵播放器（#/earplay）：
                              · 新增 js/earplay.js：播放队列 / 单句循环 / 整包循环 / 0.8–1.2 倍速 /
                                睡眠定时（15-30-60 分钟）/ Media Session（锁屏播放/暂停/上一句/下一句/停止/快进快退）；
                              · 整包离线：100 个预生成 mp3 下载进**独立缓存桶** fte-earpack-v1，
@@ -24,6 +34,14 @@ const CACHE = "fte-v137";   /* ★ 任务2（2026-10-31）：磨耳朵播放器�
 
                              —— 更早批次（历史记录，仍有效）——
                              fte-v136 · 任务3（2026-10-31）：查词 / 阅读高亮 / bookmarklet：
+                             · 新增 js/lookup.js：投料口全文精读（已学词 / 词库命中未学两种高亮，
+                               点词出小卡：朗读 / 复制 / 加入单词卡 / 标记已会 / 无需再提示）；
+                               正文按段分批渲染（每批 40 段），长文不卡主线程；
+                             · 新增 #/lookup 查词页（bookmarklet 从任意网页带 ?w= 跳入；未命中给复制 +
+                               AI 解释，走既有 Tutor.callChat + FACT_GUARD + AIDisclosure）；
+                             · 新增 2 个存储键：fte-lookup-pref-v1（进备份）/ fte-lookup-miss-v1（不进备份）；
+                             · material.js 挂载阅读区与「查词」入口；css 增 .rd-* 与词卡样式。
+                             PRECACHE 清单 65 → 66 条（+js/lookup.js），先升 CACHE 再刷新基线。
 
                              —— 更早批次（历史记录，仍有效）——
                              fte-v135 · 任务1（2026-10-31）：一页纸速查小抄（#/cheatsheet）：
@@ -287,6 +305,11 @@ self.addEventListener("install", function (e) {
       return c.addAll(PRECACHE.map(function (url) {
         return new Request(url, { cache: "no-cache" });
       }));
+    }).catch(function (err) {
+      /* P1-1 补强（2026-10-31 体验修正批）：addAll 失败时本次 CACHE 桶可能已经被 caches.open 创建
+         （空桶或半桶），这里显式删掉再抛出，确保「旧 SW + 旧缓存桶」原样保留，
+         不给下一次排查留下一个空的新版本桶（也少吃一份存储配额）。 */
+      return caches.delete(CACHE).then(function () { throw err; });
     })
     /* 不再自动 skipWaiting（P1-1）：新外壳装好后停在 waiting，由页面提示条
        「🔄 已下载新版本 · 立即刷新」触发（postMessage "skip-waiting"）。
