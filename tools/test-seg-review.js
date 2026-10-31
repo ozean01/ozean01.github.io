@@ -204,7 +204,7 @@ check("index.html 已加载 js/seg-review.js（defer，且在 app.js 之前）",
   html.indexOf("js/seg-review.js") < html.indexOf("js/app.js"));
 check("sw.js PRECACHE 已含 ./js/seg-review.js", /"\.\/js\/seg-review\.js"/.test(sw));
 const preBlock = (sw.match(/const PRECACHE = \[([\s\S]*?)\];/) || [])[1] || "";
-check("PRECACHE 条数 = 65（任务1 +cheatsheet.js；P11 基线 64）", (preBlock.match(/"[^"]+"/g) || []).length === 65,
+check("PRECACHE 条数 = 66（任务3 +lookup.js；任务1 +cheatsheet.js；P11 基线 64）", (preBlock.match(/"[^"]+"/g) || []).length === 66,
   "n=" + (preBlock.match(/"[^"]+"/g) || []).length);
 const cache = (sw.match(/const CACHE = "([^"]+)"/) || [])[1];
 check("CACHE 版本已升到 ≥ fte-v130（清单变了必须换缓存桶）",

@@ -170,7 +170,9 @@ setTimeout(function () {
 
     const sw = read("sw.js");
     const base = JSON.parse(read("tools/precache-baseline.json"));
-    check("sw.js CACHE 与 precache 基线同步（任务1 批次：fte-v135）", /const CACHE = "fte-v135"/.test(sw) && base.cache === "fte-v135" && base.minVersion === 135);
+    /* 本条是「CACHE 版本 ↔ 预缓存基线」的批次同步快照：每次升 CACHE 的批次随本批同步到当时版本
+       （任务1 → fte-v135；任务3（2026-10-31）→ fte-v136，因 PRECACHE 新增 js/lookup.js）。 */
+    check("sw.js CACHE 与 precache 基线同步（任务3 批次：fte-v136）", /const CACHE = "fte-v136"/.test(sw) && base.cache === "fte-v136" && base.minVersion === 136);
 
     console.log(pass ? "\n=== P20 全部通过 ===" : "\n=== P20 有断言失败 ===");
     process.exit(pass ? 0 : 1);

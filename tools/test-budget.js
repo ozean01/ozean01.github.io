@@ -62,11 +62,24 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · 为什么不能塞进 app.js：它要读 SOP._t / FTE_MAIL / 单元词条例句，塞进 app.js 会让「来源解析+
        打印版式」与 app.js 的渲染主循环耦合；独立文件也让 tools/test-cheatsheet.js 能在最小桩环境单独加载。
      · PRECACHE 64 → 65 条（+js/cheatsheet.js），请求数 +1；最大单文件仍是 app.js（114KB，未动 biggestGzKB）。
-     · 余量 2KB（实测 770KB / 772KB）；其余两条上限不放松。 */
+     · 余量 2KB（实测 770KB / 772KB）；其余两条上限不放松。
+   任务3（2026-10-31）第五次上调：subResources 57 → 58、gzTotalKB 772 → 782（+10KB，约 +1.3%），理由如下：
+     · 本批是**功能批**：新增 1 个脚本 js/lookup.js（投料口全文精读高亮 + 点词小卡 + #/lookup 查词页 +
+       bookmarklet 落点，实测 raw 25,459B / gzip 9,325B ≈ 9.1KB），另有接线与样式约 1KB
+       （css/style.css +566B、material.js +299B、app.js 挂载 +118B、storage-keys.js +142B、index.html +98B）。
+       本门禁口径实测 **779KB**（797,988B），782KB 是 2KB 容差（约 0.26%）——**超过即红**；
+       下一批若还要动这条上限，必须重新拍板。
+     · 为什么不能塞进 app.js：高亮要复用 material.js 的抓取结果与词库命中，还要能被
+       tools/test-reader-highlight.js 在最小桩环境单独加载（词边界/已学优先/esc 注入/批大小四条断言）；
+       塞进 346KB 的 app.js 既加不动体积，也测不了。
+     · **biggestGzKB 不升**：本批没往 app.js 加净体积，反而删掉了文件头那份已漂移约 2000 行的
+       分区索引注释（审计 P2-3），app.js 实测 gzip 116,088B（113.37KB）回到 114KB 内；
+       今后 app.js 再贴线，先减负（注释/死代码）再说，不要再抬这条。
+     · 余量 2KB（实测 779KB / 782KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 57,      // 实测 57（56 脚本 + 1 样式表；任务1 新增 js/cheatsheet.js）
-  gzTotalKB: 772,        // 实测 770KB（任务1：一页纸速查小抄，+6KB gzip）
-  biggestGzKB: 114       // 实测 app.js 114KB
+  subResources: 58,      // 实测 58（57 脚本 + 1 样式表；任务3 新增 js/lookup.js）
+  gzTotalKB: 782,        // 实测 779KB（任务3：全文精读高亮 + 查词页，+10KB gzip）
+  biggestGzKB: 114       // 实测 app.js 113KB（任务3 删掉漂移的索引注释后回落到 114KB 内）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

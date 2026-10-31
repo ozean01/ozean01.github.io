@@ -442,10 +442,20 @@
 
     ${preview ? '<div class="card" style="margin-top:12px;padding:12px 14px"><div class="chat-head" style="margin-bottom:8px"><span>📄 句子预览</span></div><div class="sub-list">' + preview + "</div></div>" : ""}
 
+    ${(S.parsed && S.raw) ? '<div class="card" style="margin-top:12px;padding:12px 14px"><div class="chat-head" style="margin-bottom:8px"><span>📖 全文精读 · 已学词高亮</span>' +
+      '<a class="btn btn-outline btn-sm" href="#/lookup" style="margin-left:auto" title="查任意单词（含站外选中词跳进来）">🔎 查词</a></div>' +
+      '<div id="matReader"></div></div>' : ""}
+
     <div style="margin-top:12px" id="matAIQ"></div>
     `;
 
     bind();
+    /* 任务3：全文精读（已学词 / 词库命中未学 两种高亮，点词出小卡）。
+       mountReader 内部按段分批渲染（PARA_BATCH=40），长文不卡主线程；
+       纯函数与批大小由 tools/test-reader-highlight.js 直测。 */
+    if (S.parsed && S.raw && window.Lookup && window.Lookup.mountReader) {
+      window.Lookup.mountReader(document.getElementById("matReader"), S.raw);
+    }
     /* P20：读后理解题——投料口此前只有听/说/写三个出口，缺「读完这段材料，你读懂了没有」。
        共用 js/quiz.js 的 QuizAI（生成 → 延迟答案 → 逐题讲错），不新增导航与存储。 */
     if (window.QuizAI) {

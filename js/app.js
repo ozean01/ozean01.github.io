@@ -1,33 +1,12 @@
 /* ============ 软包装外贸英语 · 应用主逻辑 ============ */
 /* ---------------------------------------------------------------------
-   目录（本文件是「路由 + 全部页面渲染器 + 交互」单一编排器，引擎模块已拆分为
-   独立文件：player/parser/flashcards/quiz/listen/eval4/sop/export/
-   sources/subtitle/tutor 等。因全文件为一个闭包(IIFE)，逐函数共享 State/progress/
-   DATA/U()/esc 等私有状态，故「不引入构建工具」下不把本文件再物理拆分，
-   以免破坏 file:// 双击即用与离线 PWA 的零构建属性。以下为分区索引，便于定位。
-
-   [00] 工具 helpers ......... ~8–49    esc/nl2br/hlText/norm/wordOverlap/shuffle
-   [01] 进度 load/save ........ ~51–135  defaultProgress/loadProgress/saveProgress/unit*
-   [02] 全局状态 State ........ ~137–154 当前视图/临时状态对象
-   [03] 搜索索引 .............. ~155–199  buildIndex/queryIndex
-   [04] Toast 提示 ............ ~201–215
-   [05] 头部状态 .............. ~217–222  updateHeaderStat
-   [06] 路由 parseHash/renderRoute ~223–283  含 setNavActive
-   [07] 首页 Home 渲染器 ...... ~284–752   学习路径/掌握度/SOP横幅/FSRS保持率/高频词/
-                                            周回顾/三Tab分流/单元卡/功能亮点/四维概览
-   [08] 单元页 renderUnit ...... ~754–975   词汇/短语/对话/技巧/词级难度标注
-   [09] 难度·水平自测 ......... ~961–1172  renderPlacement 及推荐/阶段
-   [10] 词汇/对话共享渲染 ...... ~1174–1215 wordRowHtml/dialogueCardHtml
-   [11] 播放 Player 助手 ...... ~1217–1334 playWord/playSentence/playDialogue
-   [12] 单词卡 Flash .......... ~1355–1546  setup/会话/评分评级(FSRS 四档)
-   [13] 测验 Quiz ............. ~1548–1765  五题型/句块重排/结果
-   [14] 听说 Speak ............ ~1767–2224  五阶段闯关/逐句评测(识别)/录音波形
-   [15] 听写 Dict ............ ~2251–2321
-   [16] 搜索页 renderSearch ... ~2323–2649
-   [17] 头部搜索 + 听写回车 .... ~2650–2780
-   [18] 打卡/时长/连续天数 ..... ~2761–3204  coach* 计时/热力图/徽章/周报
-   [19] 设置 setupSettings .... ~3205–3297  发音引擎/评测来源/数据导出
-   [20] 启动 + 首次上手导流 .... ~3299–3427
+   本文件是「路由 + 全部页面渲染器 + 交互」单一编排器，引擎模块（player/parser/
+   flashcards/quiz/listen/eval4/sop/export/sources/subtitle/tutor 等）已拆成独立文件。
+   全文件为一个 IIFE，函数间共享 State/progress/DATA/U()/esc 等私有状态，故在
+   「零构建」前提下不再物理拆分（保住 file:// 双击即用与离线 PWA）。
+   说明（2026-10-31 清理，审计 P2-3）：原先按行号维护的分区索引已整体漂移约 2000 行，
+   会误导定位，已删除；找函数请用关键字检索（如 function renderHome / renderUnit /
+   parseHash / renderRoute / setupSettings），不要依赖行号。文件已近体积上限，加代码前先减负。
    --------------------------------------------------------------------- */
 (function () {
   "use strict";
@@ -619,6 +598,16 @@
     const h = location.hash.replace(/^#\/?/, "");
     const parts = h.split("/").filter(Boolean);
     if (!parts.length) return { view: "home" };
+    /* 任务3：查词路由 #/lookup?w=<词>（bookmarklet 从任意网页跳进来；站内投料口也有入口）。
+       query 在 hash 里，不能用 parts[0] 精确匹配，先单独解析。 */
+    if (/^lookup(?:\?|$)/.test(h)) {
+      let w = "";
+      const qi = h.indexOf("?");
+      if (qi >= 0) {
+        try { w = new URLSearchParams(h.slice(qi + 1)).get("w") || ""; } catch (e) { w = ""; }
+      }
+      return { view: "lookup", w: w };
+    }
     if (parts[0] === "unit" && parts[1]) return { view: "unit", id: parseInt(parts[1], 10) };
     if (parts[0] === "search") return { view: "search", q: decodeURIComponent(parts.slice(1).join("/")) };
     /* P11：段级复听深链 #/speak/<单元>-<对话序号>（同一个「听说训练」页，只是预选到期段，
@@ -630,7 +619,7 @@
        先于普通路由处理，解析成「合并页 + 对应 tab」，表现与 #/<页>/<tab> 完全一致 */
     if (MERGED_ALIAS[parts[0]]) return { view: MERGED_ALIAS[parts[0]].page, tab: MERGED_ALIAS[parts[0]].tab };
     if (MERGED_PAGES[parts[0]]) return { view: parts[0], tab: parts[1] || MERGED_PAGES[parts[0]].tabs[0].k };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary", "cheatsheet"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary", "cheatsheet", "lookup"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -685,6 +674,7 @@
       else if (route.view === "sources") window.Sources.render();
       else if (route.view === "glossary") window.Glossary.render();
       else if (route.view === "cheatsheet") window.Cheatsheet.render();
+      else if (route.view === "lookup") window.Lookup.render(route);
       else if (route.view === "mysay") window.MySay.render();
       else if (route.view === "write") window.WriteStudio.render();
       else if (route.view === "patterns") window.Patterns.render();

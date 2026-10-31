@@ -11,13 +11,24 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v135";   /* ★ 任务1（2026-10-31）：一页纸速查小抄（#/cheatsheet）：
+const CACHE = "fte-v136";   /* ★ 任务3（2026-10-31）：查词 / 阅读高亮 / bookmarklet：
+                             · 新增 js/lookup.js：投料口全文精读（已学词 / 词库命中未学两种高亮，
+                               点词出小卡：朗读 / 复制 / 加入单词卡 / 标记已会 / 无需再提示）；
+                               正文按段分批渲染（每批 40 段），长文不卡主线程；
+                             · 新增 #/lookup 查词页（bookmarklet 从任意网页带 ?w= 跳入；未命中给复制 +
+                               AI 解释，走既有 Tutor.callChat + FACT_GUARD + AIDisclosure）；
+                             · 新增 2 个存储键：fte-lookup-pref-v1（进备份）/ fte-lookup-miss-v1（不进备份）；
+                             · material.js 挂载阅读区与「查词」入口；css 增 .rd-* 与词卡样式。
+                             PRECACHE 清单 65 → 66 条（+js/lookup.js），先升 CACHE 再刷新基线。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v135 · 任务1（2026-10-31）：一页纸速查小抄（#/cheatsheet）：
                              · 新增 js/cheatsheet.js（只重排既有语料的「来源 key → 整句」，不新造内容）：
                                SOP 客户动作句 / 催款话术、真实来信的正确回信范句、单元词条例句，
                                按 7 阶段编排，可筛选/朗读/复制/打印（A4 黑白、按阶段分页）；
                              · index.html 挂在 app.js 之前；入口在「实操 SOP」页顶部按钮（一级导航不变，仍 6 项）；
                              · css/style.css：.cs-* 版式 + @media print；无新增存储键、无新增 AI 调用点。
-                             PRECACHE 清单 64 → 65 条（+js/cheatsheet.js），先升 CACHE 再刷新基线。
+                             PRECACHE 清单 64 → 65 条（+js/cheatsheet.js）。
 
                              —— 更早批次（历史记录，仍有效）——
                              fte-v134 · P20（2026-10-30）：外部素材评估的落地批（AI 周测 + 投料口 AI 理解题 + AGENTS.md）：
@@ -256,6 +267,7 @@ const PRECACHE = [
   "./js/outcomes.js",
   "./js/entry-trace.js",
   "./js/cheatsheet.js",
+  "./js/lookup.js",
   "./js/app.js"
 ];
 

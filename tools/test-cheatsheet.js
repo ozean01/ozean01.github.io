@@ -44,7 +44,9 @@ check("index.html 无可执行内联 <script>（严格 CSP；JSON-LD 非可执�
 check("cheatsheet.js 无内联事件处理器（onclick= 等）", !/\son[a-z]+\s*=/i.test(csjs));
 
 /* ---------- 路由接线 ---------- */
-check("app.js 路由白名单含 cheatsheet", /"glossary",\s*"cheatsheet"\]/.test(appjs) || /"cheatsheet"\]\.indexOf/.test(appjs));
+/* 任务3（2026-10-31）：白名单尾部追加了 "lookup"，原断言把 "cheatsheet"] 钉成数组结尾会误伤；
+   改成「白名单数组里含 cheatsheet」这一事实本身（不放松：仍要求它出现在 .indexOf(parts[0]) 的白名单数组内）。 */
+check("app.js 路由白名单含 cheatsheet", /\["units",[^\]]*"cheatsheet"[^\]]*\]\.indexOf\(parts\[0\]\)/.test(appjs));
 check("app.js 有 cheatsheet 渲染分支", /route\.view === "cheatsheet"\) window\.Cheatsheet\.render\(\)/.test(appjs));
 
 /* ---------- 预缓存 / 版本 ---------- */

@@ -65,7 +65,8 @@ const RENDER_POINTS = [
   { id: "eval4-fourdim",      file: "js/eval4.js",  fn: "resultFourDimHtml",  what: "四维口语实战：四维总分卡" },
   { id: "speech-result",      file: "js/speech.js", fn: "resultCardHtml",     what: "自由表达分析：语法/表达反馈卡" },
   { id: "quiz-write-ai",      file: "js/app.js",    fn: "writeAi",            what: "测验写作的「AI 润色/批改」出口" },
-  { id: "quiz-ai-result",     file: "js/quiz.js",   fn: "aiqResultHtml",      what: "AI 周测 / 投料口理解题的逐题讲错结果（P20：只作练习，不计成绩/不作为能力证据）" }
+  { id: "quiz-ai-result",     file: "js/quiz.js",   fn: "aiqResultHtml",      what: "AI 周测 / 投料口理解题的逐题讲错结果（P20：只作练习，不计成绩/不作为能力证据）" },
+  { id: "lookup-ai-card",     file: "js/lookup.js", fn: "aiCardHtml",         what: "查词页未命中词的 AI 解释（任务3：只作练习，不写盘；走 callChat + FACT_GUARD + 披露）" }
 ];
 
 /* =======================================================================
@@ -79,12 +80,16 @@ const BASELINE = {
        eval4/speech/tutor 的原 transport 实现改为 LLM.chat/probe 薄委托——
        本基线随之刷新（--dump-baseline 输出）。提示词组装点（call:system）数量与归属未变。
        P20（2026-10-30）：新增 js/quiz.js 一处 call:system（AI 周测 / 投料口理解题共用），
-       提示词经 aiqSystem() → aiqFactGuard() → window.Tutor.FACT_GUARD 解析到事实守卫。 */
-    "js/app.js:3442:call:system",
+       提示词经 aiqSystem() → aiqFactGuard() → window.Tutor.FACT_GUARD 解析到事实守卫。
+       任务3（2026-10-31）：新增 js/lookup.js 一处 call:system（查词页未命中词的 AI 解释；
+       系统提示词后无条件拼 window.Tutor.FACT_GUARD，未加载时用逐字等价的降级副本；
+       渲染出口 aiCardHtml 接 window.AIDisclosure.html）。app.js 行号因删注释而位移，不算漂移。 */
+    "js/app.js:3433:call:system",
     "js/eval4.js:162:call:def",
     "js/eval4.js:181:call:system",
     "js/llm.js:46:fetch:probe",
     "js/llm.js:76:fetch:probe",
+    "js/lookup.js:437:call:system",
     "js/mysay.js:188:call:system",
     "js/quiz.js:346:call:system",
     "js/speech.js:140:call:def",

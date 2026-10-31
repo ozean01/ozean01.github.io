@@ -2376,3 +2376,33 @@ a.brand{padding-top:6px;padding-bottom:6px}
   a{color:#000!important;text-decoration:none!important}
   .cs-stage-h{border-color:#000}
 }
+
+/* ============ 🔎 查词 / 阅读高亮 / bookmarklet（任务3）============ */
+.rd-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.rd-sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.rd-sw.rd-learned{background:var(--ok-soft,#dcfce7);border:1px solid var(--ok,#16a34a)}
+.rd-sw.rd-vocab{background:var(--primary-soft,#e0e7ff);border:1px solid var(--primary,#2563eb)}
+.rd-word{position:relative;background:transparent;border:0;padding:0 1px;font:inherit;cursor:pointer;color:inherit;border-radius:4px;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.rd-word.rd-learned{background:var(--ok-soft,#dcfce7);color:var(--ok-text,#14532d);text-decoration-color:var(--ok,#16a34a)}
+.rd-word.rd-vocab{background:var(--primary-soft,#e0e7ff);color:var(--primary-text,#1e3a8a);text-decoration-color:var(--primary,#2563eb)}
+.rd-p{margin:0 0 10px;line-height:1.85;font-size:14px;color:var(--ink)}
+.rd-card-pop{position:absolute;z-index:60;width:320px;max-width:calc(100% - 16px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px}
+.rd-cardpage .rd-card-in{max-width:560px}
+.rd-card-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.rd-card-h b{font-size:16px}
+.rd-ipa{color:var(--muted);font-family:var(--mono)}
+.rd-src{font-size:11.5px;color:var(--muted);margin-left:auto}
+.rd-cn{font-size:13.5px;line-height:1.6}
+.rd-ex{margin-top:6px;font-size:13px;color:var(--text-strong)}
+.rd-exc{font-size:12.5px;color:var(--muted)}
+.rd-ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.rd-hint{font-size:12px;color:var(--muted)}
+.rd-foot{font-size:12px;color:var(--muted);margin-top:6px}
+.rd-bm summary{cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;list-style:none}
+.rd-bm summary::-webkit-details-marker{display:none}
+.rd-bm-steps{margin:10px 0 8px;padding-left:20px;font-size:13px;line-height:1.8}
+.rd-bm-code{display:block;max-height:120px;overflow:auto;background:var(--surface-2,#f1f5f9);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11.5px;word-break:break-all}
+.rd-ai-out{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.rd-ai-body{font-size:13px;line-height:1.7}
+.rd-ai-note{font-size:11.5px;color:var(--muted);margin-top:6px}
+@media (max-width:640px){.rd-card-pop{position:fixed;left:8px!important;right:8px;bottom:8px;top:auto!important;width:auto}}

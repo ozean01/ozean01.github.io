@@ -65,6 +65,8 @@
       { key: "fte-trace-v1", kind: "progress", owner: "entry-trace.js", backup: false, note: "入口离开/主线进入的只读行为记录" },
       { key: "fte-trace-off", kind: "pref", owner: "entry-trace.js", backup: true, note: "行为记录开关（关闭标记）" },
       { key: "fte-backup-hint-v1", kind: "pref", owner: "pwa-init.js", backup: false, note: "备份提醒的下次出现时间（「以后再说」推迟 14 天；纯 UI 状态，不进备份）" },
+      { key: "fte-lookup-pref-v1", kind: "pref", owner: "lookup.js", backup: true, note: "查词/阅读高亮偏好：只看已学开关、无需再提示的词（偏好类，进备份）" },
+      { key: "fte-lookup-miss-v1", kind: "cache", owner: "lookup.js", backup: false, note: "未命中词的本地痕迹（最多 50 条，可清空）；临时查词痕迹不是学习资产，不进备份" },
       { key: "fte-tutor-cfg", kind: "secret", owner: "tutor.js / eval4.js / speech.js", backup: false, note: "AI 陪练服务商配置，含 API Key —— 绝不导出" }
     ]
   };

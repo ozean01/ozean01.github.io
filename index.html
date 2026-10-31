@@ -405,6 +405,9 @@
 <script src="js/glossary.js" defer></script>
 <script src="js/subtitle.js" defer></script>
 <script src="js/material.js" defer></script>
+<!-- 🔎 查词 / 阅读高亮 / bookmarklet（任务3）：投料口正文高亮与 #/lookup 词卡。
+     依赖 material（投料口）与 data*/data-glossary（词库），排在 material 之后、app.js 之前。 -->
+<script src="js/lookup.js" defer></script>
 <!-- 🌐 全英模式（显示偏好）+ 📅 本周新料（每周投料节律）。
      两者都必须排在 app.js 之前：app.js 启动时会对它们做 _need() 完整性校验。
      immerse.js 只往 <html> 上加一个 class，不写任何学习数据；
