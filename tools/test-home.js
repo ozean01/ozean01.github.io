@@ -113,7 +113,8 @@ const REACHABLE = ALIAS_ROUTES.concat(REDIR_ROUTES);
    每条都要有文件级真断言：该文件里存在 href="#/<route>" 的可点链接，不是只写白名单。 */
 const INPAGE_ROUTES = [
   { route: "cheatsheet", file: "js/sop.js", why: "任务1：入口在「实操 SOP」页顶部按钮（2026-10-31）" },
-  { route: "lookup", file: "js/material.js", why: "任务3：入口在「素材投料口」页内「查词」按钮；站外由 bookmarklet 带 ?w= 跳入（2026-10-31）" }
+  { route: "lookup", file: "js/material.js", why: "任务3：入口在「素材投料口」页内「查词」按钮；站外由 bookmarklet 带 ?w= 跳入（2026-10-31）" },
+  { route: "earplay", file: "js/sources.js", why: "任务2：入口在「🎧 真实商务听音源」页内卡片「打开播放器 →」（2026-10-31）" }
 ];
 INPAGE_ROUTES.forEach(function (x) {
   const src = fs.readFileSync(path.join(ROOT, x.file), "utf8");

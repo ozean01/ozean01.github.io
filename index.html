@@ -439,6 +439,10 @@
      依赖 SOP（客户动作句/催款话术）、data-mail（正确回信范句）与单元词条例句，
      必须排在这些模块之后、app.js 之前。 -->
 <script src="js/cheatsheet.js" defer></script>
+<!-- 🎧 磨耳朵播放器（任务2）：只读 audio/manifest.json（预生成 mp3），不依赖其它模块；
+     音频文件**不进 PRECACHE**（见 sw.js 的 NO_CACHE_RE），整包由播放器下载进独立缓存桶。
+     入口在「🎧 真实商务听音源」页内，不新增导航。 -->
+<script src="js/earplay.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>
 </html>

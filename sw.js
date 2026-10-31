@@ -11,15 +11,19 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v136";   /* ★ 任务3（2026-10-31）：查词 / 阅读高亮 / bookmarklet：
-                             · 新增 js/lookup.js：投料口全文精读（已学词 / 词库命中未学两种高亮，
-                               点词出小卡：朗读 / 复制 / 加入单词卡 / 标记已会 / 无需再提示）；
-                               正文按段分批渲染（每批 40 段），长文不卡主线程；
-                             · 新增 #/lookup 查词页（bookmarklet 从任意网页带 ?w= 跳入；未命中给复制 +
-                               AI 解释，走既有 Tutor.callChat + FACT_GUARD + AIDisclosure）；
-                             · 新增 2 个存储键：fte-lookup-pref-v1（进备份）/ fte-lookup-miss-v1（不进备份）；
-                             · material.js 挂载阅读区与「查词」入口；css 增 .rd-* 与词卡样式。
-                             PRECACHE 清单 65 → 66 条（+js/lookup.js），先升 CACHE 再刷新基线。
+const CACHE = "fte-v137";   /* ★ 任务2（2026-10-31）：磨耳朵播放器（#/earplay）：
+                             · 新增 js/earplay.js：播放队列 / 单句循环 / 整包循环 / 0.8–1.2 倍速 /
+                               睡眠定时（15-30-60 分钟）/ Media Session（锁屏播放/暂停/上一句/下一句/停止/快进快退）；
+                             · 整包离线：100 个预生成 mp3 下载进**独立缓存桶** fte-earpack-v1，
+                               播放时优先从该桶取 blob（断网、锁屏都能放），可一键清除；
+                             · **音频不进 PRECACHE**：NO_CACHE_RE 已把 audio/ 排除在外壳桶之外
+                               （mp3 单条 8.6–52.9KB、合计 1.93MB，塞进外壳桶会拖垮首访、抢占 iOS 配额），
+                               外壳桶与音频桶各管一段；
+                             · 入口在「🎧 真实商务听音源」页内，不新增导航；无新增 localStorage 学习键（缓存桶 fte-earpack-v1 按 media/不进备份登记）。
+                             PRECACHE 清单 66 → 67 条（+js/earplay.js），先升 CACHE 再刷新基线。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v136 · 任务3（2026-10-31）：查词 / 阅读高亮 / bookmarklet：
 
                              —— 更早批次（历史记录，仍有效）——
                              fte-v135 · 任务1（2026-10-31）：一页纸速查小抄（#/cheatsheet）：
@@ -268,6 +272,7 @@ const PRECACHE = [
   "./js/entry-trace.js",
   "./js/cheatsheet.js",
   "./js/lookup.js",
+  "./js/earplay.js",
   "./js/app.js"
 ];
 
@@ -319,7 +324,9 @@ self.addEventListener("message", function (e) {
    ⚠️ 大资产如将来确实要离线，请**单独开桶**（例如 fte-assets-vN）并写明淘汰策略，
       不要重新塞回这个桶 —— 那正是本次要修的问题。 */
 const MAX_EXTRA_BYTES = 256 * 1024;                       /* 单条非预缓存资源的体积上限 */
-const NO_CACHE_RE = /^\/(?:js\/vendor\/|models\/)/;       /* 大资产：不进任何外壳桶 */
+const NO_CACHE_RE = /^\/(?:js\/vendor\/|models\/|audio\/)/; /* 大资产：不进任何外壳桶。audio/ 是磨耳朵音频包：
+                                                              它由播放器写进独立桶 fte-earpack-v1（任务2），
+                                                              外壳桶一条都不收（否则首访多下 1.93MB、抢 iOS 配额） */
 
 /* 把 PRECACHE 解析成"绝对 URL 全集"（含 scope 前缀），供 fetch 期做 O(1) 精确判定。
    SW 与站点同源，self.location.href 即 SW 自身地址，相对路径按它解析。 */

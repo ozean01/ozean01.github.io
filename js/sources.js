@@ -382,6 +382,15 @@
       <p style="margin-top:6px;max-width:760px;color:var(--muted)"><b>为什么需要这一页：</b>站内「听」用的是 TTS 合成音（干净标准），先用它热身磨耳朵没问题；但真实母语者的连读、弱读、多国口音只有真人音频才有——外贸天天跟各国客户沟通，这一层必须补上。</p>
     </div>
 
+    <div class="card" style="margin-top:4px;padding:14px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:240px">
+        <b>🎧 磨耳朵播放器（站内离线音频包）</b>
+        <p style="margin:6px 0 0;font-size:13.5px;color:var(--muted)">100 句核心句（U1–U14 词条例句 + SOP 客户动作句/催款话术）已配好 mp3：
+          通勤、走路、做家务都能听，锁屏与耳机可控，整包下载后断网也能听。</p>
+      </div>
+      <a class="btn btn-primary" href="#/earplay">打开播放器 →</a>
+    </div>
+
     <div class="card" style="margin-top:4px;padding:16px 18px">
       <b>🗺 四步听练闭环（每个音源都按这个来）</b>
       <div class="src-methods">${methodHtml}</div>

@@ -1,0 +1,911 @@
+{
+  "note": "任务2 磨耳朵音频包：句子来自 tools/audio-source.json（站内既有语料，未造句）；16kHz mp3；音频不进 SW 的 PRECACHE，整包由播放器用 CacheStorage 离线。",
+  "voice": 1051,
+  "sampleRate": 16000,
+  "codec": "mp3",
+  "generatedAt": "2026-10-31T12:02:49.408Z",
+  "count": 100,
+  "totalBytes": 2019312,
+  "items": [
+    {
+      "id": "u01-trade",
+      "text": "International trade has grown rapidly over the past decade.",
+      "unit": "U1",
+      "source": "vocab:U1.trade",
+      "file": "audio/u01-trade.mp3",
+      "bytes": 16704,
+      "voice": 1051
+    },
+    {
+      "id": "u01-international-trade",
+      "text": "Our company has been engaged in international trade since 2005.",
+      "unit": "U1",
+      "source": "vocab:U1.international trade",
+      "file": "audio/u01-international-trade.mp3",
+      "bytes": 21168,
+      "voice": 1051
+    },
+    {
+      "id": "u01-export",
+      "text": "We mainly export flexible packaging to Europe and North America.",
+      "unit": "U1",
+      "source": "vocab:U1.export",
+      "file": "audio/u01-export.mp3",
+      "bytes": 19440,
+      "voice": 1051
+    },
+    {
+      "id": "u01-importer",
+      "text": "As an importer, we need documents for customs clearance.",
+      "unit": "U1",
+      "source": "vocab:U1.importer",
+      "file": "audio/u01-importer.mp3",
+      "bytes": 17568,
+      "voice": 1051
+    },
+    {
+      "id": "u01-exporter",
+      "text": "The exporter is responsible for packing the goods.",
+      "unit": "U1",
+      "source": "vocab:U1.exporter",
+      "file": "audio/u01-exporter.mp3",
+      "bytes": 14256,
+      "voice": 1051
+    },
+    {
+      "id": "u01-manufacturer",
+      "text": "Our factory is both a manufacturer and an exporter.",
+      "unit": "U1",
+      "source": "vocab:U1.manufacturer",
+      "file": "audio/u01-manufacturer.mp3",
+      "bytes": 15984,
+      "voice": 1051
+    },
+    {
+      "id": "u02-prospect",
+      "text": "The trade fair is a great place to find new prospects.",
+      "unit": "U2",
+      "source": "vocab:U2.prospect",
+      "file": "audio/u02-prospect.mp3",
+      "bytes": 15264,
+      "voice": 1051
+    },
+    {
+      "id": "u02-lead",
+      "text": "We collected 60 leads from the exhibition.",
+      "unit": "U2",
+      "source": "vocab:U2.lead",
+      "file": "audio/u02-lead.mp3",
+      "bytes": 13392,
+      "voice": 1051
+    },
+    {
+      "id": "u02-target-market",
+      "text": "Southeast Asia is our key target market this year.",
+      "unit": "U2",
+      "source": "vocab:U2.target market",
+      "file": "audio/u02-target-market.mp3",
+      "bytes": 14544,
+      "voice": 1051
+    },
+    {
+      "id": "u02-booth",
+      "text": "Welcome to our booth! Feel free to look around.",
+      "unit": "U2",
+      "source": "vocab:U2.booth",
+      "file": "audio/u02-booth.mp3",
+      "bytes": 14976,
+      "voice": 1051
+    },
+    {
+      "id": "u02-brochure",
+      "text": "Please find our brochure with the full product range and latest grades.",
+      "unit": "U2",
+      "source": "vocab:U2.brochure",
+      "file": "audio/u02-brochure.mp3",
+      "bytes": 18720,
+      "voice": 1051
+    },
+    {
+      "id": "u02-catalog",
+      "text": "You can download our catalog from the website.",
+      "unit": "U2",
+      "source": "vocab:U2.catalog",
+      "file": "audio/u02-catalog.mp3",
+      "bytes": 12672,
+      "voice": 1051
+    },
+    {
+      "id": "u03-inquiry",
+      "text": "Thank you for your inquiry dated May 10.",
+      "unit": "U3",
+      "source": "vocab:U3.inquiry",
+      "file": "audio/u03-inquiry.mp3",
+      "bytes": 12672,
+      "voice": 1051
+    },
+    {
+      "id": "u03-rfq",
+      "text": "We sent an RFQ to three different suppliers.",
+      "unit": "U3",
+      "source": "vocab:U3.RFQ",
+      "file": "audio/u03-rfq.mp3",
+      "bytes": 14544,
+      "voice": 1051
+    },
+    {
+      "id": "u03-quote",
+      "text": "Could you quote us your best price for 5,000 pieces?",
+      "unit": "U3",
+      "source": "vocab:U3.quote",
+      "file": "audio/u03-quote.mp3",
+      "bytes": 15840,
+      "voice": 1051
+    },
+    {
+      "id": "u03-unit-price",
+      "text": "The unit price is USD 1.2 FOB Ningbo.",
+      "unit": "U3",
+      "source": "vocab:U3.unit price",
+      "file": "audio/u03-unit-price.mp3",
+      "bytes": 15696,
+      "voice": 1051
+    },
+    {
+      "id": "u03-discount",
+      "text": "We can offer a 5% discount for orders above 5,000 pieces.",
+      "unit": "U3",
+      "source": "vocab:U3.discount",
+      "file": "audio/u03-discount.mp3",
+      "bytes": 24192,
+      "voice": 1051
+    },
+    {
+      "id": "u03-valid",
+      "text": "This quotation is valid until the end of this month.",
+      "unit": "U3",
+      "source": "vocab:U3.valid",
+      "file": "audio/u03-valid.mp3",
+      "bytes": 14832,
+      "voice": 1051
+    },
+    {
+      "id": "u04-attachment",
+      "text": "Please see the attachment for details.",
+      "unit": "U4",
+      "source": "vocab:U4.attachment",
+      "file": "audio/u04-attachment.mp3",
+      "bytes": 10944,
+      "voice": 1051
+    },
+    {
+      "id": "u04-subject-line",
+      "text": "Make your subject line specific and clear.",
+      "unit": "U4",
+      "source": "vocab:U4.subject line",
+      "file": "audio/u04-subject-line.mp3",
+      "bytes": 12240,
+      "voice": 1051
+    },
+    {
+      "id": "u04-recipient",
+      "text": "Check the recipient's name and title before sending.",
+      "unit": "U4",
+      "source": "vocab:U4.recipient",
+      "file": "audio/u04-recipient.mp3",
+      "bytes": 14544,
+      "voice": 1051
+    },
+    {
+      "id": "u04-cc",
+      "text": "Please cc the purchase manager in your reply.",
+      "unit": "U4",
+      "source": "vocab:U4.cc",
+      "file": "audio/u04-cc.mp3",
+      "bytes": 13824,
+      "voice": 1051
+    },
+    {
+      "id": "u04-reply",
+      "text": "We reply to all inquiries within 24 hours.",
+      "unit": "U4",
+      "source": "vocab:U4.reply",
+      "file": "audio/u04-reply.mp3",
+      "bytes": 16272,
+      "voice": 1051
+    },
+    {
+      "id": "u04-deadline",
+      "text": "The deadline for the order confirmation is Friday.",
+      "unit": "U4",
+      "source": "vocab:U4.deadline",
+      "file": "audio/u04-deadline.mp3",
+      "bytes": 13824,
+      "voice": 1051
+    },
+    {
+      "id": "u05-negotiate",
+      "text": "We need to negotiate the payment terms carefully.",
+      "unit": "U5",
+      "source": "vocab:U5.negotiate",
+      "file": "audio/u05-negotiate.mp3",
+      "bytes": 13824,
+      "voice": 1051
+    },
+    {
+      "id": "u05-terms",
+      "text": "Let's go over the key terms of the contract.",
+      "unit": "U5",
+      "source": "vocab:U5.terms",
+      "file": "audio/u05-terms.mp3",
+      "bytes": 12672,
+      "voice": 1051
+    },
+    {
+      "id": "u05-condition",
+      "text": "We accept on the condition that you deliver by June.",
+      "unit": "U5",
+      "source": "vocab:U5.condition",
+      "file": "audio/u05-condition.mp3",
+      "bytes": 14256,
+      "voice": 1051
+    },
+    {
+      "id": "u05-concession",
+      "text": "Every concession should bring something in return.",
+      "unit": "U5",
+      "source": "vocab:U5.concession",
+      "file": "audio/u05-concession.mp3",
+      "bytes": 13536,
+      "voice": 1051
+    },
+    {
+      "id": "u05-compromise",
+      "text": "Both sides made compromises to reach a deal.",
+      "unit": "U5",
+      "source": "vocab:U5.compromise",
+      "file": "audio/u05-compromise.mp3",
+      "bytes": 12960,
+      "voice": 1051
+    },
+    {
+      "id": "u05-win-win",
+      "text": "We're looking for a win-win solution.",
+      "unit": "U5",
+      "source": "vocab:U5.win-win",
+      "file": "audio/u05-win-win.mp3",
+      "bytes": 9936,
+      "voice": 1051
+    },
+    {
+      "id": "u06-payment-terms",
+      "text": "Let's talk about the payment terms first.",
+      "unit": "U6",
+      "source": "vocab:U6.payment terms",
+      "file": "audio/u06-payment-terms.mp3",
+      "bytes": 11376,
+      "voice": 1051
+    },
+    {
+      "id": "u06-t-t",
+      "text": "We usually accept T/T with 30% deposit.",
+      "unit": "U6",
+      "source": "vocab:U6.T/T",
+      "file": "audio/u06-t-t.mp3",
+      "bytes": 15840,
+      "voice": 1051
+    },
+    {
+      "id": "u06-l-c",
+      "text": "An L/C is safer for the seller, but it costs more.",
+      "unit": "U6",
+      "source": "vocab:U6.L/C",
+      "file": "audio/u06-l-c.mp3",
+      "bytes": 16992,
+      "voice": 1051
+    },
+    {
+      "id": "u06-deposit",
+      "text": "A 30% deposit is required to start production.",
+      "unit": "U6",
+      "source": "vocab:U6.deposit",
+      "file": "audio/u06-deposit.mp3",
+      "bytes": 16128,
+      "voice": 1051
+    },
+    {
+      "id": "u06-down-payment",
+      "text": "The down payment is non-refundable once production starts.",
+      "unit": "U6",
+      "source": "vocab:U6.down payment",
+      "file": "audio/u06-down-payment.mp3",
+      "bytes": 16128,
+      "voice": 1051
+    },
+    {
+      "id": "u06-wire-transfer",
+      "text": "Please arrange the wire transfer as soon as possible.",
+      "unit": "U6",
+      "source": "vocab:U6.wire transfer",
+      "file": "audio/u06-wire-transfer.mp3",
+      "bytes": 14832,
+      "voice": 1051
+    },
+    {
+      "id": "u07-freight",
+      "text": "Sea freight is much cheaper than air freight.",
+      "unit": "U7",
+      "source": "vocab:U7.freight",
+      "file": "audio/u07-freight.mp3",
+      "bytes": 11808,
+      "voice": 1051
+    },
+    {
+      "id": "u07-shipping",
+      "text": "Shipping usually takes 30 days to Europe.",
+      "unit": "U7",
+      "source": "vocab:U7.shipping",
+      "file": "audio/u07-shipping.mp3",
+      "bytes": 12960,
+      "voice": 1051
+    },
+    {
+      "id": "u07-shipment",
+      "text": "The shipment arrived in good condition.",
+      "unit": "U7",
+      "source": "vocab:U7.shipment",
+      "file": "audio/u07-shipment.mp3",
+      "bytes": 10656,
+      "voice": 1051
+    },
+    {
+      "id": "u07-container",
+      "text": "We booked one 40-foot container for this order.",
+      "unit": "U7",
+      "source": "vocab:U7.container",
+      "file": "audio/u07-container.mp3",
+      "bytes": 13536,
+      "voice": 1051
+    },
+    {
+      "id": "u07-fcl",
+      "text": "For FCL, the container is sealed at our factory.",
+      "unit": "U7",
+      "source": "vocab:U7.FCL",
+      "file": "audio/u07-fcl.mp3",
+      "bytes": 17856,
+      "voice": 1051
+    },
+    {
+      "id": "u07-lcl",
+      "text": "LCL is suitable for small orders.",
+      "unit": "U7",
+      "source": "vocab:U7.LCL",
+      "file": "audio/u07-lcl.mp3",
+      "bytes": 12672,
+      "voice": 1051
+    },
+    {
+      "id": "u08-conference-call",
+      "text": "The conference call is scheduled at 3 p.m. Beijing time.",
+      "unit": "U8",
+      "source": "vocab:U8.conference call",
+      "file": "audio/u08-conference-call.mp3",
+      "bytes": 19728,
+      "voice": 1051
+    },
+    {
+      "id": "u08-video-call",
+      "text": "Let's set up a video call to go over the details.",
+      "unit": "U8",
+      "source": "vocab:U8.video call",
+      "file": "audio/u08-video-call.mp3",
+      "bytes": 14832,
+      "voice": 1051
+    },
+    {
+      "id": "u08-hold",
+      "text": "Could you hold for a moment, please?",
+      "unit": "U8",
+      "source": "vocab:U8.hold",
+      "file": "audio/u08-hold.mp3",
+      "bytes": 12240,
+      "voice": 1051
+    },
+    {
+      "id": "u08-transfer",
+      "text": "I'll transfer you to our after-sales team.",
+      "unit": "U8",
+      "source": "vocab:U8.transfer",
+      "file": "audio/u08-transfer.mp3",
+      "bytes": 12672,
+      "voice": 1051
+    },
+    {
+      "id": "u08-message",
+      "text": "Would you like to leave a message?",
+      "unit": "U8",
+      "source": "vocab:U8.message",
+      "file": "audio/u08-message.mp3",
+      "bytes": 8640,
+      "voice": 1051
+    },
+    {
+      "id": "u08-schedule",
+      "text": "Let's schedule the meeting for next Tuesday.",
+      "unit": "U8",
+      "source": "vocab:U8.schedule",
+      "file": "audio/u08-schedule.mp3",
+      "bytes": 11808,
+      "voice": 1051
+    },
+    {
+      "id": "u09-quality",
+      "text": "Quality is our top priority.",
+      "unit": "U9",
+      "source": "vocab:U9.quality",
+      "file": "audio/u09-quality.mp3",
+      "bytes": 10224,
+      "voice": 1051
+    },
+    {
+      "id": "u09-inspection",
+      "text": "The goods passed the final inspection.",
+      "unit": "U9",
+      "source": "vocab:U9.inspection",
+      "file": "audio/u09-inspection.mp3",
+      "bytes": 10656,
+      "voice": 1051
+    },
+    {
+      "id": "u09-qc",
+      "text": "Our QC team checks every batch before shipping.",
+      "unit": "U9",
+      "source": "vocab:U9.QC",
+      "file": "audio/u09-qc.mp3",
+      "bytes": 14688,
+      "voice": 1051
+    },
+    {
+      "id": "u09-complaint",
+      "text": "We received a complaint about the packaging.",
+      "unit": "U9",
+      "source": "vocab:U9.complaint",
+      "file": "audio/u09-complaint.mp3",
+      "bytes": 11376,
+      "voice": 1051
+    },
+    {
+      "id": "u09-claim",
+      "text": "The buyer filed a claim for the damaged goods.",
+      "unit": "U9",
+      "source": "vocab:U9.claim",
+      "file": "audio/u09-claim.mp3",
+      "bytes": 12816,
+      "voice": 1051
+    },
+    {
+      "id": "u09-after-sales-service",
+      "text": "Our after-sales service is available 24/7.",
+      "unit": "U9",
+      "source": "vocab:U9.after-sales service",
+      "file": "audio/u09-after-sales-service.mp3",
+      "bytes": 17280,
+      "voice": 1051
+    },
+    {
+      "id": "u10-listing",
+      "text": "Our listing has been viewed 10,000 times this week.",
+      "unit": "U10",
+      "source": "vocab:U10.listing",
+      "file": "audio/u10-listing.mp3",
+      "bytes": 14976,
+      "voice": 1051
+    },
+    {
+      "id": "u10-marketplace",
+      "text": "Amazon is the largest marketplace in the US.",
+      "unit": "U10",
+      "source": "vocab:U10.marketplace",
+      "file": "audio/u10-marketplace.mp3",
+      "bytes": 14832,
+      "voice": 1051
+    },
+    {
+      "id": "u10-sku",
+      "text": "Each color and size has its own SKU.",
+      "unit": "U10",
+      "source": "vocab:U10.SKU",
+      "file": "audio/u10-sku.mp3",
+      "bytes": 12816,
+      "voice": 1051
+    },
+    {
+      "id": "u10-review",
+      "text": "Positive reviews help boost sales.",
+      "unit": "U10",
+      "source": "vocab:U10.review",
+      "file": "audio/u10-review.mp3",
+      "bytes": 11664,
+      "voice": 1051
+    },
+    {
+      "id": "u10-seller",
+      "text": "As a seller, you should respond to messages within 24 hours.",
+      "unit": "U10",
+      "source": "vocab:U10.seller",
+      "file": "audio/u10-seller.mp3",
+      "bytes": 21456,
+      "voice": 1051
+    },
+    {
+      "id": "u10-fba",
+      "text": "Using FBA gives us faster delivery and better rankings.",
+      "unit": "U10",
+      "source": "vocab:U10.FBA",
+      "file": "audio/u10-fba.mp3",
+      "bytes": 17136,
+      "voice": 1051
+    },
+    {
+      "id": "u11-laminating-adhesive",
+      "text": "Laminating adhesive bonds two or more films into one laminate.",
+      "unit": "U11",
+      "source": "vocab:U11.laminating adhesive",
+      "file": "audio/u11-laminating-adhesive.mp3",
+      "bytes": 18576,
+      "voice": 1051
+    },
+    {
+      "id": "u11-solvent-based-adhesive",
+      "text": "Solvent-based adhesive dissolves in organic solvent such as ethyl acetate.",
+      "unit": "U11",
+      "source": "vocab:U11.solvent-based adhesive",
+      "file": "audio/u11-solvent-based-adhesive.mp3",
+      "bytes": 21744,
+      "voice": 1051
+    },
+    {
+      "id": "u11-solventless-adhesive",
+      "text": "Solventless adhesive eliminates solvent emission and reduces costs.",
+      "unit": "U11",
+      "source": "vocab:U11.solventless adhesive",
+      "file": "audio/u11-solventless-adhesive.mp3",
+      "bytes": 20880,
+      "voice": 1051
+    },
+    {
+      "id": "u11-water-based-adhesive",
+      "text": "Water-based adhesive is eco-friendly but needs more drying energy.",
+      "unit": "U11",
+      "source": "vocab:U11.water-based adhesive",
+      "file": "audio/u11-water-based-adhesive.mp3",
+      "bytes": 19872,
+      "voice": 1051
+    },
+    {
+      "id": "u11-two-component-adhesive",
+      "text": "Our two-component adhesive must be mixed just before use.",
+      "unit": "U11",
+      "source": "vocab:U11.two-component adhesive",
+      "file": "audio/u11-two-component-adhesive.mp3",
+      "bytes": 18144,
+      "voice": 1051
+    },
+    {
+      "id": "u11-base-resin",
+      "text": "We supply the base resin and the curing agent separately.",
+      "unit": "U11",
+      "source": "vocab:U11.base resin",
+      "file": "audio/u11-base-resin.mp3",
+      "bytes": 16848,
+      "voice": 1051
+    },
+    {
+      "id": "u12-purchase-order",
+      "text": "We received your purchase order for 300,000 laminated pouches this morning.",
+      "unit": "U12",
+      "source": "vocab:U12.purchase order",
+      "file": "audio/u12-purchase-order.mp3",
+      "bytes": 22896,
+      "voice": 1051
+    },
+    {
+      "id": "u12-order-confirmation",
+      "text": "Our order confirmation will be sent to you within two working days.",
+      "unit": "U12",
+      "source": "vocab:U12.order confirmation",
+      "file": "audio/u12-order-confirmation.mp3",
+      "bytes": 17712,
+      "voice": 1051
+    },
+    {
+      "id": "u12-proforma-invoice",
+      "text": "Please countersign the proforma invoice so that we can start production planning.",
+      "unit": "U12",
+      "source": "vocab:U12.proforma invoice",
+      "file": "audio/u12-proforma-invoice.mp3",
+      "bytes": 20736,
+      "voice": 1051
+    },
+    {
+      "id": "u12-commercial-invoice",
+      "text": "The commercial invoice must show the same unit price as the contract.",
+      "unit": "U12",
+      "source": "vocab:U12.commercial invoice",
+      "file": "audio/u12-commercial-invoice.mp3",
+      "bytes": 18864,
+      "voice": 1051
+    },
+    {
+      "id": "u12-packing-list",
+      "text": "The packing list shows 40 rolls of film per pallet, eight pallets in total.",
+      "unit": "U12",
+      "source": "vocab:U12.packing list",
+      "file": "audio/u12-packing-list.mp3",
+      "bytes": 23040,
+      "voice": 1051
+    },
+    {
+      "id": "u12-bill-of-lading",
+      "text": "The original bill of lading will be couriered after the balance is received.",
+      "unit": "U12",
+      "source": "vocab:U12.bill of lading",
+      "file": "audio/u12-bill-of-lading.mp3",
+      "bytes": 20592,
+      "voice": 1051
+    },
+    {
+      "id": "u13-teu-feu",
+      "text": "The film reels come to two TEU, so we booked one 40-ft container (one FEU) instead of two.",
+      "unit": "U13",
+      "source": "vocab:U13.TEU/FEU",
+      "file": "audio/u13-teu-feu.mp3",
+      "bytes": 30384,
+      "voice": 1051
+    },
+    {
+      "id": "u13-fcl",
+      "text": "We ship in FCL to keep the pouches clean and avoid damage.",
+      "unit": "U13",
+      "source": "vocab:U13.FCL",
+      "file": "audio/u13-fcl.mp3",
+      "bytes": 18144,
+      "voice": 1051
+    },
+    {
+      "id": "u13-lcl",
+      "text": "Sample rolls go LCL, but the charges per cubic meter are much higher.",
+      "unit": "U13",
+      "source": "vocab:U13.LCL",
+      "file": "audio/u13-lcl.mp3",
+      "bytes": 23904,
+      "voice": 1051
+    },
+    {
+      "id": "u13-gp-hc",
+      "text": "A 40' HC takes two more pallets of laminated pouches than a 40' GP.",
+      "unit": "U13",
+      "source": "vocab:U13.GP/HC",
+      "file": "audio/u13-gp-hc.mp3",
+      "bytes": 22896,
+      "voice": 1051
+    },
+    {
+      "id": "u13-ocean-freight-o-f",
+      "text": "Ocean freight to Hamburg went up three hundred dollars per FEU this week.",
+      "unit": "U13",
+      "source": "vocab:U13.ocean freight (O/F)",
+      "file": "audio/u13-ocean-freight-o-f.mp3",
+      "bytes": 20016,
+      "voice": 1051
+    },
+    {
+      "id": "u13-thc",
+      "text": "THC at destination is on the consignee's account under FOB terms.",
+      "unit": "U13",
+      "source": "vocab:U13.THC",
+      "file": "audio/u13-thc.mp3",
+      "bytes": 20736,
+      "voice": 1051
+    },
+    {
+      "id": "u14-incoterms",
+      "text": "All prices in this offer are based on Incoterms 2020 published by the ICC.",
+      "unit": "U14",
+      "source": "vocab:U14.Incoterms",
+      "file": "audio/u14-incoterms.mp3",
+      "bytes": 24768,
+      "voice": 1051
+    },
+    {
+      "id": "u14-exw",
+      "text": "The EXW price for our lamination adhesive is USD 2.85 per kilogram at our Dongguan plant.",
+      "unit": "U14",
+      "source": "vocab:U14.EXW",
+      "file": "audio/u14-exw.mp3",
+      "bytes": 34992,
+      "voice": 1051
+    },
+    {
+      "id": "u14-fob",
+      "text": "Our price is USD 3.20 per kilogram FOB Shenzhen, Incoterms 2020.",
+      "unit": "U14",
+      "source": "vocab:U14.FOB",
+      "file": "audio/u14-fob.mp3",
+      "bytes": 29232,
+      "voice": 1051
+    },
+    {
+      "id": "u14-cfr",
+      "text": "CFR Hamburg works out at USD 3.46 per kilogram, with insurance to be arranged by you.",
+      "unit": "U14",
+      "source": "vocab:U14.CFR",
+      "file": "audio/u14-cfr.mp3",
+      "bytes": 31248,
+      "voice": 1051
+    },
+    {
+      "id": "u14-cif",
+      "text": "Please quote CIF Rotterdam for twenty metric tons of solvent-free adhesive in steel drums.",
+      "unit": "U14",
+      "source": "vocab:U14.CIF",
+      "file": "audio/u14-cif.mp3",
+      "bytes": 25632,
+      "voice": 1051
+    },
+    {
+      "id": "u14-cip",
+      "text": "Under CIP we must insure the cargo under Institute Cargo Clauses A.",
+      "unit": "U14",
+      "source": "vocab:U14.CIP",
+      "file": "audio/u14-cip.mp3",
+      "bytes": 21888,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s1-1",
+      "text": "Before we confirm your order, could you please double-check the film structure, quantity, unit price and shipping marks on PO 24-0518?",
+      "unit": "SOP",
+      "source": "sop:s1.1",
+      "file": "audio/sop-s1-1.mp3",
+      "bytes": 45504,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s1-2",
+      "text": "Please find attached our proforma invoice PI-24-0518. Kindly countersign it and send a copy back so that we can schedule production.",
+      "unit": "SOP",
+      "source": "sop:s1.2",
+      "file": "audio/sop-s1-2.mp3",
+      "bytes": 41184,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s2-2",
+      "text": "We will send you the TDS, MSDS, COA and the food-contact compliance statement together with the inspection report.",
+      "unit": "SOP",
+      "source": "sop:s2.2",
+      "file": "audio/sop-s2-2.mp3",
+      "bytes": 39888,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s2-3",
+      "text": "Our QC checked the labels, the pouches and the cartons one by one, and I have attached the photos for your reference.",
+      "unit": "SOP",
+      "source": "sop:s2.3",
+      "file": "audio/sop-s2-3.mp3",
+      "bytes": 34128,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s2-5",
+      "text": "Shall we book the pre-shipment inspection for June 18? If you use a third party such as SGS, we would need about two weeks to arrange it.",
+      "unit": "SOP",
+      "source": "sop:s2.5",
+      "file": "audio/sop-s2-5.mp3",
+      "bytes": 42336,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s2-7",
+      "text": "Attached is the draft packing list with the carton dimensions, net weight, gross weight and total volume.",
+      "unit": "SOP",
+      "source": "sop:s2.7",
+      "file": "audio/sop-s2-7.mp3",
+      "bytes": 29808,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s3-1",
+      "text": "The cargo will be ready on June 20. Could you please book space on a vessel with an ETD around June 25?",
+      "unit": "SOP",
+      "source": "sop:s3.1",
+      "file": "audio/sop-s3-1.mp3",
+      "bytes": 34272,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s3-2",
+      "text": "Please check the draft invoice and packing list. Once you confirm them, please arrange the balance payment so that we can proceed with the shipment.",
+      "unit": "SOP",
+      "source": "sop:s3.2",
+      "file": "audio/sop-s3-2.mp3",
+      "bytes": 38016,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s3-3",
+      "text": "Loading is completed. Container number TGHU1234567, seal number CN889012. The loading photos are attached.",
+      "unit": "SOP",
+      "source": "sop:s3.3",
+      "file": "audio/sop-s3-3.mp3",
+      "bytes": 51120,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s4-1",
+      "text": "Please check the attached B/L draft carefully, especially the consignee, notify party, description and weights. Any correction after release will incur an amendment fee.",
+      "unit": "SOP",
+      "source": "sop:s4.1",
+      "file": "audio/sop-s4-1.mp3",
+      "bytes": 52992,
+      "voice": 1051
+    },
+    {
+      "id": "sop-s4-6",
+      "text": "We have closed this order internally and would love to hear your feedback on the quality and the packing.",
+      "unit": "SOP",
+      "source": "sop:s4.6",
+      "file": "audio/sop-s4-6.mp3",
+      "bytes": 28368,
+      "voice": 1051
+    },
+    {
+      "id": "sop-chase-0",
+      "text": "Just a friendly reminder that the balance of USD 12,600 is due before we release the shipping documents.",
+      "unit": "SOP",
+      "source": "sop:chase.0",
+      "file": "audio/sop-chase-0.mp3",
+      "bytes": 35424,
+      "voice": 1051
+    },
+    {
+      "id": "sop-chase-1",
+      "text": "Your goods have passed inspection and are ready for loading. Could you kindly arrange the balance today so that we can meet the vessel cut-off?",
+      "unit": "SOP",
+      "source": "sop:chase.1",
+      "file": "audio/sop-chase-1.mp3",
+      "bytes": 34848,
+      "voice": 1051
+    },
+    {
+      "id": "sop-chase-2",
+      "text": "We have not yet received the payment. Could you please send us the remittance slip with the value date so that we can trace it with our bank?",
+      "unit": "SOP",
+      "source": "sop:chase.2",
+      "file": "audio/sop-chase-2.mp3",
+      "bytes": 34848,
+      "voice": 1051
+    },
+    {
+      "id": "sop-chase-3",
+      "text": "Please note that any storage and demurrage charges caused by delayed payment will be for the buyer's account.",
+      "unit": "SOP",
+      "source": "sop:chase.3",
+      "file": "audio/sop-chase-3.mp3",
+      "bytes": 28800,
+      "voice": 1051
+    },
+    {
+      "id": "sop-chase-4",
+      "text": "We value our cooperation and would be happy to discuss better payment terms once we have a longer track record together.",
+      "unit": "SOP",
+      "source": "sop:chase.4",
+      "file": "audio/sop-chase-4.mp3",
+      "bytes": 32112,
+      "voice": 1051
+    }
+  ]
+}

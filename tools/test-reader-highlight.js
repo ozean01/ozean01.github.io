@@ -37,7 +37,9 @@ check("lookup.js 排在 material.js 之后、app.js 之前",
 check("sw.js 预缓存含 ./js/lookup.js", /"\.\/js\/lookup\.js"/.test(sw));
 const ver = Number((sw.match(/const CACHE = "fte-v(\d+)"/) || [])[1] || NaN);
 check("CACHE 已升版（≥ fte-v136）", Number.isFinite(ver) && ver >= 136, ver);
-check("app.js 路由白名单含 lookup", /"cheatsheet",\s*"lookup"\]/.test(appjs) || /"lookup"\]/.test(appjs));
+/* 任务2（2026-10-31）：白名单尾部又追加了 "earplay"，原先「"cheatsheet","lookup"] 结尾」的写法会被误伤；
+   改成「白名单数组里含 lookup」这一事实本身（不放松：仍要求出现在 .indexOf(parts[0]) 的白名单数组内）。 */
+check("app.js 路由白名单含 lookup", /\["units",[^\]]*"lookup"[^\]]*\]\.indexOf\(parts\[0\]\)/.test(appjs));
 check("app.js 有 lookup 渲染分支", /route\.view === "lookup"\) window\.Lookup\.render\(route\)/.test(appjs));
 check("app.js 解析 hash 里的 ?w= 参数", /lookup\(\?:\\\?\|\\\$\)/.test(appjs) || /lookup\(\?:\\\?\|\)/.test(appjs) || /URLSearchParams\(h\.slice/.test(appjs));
 check("material.js 有站内查词入口（真链接）", /href="#\/lookup"/.test(matjs));

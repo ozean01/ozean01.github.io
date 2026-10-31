@@ -62,6 +62,7 @@
       { key: "fte-tutor-chat-v1", kind: "progress", owner: "tutor.js", backup: true, note: "AI 陪练对话记录（P0-3：最近 40 条，跨刷新/跨天恢复；清空对话即删除）" },
       { key: "fte-tutor-rp-v1", kind: "pref", owner: "tutor.js", backup: true, note: "实战关卡状态（P2-10：场景 id + 当前阶段；对话内容本体在 fte-tutor-chat-v1）" },
       { key: "fte-speech-audio", kind: "media", owner: "speech.js", backup: false, note: "IndexedDB 数据库名（P0-4：自由表达录音 take，最近 30 条）——blob 体积大不进备份；清空历史时一并删除" },
+      { key: "fte-earpack-v1", kind: "media", owner: "earplay.js", backup: false, note: "CacheStorage 桶名（任务2：磨耳朵音频包 100 个 mp3，约 1.93MB）——与录音库同口径：体积大、不进备份；播放器页「清除离线包」整桶删除" },
       { key: "fte-trace-v1", kind: "progress", owner: "entry-trace.js", backup: false, note: "入口离开/主线进入的只读行为记录" },
       { key: "fte-trace-off", kind: "pref", owner: "entry-trace.js", backup: true, note: "行为记录开关（关闭标记）" },
       { key: "fte-backup-hint-v1", kind: "pref", owner: "pwa-init.js", backup: false, note: "备份提醒的下次出现时间（「以后再说」推迟 14 天；纯 UI 状态，不进备份）" },

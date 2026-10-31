@@ -57,6 +57,7 @@
   _need("自由表达 speech.js", !!window.SpeechAnalyzer);
   _need("任务看板 board.js", !!window.TaskBoard);
   _need("口语雷达 radar.js", !!window.SpeakingRadar);
+  _need("磨耳朵播放器 earplay.js", !!(window.EarPlay && window.EarPlay.render));
   if (_missing.length) {
     console.error("[软包装外贸英语] ⚠️ 以下脚本未加载或顺序错误（站点可能部分功能异常，请核对 index.html 的 <script> 顺序）：\n  - " + _missing.join("\n  - "));
     /* P1-3（投用前检查）：缺脚本不能只写 console —— 用户看不到，页面会「看起来正常」，
@@ -619,7 +620,7 @@
        先于普通路由处理，解析成「合并页 + 对应 tab」，表现与 #/<页>/<tab> 完全一致 */
     if (MERGED_ALIAS[parts[0]]) return { view: MERGED_ALIAS[parts[0]].page, tab: MERGED_ALIAS[parts[0]].tab };
     if (MERGED_PAGES[parts[0]]) return { view: parts[0], tab: parts[1] || MERGED_PAGES[parts[0]].tabs[0].k };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary", "cheatsheet", "lookup"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary", "cheatsheet", "lookup", "earplay"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -675,6 +676,7 @@
       else if (route.view === "glossary") window.Glossary.render();
       else if (route.view === "cheatsheet") window.Cheatsheet.render();
       else if (route.view === "lookup") window.Lookup.render(route);
+      else if (route.view === "earplay") window.EarPlay.render();
       else if (route.view === "mysay") window.MySay.render();
       else if (route.view === "write") window.WriteStudio.render();
       else if (route.view === "patterns") window.Patterns.render();

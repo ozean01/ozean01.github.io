@@ -134,13 +134,13 @@ python -m http.server 8000
 4. 单一原子提交 + 打 tag + 推送（本仓库远端名为 `ghio`）：
    ```bash
    git add -A
-   git commit -m "release: v1.20.0（fte-v136）"
-   git tag v1.20.0
+   git commit -m "release: v1.21.0（fte-v137）"
+   git tag v1.21.0
    git push ghio main --tags
    ```
 5. 等 Actions 的 `Deploy to GitHub Pages` 变绿，再核验线上（不核验等于没发布）：
    ```bash
-   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v136"'
+   curl -fsS https://ozean01.github.io/sw.js | grep -F 'const CACHE = "fte-v137"'
    curl -fsS -o NUL -w "%{http_code}\n" https://ozean01.github.io/
    ```
    出现新 `CACHE` 且首页 200 才算发布成功。
@@ -313,6 +313,7 @@ pwsh -File tools/build-assets.ps1
 | 📱 PWA 离线 | 手写 `sw.js`（precache + cache-first）+ `manifest.webmanifest` + 图标：经 http/https 打开后自动注册，后续除 TTS/LLM/汇率外**全部功能离线可用、可「安装」到桌面**；改动文件版本号 +1 后自动提示「新版本待刷新」；`file://` 直接打开时自动跳过 SW |
 | 🏷️ 词级难度标注 | 词汇表每词标注**易 / 中 / 难**（真实 **CEFR 分级**：A1/A2=易、B1=中、B2/C1/C2=难），**行业术语**另加「专」角标；词级难度来自构建期生成的 `js/difficulty-map.js`（`tools/gen-difficulty.js` 读取开放 CEFR-J + C1-C2 词汇画像，口径唯一权威表述见该对象的 `difficultyBasis`），缺失时回退到启发式正则 |
 | 🎧 真实商务听音源 | 导航「✍️ 写 · 用 → 🎧 真实商务听音源」（`js/sources.js`）：精选 BBC 6 Minute English、VOA、ELLLO、Randall、News in Levels、NPR Marketplace、HBR/TED、Economist/FT 等**真实母语者声音**，另补一条 **A 档「教材/点读」来源：新概念英语点读（`nce.ichochy.com`）**（**仅外链引用、不搬运其课文与录音**，正文与录音版权归原出版方；字幕含 AI 生成成分须对照原文），按水平（入门/进阶/拔高）与领域（新闻与经济 / 商务职场 / 口语对话 / 外贸行业向 / 新闻故事文化 / **教材点读**）筛选，每个音源链出去听（纯静态站点无法跨域嵌入第三方音频）。每音源配**统一「四步听练闭环」**（盲听→精听→跟读复述→拾遗闭环）+ 站内 TTS 热身句，练完一键跳回站内听说/四维/辨音/单词卡。**补齐全站唯一短板：站内「听」此前全是 TTS 合成音，这里把真人连读/弱读/多国口音补进来**；教材型来源另有一条用法——**先在它那里读顺，再把课文粘进「📥 素材投料口」，接上站内四个既有引擎**（它补的是 A 档此前只有真实新闻/口语、缺「按册递进」的那一格） |
+| 🎧 磨耳朵播放器 | 入口在「✍️ 写 · 用 → 🎧 真实商务听音源」页内（`js/earplay.js`，路由 `#/earplay`）：把 **100 句核心句**（U1–U14 词条例句 + SOP 客户动作句/催款话术，全部来自站内既有语料、未造句）预生成 mp3，做通勤/走路/家务的**离线泛听**：播放队列 · **单句循环 / 整包循环 / 顺序播放** · **0.8–1.2 倍速** · **睡眠定时 15/30/60 分钟** · **Media Session**（锁屏/耳机可播放/暂停/上一句/下一句/停止/快进快退）；**整包 1.93MB** 一键下载进**独立缓存桶**（`fte-earpack-v1`）后断网也能听，可整包清除。**音频不进 SW 的 PRECACHE**（否则首访多下 1.93MB、挤占 iOS 存储配额），`sw.js` 的 `NO_CACHE_RE` 同时把 `audio/` 排除在外壳桶之外；不新增一级导航、不写学习数据；音频缓存桶 `fte-earpack-v1` 按 `media` / 不进备份登记（与录音库同口径） |
 | 🔍 专业术语速查 | 导航「✍️ 写 · 用 → 🔍 专业术语速查」（`js/glossary.js` + `js/data-glossary.js`）：把桌面《专业术语中英文词典》539 条**逐条做入库评估**后，收录其中与软包装业务沟通真正相关的 **324 条**（打印/复合/涂布/膜材/设备/缺陷/物性），**中英对照 + 关键词搜索 + 分类筛选 + 🔊 TTS 朗读**。**站内已有英文或同义概念的 67 条不重复收录**，只作「写法对齐」提示（自立袋→stand-up pouch、涂胶量→coating weight、复合辊→nip roller…），保证「一个概念一条」。**全部 324 条已逐条校订美式 GA 音标**（口径同全站词库：r 不写 ɹ、ɑː 不写 ɒ、oʊ 不写 əʊ；多音节标重音、单音节不标），**每条都配英文例句与中译**（覆盖 100%）。英文译名逐条校订（Van der Waals force、Gay-Lussac's law、metallized、pinhole、spout pouch 等）。**补齐全站此前「文案让人去术语库核对、却没有术语库页面」的空档** |
 | 📋 一页纸速查小抄 | 入口在「🧭 实操 SOP」页顶部「📋 一页纸速查小抄」（`js/cheatsheet.js`，路由 `#/cheatsheet`）：把站内已有、**可直接发出去的整句**按真实流程重排成 **7 个阶段 × 每阶段 8 句 = 56 句**（开发客户 → 询盘报价 → 谈判 → 订单与单证 → 生产与催货 → 出货物流 → 收款与售后），**中英对照 + 🔊 朗读 + 关键词过滤 + 阶段筛选 + 复制本阶段/复制全部 + 打印（A4 黑白、按阶段分页）**。**不新造内容**：每条只存来源 key（SOP 客户动作句 / 催款话术、真实来信的正确回信范句、单元词条例句），渲染时从原模块解析，来源与正文永远同步，`tools/test-cheatsheet.js` 逐条校验 key 真实存在。**这是速查小抄不是练习：不计打卡、不计成绩、不写学习数据**；不新增一级导航（入口在 SOP 页内） |
 | 🔎 全文精读高亮 · 查词页 | 「📥 素材投料口」拆句后新增「📖 全文精读」（`js/lookup.js`）：正文里**高亮两类词**——本机进度里**已学**的（`progress.learned`）与**词库命中但未学**的（两色 + 图例 + 「只看已学」开关），**点词出小卡**（词/音标/释义/例句 + 🔊 朗读 + 复制 + 加入单词卡 + 标记已会 + 无需再提示）；长文按**每批 40 段**分批渲染，1 万字实测不卡主线程。另有 `#/lookup` 查词页：任意网页选中英文 → 点收藏夹里的 **bookmarklet** 带 `?w=` 跳进来，命中给词卡，未命中给复制 + **AI 解释**（走既有 `Tutor.callChat` + `FACT_GUARD`，结果接 AI 披露出口；**只作练习、不写盘**）。未命中痕迹只存本机、**不进导出备份**（临时查词痕迹不是学习资产）；不新增导航，入口在投料口页内 |
@@ -415,6 +416,7 @@ pwsh -File tools/build-assets.ps1
 ├── apple-touch-icon.png # 180×180，iOS「添加到主屏」用（iOS 不支持 SVG）
 ├── og-image.png        # 1200×630 分享预览图（微信/朋友圈、Facebook、X、LinkedIn）
 ├── icons/              # PWA 安装图标（icon-192 / icon-512 / icon-maskable-512）
+├── audio/              # 🎧 磨耳朵音频包（100 个预生成 mp3 + manifest.json；**不进 SW 预缓存**）
 ├── package.json        # 工程脚本（npm test / audit / sync:miniprogram / check:singlesource，零依赖）
 ├── .github/workflows/
 │   ├── ci.yml          # CI：跑测试门禁 + 单一数据源漂移检查（push/PR 触发）
@@ -450,6 +452,7 @@ pwsh -File tools/build-assets.ps1
 │   ├── glossary.js    # 🔍 专业术语速查（中英对照 · 搜索 · 分类筛选 · TTS 朗读）
 │   ├── cheatsheet.js  # 📋 一页纸速查小抄（7 阶段整句重排 · 来源标注 · 打印）
 │   ├── lookup.js      # 🔎 全文精读高亮 + 点词小卡 + #/lookup 查词页（bookmarklet 落点）
+│   ├── earplay.js     # 🎧 磨耳朵播放器（队列/循环/倍速/睡眠定时/Media Session + 整包 CacheStorage 离线）
 │   ├── subtitle.js    # 📺 字幕逐句点读（SRT/VTT/ASS/SSA/SMI 解析 + 逐句点读 + 分级着色）
 │   ├── material.js    # 📥 素材投料口（任意文章/字幕→拆句→送进字幕点读或听说五阶段闯关）
 │   ├── mysay.js       # 🗣 说我想说（中文自述→AI 转地道英文→朗读→送进四个引擎→自述语料库）
@@ -1633,5 +1636,6 @@ index.html / app.js / player.js / eval4.js / storage-keys.js 里的全部接线�
 
 - **触控目标**：主要操作（播放/跟读/朗读/开关、页头控件）的命中区已撑到 44×44（视觉尺寸不变，用透明伪元素扩边；	ools/ui-probe.js 会按真实命中区核算）。但**密集列表里的小图标**（词卡 32px 操作钮、术语卡内联图标、SOP 行内按钮）仍按视觉尺寸——继续放大会互相抢点击，属刻意保留的取舍。
 - **长列表性能**：术语速查 324 条与 SOP 27 步已改为**分批渲染**（首屏先画一批，其余分帧追加），术语卡事件也改为整页委托；课程 19 卡本身不大。虚拟列表未做——它会改变搜索/滚动行为，收益有限。
+- **磨耳朵音频包的取舍**：100 句是「泛听起步量」，不是全站语料；音频由 `tools/build-audio-pack.js` 调腾讯云 TTS 预生成（`tools/audio-source.json` 决定句子与来源 key，单句 ≤500 字符），产物 `audio/<id>.mp3` + `audio/manifest.json` 进仓库。**Key 只走环境变量 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`（以及 `TENCENT_TTS_VOICE` 1051 女 / 1050 男），绝不写进仓库与页面**；重新生成：设好环境变量后 `node tools/build-audio-pack.js`（已生成的会跳过，失败自动重试）。音频**不参与**体积预算与 SW 预缓存：首访一个字节都不多下，只有用户点「下载整包」才写进独立缓存桶 `fte-earpack-v1`。暂时没做的：播放进度/上次听到哪一句不落盘（避免新增存储键），睡眠定时与倍速是会话内状态。
 - **js/app.js 体积**：约 5600 行 / 330KB，gzip 已贴 114KB 上限（`tools/test-budget.js` 的棘轮）。2026-10-31 任务3 时**删掉了文件头那份整体漂移约 2000 行的分区索引注释**（审计 P2-3：行号全错，反而误导定位），gzip 回落到 113.4KB；找函数请用关键字检索，别再维护行号索引。下次往 app.js 加代码前必须先减负（注释/死代码），不再抬 `biggestGzKB` 上限。
 - **分享网速**：GitHub Pages 国内访问受网络环境影响，本站无法控制；需要更稳入口时按 README 方案 B 用 Cloudflare Pages。

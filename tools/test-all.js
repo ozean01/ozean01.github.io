@@ -65,6 +65,10 @@ const JOBS = [
   { cmd: "node", args: ["tools/check-single-source.js"].concat(HAS_MINIPROGRAM ? [] : ["--allow-missing"]), gate: true, label: "单一数据源：小程序数据可由网页版重生成" + (HAS_MINIPROGRAM ? "（严格模式：本机检测到小程序数据）" : "（⚠️ 本环境没有 ../外贸英语小程序/utils/data.js → 传 --allow-missing：漂移检查只在有该目录的机器上生效）") },
   { cmd: "node", args: ["tools/test-doc-numbers.js"], gate: true, label: "文档数字对账：README 的数量宣称必须与实测数据一致" },
   { cmd: "node", args: ["tools/test-cheatsheet.js"], gate: true, label: "任务1 一页纸速查小抄：7 阶段/每阶段≥6/总数≥50 · 来源 key 真实存在 · 打印样式 · 不新增导航" },
+  /* 任务3 的门禁在提交时**漏登记**到这里（只单独跑过，没进 test-all），任务2 一并补上——
+     教训：新增 tools/test-<批次>.js 必须同一提交登记进本清单，否则 CI 不会守它。 */
+  { cmd: "node", args: ["tools/test-reader-highlight.js"], gate: true, label: "任务3 投料口全文精读：已学/词库两色高亮 · 词边界 · 点词收卡 · #/lookup 查词 + bookmarklet · 音频无关" },
+  { cmd: "node", args: ["tools/test-earplayer.js"], gate: true, label: "任务2 磨耳朵播放器：音频包完整性/来源逐字一致 · Media Session · 循环/倍速/睡眠 · 独立缓存桶 · 音频不进 PRECACHE" },
   { cmd: "node", args: ["tools/test-p0-content.js"], gate: true, label: "P0 内容不变量：术语/法规禁用串 · GA 卷舌 · #wsAi 渲染 · ESM 加载 · 冒烟页口径 · 零埋点措辞" },
   { cmd: "node", args: ["tools/test-ai-prompt-inventory.js"], gate: true, label: "AI 调用点清单：FACT_GUARD 覆盖 / AIDisclosure 披露 / termCheck 默认 / 调用点与渲染点漂移" },
   { cmd: "node", args: ["tools/test-ai-eval-cases.js"], gate: true, label: "AI 红队用例：83 条 anchor 引用 / 11 条链路提示词漂移 / 16 个判分器正反例（零依赖无网络）" },

@@ -83,13 +83,15 @@ jobs:
       # 显式白名单：站点运行所需的全部文件 + 第三方许可声明。
       # 站点本体 = index.html · sw.js · manifest.webmanifest · icon.svg · apple-touch-icon.png
       #            · og-image.png（og:image/twitter:image 指向它）· css/ · js/（含 js/vendor/）· icons/
+      #            · audio/（任务2：磨耳朵音频包 100 个 mp3 + manifest.json；**不进 SW 预缓存**，
+      #              但必须随站点发布，否则播放器页会 404 —— 它不占首访流量，只有点了「下载整包」才拉）
       - name: Stage site (explicit allowlist)
         run: |
           set -euo pipefail
           rm -rf _site
           mkdir -p _site
           for p in index.html sw.js manifest.webmanifest icon.svg apple-touch-icon.png \
-                   og-image.png css js icons THIRD_PARTY_NOTICES.md; do
+                   og-image.png css js icons THIRD_PARTY_NOTICES.md audio; do
             test -e "$p" || { echo "::error::发布白名单里的 $p 不存在"; exit 1; }
             cp -R "$p" _site/
           done
@@ -103,9 +105,18 @@ jobs:
           for f in index.html sw.js manifest.webmanifest icon.svg apple-touch-icon.png og-image.png \
                    css/style.css js/app.js js/pwa-init.js js/data.js js/storage-keys.js \
                    js/player.js js/eval4.js js/score.js js/vendor/phonemizer.js \
+                   js/earplay.js audio/manifest.json \
                    icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png; do
             test -f "_site/$f" || { echo "::error::发布集合缺少站点必需文件：$f"; exit 1; }
           done
+          # 音频包：manifest 里引用的每个 mp3 都必须在发布集合里（防止白名单漏拷 / manifest 与文件不同步）
+          mp3=$(grep -oE '"file": "audio/[a-z0-9-]+\.mp3"' _site/audio/manifest.json | head -n1 | sed -E 's/.*"(audio\/[^"]+)"/\1/')
+          test -n "$mp3" || { echo "::error::audio/manifest.json 里解析不出任何 mp3（manifest 格式变了？）"; exit 1; }
+          test -f "_site/$mp3" || { echo "::error::发布集合缺少 manifest 引用的第一条音频：$mp3"; exit 1; }
+          grep -oE '"file": "audio/[a-z0-9-]+\.mp3"' _site/audio/manifest.json \
+            | sed -E 's/.*"(audio\/[^"]+)"/\1/' | while read -r r; do
+              test -f "_site/$r" || { echo "::error::发布集合缺少 manifest 引用的音频：$r"; exit 1; }
+            done
           # index.html 引用的每个本地 <script src> / <link href> 都必须在发布集合里
           grep -oE '(src|href)="(js|css|icons)/[^"]+"' _site/index.html | sed -E 's/.*="([^"]+)"/\1/' | sort -u | while read -r r; do
             test -f "_site/$r" || { echo "::error::index.html 引用了未发布的本站资源：$r"; exit 1; }
@@ -120,9 +131,10 @@ jobs:
                      .git .gitignore node_modules; do
             test ! -e "_site/$bad" || { echo "::error::发布集合混入不该发布的内容：$bad"; exit 1; }
           done
-          # ① 白名单文件类型：站点运行只要这些（.ps1/.bat/.txt/.map/.zip… 一律不许出现）
+          # ① 白名单文件类型：站点运行只要这些（.ps1/.bat/.txt/.map/.zip… 一律不许出现）。
+          #    任务2 起允许 .mp3（磨耳朵音频包；只从 audio/ 白名单目录进来，清单外的 mp3 无中生有会在这里被逮到）。
           bad=$(find _site -type f ! -name '*.html' ! -name '*.css' ! -name '*.js' ! -name '*.json' \
-                  ! -name '*.webmanifest' ! -name '*.svg' ! -name '*.png' ! -name '*.md' | sort)
+                  ! -name '*.webmanifest' ! -name '*.svg' ! -name '*.png' ! -name '*.md' ! -name '*.mp3' | sort)
           if [ -n "$bad" ]; then
             echo "::error::发布集合含白名单外的文件类型："
             echo "$bad"

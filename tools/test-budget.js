@@ -75,11 +75,25 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · **biggestGzKB 不升**：本批没往 app.js 加净体积，反而删掉了文件头那份已漂移约 2000 行的
        分区索引注释（审计 P2-3），app.js 实测 gzip 116,088B（113.37KB）回到 114KB 内；
        今后 app.js 再贴线，先减负（注释/死代码）再说，不要再抬这条。
-     · 余量 2KB（实测 779KB / 782KB）；其余两条上限不放松。 */
+     · 余量 2KB（实测 779KB / 782KB）；其余两条上限不放松。
+   任务2（2026-10-31）第六次上调：subResources 58 → 59、gzTotalKB 782 → 789（+7KB，约 +0.9%），理由如下：
+     · 本批是**功能批**：新增 1 个脚本 js/earplay.js（磨耳朵播放器：队列 / 三种循环 / 0.8–1.2 倍速 /
+       15-30-60 睡眠定时 / Media Session 五类 action / 整包 CacheStorage 离线），实测 gzip 6,763B
+       （raw 20,899B）；样式 .ep-* +433B、index.html 接线 +162B、app.js 路由与校验 +49B。
+       本门禁口径实测 **787KB**（805,890B），789KB 是 2KB 容差（约 0.25%）——**超过即红**；
+       下一批若还要动这条上限，必须重新拍板。
+     · 为什么不能塞进 app.js：播放器要独持一个 audio 元素与一个独立缓存桶，且要能被
+       tools/test-earplayer.js 在最小桩环境直测（fmtBytes/summaryLine/nextIndex/prevIndex）；
+       塞进 345KB 的 app.js 会再次贴 114KB 线，也测不了纯函数。
+     · **音频不算预算**：100 个 mp3（1.93MB）**不进 PRECACHE**，不进 subResources/gzTotal——
+       本门禁只量"外壳"。音频由播放器写进独立桶 fte-earpack-v1，首访一个字节都不多下；
+       sw.js 的 NO_CACHE_RE 同时把 audio/ 排除在外壳桶之外（防止播放时顺手写进外壳桶）。
+     · **biggestGzKB 不升**：app.js 只加了路由与 _need 一行，实测 gzip 116,137B（113.42KB），仍在 114KB 内。
+     · 余量 2KB（实测 787KB / 789KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 58,      // 实测 58（57 脚本 + 1 样式表；任务3 新增 js/lookup.js）
-  gzTotalKB: 782,        // 实测 779KB（任务3：全文精读高亮 + 查词页，+10KB gzip）
-  biggestGzKB: 114       // 实测 app.js 113KB（任务3 删掉漂移的索引注释后回落到 114KB 内）
+  subResources: 59,      // 实测 59（58 脚本 + 1 样式表；任务2 新增 js/earplay.js）
+  gzTotalKB: 789,        // 实测 787KB（任务2：磨耳朵播放器 +6.8KB gzip；音频不进本预算）
+  biggestGzKB: 114       // 实测 app.js 113KB（未动；音频与播放器都不塞进 app.js）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,
