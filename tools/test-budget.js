@@ -113,10 +113,27 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        背压辊/复合辊、磁粉制动器/浮动辊/锥度张力/三种收卷方式、热风冲击与对流干燥/恒降干燥段、
        光辊/逆向辊/气刀/幕帘/狭缝口模、气隙/缩幅/螺杆末压/锚固剂、EPC/分切刀/收卷硬度），
        体积只涨在 data.js 一个文件里。
-     · 余量 2KB（实测 800.49KiB / 803KB）；其余两条上限不放松。 */
+     · 余量 2KB（实测 800.49KiB / 803KB）；其余两条上限不放松。
+   内容批 C（2026-10-31）第十次上调：gzTotalKB 803 → 809（+6KB，约 +0.75%），理由如下：
+     · 本批是**内容批 C**：U11 +68 条检测/缺陷/结构/法规词（检测方法与仪器 / 缺陷名与现象 /
+       基材与结构 / 法规与认证），六字段齐全、例句为检测与合规语境；查重先剔除 22 条与站内同义/
+       重复的候选（tensile strength、moisture content、Young's modulus、wrinkle、orange peel、
+       bag swelling、FDA、REACH、MSDS、heat resistance、drop test、printability、stiffness、
+       sterilization、base film、phthalate、transparency、slip agent、anti-blocking agent、
+       adhesion strength、cellophane、SVHC），另有 14 条无讲义依据未收。
+       js/data.js gzip **+6,015B（66,065 → 72,080B）**。
+       本门禁口径**实测 806.37KiB（825,720B）**，809KB = 实测 + 约 2.5KB 容差（约 0.31%）——**超过即红**；
+       本轮 1000 词收口，再动须重新拍板。
+     · **不新增脚本/请求**：subResources 仍 59、PRECACHE 仍 67 条；biggestGzKB 仍 114（app.js 113.68KB 未动）。
+     · 为什么值得花：C 批补的是验货与客诉现场最常被问到的检测方法（落镖/抗穿刺/爆破/撕裂强度/
+       卡尔费休/气相色谱/DSC/来料检验/封口剥离/蒸煮与泄漏试验）、缺陷名（缩孔/晶点/弓形/梅花芯/
+       纸芯压扁/断膜/反粘/封口污染）、结构层语义（芯层/涂层/外层/印刷层/阻隔层/吹膜/流延/离聚物/
+       粘结树脂/对称与非对称结构/胶层/热封膜/不透明度/白度）与法规认证（EU 10/2011、食品接触合规、
+       GMP、NIAS、重金属、EPR、1935/2004、再生料/再生含量、可堆肥、碳足迹、LCA、甲苯二胺、矿物油）。
+     · 余量 2.5KB（实测 806.37KiB / 809KB）；其余两条上限不放松。 */
 const BUDGET = {
   subResources: 59,      // 实测 59（58 脚本 + 1 样式表；本批未新增脚本）
-  gzTotalKB: 803,        // 实测 800.49KiB（内容批 B：U11 +67 条词，data.js gzip +6.6KB）
+  gzTotalKB: 809,        // 实测 806.37KiB（内容批 C：U11 +68 条词，data.js gzip +6,015B）
   biggestGzKB: 114       // 实测 app.js 113.68KB（未动）
 };
 

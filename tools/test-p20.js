@@ -172,8 +172,8 @@ setTimeout(function () {
     const base = JSON.parse(read("tools/precache-baseline.json"));
     /* 本条是「CACHE 版本 ↔ 预缓存基线」的批次同步快照：每次升 CACHE 的批次随本批同步到当时版本
        （任务1 → fte-v135；任务3 → fte-v136；任务2 → fte-v137；P1 体验修正批 → fte-v138；
-       内容批 A/B（2026-10-31，U11 +67/+67 词）→ fte-v140，清单不变只升版）。 */
-    check("sw.js CACHE 与 precache 基线同步（内容批：fte-v140）", /const CACHE = "fte-v140"/.test(sw) && base.cache === "fte-v140" && base.minVersion === 140);
+       内容批 A/B/C（2026-10-31，U11 +67/+67/+68 词）→ fte-v141，清单不变只升版）。 */
+    check("sw.js CACHE 与 precache 基线同步（内容批：fte-v141）", /const CACHE = "fte-v141"/.test(sw) && base.cache === "fte-v141" && base.minVersion === 141);
 
     console.log(pass ? "\n=== P20 全部通过 ===" : "\n=== P20 有断言失败 ===");
     process.exit(pass ? 0 : 1);

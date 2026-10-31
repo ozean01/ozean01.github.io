@@ -7,7 +7,7 @@
 ## 1. 这个仓库是什么
 
 软包装外贸英语学习站：**纯静态单页应用**，零构建、零 npm 依赖、零后端。
-19 个课程单元 / 932 词 / 174 短语 / 47 段对话 + 27 步外贸实操 SOP + AI 对练。
+19 个课程单元 / 1000 词 / 174 短语 / 47 段对话 + 27 步外贸实操 SOP + AI 对练。
 产物就是 `index.html` + `js/` + `css/`，`python -m http.server 8000` 或 GitHub Pages / Cloudflare Pages 即可跑；
 PWA 离线可用（`sw.js` 手写 sw，无 Workbox）。
 
@@ -92,7 +92,7 @@ node tools/prepush-check.js   # 发布前：工作区干净 + CACHE 已升版 + 
 按顺序做，顺序不能反：
 
 1. 改内容；
-2. `sw.js` 的 `CACHE` 数字 +1（`fte-v139` → `fte-v140`），PRECACHE 清单若变化也同步增删；
+2. `sw.js` 的 `CACHE` 数字 +1（`fte-v140` → `fte-v141`），PRECACHE 清单若变化也同步增删；
 3. `tools/precache-baseline.json` 的 `cache` / `minVersion` 同步（清单集合变了才需要改 `sha256` / `count`）；
 4. `js/pwa-init.js` 的 `FTE_VERSION` 与 `package.json` 的 `version` **逐字一致**地升；
 5. `README.md`（若数字/功能变了）与 `CHANGELOG.md`（给用户的变化）同步；

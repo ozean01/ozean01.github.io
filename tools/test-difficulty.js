@@ -94,7 +94,7 @@ check("② load 确实含条目量项：nVocab 相同而 baseScore 更大的单�
    → U11 = 第 14 名，U13 = 第 3 名（本文件写成常量，供回归对比） */
 const BEFORE = { 11: 14, 13: 3 };
 const u11 = D.units[11].sortIdx, u13 = D.units[13].sortIdx;
-check("② U11（335 词）order 排名不在前 10（回到后段）", u11 > 10,
+check("② U11（403 词）order 排名不在前 10（回到后段）", u11 > 10,
   "U11 #" + u11 + "/" + UNIT_N + "（修订前 #" + BEFORE[11] + "，nVocab=" + D.units[11].nVocab + "）");
 check("② U11 是当前最重负载单元（load 最大）", D.units[11].load === Math.max.apply(null, ids.map(function (id) { return D.units[id].load; })),
   "load=" + D.units[11].load);

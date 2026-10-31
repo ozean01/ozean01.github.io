@@ -1,8 +1,8 @@
 {
   "_note": "A 批（+67，上游原料与化学）词条的讲义依据。讲义=《复膜胶系统学习资料 v3.1 完整讲义》2026-10-27（679 页）；page 为讲义 PDF 页（对应文本里的 === PAGE n ===）。enInLecture 表示该英文词是否在讲义中字面出现；false 表示讲义只有中文概念/表格，英文为行业标准对应词（在 note 里写明），供审计复核，不随站点发布。",
-  "batch": "A（上游原料与化学，67 条）+ B（复合工艺与设备，67 条）",
+  "batch": "A（上游原料与化学，67 条）+ B（复合工艺与设备，67 条）+ C（检测·缺陷·材料结构·合规，68 条）",
   "source": "复膜胶系统学习资料 v3.1 完整讲义（2026-10-27）",
-  "count": 134,
+  "count": 202,
   "terms": {
     "polyester polyol": {
       "section": "2.5 上游原料产业链 · 1.1 核心原料树",
@@ -807,6 +807,414 @@
       "page": 591,
       "enInLecture": false,
       "note": "P591 过程参数/验收表：「复合膜收卷硬度 ≥90HS」；P629 12.8 另有收卷硬度专节。讲义中文原词「收卷硬度」，英文 winding hardness 为行业标准对应词。"
+    },
+    "dart drop test": {
+      "section": "1.3 薄膜材料性能与选型接口 · TDS 性能表",
+      "page": 48,
+      "enInLecture": false,
+      "note": "P48 薄膜 TDS 性能表列「冰冻落镖（-20℃，4h）」「常温落镖」与对应数值（如 RCP11 150.0/1550.0）；讲义中文原词「落镖」，英文 dart drop test 为行业标准对应词。"
+    },
+    "puncture resistance": {
+      "section": "1.2 五层角色分工与层位语义",
+      "page": 21,
+      "enInLecture": false,
+      "note": "P21 表 1.2-3：加强层 NY「抗穿刺、抗弯折撕裂，保护铝箔」；P11 材料表「BOPA 耐穿刺、抗拉伸」。讲义中文原词「抗穿刺」，英文 puncture resistance 为行业标准对应词。"
+    },
+    "burst test": {
+      "section": "1.7 内容物分类与包装需求（真空蒸煮选材）",
+      "page": 25,
+      "enInLecture": false,
+      "note": "P25 真空蒸煮选材：BOPP 因透气性大被排除（防真空蒸煮时袋爆破）。讲义中文原词「爆破」，英文 burst test 为行业标准对应词。"
+    },
+    "tear strength": {
+      "section": "1.3 TDS 性能表（撕裂强度）",
+      "page": 65,
+      "enInLecture": false,
+      "note": "P65 规格表：撕裂强度 MD ≥60 MPa、TD ≥45 MPa，标准 ASTM D1004。讲义中文原词「撕裂强度」，英文 tear strength 为行业标准对应词。"
+    },
+    "grammage": {
+      "section": "1.3 TDS 性能表（定量）",
+      "page": 33,
+      "enInLecture": false,
+      "note": "P33 TAGHLEEF 400WTL-II 数据表：定量 10.8 lbs/ream（17.6 g/m²）。讲义中文原词「定量」，英文 grammage 为行业标准对应词。"
+    },
+    "color difference": {
+      "section": "7.5.4 色差",
+      "page": 344,
+      "enInLecture": false,
+      "note": "P344 7.5.4 色差：保持印品色相一致性是客户要求，控制重点是同批产品颜色相对一致。讲义中文原词「色差」，英文 color difference 为行业标准对应词。"
+    },
+    "viscometer": {
+      "section": "2.4.1 粘合剂的物化性能测试",
+      "page": 232,
+      "enInLecture": false,
+      "note": "P232 2.4.1：粘度 GB/T2794 用 3# 察恩杯（秒）和旋转粘度计（Pa·S）测试。讲义中文原词「旋转粘度计」，英文 viscometer 为行业标准对应词。"
+    },
+    "thickness gauge": {
+      "section": "2.5.1 检测设备（测厚仪）",
+      "page": 235,
+      "enInLecture": false,
+      "note": "P235：机械式薄膜测厚仪尽量用点接触，误差比较小。讲义中文原词「测厚仪」，英文 thickness gauge 为行业标准对应词。"
+    },
+    "Karl Fischer titration": {
+      "section": "2.5.1 检测设备 · 4. 水分测定仪",
+      "page": 234,
+      "enInLecture": false,
+      "note": "P234 4. 水分测定仪：微量水分检测已成必需测试项目，最准确、最经济的基本方法是卡尔费休法。讲义中文原词「卡尔费休法」，英文 Karl Fischer titration 为行业标准对应词。"
+    },
+    "gas chromatography": {
+      "section": "2.5.2 奢侈检测设备选择 · 1. 气相色谱",
+      "page": 235,
+      "enInLecture": false,
+      "note": "P235 2.5.2 第 1 条：气相色谱对气体物质或可在一定温度下转化为气体的物质进行检测分析。讲义中文原词「气相色谱」，英文 gas chromatography 为行业标准对应词。"
+    },
+    "differential scanning calorimetry": {
+      "section": "10.2 采购必检两个指标",
+      "page": 378,
+      "enInLecture": false,
+      "note": "P378 表 3.9-10：熔点用 DSC 差示扫描量热法，判据应为 ≤ 复合膜热合层树脂熔点。讲义中文原词「差示扫描量热法」，英文 differential scanning calorimetry 为行业标准对应词。"
+    },
+    "incoming inspection": {
+      "section": "1.6 来料检验、性能测试与表面张力判据",
+      "page": 98,
+      "enInLecture": false,
+      "note": "P98 1.6 来料检验：给出各基材电晕准入红线、达因笔/表面张力判断、透氧/透湿/剥离/热封十项试验测法，并设计来料复检清单（原文英文 Incoming Quality Control）。讲义中文原词「来料检验」，英文 incoming inspection 为行业标准对应词。"
+    },
+    "surface roughness": {
+      "section": "1.6 动态润湿与微观粗糙度",
+      "page": 103,
+      "enInLecture": false,
+      "note": "P103 表 1.6-5：微观粗糙度（Wenzel：cosθW = r·cosθ），r>1 放大本征润湿性，高速下胶液来不及流进凹槽→截留空气。讲义中文原词「微观粗糙度」，英文 surface roughness 为行业标准对应词。"
+    },
+    "seal peel test": {
+      "section": "8.5 热封工艺探讨",
+      "page": 271,
+      "enInLecture": false,
+      "note": "P271 8.5：热封强度即平常由铜棒探测的封口牢度；正规测试方法是测封口剥离强度，与复合膜剥离强度测试方法一样。讲义中文原词「封口剥离强度」，英文 seal peel test 为行业标准对应词。"
+    },
+    "sensory test": {
+      "section": "4.x 工业乙醇的感官检验方法",
+      "page": 447,
+      "enInLecture": false,
+      "note": "P447：工业乙醇的感官检验方法——用鼻子嗅、手沾挥发后手感发涩不发粘。讲义中文原词「感官检验」，英文 sensory test 为行业标准对应词。"
+    },
+    "vibration test": {
+      "section": "0.x 包装物流环境因素",
+      "page": 24,
+      "enInLecture": false,
+      "note": "P24 物流环境：物理机械因素（振动、冲击、堆码静压）。讲义中文原词「振动」，英文 vibration test 为行业标准对应词。"
+    },
+    "stacking test": {
+      "section": "0.x 包装物流环境因素",
+      "page": 24,
+      "enInLecture": false,
+      "note": "P24 物流环境：物理机械因素（振动、冲击、堆码静压）。讲义中文原词「堆码」，英文 stacking test 为行业标准对应词。"
+    },
+    "impact strength": {
+      "section": "1.3 核心性能对比表",
+      "page": 30,
+      "enInLecture": false,
+      "note": "P30 表 1.3-7 核心性能：拉伸强度为 PC 膜和聚酰胺膜的 3 倍，冲击强度为 BOPP 的 3-5 倍。讲义中文原词「冲击强度」，英文 impact strength 为行业标准对应词。"
+    },
+    "gauge variation": {
+      "section": "1.3 TDS 规格表",
+      "page": 65,
+      "enInLecture": false,
+      "note": "P65 规格表：厚度 32–70 µm（ASTM D6988），厚度偏差 ±10%（企业标准）。讲义中文原词「厚度偏差」，英文 gauge variation 为行业标准对应词。"
+    },
+    "abrasion resistance": {
+      "section": "1.2 五层角色分工与层位语义",
+      "page": 21,
+      "enInLecture": false,
+      "note": "P21 表 1.2-3 外层作用：印刷承载、挺度、耐磨、抗拉；P24 包装性能含「耐磨性」。讲义中文原词「耐磨」，英文 abrasion resistance 为行业标准对应词。"
+    },
+    "retort test": {
+      "section": "5.6 客诉案例库（热合强度差）",
+      "page": 549,
+      "enInLecture": false,
+      "note": "P549：水煮/蒸煮试验破袋、渗漏；耐压/跌落/耐热/耐老化试验不满意。讲义中文原词「蒸煮试验」，英文 retort test 为行业标准对应词。"
+    },
+    "crater": {
+      "section": "1.6 动态润湿与车间判据",
+      "page": 103,
+      "enInLecture": false,
+      "note": "P103：上机简易润湿试验——缩孔、点状收缩、边缘回缩 = 动态润湿不足。讲义中文原词「缩孔」，英文 crater 为行业标准对应词。"
+    },
+    "gel particle": {
+      "section": "5.4 蒸煮袋专项（热封层要求）",
+      "page": 509,
+      "enInLecture": false,
+      "note": "P509 蒸煮袋热封层要求：晶点焦料黑点等异物薄弱点少；P3 章节目录「缺陷详解（白点 → 晶点）」；P313 故障表「晶点/凝胶粒：树脂降解、混入高熔点杂质、过滤网破损」。讲义中文原词「晶点」，英文 gel particle 为行业标准对应词。"
+    },
+    "bowing": {
+      "section": "1.3 薄膜生产工艺（同步拉伸）",
+      "page": 39,
+      "enInLecture": true,
+      "note": "P39：同步拉伸厚度均匀度 <1%、低弓形、低收缩；LISIM® 线性电机方案。讲义中文原词「弓形」，英文 bowing 为行业标准对应词。"
+    },
+    "starred roll": {
+      "section": "3.2.4 复合系统 · 冷却部",
+      "page": 259,
+      "enInLecture": false,
+      "note": "P259 冷却部：较高温度下复合膜拉伸变形大，收卷后收缩、内层被压缩产生形变，会造成梅花芯现象。讲义中文原词「梅花芯」，英文 starred roll 为行业标准对应词。"
+    },
+    "core crush": {
+      "section": "5.1 分切（卷取张力）",
+      "page": 301,
+      "enInLecture": false,
+      "note": "P301 5.1：卷取张力太大 → 层间滑移，严重时拉断薄膜、使纸芯变形。讲义中文原词「纸芯变形」，英文 core crush 为行业标准对应词。"
+    },
+    "web break": {
+      "section": "5.2 缺陷详解 · 收卷张力对策",
+      "page": 483,
+      "enInLecture": false,
+      "note": "P483：增加收卷张力（5-10%）提高层间压力促粘接，「不可使薄膜变形或断膜」。讲义中文原词「断膜」，英文 web break 为行业标准对应词。"
+    },
+    "set-off": {
+      "section": "3.7 哑油结构专项（印刷段）",
+      "page": 284,
+      "enInLecture": false,
+      "note": "P284：哑油未干时的反粘迁移会直接破坏胶层连续性；P481 缺陷表「哑油未干 → 反粘迁」。讲义中文原词「反粘」，英文 set-off 为行业标准对应词。"
+    },
+    "flex crack resistance": {
+      "section": "1.2 层位语义（铝箔内侧加 PET）",
+      "page": 21,
+      "enInLecture": false,
+      "note": "P21：铝箔内侧加 PET（PET/AL/PET/PE）隔离 PE 助剂污染铝箔内表面、提升耐折抗针孔；P79/80 亦以「耐折」区分镀铝与铝箔。讲义中文原词「耐折」，英文 flex crack resistance 为行业标准对应词。"
+    },
+    "cold resistance": {
+      "section": "1.3 与常见薄膜对比（耐寒）",
+      "page": 38,
+      "enInLecture": false,
+      "note": "P38 表 1.3-19：薄膜耐寒 ℃ 列（BOPP -50、BOPET -60、BOPA -60 等）。讲义中文原词「耐寒」，英文 cold resistance 为行业标准对应词。"
+    },
+    "seal contamination": {
+      "section": "8.6 热封强度影响因素",
+      "page": 303,
+      "enInLecture": false,
+      "note": "P303：材料析出物形成弱界面层，影响封口强度（图 8-6：封口污染物如色拉油对热封强度的影响，PA/LDPE）；P509「灌装防封口污染」。讲义中文原词「封口污染」，英文 seal contamination 为行业标准对应词。"
+    },
+    "light barrier": {
+      "section": "1.1 结构分层（阻隔层）",
+      "page": 10,
+      "enInLecture": false,
+      "note": "P10 结构分层：阻隔层「控氧/控水/遮光」，VMPET 12 / AL 7–9；P10 另注「镀铝膜不能完全阻光」。讲义中文原词「遮光」，英文 light barrier 为行业标准对应词。"
+    },
+    "light transmission": {
+      "section": "1.3 核心性能对比表",
+      "page": 30,
+      "enInLecture": false,
+      "note": "P30 表 1.3-7：透光率高达 90%（PET 类）。讲义中文原词「透光率」，英文 light transmission 为行业标准对应词。"
+    },
+    "chemical resistance": {
+      "section": "1.3 薄膜材料性能（PET 段）",
+      "page": 31,
+      "enInLecture": true,
+      "note": "P31：PET 耐化学性——耐稀酸/碱、大多数溶剂和油，不耐浓酸/碱。讲义中文原词「耐化学性」，英文 chemical resistance 为行业标准对应词。"
+    },
+    "freezer resistance": {
+      "section": "1.7 内容物→结构映射（冷冻类）",
+      "page": 45,
+      "enInLecture": false,
+      "note": "P45 结构表：高阻隔延长货架期、高透明、耐冷冻耐穿刺；中阻隔热成型膜「耐低温冷冻」。讲义中文原词「耐冷冻」，英文 freezer resistance 为行业标准对应词。"
+    },
+    "core layer": {
+      "section": "1.3 TDS（白 OPP 结构）",
+      "page": 33,
+      "enInLecture": false,
+      "note": "P33：OPP 结构「白色打印层 / Opaque Voided OPP 芯层 / 透明 OPP 处理面」。讲义中文原词「芯层」，英文 core layer 为行业标准对应词。"
+    },
+    "coating layer": {
+      "section": "1.1 材料缩写速查（涂层）",
+      "page": 12,
+      "enInLecture": false,
+      "note": "P12 材料表：PVDC 偏二氯乙烯共聚物 3–10 μm（涂层）；AlOx 20–100 nm 蒸镀层。讲义中文原词「涂层」，英文 coating layer 为行业标准对应词。"
+    },
+    "outer layer": {
+      "section": "1.1 材料缩写速查",
+      "page": 11,
+      "enInLecture": false,
+      "note": "P11 表 1.1-1：PET 12–23 μm「外层承印、刚度、强度」；BOPP「外层承印、防潮、透明」。讲义中文原词「外层」，英文 outer layer 为行业标准对应词。"
+    },
+    "print layer": {
+      "section": "0.x 结构分层总览",
+      "page": 1,
+      "enInLecture": false,
+      "note": "P1 结构分层图：表层/印刷层 BOPP·PET·BOPA → 油墨层（里印/表印）→ 粘结层…。讲义中文原词「印刷层」，英文 print layer 为行业标准对应词。"
+    },
+    "barrier layer": {
+      "section": "0.x 结构分层总览",
+      "page": 1,
+      "enInLecture": false,
+      "note": "P1 结构分层图：阻隔层 VMPET·AL·EVOH；P10 阻隔层「控氧/控水/遮光」。讲义中文原词「阻隔层」，英文 barrier layer 为行业标准对应词。"
+    },
+    "blown film": {
+      "section": "1.5 供应商与产线（吹膜）",
+      "page": 35,
+      "enInLecture": true,
+      "note": "P35：PVC 热收缩标签膜 35 台吹膜机、2 万吨/年；PE 复合基材膜产线。讲义中文原词「吹膜」，英文 blown film 为行业标准对应词。"
+    },
+    "cast film": {
+      "section": "1.1 材料缩写速查（流延）",
+      "page": 11,
+      "enInLecture": false,
+      "note": "P11 表 1.1-1：CPP「流延聚丙烯」20–80 μm 内层热封；RCPP「蒸煮级 CPP」。讲义中文原词「流延」，英文 cast film 为行业标准对应词。"
+    },
+    "ionomer": {
+      "section": "3.4 挤出复合工艺参数（树脂）",
+      "page": 305,
+      "enInLecture": true,
+      "note": "P305 表 3.4-3：树脂 LDPE / PP / EVA / EMAA / EAA / SURLYN（离聚物）；P310「离子键化合物」。讲义中文原词「离聚物」，英文 ionomer 为行业标准对应词。"
+    },
+    "tie layer": {
+      "section": "2.x 材料知识（PVDC/EVOH 共挤）",
+      "page": 75,
+      "enInLecture": false,
+      "note": "P75：PVDC 加工温度窗口窄，共挤时需粘结树脂过渡层；P45 结构表 PE-g-MAH 即粘结树脂。讲义中文原词「粘结树脂」，英文 tie layer 为行业标准对应词。"
+    },
+    "symmetric structure": {
+      "section": "1.7 热成型膜结构",
+      "page": 45,
+      "enInLecture": false,
+      "note": "P45：多层共挤结构按阻隔层位置可调（PA/EVOH 居中对称结构为典型）。讲义中文原词「对称结构」，英文 symmetric structure 为行业标准对应词。"
+    },
+    "asymmetric structure": {
+      "section": "1.1 共挤膜结构 · 4.2 非对称型",
+      "page": 15,
+      "enInLecture": false,
+      "note": "P15 表 1.1-9 非对称型：PE / PE-g-MAH / EVOH / PE（单面粘合）、PP / PP-g-MAH / PVDC / PP。讲义中文原词「非对称型」，英文 asymmetric structure 为行业标准对应词。"
+    },
+    "multilayer structure": {
+      "section": "0.x 阻隔看最弱一层",
+      "page": 8,
+      "enInLecture": false,
+      "note": "P8：阻隔看最弱一层——多层结构的有效阻隔受短板支配（木桶效应）。讲义中文原词「多层结构」，英文 multilayer structure 为行业标准对应词。"
+    },
+    "adhesive layer": {
+      "section": "1.8 结构案例（PVA 涂布高阻隔）",
+      "page": 57,
+      "enInLecture": false,
+      "note": "P57：与 CPP/PE 热封强度 >15 N/15mm，热封前需确认胶层对热封区的影响。讲义中文原词「胶层」，英文 adhesive layer 为行业标准对应词。"
+    },
+    "sealant film": {
+      "section": "1.3 材料知识索引",
+      "page": 30,
+      "enInLecture": false,
+      "note": "P30：BOPET 覆盖热封膜、易撕膜、打孔膜、高阻隔膜；用于与 PE/CPP 热封层复合。讲义中文原词「热封膜」，英文 sealant film 为行业标准对应词。"
+    },
+    "opacity": {
+      "section": "1.3 TDS 性能表",
+      "page": 34,
+      "enInLecture": false,
+      "note": "P34 性能表：不透明度 78；白度指数 84；表面张力 36 dynes（TAPPI）。讲义中文原词「不透明度」，英文 opacity 为行业标准对应词。"
+    },
+    "whiteness": {
+      "section": "1.3 TDS 性能表 / 展示性",
+      "page": 34,
+      "enInLecture": false,
+      "note": "P34 性能表：白度指数 84；P24 展示性含「透明度、白度、光泽度」。讲义中文原词「白度」，英文 whiteness 为行业标准对应词。"
+    },
+    "EU 10/2011": {
+      "section": "1.7 中国/欧盟法规速查",
+      "page": 114,
+      "enInLecture": true,
+      "note": "P114 法规表：EU 10/2011 塑料食品接触材料——总迁移量 ≤10 mg/dm²、特定迁移限值（SML）分物质列出。讲义原词「EU 10/2011」，为英文法规名。"
+    },
+    "food-contact compliance": {
+      "section": "1.3 供应商 TDS（合规声明）",
+      "page": 55,
+      "enInLecture": false,
+      "note": "P55：幅宽 500–2200 mm，符合 EU 及 FDA 食品接触法规（MDOPE TDS 摘录）；P113–114 食品安全标准/欧盟框架。讲义中文原词「食品接触」，英文 food-contact compliance 为行业标准对应词。"
+    },
+    "GMP": {
+      "section": "1.7 油墨层法规速查（EuPIA GMP）",
+      "page": 114,
+      "enInLecture": true,
+      "note": "P114：油墨层视角法规速查（中国/欧盟/德国/瑞士四框架 + EuPIA GMP + SoC≈墨层 DoC）。讲义原词「GMP」，为英文缩写。"
+    },
+    "leak test": {
+      "section": "5.4 蒸煮袋专项（真空度/泄漏要求）",
+      "page": 509,
+      "enInLecture": false,
+      "note": "P509：食品真空袋通常 90%~98% 真空度（对应绝对压力 10~100 mbar）；一般要求 30 kPa 真空度下袋体无泄漏；P44 另述反压冷却不当会造成袋爆破/泄漏。讲义中文原词「泄漏」，英文 leak test 为行业标准对应词。"
+    },
+    "NIAS": {
+      "section": "6.x 迁移与食品接触监管",
+      "page": 652,
+      "enInLecture": false,
+      "note": "P652：非有意添加物（欠固化产物、未反应单体）是食品接触监管的主要关切源——影响气味/口味/毒性。讲义中文原词「非有意添加物」，英文 NIAS 为行业标准缩写（non-intentionally added substances）。"
+    },
+    "heavy metals": {
+      "section": "1.5 卫生标准 GB9683-1988",
+      "page": 39,
+      "enInLecture": false,
+      "note": "P39 卫生标准 GB9683-1988：甲苯二胺（4%乙酸）<0.004 mg/L；高锰酸钾消耗量 <10 mg/L；重金属（Pb）<1 mg/L。讲义中文原词「重金属」，英文 heavy metals 为行业标准对应词。"
+    },
+    "extended producer responsibility": {
+      "section": "1.12 欧洲 15 国深察（英国段）",
+      "page": 145,
+      "enInLecture": false,
+      "note": "P145：脱欧后供应链重构——pEPR（包装生产者责任）、塑料包装税 £200/t → 单一材质压力大。讲义中文原词「包装生产者责任」，英文 extended producer responsibility 为行业标准对应词。"
+    },
+    "framework regulation": {
+      "section": "1.7 中国/欧盟法规速查",
+      "page": 114,
+      "enInLecture": false,
+      "note": "P114 法规表：EC 1935/2004 框架法规——迁移不改变食品成分、释放量安全。讲义中文原词「框架法规」，英文 framework regulation 为行业标准对应词。"
+    },
+    "recyclate": {
+      "section": "6.x 合规认证矩阵（欧盟）",
+      "page": 637,
+      "enInLecture": false,
+      "note": "P637 合规矩阵欧盟行：(EU) 10/2011 塑料、(EC) 1935/2004 框架、PPWR 可回收/再生料、PAA 检出限。讲义中文原词「再生料」，英文 recyclate 为行业标准对应词。"
+    },
+    "compostable": {
+      "section": "6.4 可持续包装动态（可堆肥）",
+      "page": 658,
+      "enInLecture": false,
+      "note": "P658：废弃食用油 + PLA 可堆肥复合包装专利；生物基 PLA 植物包装膜。讲义中文原词「可堆肥」，英文 compostable 为行业标准对应词。"
+    },
+    "biodegradation": {
+      "section": "1.4 PVA 薄膜",
+      "page": 56,
+      "enInLecture": false,
+      "note": "P56：PVA 是水溶性高分子聚合物，在细菌/酶作用下可完全生物降解。讲义中文原词「生物降解」，英文 biodegradation 为行业标准对应词。"
+    },
+    "carbon footprint": {
+      "section": "6.5 行业动态（无溶剂减排）",
+      "page": 651,
+      "enInLecture": false,
+      "note": "P651：转化溶剂型技术带来碳足迹与可持续性重大收益（Henkel 高管表态）；年省 ~3,200 吨 CO₂。讲义中文原词「碳足迹」，英文 carbon footprint 为行业标准对应词。"
+    },
+    "life cycle assessment": {
+      "section": "1.5 AlOx/SiOx 蒸镀层工程痛点",
+      "page": 93,
+      "enInLecture": false,
+      "note": "P93：AlOx/SiOx 蒸镀层是纳米级玻璃膜，包装全生命周期要经历印刷、复合、制袋、抽真空、跌落、折弯、蒸煮。讲义中文原词「全生命周期」，英文 life cycle assessment 为行业标准对应词。"
+    },
+    "toluene diamine": {
+      "section": "1.5 卫生标准 GB9683-1988",
+      "page": 39,
+      "enInLecture": false,
+      "note": "P39 卫生标准 GB9683-1988：甲苯二胺（4%乙酸）<0.004 mg/L。讲义中文原词「甲苯二胺」，英文 toluene diamine 为行业标准对应词。"
+    },
+    "mineral oil": {
+      "section": "1.4 PVA 高阻隔薄膜",
+      "page": 56,
+      "enInLecture": false,
+      "note": "P56：PVA 覆膜再生纸板解决矿物油污染问题，达「A 级可回收」；PVA 可阻隔氧气、油脂、潮气、矿物油。讲义中文原词「矿物油」，英文 mineral oil 为行业标准对应词。"
+    },
+    "recycled content": {
+      "section": "6.3 欧盟法规与再生含量",
+      "page": 654,
+      "enInLecture": false,
+      "note": "P654：包装再生含量要求（执行中）；数字水印分拣被視为满足再生含量核算的数据基础。讲义中文原词「再生含量」，英文 recycled content 为行业标准对应词。"
+    },
+    "curing degree": {
+      "section": "3.7 哑油结构专项（表面能/固化度）",
+      "page": 481,
+      "enInLecture": false,
+      "note": "P481 缺陷表：哑油表面能、耐溶剂性、固化度与普通油墨差异大；哑油未干 → 反粘迁移。讲义中文原词「固化度」，英文 curing degree 为行业标准对应词。"
     }
   }
 }
