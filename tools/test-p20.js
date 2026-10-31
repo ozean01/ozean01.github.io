@@ -170,7 +170,7 @@ setTimeout(function () {
 
     const sw = read("sw.js");
     const base = JSON.parse(read("tools/precache-baseline.json"));
-    check("sw.js CACHE 与 precache 基线同步（fte-v134）", /const CACHE = "fte-v134"/.test(sw) && base.cache === "fte-v134" && base.minVersion === 134);
+    check("sw.js CACHE 与 precache 基线同步（任务1 批次：fte-v135）", /const CACHE = "fte-v135"/.test(sw) && base.cache === "fte-v135" && base.minVersion === 135);
 
     console.log(pass ? "\n=== P20 全部通过 ===" : "\n=== P20 有断言失败 ===");
     process.exit(pass ? 0 : 1);

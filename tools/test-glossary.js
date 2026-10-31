@@ -134,7 +134,7 @@ check("index.html 有术语速查导航入口", /href="#\/glossary"/.test(html))
   check("sw.js 预缓存含 " + f, sw.indexOf('"./' + f + '"') !== -1);
 });
 check("app.js 注册了 glossary 路由",
-  /"glossary"\]\.indexOf\(parts\[0\]\)|,\s*"glossary"\]/.test(appjs) || /"glossary",\s*"today"\]/.test(appjs));
+  /"glossary"\]\.indexOf\(parts\[0\]\)|,\s*"glossary"\s*,|"glossary"\]/.test(appjs) || /"glossary",\s*"today"\]/.test(appjs));
 check("app.js 有 glossary 渲染分支", /route\.view === "glossary"/.test(appjs));
 check("app.js 启动校验含术语库全局",
   appjs.indexOf("!!window.FTE_GLOSSARY") !== -1 && appjs.indexOf("window.Glossary && window.Glossary.render") !== -1);

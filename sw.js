@@ -11,7 +11,16 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v134";   /* ★ P20（2026-10-30）：外部素材评估的落地批（AI 周测 + 投料口 AI 理解题 + AGENTS.md）：
+const CACHE = "fte-v135";   /* ★ 任务1（2026-10-31）：一页纸速查小抄（#/cheatsheet）：
+                             · 新增 js/cheatsheet.js（只重排既有语料的「来源 key → 整句」，不新造内容）：
+                               SOP 客户动作句 / 催款话术、真实来信的正确回信范句、单元词条例句，
+                               按 7 阶段编排，可筛选/朗读/复制/打印（A4 黑白、按阶段分页）；
+                             · index.html 挂在 app.js 之前；入口在「实操 SOP」页顶部按钮（一级导航不变，仍 6 项）；
+                             · css/style.css：.cs-* 版式 + @media print；无新增存储键、无新增 AI 调用点。
+                             PRECACHE 清单 64 → 65 条（+js/cheatsheet.js），先升 CACHE 再刷新基线。
+
+                             —— 更早批次（历史记录，仍有效）——
+                             fte-v134 · P20（2026-10-30）：外部素材评估的落地批（AI 周测 + 投料口 AI 理解题 + AGENTS.md）：
                              · js/quiz.js：新增 QuizAI——按「本周学过的单元 + 常错词 + 易错点」出 10 题，
                                投料口材料出 5 题；作答时不显示对错、交卷后逐题讲错；不写盘/不计成绩/不作能力证据；
                              · js/app.js / js/material.js：各挂一个挂载点（不新增导航、不新增存储键、不新增脚本）；
@@ -246,6 +255,7 @@ const PRECACHE = [
   "./js/placement.js",
   "./js/outcomes.js",
   "./js/entry-trace.js",
+  "./js/cheatsheet.js",
   "./js/app.js"
 ];
 

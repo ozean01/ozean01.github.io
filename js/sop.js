@@ -1234,6 +1234,10 @@
       '<h2>🧭 外贸实操 SOP · 你做对了吗？</h2>' +
       '<div class="en">Export Operations SOP — from order confirmation to payment collection</div>' +
       '<p style="margin-top:8px;color:var(--muted);max-width:820px">订单确认才是大货交付的起点。这里把内部流转、单证制作、运输报关、收款风控拆成可勾选的动作，每一步都配一句可以直接发出去的英文——先把流程走对，英文才用得上。</p>' +
+      /* 一页纸速查小抄：把站内「可直接发」的整句按 7 阶段重排，写邮件/打电话时直接抄。
+         入口放这里而不是导航：一级导航已收敛到 6 项（P12/P13 棘轮）。 */
+      '<p class="sop-cs-entry"><a class="btn btn-outline btn-sm" href="#/cheatsheet">📋 一页纸速查小抄</a>' +
+      '<span class="sop-hint">按「开发客户 → 询盘报价 → 谈判 → 订单单证 → 生产催货 → 出货物流 → 收款售后」排好的中英对照整句，可朗读、复制、打印。</span></p>' +
       '</div>' +
       '<div class="tabs">' + TABS.map(function (t) {
         return '<button class="tab' + (State.tab === t.k ? " active" : "") + '" data-action="sop-tab" data-tab="' + t.k + '">' + t.label + '</button>';

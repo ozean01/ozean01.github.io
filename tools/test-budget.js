@@ -55,11 +55,18 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · 已守两条硬约束：**不新增脚本、不新增请求**（subResources 仍 56，PRECACHE 清单仍 64 条），
        全站只新增 1 个 LLM 调用点（已进 AI 调用点基线，带 FACT_GUARD 与披露出口）；
        最大单文件仍是 app.js（未动 biggestGzKB）。
-     · 余量只留 2KB（实测 764KB / 766KB），与 P11/P14 的比例一致；其余两条上限**不放松**。 */
+     · 余量只留 2KB（实测 764KB / 766KB），与 P11/P14 的比例一致；其余两条上限**不放松**。
+   任务1（2026-10-31）第四次上调：subResources 56 → 57、gzTotalKB 766 → 772（+6KB，约 +0.8%），理由如下：
+     · 本批**确实新增 1 个脚本** js/cheatsheet.js（一页纸速查小抄）：只做「来源 key → 原有整句」的
+       重排渲染，约 5.6KB gzip；样式与打印（@media print）约 0.4KB，合计实测 770KB（本门禁口径）。
+     · 为什么不能塞进 app.js：它要读 SOP._t / FTE_MAIL / 单元词条例句，塞进 app.js 会让「来源解析+
+       打印版式」与 app.js 的渲染主循环耦合；独立文件也让 tools/test-cheatsheet.js 能在最小桩环境单独加载。
+     · PRECACHE 64 → 65 条（+js/cheatsheet.js），请求数 +1；最大单文件仍是 app.js（114KB，未动 biggestGzKB）。
+     · 余量 2KB（实测 770KB / 772KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 56,      // 实测 56（55 脚本 + 1 样式表；P11 新增 js/seg-review.js）
-  gzTotalKB: 766,        // 实测 764KB（P20：AI 周测 + 投料口 AI 理解题）
-  biggestGzKB: 114       // 实测 app.js 113KB
+  subResources: 57,      // 实测 57（56 脚本 + 1 样式表；任务1 新增 js/cheatsheet.js）
+  gzTotalKB: 772,        // 实测 770KB（任务1：一页纸速查小抄，+6KB gzip）
+  biggestGzKB: 114       // 实测 app.js 114KB
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

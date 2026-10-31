@@ -108,10 +108,20 @@ const noRoute = NAV.filter(function (v) { return ROUTES.indexOf(v) === -1; });
 check("每个导航入口都有对应路由（无孤儿入口）", noRoute.length === 0, noRoute.join(", "));
 
 const REACHABLE = ALIAS_ROUTES.concat(REDIR_ROUTES);
-const noEntry = ROUTES.filter(function (v) {
-  return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1 && REACHABLE.indexOf(v) === -1;
+/* 页内入口路由（任务1 起允许的极少数例外）：路由必须能从站内**页面内**点进去，
+   但刻意不占导航（一级导航 6 项 / 18 入口的棘轮不放松）。
+   目前只有 cheatsheet：入口在「🧭 实操 SOP」页顶部按钮。 */
+const INPAGE_ROUTES = ["cheatsheet"];
+INPAGE_ROUTES.forEach(function (r) {
+  const src = fs.readFileSync(path.join(ROOT, "js", "sop.js"), "utf8");
+  check("页内入口路由 #/" + r + " 在 SOP 页内有可点链接", new RegExp('href="#/' + r + '"').test(src));
+  check("页内入口路由 #/" + r + " 不在导航里（刻意不占导航）", NAV.indexOf(r) === -1);
 });
-check("每个路由都有导航入口或已并入合并页（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
+const noEntry = ROUTES.filter(function (v) {
+  return NAV.indexOf(v) === -1 && PARAM_ROUTES.indexOf(v) === -1 && REACHABLE.indexOf(v) === -1 &&
+    INPAGE_ROUTES.indexOf(v) === -1;
+});
+check("每个路由都有导航入口、已并入合并页，或是已登记的页内入口（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
 console.log("  导航 " + NAV.length + " 项 / 路由 " + ROUTES.length + " 条（参数化：" + PARAM_ROUTES.join(", ") +
   "；别名：" + ALIAS_ROUTES.join(", ") + "；重定向：" + REDIR_ROUTES.join(", ") + "）");
 

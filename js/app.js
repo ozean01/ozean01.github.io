@@ -630,7 +630,7 @@
        先于普通路由处理，解析成「合并页 + 对应 tab」，表现与 #/<页>/<tab> 完全一致 */
     if (MERGED_ALIAS[parts[0]]) return { view: MERGED_ALIAS[parts[0]].page, tab: MERGED_ALIAS[parts[0]].tab };
     if (MERGED_PAGES[parts[0]]) return { view: parts[0], tab: parts[1] || MERGED_PAGES[parts[0]].tabs[0].k };
-    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary"].indexOf(parts[0]) !== -1) return { view: parts[0] };
+    if (["units", "flash", "quiz", "speak", "tutor", "coach", "listen", "eval4", "sop", "mistakes", "home", "placement", "sources", "subtitle", "write", "patterns", "speech", "board", "speaking", "material", "mysay", "phonemes", "today", "glossary", "cheatsheet"].indexOf(parts[0]) !== -1) return { view: parts[0] };
     return { view: "home" };
   }
 
@@ -684,6 +684,7 @@
       else if (route.view === "sop") window.SOP.render();
       else if (route.view === "sources") window.Sources.render();
       else if (route.view === "glossary") window.Glossary.render();
+      else if (route.view === "cheatsheet") window.Cheatsheet.render();
       else if (route.view === "mysay") window.MySay.render();
       else if (route.view === "write") window.WriteStudio.render();
       else if (route.view === "patterns") window.Patterns.render();
