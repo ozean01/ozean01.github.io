@@ -144,7 +144,7 @@ ok("waveform 签名向后兼容（录音回放仍可不传 opts）", /Player\.wa
 ok("字幕页有原声波形画布", /id="diWave"/.test(src));
 ok("画布有无障碍语义（role=img + aria-label）", /id="diWave"[\s\S]{0,200}?role="img"/.test(src));
 ok("换句即重画（highlightCue 内调 drawSrcWave）", /function highlightCue\(idx\) \{[\s\S]{0,400}?drawSrcWave\(\)/.test(src));
-ok("渲染后补画（bind 内按媒资判断）", /if \(s\.mediaUrl\) drawSrcWave\(\)/.test(src));
+ok("渲染后补画（bind 内按媒资判断；远程跨域不解码）", /if \(s\.mediaUrl && !s\.mediaRemote\) drawSrcWave\(\)/.test(src));
 ok("换媒资清波形缓存", /waveClearCache\(\)/.test(src));
 ok("重画令牌存在（旧结果不得覆盖新句）", /waveSeq/.test(src));
 ok("画不出时有诚实说明，不静默", /已跳过绘制/.test(src) && /解不出音轨/.test(src));

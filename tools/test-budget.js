@@ -130,11 +130,21 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        纸芯压扁/断膜/反粘/封口污染）、结构层语义（芯层/涂层/外层/印刷层/阻隔层/吹膜/流延/离聚物/
        粘结树脂/对称与非对称结构/胶层/热封膜/不透明度/白度）与法规认证（EU 10/2011、食品接触合规、
        GMP、NIAS、重金属、EPR、1935/2004、再生料/再生含量、可堆肥、碳足迹、LCA、甲苯二胺、矿物油）。
-     · 余量 2.5KB（实测 806.37KiB / 809KB）；其余两条上限不放松。 */
+     · 余量 2.5KB（实测 806.37KiB / 809KB）；其余两条上限不放松。
+   内容批（播客导入第 1 批，2026-11-01）第十一次上调：subResources 59 → 60、gzTotalKB 809 → 819（+10KB），理由如下：
+     · 本批是**功能批**：新增 js/podcast.js（RSS/Atom 列集 → 选集载入、单集页面尽力提取音频直链、
+       音频直链、可选字幕），复用字幕页的 cues / 四档 / A-B / 逐句笔记；README/CHANGELOG/版本同步。
+       构成：podcast.js gzip **8,379B** + subtitle.js 增长 **+319B** + index.html 等约 **1.5KB**。
+       本门禁口径**实测 816.30KiB（835,892B）**，819KB = 实测 + 约 2.5KB 容差（约 0.30%）——**超过即红**。
+     · **新增 1 个子资源**：subResources 59 → 60（index.html 新增 js/podcast.js）；PRECACHE 同步 67 → 68 条
+       （含 ./js/podcast.js，**不含任何音频**）；biggestGzKB 仍 114（app.js 113.71KB 未动）。
+     · 为什么值得花：把「听的东西」从本地拖文件升级成粘贴链接（RSS 列集 / 单集页面 / 音频直链 + 可选字幕），
+       并复用既有字幕练习全链路；远程音频跨域时禁用波形并写明原因（解码需要 CORS），不静默失败。
+     · 余量 2.5KB（实测 816.30KiB / 819KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 59,      // 实测 59（58 脚本 + 1 样式表；本批未新增脚本）
-  gzTotalKB: 809,        // 实测 806.37KiB（内容批 C：U11 +68 条词，data.js gzip +6,015B）
-  biggestGzKB: 114       // 实测 app.js 113.68KB（未动）
+  subResources: 60,      // 实测 60（59 脚本 + 1 样式表；播客导入新增 js/podcast.js）
+  gzTotalKB: 819,        // 实测 816.30KiB（播客导入第 1 批：podcast.js gzip 8,379B + subtitle +319B + index 等约 1.5KB）
+  biggestGzKB: 114       // 实测 app.js 113.71KB（未动）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

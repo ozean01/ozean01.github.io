@@ -23,7 +23,7 @@
        无法预先枚举；这不会削弱上面那条——要外发数据仍需先执行脚本。
      · cdn.jsdelivr.net 是 vendor 库的加载源（phonemizer / Azure Speech SDK /
        transformers / exceljs / 汇率接口），js/vendor 里没有内置副本时走它。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: https://translate.google.com https://*.speech.microsoft.com; connect-src *; font-src 'self' data:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: https: https://translate.google.com https://*.speech.microsoft.com; connect-src *; font-src 'self' data:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>软包装外贸英语 · Soft Packaging Foreign Trade English</title>
 <meta name="description" content="一站式软包装外贸英语学习网站：核心术语、商务邮件、询盘报价、谈判、付款物流、展会口语、跨境电商，另含外贸实操 SOP（订单内部流转、PI/CI/PL/BL/CO 单证规范、报关报检、海运空运快递、T/T 与 L/C 风控、Incoterms 2020），支持朗读、跟读、听写、单词卡与测验。">
 <!-- SEO / 分享（Open Graph·Twitter·canonical）：
@@ -278,6 +278,7 @@
         · <b>AI 陪练 / 写作批改 / 四维 AI 判分 / 说我想说</b>：发送<b>对话与写作文本</b>到你选择的 <code>Base URL</code>（默认 <code>api.deepseek.com</code>；选 🖥 本地 Ollama 时一步都不出本机）。<br>
         · <b>汇率查询</b> → <code>cdn.jsdelivr.net</code>：只取公开汇率表，不发送任何个人信息。<br>
         · <b>素材投料口 · 粘贴网页链接</b> → <code>r.jina.ai</code>：发送<b>你粘贴的那个网址</b>以取回正文（学习数据与 Key 都不会带上）。<br>
+        · <b>播客导入（RSS 订阅源 / 单集页面）</b> → <code>r.jina.ai</code>：发送<b>你粘贴的那个订阅源或页面网址</b>以取回 XML / 正文；音频直链由原始站点直接提供，本站不经手中转、不下载、不缓存。<br>
         关掉对应功能即可停止对应上行；本站不会在你没点的时候主动联网。<br>
         <b>另有一项只写在本机、不外发、可随时关闭的记录</b>（<code>fte-trace-v1</code>）：记什么——你从非主线入口（场景急救「接着说」/ 搜索结果 / 看板任务卡 / 写作区单元 chip / 首次上手横幅等）点进主线单元的<b>次数与单元号</b>，以及进入主线单元页的<b>次数</b>；时间戳按 <b>15 分钟粒度</b>吸附。只记次数、单元号与来源粗类，<b>不记</b>你看了哪个词条 / 句子 / 场景文本，也<b>不记</b>答对答错。存在哪里——<b>仅本机 localStorage</b>；是否外发——<b>否</b>（本站没有上报接口）；<b>已从备份中排除</b>——「⬇️ 导出进度备份」生成的 JSON 里<b>不含它</b>。<br>
         　<b>怎么关</b>（任选其一，随时可停）：浏览器控制台执行 <code>FTE_TRACE.disable()</code>；或写入 <code>localStorage.setItem("fte-trace-off","1")</code>；或用 <code>index.html?traceOff=1</code> 打开本次页面。重新开启用 <code>FTE_TRACE.enable()</code>。界面开关尚未接入，待后续版本补上。
@@ -404,6 +405,7 @@
 <script src="js/sources.js" defer></script>
 <script src="js/glossary.js" defer></script>
 <script src="js/subtitle.js" defer></script>
+<script src="js/podcast.js" defer></script>
 <script src="js/material.js" defer></script>
 <!-- 🔎 查词 / 阅读高亮 / bookmarklet（任务3）：投料口正文高亮与 #/lookup 词卡。
      依赖 material（投料口）与 data*/data-glossary（词库），排在 material 之后、app.js 之前。 -->

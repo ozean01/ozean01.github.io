@@ -91,7 +91,9 @@
     catch (e) { return false; }
   }
 
-  window.Subtitle = { render: render, DATA: null };
+  /* loadRemote: 播客导入（js/podcast.js）把「远程音频 URL + 字幕文本」交给本页同一套渲染/播放逻辑。
+     toast: 供其它模块复用本页提示样式（避免各写一套）。 */
+  window.Subtitle = { render: render, loadRemote: loadRemote, toast: toastMsg, DATA: null };
   /* 供自动化测试/诊断使用的解析钩子（不影响运行时） */
   window.Subtitle._t = {
     toSec: toSec, parseSubtitle: parseSubtitle, diff: diff, coloredText: coloredText, guessFormat: guessFormat,
@@ -102,6 +104,8 @@
   };
   const state = window.Subtitle.state = {
     cues: [], mediaUrl: null, mediaEl: null, current: -1, fileName: "",
+    mediaRemote: false,      // 媒资来自远程 URL（播客导入）→ 波形/解码禁用；本地文件为 false
+    remoteNotice: "",        // 远程载入后的提示（如「本集没有公开字幕」），空 = 不显示
     mode: loadMode(),        // "" = 自动（有中文轨→全部，否则→英语）
     revealed: {},            // 中文档下「已对照英文」的句子下标（本次载入内有效）
     ab: null,                // 🔂 A-B 复读状态：{ a, b, idx, slow, seq }；null = 关闭
@@ -493,8 +497,11 @@
       <div class="crumbs"><a href="#/home">全站地图</a> / 字幕点读</div>
       <h2>📺 字幕逐句点读</h2>
       <div class="en">点一句 → 播这一句 → 自动停 · 生词按难度自动着色（CEFR + 行业术语）· 四档字幕（全部/英语/隐藏/中文）</div>
-      <p style="margin-top:8px;max-width:760px;color:var(--muted)">把美剧、演讲、YouTube 视频的<b>字幕</b>和<b>音/视频</b>载入进来，一句一句主动点读：点击任意句子即播放对应片段，读完自动暂停，句与句之间留出思考时间，避免连听走神。生词按 <b>易/中/难/专</b> 自动着色，点击词看解释。<b>中英双语字幕自动分轨</b>，可按 <b>全部 → 英语 → 隐藏 → 中文</b> 逐步加难度；中文档留到最后做<b>回译检查</b>。全程本地，不上传任何文件。</p>
+      <p style="margin-top:8px;max-width:760px;color:var(--muted)">把美剧、演讲、YouTube 视频的<b>字幕</b>和<b>音/视频</b>载入进来，一句一句主动点读：点击任意句子即播放对应片段，读完自动暂停，句与句之间留出思考时间，避免连听走神。生词按 <b>易/中/难/专</b> 自动着色，点击词看解释。<b>中英双语字幕自动分轨</b>，可按 <b>全部 → 英语 → 隐藏 → 中文</b> 逐步加难度；中文档留到最后做<b>回译检查</b>。本地文件全程不上传；也可以从下面的<b>播客链接</b>导入（在线听，网址会发给 r.jina.ai，见设置页「数据去向」）。</p>
     </div>
+
+    <div id="podcastEntry" style="margin-top:8px"></div>
+    ${s.remoteNotice ? '<div class="card" style="margin-top:8px;padding:12px 14px;border-left:3px solid var(--warn,#b45309)"><b>⚠️ 提示</b><div class="field-note" style="margin-top:4px">' + esc(s.remoteNotice) + "</div></div>" : ""}
 
     <div class="card" style="margin-top:6px;padding:16px 18px">
       <div class="sub-load">
@@ -521,15 +528,15 @@
     </div>
 
     <div id="diMediaBox" style="margin-top:12px" ${showMedia}>
-      <div class="card" style="padding:12px"><video id="diMedia" controls playsinline style="width:100%;max-height:320px;background:#000"></video></div>
+      <div class="card" style="padding:12px"><video id="diMedia" controls playsinline preload="metadata" style="width:100%;max-height:320px;background:#000"></video></div>
       <div class="card" style="padding:12px 14px;margin-top:8px">
         <div class="sub-modes-row">
           <b style="font-size:13px">🌊 原声波形</b>
-          <span class="field-note">灰色高亮 = 当前句；与跟读界面里「我的录音」波形上下对照，练的是报价/交期/异议处理的节奏</span>
+          <span class="field-note">${s.mediaRemote ? "远程音频跨域，解码需要 CORS —— 本项已禁用，不是加载失败" : "灰色高亮 = 当前句；与跟读界面里「我的录音」波形上下对照，练的是报价/交期/异议处理的节奏"}</span>
         </div>
-        <canvas id="diWave" class="sub-wave" width="960" height="46" role="img"
-          aria-label="原声波形图：灰色高亮段表示当前句"></canvas>
-        <div class="field-note" id="diWaveNote"></div>
+        ${s.mediaRemote
+          ? '<div class="field-note" id="diWaveNote">' + esc(window.Podcast ? window.Podcast.XO_WAVE_NOTICE : "远程音频跨域，波形不可用。") + "</div>"
+          : '<canvas id="diWave" class="sub-wave" width="960" height="46" role="img" aria-label="原声波形图：灰色高亮段表示当前句"></canvas><div class="field-note" id="diWaveNote"></div>'}
       </div>
     </div>
 
@@ -562,7 +569,15 @@
     if (mediaInput) mediaInput.addEventListener("change", onMedia);
     if (video) {
       s.mediaEl = video;
-      if (s.mediaUrl) video.src = s.mediaUrl;   /* 每次渲染重建 <video> 后恢复媒资 src */
+      if (s.mediaUrl) {
+        video.src = s.mediaUrl;   /* 每次渲染重建 <video> 后恢复媒资 src */
+        try { video.load(); } catch (_) { /* ignore */ }   /* 远程媒资显式发起加载：否则 play() 在部分浏览器里等不到 metadata */
+      }
+      /* 远程音频加载失败不静默：说清可能是 https/登录/失效，而不是「点不动」 */
+      video.addEventListener("error", function () {
+        if (!s.mediaUrl) return;
+        toastMsg("⚠️ 音频加载失败：该链接可能不提供 https、需要登录或已失效。可换一集、换直链，或只练字幕（TTS 朗读）。");
+      });
     }
 
     /* 点读：事件委托到列表容器 —— 切档位会重排行 HTML，逐行绑定会失效 */
@@ -634,7 +649,13 @@
       if (s.ab) { try { s.mediaEl.playbackRate = s.ab.slow ? AB_SLOW_RATE : 1; } catch (_) { /* ignore */ } }
     }
     applyAbDom();
-    if (s.mediaUrl) drawSrcWave();   // 重建后补画原声波形（媒资未变，走 Player 缓存，不重复解码）
+    if (s.mediaUrl && !s.mediaRemote) drawSrcWave();   // 重建后补画原声波形（本地媒资才解码；远程跨域已禁用，见 drawSrcWave）
+
+    /* 🎙 播客导入（第 1 批）：入口挂在字幕页顶部，不新增导航/路由。
+       模块只负责「链接 → 音频 URL + 字幕文本」，渲染与播放复用本页。 */
+    if (window.Podcast && typeof window.Podcast.mount === "function") {
+      window.Podcast.mount(document.getElementById("podcastEntry"));
+    }
   }
 
   /* 单个 timeupdate 处理器：既高亮当前句，又到句末自动暂停（点读/自动连播共用） */
@@ -699,9 +720,45 @@
     /* 换媒资即清波形缓存：旧音频缓冲再也不会被重画，留着只占内存 */
     if (window.Player && window.Player.waveClearCache) window.Player.waveClearCache();
     state.mediaUrl = URL.createObjectURL(file);
+    state.mediaRemote = false;      /* 本地文件：波形可用 */
+    state.remoteNotice = "";
     if (state.mediaEl) { state.mediaEl.src = state.mediaUrl; }
     toastMsg("✓ 已载入媒资（本地，不上传）");
     render();
+  }
+
+  /* 🎙 播客/远程媒资载入（供 js/podcast.js 调用）：
+       opts = { audioUrl, title, subtitleText, subtitleName }
+     · 远程音频只设置 <video src>（跨域媒体元素可播），不下载、不缓存、不承诺离线；
+     · 字幕文本交给本页同一套 parseSubtitle / cues / 四档 / A-B / 逐句笔记；
+     · 没有字幕时设置 remoteNotice（明确告知，不假装有字幕）。 */
+  function loadRemote(opts) {
+    const o = opts || {};
+    if (state.mediaUrl && /^blob:/.test(state.mediaUrl)) { try { URL.revokeObjectURL(state.mediaUrl); } catch (_) { /* ignore */ } }
+    if (window.Player && window.Player.waveClearCache) window.Player.waveClearCache();
+    const title = String(o.title || "").trim() || "播客音频";
+    const rawSub = String(o.subtitleText || "");
+    let cues = [];
+    if (rawSub.trim()) {
+      const format = guessFormat(o.subtitleName || "");
+      cues = parseSubtitle(rawSub, format);
+      cues = cues.filter(function (c) { return c && c.text; });
+      cues.sort(function (a, b) { return a.start - b.start; });
+    }
+    state.cues = cues;
+    state.current = cues.length ? 0 : 0;
+    state.fileName = title;
+    state.revealed = {};
+    state.noteOpen = -1;
+    stopAb(true);
+    state.mediaUrl = String(o.audioUrl || "").trim() || null;
+    state.mediaRemote = !!state.mediaUrl;
+    state.remoteNotice = cues.length ? "" :
+      ((window.Podcast && window.Podcast.NO_SUB_NOTICE) ||
+        "本集没有公开字幕：只能整集在线听（不占本机空间，但没法逐句点读）。想逐句练，可在上面「字幕（可选）」里粘贴字幕文本，或填入 .srt/.vtt 字幕链接；纯文本没有时间轴时只会整段朗读，不会假装逐句同步。");
+    render();
+    if (!cues.length) toastMsg("⚠️ 已载入音频，但没有字幕：" + title);
+    else toastMsg("✓ 已载入 " + cues.length + " 句字幕：" + title + (state.mediaRemote ? "（在线音频，不占本机空间）" : ""));
   }
 
   /* ---------------- 播放控制 ---------------- */
@@ -716,6 +773,15 @@
 
   function playCue(idx) {
     const s = state;
+    /* 无字幕但有媒资（播客无字幕集）：▶ 直接整集播放，不让按钮空转 */
+    if (!s.cues.length) {
+      if (s.mediaEl && s.mediaUrl) {
+        try { s.mediaEl.play(); s.auto = false; s._stopAt = null; toastMsg("▶ 整集播放（本集没有字幕，不逐句）"); } catch (_) { /* ignore */ }
+      } else {
+        toastMsg("先载入字幕或音频，再点播放。");
+      }
+      return;
+    }
     if (idx < 0 || !s.cues.length) return;
     const cue = s.cues[idx];
     s.current = idx;
@@ -839,6 +905,12 @@
     const cv = document.getElementById("diWave");
     const note = document.getElementById("diWaveNote");
     if (!cv || !note) return;
+    /* 远程音频跨域： decodeAudioData 会被 CORS 拒绝 → 不尝试、不静默，直接写清原因（文案在 podcast.js 统一维护） */
+    if (s.mediaRemote) {
+      note.textContent = (window.Podcast && window.Podcast.XO_WAVE_NOTICE) ||
+        "🌊 原声波形已禁用：远程音频跨域，浏览器不允许读取它的音频数据（解码需要 CORS）。逐句点读不受影响。";
+      return;
+    }
     const cue = s.cues[s.current];
     if (!s.mediaUrl || !cue) {
       note.textContent = "载入音/视频后，这里显示原声波形并高亮当前句。";
