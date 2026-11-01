@@ -2446,3 +2446,15 @@ a.brand{padding-top:6px;padding-bottom:6px}
   .ep-cache{flex-direction:column;align-items:flex-start}
 }
 
+
+/* ===== 功能对齐批（A 层）：场景选择 / 不会说 / 生词高亮 ===== */
+.tutor-scene-card select{padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);font-size:13px;max-width:240px}
+.tutor-words-bar{border-left:3px solid var(--primary)}
+.tutor-word-card{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--primary);background:var(--card);position:relative;z-index:2}
+.tutor-word-host:empty{display:none}
+button.tutor-word{display:inline;padding:0 2px;margin:0;border:0;background:none;border-bottom:1px dashed var(--primary);color:inherit;font:inherit;cursor:pointer;border-radius:0}
+button.tutor-word:hover{background:rgba(37,99,235,.12)}
+.tutor-opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tutor-opt{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:6px 8px;border:1px dashed var(--line);border-radius:8px;font-size:13px}
+.tutor-help-panel input{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
+.chat-msg.user.help .bubble{background:var(--card);color:var(--text);border:1px solid var(--line)}

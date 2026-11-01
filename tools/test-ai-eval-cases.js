@@ -279,13 +279,19 @@ function runCheckRefs(verbose) {
     check("反向验证 · " + pair[0] + " → 必须判失败", pair[1].good === false,
       pair[1].good ? "判据退化了：这种情况竟然通过" : "");
   });
-  /* 正向：token 在文件里但不在窗口内 → 必须通过，且必须报 drifted + 实际命中行 */
+  /* 正向：token 在文件里但不在窗口内 → 必须通过，且必须报 drifted + 命中行确实含该 token。
+     不写死行号（源码一加功能行号就漂）：改为校验「命中行内容确实包含该 token」。 */
   const drift = anchorVerdict(sample, sampleFile + ":1");
+  const driftHit = drift.hit && drift.hit.res && drift.hit.res.hit;
+  const tutorLines = String(readSite(sampleFile) || "").split("\n");
+  const hitLineOk = !!driftHit && driftHit.line >= 1 &&
+    String(tutorLines[driftHit.line - 1] || "").indexOf(driftHit.token) !== -1;
   check("正向验证 · 行号漂移（token 在文件内、不在窗口内）→ 必须通过且标 drifted",
-    drift.good === true && drift.drifted === true && !!(drift.hit && drift.hit.res.hit.line === 96),
+    drift.good === true && drift.drifted === true && hitLineOk,
     "good=" + drift.good + " drifted=" + drift.drifted +
-    " hitLine=" + (drift.hit && drift.hit.res.hit.line) + "（期望 true/true/96：" +
-    sampleFile + ":1 的 ±" + ANCHOR_TOL + " 窗口内无 token，全文件回退应命中 tutor.js:96）");
+    " hitLine=" + (driftHit && driftHit.line) + " token=" + (driftHit && driftHit.token) +
+    "（期望 true/true + 命中行确实含该 token：" +
+    sampleFile + ":1 的 ±" + ANCHOR_TOL + " 窗口内无 token，全文件回退应命中它第一次出现的行）");
 
   console.log("\n==== ② 提示词漂移校验（11 条链路的提示词关键子串必须仍在源码里）====");
   const chains = [];

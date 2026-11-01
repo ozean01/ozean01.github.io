@@ -67,7 +67,8 @@ const RENDER_POINTS = [
   { id: "quiz-write-ai",      file: "js/app.js",    fn: "writeAi",            what: "测验写作的「AI 润色/批改」出口" },
   { id: "quiz-ai-result",     file: "js/quiz.js",   fn: "aiqResultHtml",      what: "AI 周测 / 投料口理解题的逐题讲错结果（P20：只作练习，不计成绩/不作为能力证据）" },
   { id: "lookup-ai-card",     file: "js/lookup.js", fn: "aiCardHtml",         what: "查词页未命中词的 AI 解释（任务3：只作练习，不写盘；走 callChat + FACT_GUARD + 披露）" },
-  { id: "subtitle-zh-notice", file: "js/subtranslate.js", fn: "aiNoticeHtml", what: "AI 中文轨披露（播客第 2 批：中文轨由 AI 生成、仅供理解；走 callChat + FACT_GUARD + 披露）" }
+  { id: "subtitle-zh-notice", file: "js/subtranslate.js", fn: "aiNoticeHtml", what: "AI 中文轨披露（播客第 2 批：中文轨由 AI 生成、仅供理解；走 callChat + FACT_GUARD + 披露）" },
+  { id: "tutor-word-card",    file: "js/tutor.js", fn: "wordCardHtml", what: "对练生词小卡的 AI 释义兜底（功能对齐批：词库查不到时 AI 释义，标注仅供理解；走 callChat + FACT_GUARD + 披露）" }
 ];
 
 /* =======================================================================
@@ -88,13 +89,14 @@ const BASELINE = {
     "js/speech.js:140:call:def",
     "js/speech.js:158:call:system",
     "js/subtranslate.js:180:call:system",
-    "js/tutor.js:796:call:system",
-    "js/tutor.js:867:call:def",
-    "js/tutor.js:1046:call:system",
-    "js/tutor.js:1250:call:system",
-    "js/tutor.js:1430:call:system",
-    "js/tutor.js:1475:call:system",
-    "js/tutor.js:1972:call:system",
+    "js/tutor.js:881:call:system",
+    "js/tutor.js:1127:call:system",
+    "js/tutor.js:1198:call:def",
+    "js/tutor.js:1389:call:system",
+    "js/tutor.js:1608:call:system",
+    "js/tutor.js:1788:call:system",
+    "js/tutor.js:1833:call:system",
+    "js/tutor.js:2356:call:system",
     "js/urgent.js:306:call:system",
     "js/write.js:767:call:system",
   ],

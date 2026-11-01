@@ -32,6 +32,60 @@
     { en: "Is it better to apologize and compensate first, or to investigate the root cause first, when a defect is found?", cn: "发现缺陷时，是先道歉补偿，还是先查清根因？" }
   ];
 
+  /* ============ 外贸场景库（18 个 · 按类别分组 · 每个带老师开场白）============
+     与 DRILL_TOPICS（深度操练的观点话题库，12 条）分开：
+       · DRILL_TOPICS 是「即兴演讲 + 追问」的思辨题，改它会破坏深度操练语义，故保持不动；
+       · 这里是角色扮演场景库，结构沿用 { en, cn }（en = 发给教练的角色说明，cn = 中文场景名），
+         另加 cat/catCn/opener/openerCn：
+           opener = 老师先说的第一句（脚本化，不额外请求，降低开口门槛）；
+     入口只在 AI 对练页的场景下拉，不新增路由。 */
+  const SCENE_CATS = [
+    { id: "dev", cn: "开发客户" },
+    { id: "inquiry", cn: "询盘报价" },
+    { id: "negotiate", cn: "谈判" },
+    { id: "order", cn: "订单单证" },
+    { id: "produce", cn: "生产催货" },
+    { id: "ship", cn: "出货物流" },
+    { id: "pay", cn: "收款售后" },
+    { id: "claim", cn: "客诉与质量" },
+    { id: "audit", cn: "展会与验厂" },
+    { id: "tech", cn: "技术答疑" }
+  ];
+
+  const SCENARIOS = [
+    /* —— 开发客户 —— */
+    { id: "fair-booth", cat: "dev", cn: "展会接待", en: "Role-play: I am a buyer walking past your booth at a packaging trade fair. You greet me first, say one sentence about your main product, and ask me ONE question at a time. Keep it natural and short. Start in English.", opener: "Hi! Welcome to our booth — we do flexible packaging: laminating adhesives, printed film and pouches. Are you looking for film or for adhesive systems today?", openerCn: "你好！欢迎到我们展位——我们做软包装：复膜胶、印刷膜和袋子。您今天是找膜还是找胶水体系？" },
+    { id: "cold-call", cat: "dev", cn: "电话开发新客户", en: "Role-play: I am a packaging buyer you have never met, and you are cold-calling me. Open the call in one short sentence, give a reason why I should listen, and ask ONE question. Do not pitch for too long. Start in English.", opener: "Good morning — this is Alex from Ozean Packaging. I'll be brief: we supply laminating adhesive to two factories in your area. Is it a bad time for a two-minute call?", openerCn: "早上好——我是 Ozean 包装的 Alex。我长话短说：我们给贵区两家工厂供复膜胶。现在方便聊两分钟吗？" },
+    /* —— 询盘报价 —— */
+    { id: "inquiry-quote", cat: "inquiry", cn: "询盘回复与报价", en: "Role-play: I am a new buyer asking about your price, MOQ and lead time for BOPP/PET laminating adhesive. Answer naturally, give the number with its unit, and ask ONE question at a time. If a figure needs checking, say 请人工核对 and point to the TDS. Start in English.", opener: "Thanks for your inquiry. Before I quote — which structure are you running: BOPP/PE or PET/PE, and what coating weight do you normally use?", openerCn: "谢谢询盘。报价前先确认一下：您做的是 BOPP/PE 还是 PET/PE 结构？平时上胶量多少？" },
+    { id: "sample-send", cat: "inquiry", cn: "样品与打样", en: "Role-play: I am a buyer asking for a sample and a small trial run. Explain the sample size, the trial conditions and what I need to send you, one point at a time. Start in English.", opener: "Sure — we can send a 1 kg sample first. Can you tell me the film structure and the curing condition you plan to use in the trial?", openerCn: "可以——我们先寄 1 公斤样品。您能说一下试机用的膜结构和熟化条件吗？" },
+    /* —— 谈判 —— */
+    { id: "price-negotiate", cat: "negotiate", cn: "价格谈判", en: "Role-play: I am a buyer pushing hard for a lower price. Push back politely: explain the cost driver, offer a realistic option (volume, payment term, packing) and ask ONE question at a time. Never agree to a number you cannot defend. Start in English.", opener: "I understand the price pressure. The main cost driver here is the isocyanate and the solvent — can I ask what volume you would commit per month if we adjust the terms?", openerCn: "我理解价格压力。这里的主要成本是异氰酸酯和溶剂——如果调整条款，您每月能做多少量？" },
+    { id: "leadtime-negotiate", cat: "negotiate", cn: "交期谈判", en: "Role-play: I am the buyer and I need the goods earlier than your normal lead time. Negotiate a realistic date: say what is possible, what is not, and what you need from me. One point at a time. Start in English.", opener: "Our standard lead time is three weeks. How much earlier do you need it, and is the delivery date tied to a fixed promotion or a vessel cut-off?", openerCn: "我们标准交期是三周。您需要提前多少天？这个日期是绑促销还是绑船期截关？" },
+    /* —— 订单单证 —— */
+    { id: "order-confirm", cat: "order", cn: "订单确认与合同", en: "Role-play: I am a buyer placing an order. Confirm the key terms one by one: product, quantity, unit price, payment term, lead time, packing. Ask me to confirm each point before you move on. Start in English.", opener: "Let's confirm the order point by point. First, product: solvent-based laminating adhesive, 18 kg per drum. Is that correct?", openerCn: "我们逐条确认订单。第一项，产品：溶剂型复膜胶，18 公斤一桶。对吗？" },
+    { id: "docs-chase", cat: "order", cn: "单证催办（PI/CI/BL/CO）", en: "Role-play: I am the buyer waiting for documents — proforma invoice, commercial invoice, packing list, bill of lading and certificate of origin. Tell me what you have sent, what is still pending and when it will come. Start in English.", opener: "The PI and packing list were sent yesterday. The B/L will come from the forwarder after the vessel sails — do you need a copy before the original arrives?", openerCn: "形式发票和装箱单昨天已发。提单要等开船后由货代出——正本到之前您需要副本吗？" },
+    /* —— 生产催货 —— */
+    { id: "production-chase", cat: "produce", cn: "生产进度催货", en: "Role-play: I am the buyer chasing production progress. Give me a clear status: what is done, what is on the line, what could delay it, and the next checkpoint. Ask ONE question at a time. Start in English.", opener: "Current status: the adhesive is made and the film is printed. Slitting is scheduled for Thursday. Which is more useful for you — a photo update on Wednesday or a firm ship date first?", openerCn: "目前进度：胶已做好，膜已印刷，分切排在下周四。对您更有用的是周三发照片更新，还是先给您确定的开船日？" },
+    /* —— 出货物流 —— */
+    { id: "booking-ship", cat: "ship", cn: "订舱与船期", en: "Role-play: I am the buyer asking about booking and vessel schedule. Explain the sailing date, route, transit time and what can still change. Keep it short. Start in English.", opener: "We booked on the Thursday vessel to Hamburg — transit time is around 32 days. Do you need a direct service, or is one transshipment acceptable?", openerCn: "我们订的是周四去汉堡的船，航程约 32 天。您需要直达船，还是接受一次中转？" },
+    { id: "ship-delay", cat: "ship", cn: "出货延误与替代方案", en: "Role-play: I am the buyer and the shipment is delayed. Tell me the reason honestly, give a new date, offer an alternative (partial shipment, air freight for samples) and ask what I prefer. Start in English.", opener: "I have to be straight with you: the vessel was rolled and the new ETD is the 18th. Would a partial shipment of 5 pallets this week help you?", openerCn: "我得如实说：这条船被延了，新开船日是 18 号。本周先出 5 托的部分货，能帮上忙吗？" },
+    /* —— 收款售后 —— */
+    { id: "payment-chase", cat: "pay", cn: "催款与账期", en: "Role-play: I am the buyer and the payment is overdue. Remind me politely with the invoice number and due date, ask for a payment date, and offer one option (installment or next-order credit control). Start in English.", opener: "Invoice INV-2043 was due last Friday. Could you confirm the payment date — and if cash flow is tight, would a two-part payment work?", openerCn: "发票 INV-2043 上周五到期。您能确认一下付款日期吗？如果资金紧，分两笔付可以吗？" },
+    { id: "after-sales", cat: "pay", cn: "售后跟进与复购", en: "Role-play: I am a buyer who received the goods. Follow up on how the run went, ask about the next order and offer one useful next step. Keep it warm and short. Start in English.", opener: "Glad the shipment arrived. How did the adhesive run on your line — any change in coating weight or curing time?", openerCn: "货到了就好。这批胶在您产线上跑得怎么样？上胶量或熟化时间有变化吗？" },
+    /* —— 客诉与质量 —— */
+    { id: "quality-claim", cat: "claim", cn: "质量客诉（脱层/白点）", en: "Role-play: I am an upset buyer reporting delamination and white spots after lamination. Apologise first, ask for the batch number, structure and photos, and propose a next step. Do not blame me. Start in English.", opener: "I'm sorry you're dealing with this. Let's fix it first: could you send the batch number, the film structure and two photos of the defect?", openerCn: "很抱歉给您添麻烦。我们先解决问题：麻烦发一下批号、膜结构和两张缺陷照片可以吗？" },
+    { id: "claim-remedy", cat: "claim", cn: "索赔与补货", en: "Role-play: I am the buyer and I am claiming compensation for the defective rolls. Discuss the remedy: replacement, credit note or discount on the next order. Stay calm and ask ONE question at a time. Start in English.", opener: "I understand the claim. Before we agree the amount — how many rolls are affected, and do you need them replaced before your next production run?", openerCn: "我理解这个索赔。在定金额之前——受影响的是几卷？需要在下次生产前补货吗？" },
+    /* —— 展会与验厂 —— */
+    { id: "factory-audit", cat: "audit", cn: "验厂接待", en: "Role-play: I am the buyer's QA auditor visiting your factory. Guide me through the audit: what I will see, which documents you can show (GMP, CoA, migration test report), and what you need from me. One point at a time. Start in English.", opener: "Welcome. This morning we'll cover incoming inspection, the coating line and the curing room. Which documents would you like to see first — the GMP record or the CoA for the last batch?", openerCn: "欢迎。今天上午我们看进料检验、涂布线和熟化室。您想先看哪份文件——GMP 记录还是最近一批的 CoA？" },
+    /* —— 技术答疑 —— */
+    { id: "tech-adhesive", cat: "tech", cn: "胶水选型技术答疑", en: "Role-play: I am a technical buyer asking which adhesive system fits my structure and content. Ask me about the structure, the content, the retort condition and the coating weight, then explain your recommendation in simple English. Start in English.", opener: "To recommend an adhesive I need four things: film structure, the content, the retort condition, and your normal coating weight. Which one can you tell me first?", openerCn: "选胶我需要四个信息：膜结构、内容物、蒸煮条件和常规上胶量。您先告诉我哪一个？" },
+    { id: "tech-material", cat: "tech", cn: "结构/材料替代答疑", en: "Role-play: I am the buyer asking whether we can replace one layer with a cheaper or more recyclable option. Explain the trade-off in terms of barrier, cost and process, and flag any figure that must be checked against the TDS. Start in English.", opener: "Yes, we can look at a replacement — but the trade-off depends on barrier and process. Which matters more for this product: shelf life or recyclability?", openerCn: "可以评估替代——但取舍取决于阻隔和工艺。这个产品您更看重保质期还是可回收性？" }
+  ];
+
+  function sceneById(id) { return SCENARIOS.filter(function (s) { return s.id === id; })[0] || null; }
+  function sceneCatCn(id) { const c = SCENE_CATS.filter(function (x) { return x.id === id; })[0]; return c ? c.cn : ""; }
+
   /* 深度操练的进行状态（不持久化到档案，话题/回答/成果由「存档」单独记录） */
   let drill = null;
   let drillTimerId = null;
@@ -99,6 +153,26 @@
     "If the student hesitates or asks \"how do you say…\", give only a keyword or a short prompt — do NOT supply the full sentence for them. Let the student say it.",
     "Add any new vocabulary exactly in this format: 【新词: word | meaning | example】 and invite the student to make their own sentence with it.",
     "Keep a warm, patient, encouraging tone and praise real progress."
+  ].join("\n");
+
+  /* ============ 功能对齐批（A 层 · 替代桌面 realtime_client）的回复协议 ============
+     三件事都在**同一次回复**里完成，不额外增加请求：
+       · 双语：正文英文 + `---ZH---` + 逐句对应的中文；
+       · 用户句中文：再附加 `---USER-ZH---` + 学生上一句的中文（没有英文用户句就省略）；
+       · 生词：正文里用 [[word]] 标出生词（最多 3 个），渲染成可点高亮。
+     解析失败时回退英文单语（保留原来的「🌐 翻译」按钮），不报错。
+     FACT_GUARD 仍在这段之后、system 最末无条件追加。 */
+  const PARITY_PROMPT = [
+    "=== REPLY FORMAT (this study mode; keep the teaching rules above unchanged) ===",
+    "After your normal English reply, ALWAYS append a Chinese translation block in exactly this shape:",
+    "---ZH---",
+    "<the same reply in Simplified Chinese, sentence by sentence; keep industry terms in English as-is (BOPP/PET/PAA/PPWR/NCO/OH, MOQ, T/T, L/C, retort, lamination); do not explain, do not add content>",
+    "If the student's latest message was written in English, ALSO append:",
+    "---USER-ZH---",
+    "<that one student sentence in Chinese, one line only>",
+    "Never put anything else after the last block. Never use the markers when you have no Chinese to give.",
+    "Vocabulary marking: in the ENGLISH part only, wrap up to 3 useful new words or phrases in double square brackets, like [[coating weight]], [[lead time]], [[curing]]. Use the exact surface form from your sentence, no punctuation inside the brackets.",
+    "HELP MODE: when the student's message starts with [HELP-I-CANNOT-SAY], they told you in Chinese what they want to say. Reply with 1-2 natural English options only — each option on its own line, beginning with '1. ' and '2. ' — then ONE short line asking them to say it back, then the ---ZH--- block translating those options. Do not add a new question at the end of a help reply."
   ].join("\n");
 
   /* ============ P0-06 · AI 事实边界（FACT_GUARD）============
@@ -230,14 +304,23 @@
       "\n\n在「教练规则」勾选「薄弱项动态出题」后，教练会在对话中围绕这些词让你说出来。");
   }
 
+  let activeScene = null;   /* 当前选中的场景（null = 自由对话）。只在本会话内存里，不写盘 */
+
+  function scenePromptLine() {
+    const sc = activeScene ? sceneById(activeScene) : null;
+    if (!sc) return "";
+    return "ACTIVE SCENARIO (role-play): " + sc.en + "\nThe student picked this scenario: " + sc.cn + ". Stay inside it; if the student drifts away, gently bring the conversation back to this scenario.";
+  }
+
   function effectiveSystem(cfg) {
     const base = (cfg.systemPrompt || "").trim() || COACH_PROMPT;
     const prof = profileLines(cfg.profile);
     const extra = coachLines(cfg.coach);
     const weak = (cfg.coach && cfg.coach.weakFocus) ? weakFocusLines() : "";
     /* P0-06：FACT_GUARD 无条件追加在**最末**。用户自定义 systemPrompt、关闭任何开关、一键预设
-       都不能把它移掉（这是唯一不受 UI 控制的一条纪律）。 */
-    return [prof, base, extra, weak, FACT_GUARD].filter(function (s) { return s; }).join("\n");
+       都不能把它移掉（这是唯一不受 UI 控制的一条纪律）。
+       功能对齐批：场景说明与回复协议（双语/生词标记）插在 FACT_GUARD 之前。 */
+    return [prof, base, extra, weak, scenePromptLine(), PARITY_PROMPT, FACT_GUARD].filter(function (s) { return s; }).join("\n");
   }
 
   function defaultCfg() {
@@ -544,15 +627,20 @@
           <button class="btn btn-outline btn-sm" data-action="tutor-clear">🗑 清空对话</button>
         </span>
       </div>
+      ${scenePickerHtml()}
       ${msgs.length ? "" : starterChipsHtml()}
       <div class="chat-msgs" id="chatMsgs">
         ${msgs.map(msgHtml).join("")}
         ${sending ? '<div class="chat-msg ai"><div class="typing"><i></i><i></i><i></i></div></div>' : ""}
       </div>
+      <div id="tutorWordCardHost" class="tutor-word-host"></div>
+      ${sceneWordsHtml()}
+      ${helpOpen ? helpPanelHtml() : ""}
       <div class="chat-input-row">
         <button class="mic-btn ${micListening ? "listening" : ""}" data-action="tutor-mic" title="语音输入：用浏览器在线识别（Chrome/Edge + 可访问 Google 时最好用）">🎤</button>
         <button class="mic-btn ${autoMic ? "listening" : ""}" data-action="tutor-mic-auto" aria-pressed="${autoMic ? "true" : "false"}" title="${autoMic ? "正在免按键对话：点一下关掉" : "免按键对话：静音自动断句并自动发送，像打电话一样（需 Chrome/Edge）"}">${autoMic ? "🔴" : "🔁"}</button>
         <input type="text" id="chatInput" placeholder="用英文或中文说点什么…（Enter 发送；语音点 🎤）" autocomplete="off">
+        <button class="btn btn-outline" data-action="tutor-help-toggle" aria-pressed="${helpOpen ? "true" : "false"}" title="不会说？用中文告诉我你想表达什么，老师给 1–2 个自然英文说法，再让你复述">💡 不会说</button>
         <button class="btn btn-primary" data-action="tutor-send">发送</button>
       </div>
       <div class="tutor-voice-hint">
@@ -626,34 +714,277 @@
     }).join("")}</div>`;
   }
 
+  /* ---------------- 回复协议解析（双语 / 用户句中文 / 生词标记） ---------------- */
+  const ZH_SPLIT = /-{3,}ZH-{3,}/;
+  const USER_ZH_SPLIT = /-{3,}USER-ZH-{3,}/;
+
+  /* 纯函数：把「英文正文 + ---ZH--- + 中文（+ ---USER-ZH--- + 学生句中文）」拆开。
+     缺分隔 → zh 为空（回退英文单语，保留「🌐 翻译」按钮）；多分隔 → 只取第一对，其余标记清掉不吞内容。 */
+  function parseTutorReply(raw) {
+    const text = String(raw == null ? "" : raw);
+    const parts = text.split(ZH_SPLIT);
+    const en = (parts.shift() || "").trim();
+    let rest = parts.join("\n").trim();
+    let userZh = "";
+    if (USER_ZH_SPLIT.test(rest)) {
+      const up = rest.split(USER_ZH_SPLIT);
+      rest = (up.shift() || "").trim();
+      userZh = up.join("\n").replace(/-{3,}(ZH|USER-ZH)-{3,}/g, "").trim();
+    }
+    const zh = rest.replace(/-{3,}(ZH|USER-ZH)-{3,}/g, "").trim();
+    return { en: en, zh: zh, userZh: userZh, fallback: !zh };
+  }
+
+  /* 纯函数：从英文正文里取 [[word]] 生词（去重、保序、限 12 个） */
+  function extractWords(text) {
+    const out = [];
+    const re = /\[\[([^\[\]]{1,60})\]\]/g;
+    let m;
+    while ((m = re.exec(String(text == null ? "" : text))) !== null) {
+      const w = m[1].replace(/\s+/g, " ").trim();
+      if (w && out.indexOf(w) === -1) out.push(w);
+      if (out.length >= 12) break;
+    }
+    return out;
+  }
+  function stripWordMarks(text) {
+    return String(text == null ? "" : text).replace(/\[\[([^\[\]]{1,60})\]\]/g, "$1");
+  }
+  /* 纯函数：段落里「1. / 2. / 1)」开头的英文候选句（求助模式的 1–2 个说法），供逐句 🔊 跟读 */
+  function optionLines(text) {
+    return String(text == null ? "" : text).split("\n")
+      .filter(function (l) { return /^\s*\d+[.)]\s+\S/.test(l); })
+      .map(function (l) { return l.replace(/^\s*\d+[.)]\s+/, "").trim(); })
+      .filter(Boolean);
+  }
+
+  /* ---------------- 功能对齐批：场景选择 / 不会说 / 生词高亮 ---------------- */
+  let helpOpen = false;              /* 「💡 不会说」面板是否展开（内存态） */
+  let wordCardWord = "";             /* 当前打开的生词小卡 */
+  const wordAiCache = {};            /* 词库查不到时的 AI 释义缓存（同一词不重复请求） */
+
+  function scenePickerHtml() {
+    const cur = activeScene ? sceneById(activeScene) : null;
+    const groups = SCENE_CATS.map(function (c) {
+      const items = SCENARIOS.filter(function (s) { return s.cat === c.id; });
+      if (!items.length) return "";
+      return '<optgroup label="' + esc(c.cn) + '">' + items.map(function (s) {
+        return '<option value="' + esc(s.id) + '"' + (activeScene === s.id ? " selected" : "") + '>' + esc(s.cn) + '</option>';
+      }).join("") + "</optgroup>";
+    }).join("");
+    return '<div class="card tutor-scene-card" style="padding:12px 14px;margin-top:10px">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<b>🎬 外贸场景</b><span class="badge badge-muted">' + SCENARIOS.length + ' 个</span>' +
+      '<select id="tutorSceneSel" title="按类别分组，选一个场景再开始">' + groups + '</select>' +
+      '<button class="btn btn-primary btn-sm" data-action="tutor-scene-start">▶ 开始场景</button>' +
+      (cur ? '<span class="badge badge-ok">进行中：' + esc(cur.cn) + '</span><button class="btn btn-outline btn-sm" data-action="tutor-scene-exit">退出场景</button>' : "") +
+      '</div>' +
+      '<div class="field-note" style="margin-top:6px">选一个场景，老师先说第一句（不额外联网）；接下来按这个场景聊。现有「快速开始」与深度操练话题都保留。</div>' +
+      '</div>';
+  }
+
+  /* 开始场景：只推一条脚本化开场白（零请求），并把场景写进 system 提示词的场景行 */
+  function startScene(id) {
+    const sc = sceneById(id) || sceneById(document.getElementById("tutorSceneSel") && document.getElementById("tutorSceneSel").value);
+    if (!sc) { toast("请先选一个场景"); return; }
+    activeScene = sc.id;
+    chatHistory.push({ role: "assistant", content: sc.opener, zh: sc.openerCn, scripted: true });
+    saveChat();
+    render();
+    toast("🎬 已进入场景：" + sc.cn + "（老师先开口，你接着说）");
+  }
+  function exitScene() {
+    activeScene = null;
+    render();
+    toast("已退出场景，回到自由对话");
+  }
+
+  function helpPanelHtml() {
+    return '<div class="card tutor-help-panel" style="padding:12px 14px;margin-top:8px;border-left:3px solid var(--accent,#2563eb)">' +
+      '<b>💡 不会说？用中文告诉我你想表达什么</b>' +
+      '<div class="field-note" style="margin-top:4px">老师会给 1–2 个自然英文说法，再让你复述一遍（跟读入口在回复里）。</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
+      '<input type="text" id="tutorHelpInput" placeholder="例：我想说这批货下周能做完，但需要客户先确认版面" style="flex:1;min-width:240px">' +
+      '<button class="btn btn-primary btn-sm" data-action="tutor-help-send">发给老师</button>' +
+      '</div></div>';
+  }
+
+  /* 发一条「不会说」求助：中文进对话，模型侧用 [HELP-I-CANNOT-SAY] 标记识别 */
+  function sendHelp() {
+    if (sending) return;
+    const el = document.getElementById("tutorHelpInput");
+    const zh = el ? el.value.trim() : "";
+    if (!zh) { toast("先用中文写一句你想表达的意思"); return; }
+    if (!readyToChat()) { toast("请先在上方模型设置中填写 API Key，或改选「🖥 本地 Ollama」（免 Key）"); return; }
+    if (el) el.value = "";
+    helpOpen = false;
+    chatHistory.push({ role: "user", content: zh, kind: "help" });
+    saveChat();
+    appendWeekly("user", zh);
+    sendPending();
+  }
+
+  /* 生词小卡：先查站内词库；查不到再用 AI 释义兜底（单独一次请求，带 FACT_GUARD 与披露） */
+  function wordCardHtml() {
+    const w = wordCardWord;
+    if (!w) return "";
+    const known = E().lookupWord(w);
+    const ai = wordAiCache[w];
+    if (known) {
+      return '<div class="card tutor-word-card" role="dialog" aria-label="生词卡">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">' +
+        '<div><b>' + esc(w) + '</b>' + (known.ipa ? ' <span class="field-note">' + esc(known.ipa) + '</span>' : "") +
+        '<div style="margin-top:4px">' + esc(known.cn || "") + '</div>' +
+        (known.ex ? '<div class="field-note" style="margin-top:4px">' + esc(known.ex) + (known.exCn ? '<br>' + esc(known.exCn) : "") + '</div>' : "") +
+        '</div><button class="btn btn-outline btn-sm" data-action="tutor-word-close">✕</button></div>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-soft btn-sm" data-action="tutor-speak-line" data-t="' + esc(w) + '">🔊 听</button>' +
+        '<button class="btn btn-primary btn-sm" data-action="tutor-word-add" data-w="' + esc(w) + '">🃏 加入单词卡</button>' +
+        '</div></div>';
+    }
+    return '<div class="card tutor-word-card" role="dialog" aria-label="生词卡（AI 释义）">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">' +
+      '<div><b>' + esc(w) + '</b><div class="field-note" style="margin-top:4px">词库未收录 · 以下为 AI 释义（仅供理解，请人工核对）</div>' +
+      (ai ? '<div style="margin-top:6px">' + esc(ai) + '</div>' : '<div class="field-note" style="margin-top:6px">正在请求 AI 释义…</div>') +
+      '</div><button class="btn btn-outline btn-sm" data-action="tutor-word-close">✕</button></div>' +
+      (ai ? aiDisclosureHtml() : "") +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-soft btn-sm" data-action="tutor-speak-line" data-t="' + esc(w) + '">🔊 听</button>' +
+      '<button class="btn btn-primary btn-sm" data-action="tutor-word-add" data-w="' + esc(w) + '">🃏 加入单词卡</button>' +
+      '</div></div>';
+  }
+
+  function showWordCard(w) {
+    wordCardWord = String(w || "").trim();
+    if (!wordCardWord) return;
+    renderWordCard();
+    if (!E().lookupWord(wordCardWord) && !wordAiCache[wordCardWord]) explainWordWithAI(wordCardWord);
+  }
+  function renderWordCard() {
+    const host = document.getElementById("tutorWordCardHost");
+    if (host) host.innerHTML = wordCardHtml();
+  }
+  function closeWordCard() {
+    wordCardWord = "";
+    const host = document.getElementById("tutorWordCardHost");
+    if (host) host.innerHTML = "";
+  }
+
+  /* AI 释义兜底：system 无条件带 FACT_GUARD；结果写入渲染点（接 aiDisclosureHtml） */
+  function explainWordWithAI(word) {
+    const wordText = String(word || "").trim();
+    if (!wordText || wordAiCache[wordText]) return;
+    const messages = [
+      { role: "system", content: "You are a concise English-Chinese glossary helper for a flexible-packaging foreign-trade learner. For the single English word or phrase the user sends, reply with ONE line: 中文释义（≤20字）；若属行业术语，保留英文原样说明；不要编造法规号或数值，不确定就写「请人工核对」。\n" + (window.Tutor && window.Tutor.FACT_GUARD ? window.Tutor.FACT_GUARD : FACT_GUARD) },
+      { role: "user", content: wrapUserContent(wordText) }
+    ];
+    callChat(messages, { temperature: 0.2, maxTokens: 120 }).then(function (t) {
+      wordAiCache[wordText] = String(t || "").trim().split("\n")[0].slice(0, 160);
+      if (wordCardWord === wordText) renderWordCard();
+    }).catch(function () {
+      wordAiCache[wordText] = "（释义获取失败，可稍后重试或查词典）";
+      if (wordCardWord === wordText) renderWordCard();
+    });
+  }
+
+  /* 场景生词小结：从教练回复里收集 [[word]]，一键全收进单词卡队列（FSRS） */
+  function allSceneWords() {
+    const out = [];
+    chatHistory.forEach(function (m) {
+      if (m.role !== "assistant" || !m.content) return;
+      extractWords(m.content).forEach(function (w) { if (out.indexOf(w) === -1) out.push(w); });
+    });
+    return out;
+  }
+  function sceneWordsHtml() {
+    const words = allSceneWords();
+    if (!words.length) return "";
+    return '<div class="card tutor-words-bar" style="padding:10px 12px;margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<b>📚 本场景生词</b><span class="badge badge-muted">' + words.length + ' 个</span>' +
+      '<span class="field-note" style="flex:1;min-width:200px">' + esc(words.slice(0, 6).join(" / ")) + (words.length > 6 ? " …" : "") + '</span>' +
+      '<button class="btn btn-primary btn-sm" data-action="tutor-words-all">🃏 一键全收（' + words.length + '）</button>' +
+      '</div>';
+  }
+
+  /* 收卡：复用全站 FSRS 队列（与 lookup 的「加入单词卡」同一口径：进队列，复习时开始排期） */
+  function flashCardOf(word) {
+    const wordText = String(word || "").trim();
+    const known = E().lookupWord(wordText) || null;
+    let id = "tut-" + wordText.toLowerCase();
+    if (typeof FTE_DATA !== "undefined" && FTE_DATA.units) {
+      for (let ui = 0; ui < FTE_DATA.units.length; ui++) {
+        const u = FTE_DATA.units[ui];
+        for (let vi = 0; vi < u.vocab.length; vi++) {
+          if (String(u.vocab[vi].w).toLowerCase() === wordText.toLowerCase()) { id = u.id + "-" + vi; break; }
+        }
+      }
+    }
+    return {
+      id: id, w: known ? wordText : wordText,
+      ipa: known ? (known.ipa || "") : "", cn: known ? (known.cn || "") : (wordAiCache[wordText] || ""),
+      ex: known ? (known.ex || "") : "", exCn: known ? (known.exCn || "") : "", why: ""
+    };
+  }
+  function addWordsToFlash(words) {
+    const boot = window.FTE_BOOT;
+    if (!boot || !boot.State) { toast("⚠️ 主应用未就绪"); return 0; }
+    const list = (words || []).filter(Boolean);
+    if (!list.length) return 0;
+    const cards = list.map(flashCardOf);
+    boot.State.flash = {
+      unit: { id: "tutor", title: "🎙 对练生词", vocab: [] },
+      queue: cards, idx: 0, stats: { known: 0, unknown: 0 }, freshLeft: 0, dueLeft: 0
+    };
+    toast("🃏 已加入单词卡队列 " + cards.length + " 个（点导航「🃏 单词卡」开始 FSRS 排期）");
+    return cards.length;
+  }
+
   function msgHtml(m, i) {
     if (m.role === "user") {
       const lat = typeof m.ms === "number" ? m.ms : null;
       const tier = lat != null ? latTier(lat) : "";
-      return '<div class="chat-msg user"><div class="bubble">' + esc(m.content).replace(/\n/g, "<br>") +
+      const isHelp = m.kind === "help";
+      return '<div class="chat-msg user' + (isHelp ? " help" : "") + '"><div class="bubble">' +
+        (isHelp ? '<span class="badge badge-muted">💡 我不会说</span><br>' : "") +
+        esc(m.content).replace(/\n/g, "<br>") +
+        (m.zh ? '<div class="cn" style="margin-top:6px;border-top:1px dashed var(--line);padding-top:6px;font-size:12.5px;color:var(--muted)">🈶 ' + esc(m.zh) + "</div>" : "") +
         (lat != null ? '<div style="margin-top:6px">' + latBadge(lat) + "</div>" : "") +
         (tier === "slow" ? '<div style="margin-top:4px;font-size:12.5px;color:var(--muted)">客户已经等了 ' + (lat / 1000).toFixed(1) + ' 秒。下次试「先给半句」：先接住话轮（That\u2019s a fair question\u2026），再补条件。</div>' : "") +
         "</div></div>";
     }
+    const opts = optionLines(m.content);
     return `
     <div class="chat-msg ai">
       <div class="bubble">
         ${aiBodyHtml(m.content)}
+        ${opts.length ? '<div class="tutor-opts">' + opts.map(function (o) {
+          return '<div class="tutor-opt"><span>' + esc(o) + "</span>" +
+            '<button class="btn btn-outline btn-sm" data-action="shadow" data-text="' + esc(o) + '" title="跟读这句（不需要语音识别）：听标准音 → 你读一遍 → 回放对比">🎙 跟读</button>' +
+            '</div>';
+        }).join("") + "</div>" : ""}
+        ${m.zh ? '<div class="cn" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:6px">🈶 ' + esc(m.zh) + "</div>" : ""}
         ${m.translated ? '<div class="cn" style="margin-top:8px;border-top:1px dashed var(--line);padding-top:6px">🌐 ' + esc(m.translated) + "</div>" : ""}
         ${aiDisclosureHtml()}
         <div class="chat-actions">
           <button class="btn btn-soft btn-sm" data-action="tutor-speak" data-i="${i}">🔊 朗读</button>
-          <button class="btn btn-outline btn-sm" data-action="tutor-translate" data-i="${i}">🌐 翻译</button>
+          ${m.zh ? "" : '<button class="btn btn-outline btn-sm" data-action="tutor-translate" data-i="' + i + '">🌐 翻译</button>'}
           <button class="btn btn-outline btn-sm" data-action="tutor-addreview" data-i="${i}" title="把这句加入「今日错题」清单，明天复述">➕ 今日错题</button>
         </div>
       </div>
     </div>`;
   }
 
-  /* AI 回复正文：新词标注转高亮卡片 + 单词可点击加入生词本 */
+  /* AI 回复正文：新词标注转高亮卡片 + 单词可点击加入生词本
+     功能对齐批：额外支持 [[word]] 生词标记（可点开小卡 + 加入单词卡）。 */
   function aiBodyHtml(text) {
     const chips = [];
-    const t1 = String(text).replace(/【[^】]*】/g, function (m) {
+    /* [[word]] 先占位，最后再替换成「可点高亮」（必须在 esc 之前，避免尖括号被转义） */
+    const withWords = String(text == null ? "" : text).replace(/\[\[([^\[\]]{1,60})\]\]/g, function (_, w) {
+      const idx = chips.length;
+      chips.push('<button type="button" class="tutor-word" data-action="tutor-word" data-w="' + esc(w) + '" title="点开看释义 / 加入单词卡">' + esc(w) + "</button>");
+      return "\u0002" + idx + "\u0002";
+    });
+    const t1 = withWords.replace(/【[^】]*】/g, function (m) {
       const idx = chips.length;
       chips.push(markerChipHtml(m));
       return "\u0002" + idx + "\u0002";
@@ -1036,15 +1367,42 @@
     latPendingAt = 0;
     saveChat();
     appendWeekly("user", text);
+    sendPending();
+  }
+
+  /* 真正发请求（send 与「💡 不会说」共用；一条用户句只走这里一次 → 翻译不给用户句另发请求） */
+  function sendPending() {
+    if (sending) return;
     sending = true;
     render();
 
     const sys = (rp && rpScenario()) ? rpSystemPrompt(rpScenario()) : effectiveSystem(cfg);
-    const msgs = [{ role: "system", content: sys }]
-      .concat(chatHistory.slice(-MAX_HISTORY));
+    /* 求助消息在模型侧带上明确标记；其余消息保持原样（学生内容仍按 wrapUserContent 的注入面处理在 prompt 里） */
+    const history = chatHistory.slice(-MAX_HISTORY).map(function (m) {
+      if (m.role === "user" && m.kind === "help") {
+        return { role: "user", content: "[HELP-I-CANNOT-SAY] 我想表达：" + wrapUserContent(m.content) };
+      }
+      return { role: m.role, content: m.content };
+    });
+    const msgs = [{ role: "system", content: sys }].concat(history);
 
     callChat(msgs).then(function (reply) {
       let content = reply;
+      let zh = "";
+      let userZh = "";
+      /* 功能对齐批：非关卡模式下解析「英文 + ---ZH--- + 中文（+ ---USER-ZH---）」。
+         解析失败（没有 ---ZH---）→ 回退英文单语，保留「🌐 翻译」按钮，不报错。 */
+      if (!(rp && rpScenario())) {
+        const parsed = parseTutorReply(reply);
+        content = parsed.en || reply;
+        zh = parsed.zh;
+        userZh = parsed.userZh;
+        if (userZh) {
+          for (let k = chatHistory.length - 1; k >= 0; k--) {
+            if (chatHistory[k].role === "user") { chatHistory[k].zh = userZh; break; }
+          }
+        }
+      }
       const sc = rpScenario();
       if (rp && sc) {
         const p = rpParseReply(reply);
@@ -1064,13 +1422,13 @@
           toast("⚠️ 本轮模型未按关卡协议回复，已按普通对话显示（可重试一次）");
         }
       }
-      chatHistory.push({ role: "assistant", content: content });
+      chatHistory.push({ role: "assistant", content: content, zh: zh || undefined });
       saveChat();
       collectVocab(reply);
-      appendWeekly("assistant", reply);
+      appendWeekly("assistant", content);
       sending = false;
       render();
-      if (cfg.autoSpeak) speakReply(reply, afterReply);
+      if (cfg.autoSpeak) speakReply(content, afterReply);
       else afterReply();
     }).catch(function (err) {
       chatHistory.push({
@@ -1697,6 +2055,28 @@
       case "tutor-preset": applyPreset(); break;
       case "tutor-weakview": weakView(); break;
       case "tutor-send": send(); break;
+      /* —— 功能对齐批 —— */
+      case "tutor-scene-start": startScene(); break;
+      case "tutor-scene-exit": exitScene(); break;
+      case "tutor-help-toggle": helpOpen = !helpOpen; render(); if (helpOpen) { const h = document.getElementById("tutorHelpInput"); if (h) h.focus(); } break;
+      case "tutor-help-send": sendHelp(); break;
+      case "tutor-word": showWordCard(el.getAttribute("data-w")); break;
+      case "tutor-word-close": closeWordCard(); break;
+      case "tutor-word-add": {
+        const w = el.getAttribute("data-w");
+        if (w) { addWordsToFlash([w]); closeWordCard(); }
+        break;
+      }
+      case "tutor-words-all": {
+        const ws = allSceneWords();
+        if (ws.length) addWordsToFlash(ws);
+        break;
+      }
+      case "tutor-speak-line": {
+        const t = el.getAttribute("data-t") || "";
+        if (t) E().Player.speak(t, { rate: 0.95 });
+        break;
+      }
       case "tutor-mic": micToggle(); break;
       case "tutor-mic-auto": autoMicToggle(); break;
       case "tutor-lat-speak": {
@@ -1884,6 +2264,10 @@
       e.preventDefault();
       send();
     }
+    if (e.key === "Enter" && e.target && e.target.id === "tutorHelpInput") {
+      e.preventDefault();
+      sendHelp();
+    }
   });
 
   /* ---------------- 周学习记录（供「周学习报告」使用） ----------------
@@ -1993,6 +2377,19 @@
     disclosureHtml: aiDisclosureHtml,
     wrapUserContent: wrapUserContent,
     sourceLabel: sourceLabel,
-    aiDisclosure: aiDisclosureHtml
+    aiDisclosure: aiDisclosureHtml,
+    /* 功能对齐批（A 层）的纯函数与场景库，供 tools/test-tutor-parity.js 断言 */
+    _t: {
+      SCENARIOS: SCENARIOS,
+      SCENE_CATS: SCENE_CATS,
+      parseTutorReply: parseTutorReply,
+      extractWords: extractWords,
+      stripWordMarks: stripWordMarks,
+      optionLines: optionLines,
+      sceneById: sceneById,
+      sceneCatCn: sceneCatCn,
+      PARITY_PROMPT: PARITY_PROMPT,
+      flashCardOf: flashCardOf
+    }
   };
 })();

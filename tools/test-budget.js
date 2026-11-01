@@ -151,10 +151,22 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        68 → 69 条（含 ./js/subtranslate.js，**不含任何音频**）；biggestGzKB 仍 114（app.js 113.75KB 未动）。
      · 为什么值得花：把「只能读英文」升级成「英中对照」，并复用既有四档字幕（全部/英语/隐藏/中文）；
        分批发送 + 术语原样 + 披露出口，避免把整集一次性发给第三方、也避免 AI 译文被当成范本。
-     · 余量 2.5KB（实测 823.26KiB / 826KB）；其余两条上限不放松。 */
+     · 余量 2.5KB（实测 823.26KiB / 826KB）；其余两条上限不放松。
+   内容批（对练对齐，2026-11-01）第十三次上调：gzTotalKB 826 → 838（+12KB），理由如下：
+     · 本批是**功能批（现有 AI 对练的增量，不推倒重来）**：js/tutor.js 新增 18 个外贸角色扮演场景
+       （10 类，每个带脚本化老师开场白、0 请求）、自动双语字幕（同一条回复内 `---ZH---` 分隔解析，
+       0 额外请求，解析失败回退英文单语 + 保留「🌐 翻译」）、「💡 不会说」求助、`[[word]]` 生词高亮
+       + 点词小卡 + 收进既有 FSRS 队列 + 场景生词汇总；css/style.css 同步加对应样式块。
+       构成：**js/tutor.js gzip +11,380B（raw 134,398 → 166,550）+ css/style.css +267B**。
+       本门禁口径**实测 834.63KiB（854,666B）**，838 = 实测 + 约 2.5KB 容差——**超过即红**。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新脚本文件）；
+       biggestGzKB 仍 114（app.js 113.75KiB 未动）。
+     · 为什么值得花：这四项是把桌面 GLM-Realtime 陪练客户端「卸载后只用本站」所缺的功能补齐
+       （场景覆盖真实外贸流程 18 个环节、英中对照不用再手动点翻译、不会说时给可复述的说法、
+       生词当场收卡进复习队列）；体积只涨在 tutor.js 一个文件里，没有新增请求。 */
 const BUDGET = {
-  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；AI 中文轨新增 js/subtranslate.js）
-  gzTotalKB: 826,        // 实测 823.26KiB（AI 中文轨：subtranslate.js gzip 6,529B + subtitle +343B + app/storage/index 等约 1KB）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；对练对齐批无新脚本、请求数不变）
+  gzTotalKB: 838,        // 实测 834.63KiB（对练对齐：tutor.js gzip +11,380B + css/style.css +267B）
   biggestGzKB: 114       // 实测 app.js 113.75KB（未动）
 };
 

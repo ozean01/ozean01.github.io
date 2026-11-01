@@ -392,8 +392,11 @@ check("VAD：阈值可调（环境嘈杂时不必改代码）",
 const tutorSrcForVad = fs.readFileSync(path.join(ROOT, "js", "tutor.js"), "utf8");
 check("免按键接线到 AI 陪练：有开关动作与自动发送",
   /tutor-mic-auto/.test(tutorSrcForVad) && /function autoMicToggle/.test(tutorSrcForVad) && /autoMicHandle = P\.recognizeAuto/.test(tutorSrcForVad));
+/* 对练对齐批（v1.28.0）：双语回复后朗读的是英文正文（变量由 reply 改名为 content），
+   故第一个参数用「标识符」通配，同时**多要求**两条：自动朗读路径把 afterReply 当完成回调、
+   非朗读路径也直接走 afterReply 收尾——比只匹配写死变量名更严，防「只接线了一条路径」。 */
 check("免按键：AI 朗读完才重新开麦（不把自己的声音录进去）",
-  /speakReply\(reply, afterReply\)/.test(tutorSrcForVad) && /function afterReply/.test(tutorSrcForVad));
+  /speakReply\([A-Za-z_$][\w$]*,\s*afterReply\)/.test(tutorSrcForVad) && /else afterReply\(\);/.test(tutorSrcForVad) && /function afterReply/.test(tutorSrcForVad));
 check("免按键与普通 🎤 互斥", /if \(autoMic\) \{ stopAutoMic\(\); render\(\); \}/.test(tutorSrcForVad));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");

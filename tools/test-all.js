@@ -72,6 +72,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-p1-hardening.js"], gate: true, label: "P1 体验修正批：SW install 全有或全无 · no-cache 首访 · 缺脚本横幅 · hero 对比度/装饰层走廊" },
   { cmd: "node", args: ["tools/test-podcast.js"], gate: true, label: "播客导入第 1 批：RSS/Atom 解析 · URL 分类 · 无字幕提示 · 跨域波形禁用文案 · 无内联 · 音频不进 PRECACHE" },
   { cmd: "node", args: ["tools/test-subtranslate.js"], gate: true, label: "AI 双语字幕第 2 批：分批≤20 · 缓存键/命中不重复请求 · 无 Key 降级 · 披露 · FACT_GUARD · 长集成本确认" },
+  { cmd: "node", args: ["tools/test-tutor-parity.js"], gate: true, label: "AI 对练功能对齐批：18 场景唯一 · 双语分隔解析/回退 · 求助接线 · 生词解析收卡 · 请求数上限 · 无内联" },
   { cmd: "node", args: ["tools/test-p0-content.js"], gate: true, label: "P0 内容不变量：术语/法规禁用串 · GA 卷舌 · #wsAi 渲染 · ESM 加载 · 冒烟页口径 · 零埋点措辞" },
   { cmd: "node", args: ["tools/test-ai-prompt-inventory.js"], gate: true, label: "AI 调用点清单：FACT_GUARD 覆盖 / AIDisclosure 披露 / termCheck 默认 / 调用点与渲染点漂移" },
   { cmd: "node", args: ["tools/test-ai-eval-cases.js"], gate: true, label: "AI 红队用例：83 条 anchor 引用 / 11 条链路提示词漂移 / 16 个判分器正反例（零依赖无网络）" },
