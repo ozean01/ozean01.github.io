@@ -66,7 +66,8 @@ const RENDER_POINTS = [
   { id: "speech-result",      file: "js/speech.js", fn: "resultCardHtml",     what: "自由表达分析：语法/表达反馈卡" },
   { id: "quiz-write-ai",      file: "js/app.js",    fn: "writeAi",            what: "测验写作的「AI 润色/批改」出口" },
   { id: "quiz-ai-result",     file: "js/quiz.js",   fn: "aiqResultHtml",      what: "AI 周测 / 投料口理解题的逐题讲错结果（P20：只作练习，不计成绩/不作为能力证据）" },
-  { id: "lookup-ai-card",     file: "js/lookup.js", fn: "aiCardHtml",         what: "查词页未命中词的 AI 解释（任务3：只作练习，不写盘；走 callChat + FACT_GUARD + 披露）" }
+  { id: "lookup-ai-card",     file: "js/lookup.js", fn: "aiCardHtml",         what: "查词页未命中词的 AI 解释（任务3：只作练习，不写盘；走 callChat + FACT_GUARD + 披露）" },
+  { id: "subtitle-zh-notice", file: "js/subtranslate.js", fn: "aiNoticeHtml", what: "AI 中文轨披露（播客第 2 批：中文轨由 AI 生成、仅供理解；走 callChat + FACT_GUARD + 披露）" }
 ];
 
 /* =======================================================================
@@ -76,24 +77,17 @@ const RENDER_POINTS = [
    ======================================================================= */
 const BASELINE = {
   calls: [
-    /* P2-12（2026-10-24）：传输层收敛进 js/llm.js（chat + probe 两处 fetch），
-       eval4/speech/tutor 的原 transport 实现改为 LLM.chat/probe 薄委托——
-       本基线随之刷新（--dump-baseline 输出）。提示词组装点（call:system）数量与归属未变。
-       P20（2026-10-30）：新增 js/quiz.js 一处 call:system（AI 周测 / 投料口理解题共用），
-       提示词经 aiqSystem() → aiqFactGuard() → window.Tutor.FACT_GUARD 解析到事实守卫。
-       任务3（2026-10-31）：新增 js/lookup.js 一处 call:system（查词页未命中词的 AI 解释；
-       系统提示词后无条件拼 window.Tutor.FACT_GUARD，未加载时用逐字等价的降级副本；
-       渲染出口 aiCardHtml 接 window.AIDisclosure.html）。app.js 行号因删注释而位移，不算漂移。 */
-    "js/app.js:3433:call:system",
+    "js/app.js:3443:call:system",
     "js/eval4.js:162:call:def",
     "js/eval4.js:181:call:system",
     "js/llm.js:46:fetch:probe",
     "js/llm.js:76:fetch:probe",
-    "js/lookup.js:437:call:system",
+    "js/lookup.js:445:call:system",
     "js/mysay.js:188:call:system",
     "js/quiz.js:346:call:system",
     "js/speech.js:140:call:def",
     "js/speech.js:158:call:system",
+    "js/subtranslate.js:180:call:system",
     "js/tutor.js:796:call:system",
     "js/tutor.js:867:call:def",
     "js/tutor.js:1046:call:system",
@@ -102,7 +96,7 @@ const BASELINE = {
     "js/tutor.js:1475:call:system",
     "js/tutor.js:1972:call:system",
     "js/urgent.js:306:call:system",
-    "js/write.js:767:call:system"
+    "js/write.js:767:call:system",
   ],
   renders: RENDER_POINTS.map(function (r) { return r.file + "::" + r.fn; })
 };

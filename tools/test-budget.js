@@ -140,11 +140,22 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        （含 ./js/podcast.js，**不含任何音频**）；biggestGzKB 仍 114（app.js 113.71KB 未动）。
      · 为什么值得花：把「听的东西」从本地拖文件升级成粘贴链接（RSS 列集 / 单集页面 / 音频直链 + 可选字幕），
        并复用既有字幕练习全链路；远程音频跨域时禁用波形并写明原因（解码需要 CORS），不静默失败。
-     · 余量 2.5KB（实测 816.30KiB / 819KB）；其余两条上限不放松。 */
+     · 余量 2.5KB（实测 816.30KiB / 819KB）；其余两条上限不放松。
+   内容批（AI 中文轨，2026-11-01）第十二次上调：subResources 60 → 61、gzTotalKB 819 → 826（+7KB），理由如下：
+     · 本批是**功能批**：新增 js/subtranslate.js（字幕页「🌐 AI 中文轨」：缺中文的 cues 每批 18 句走
+       Tutor.callChat → llm.js，system 无条件追加 FACT_GUARD，返回逐句对应 JSON 数组；按 cue 文本 hash
+       缓存 localStorage（fte-sub-zh-v1，派生数据、backup:false）；无 Key 置灰 + 去设置入口；长集二次确认）。
+       构成：subtranslate.js gzip **6,529B** + subtitle.js 增长 **+343B** + app/storage/index 等约 **1KB**。
+       本门禁口径**实测 823.26KiB（843,018B）**，826KB = 实测 + 约 2.5KB 容差（约 0.30%）——**超过即红**。
+     · **新增 1 个子资源**：subResources 60 → 61（index.html 新增 js/subtranslate.js）；PRECACHE 同步
+       68 → 69 条（含 ./js/subtranslate.js，**不含任何音频**）；biggestGzKB 仍 114（app.js 113.75KB 未动）。
+     · 为什么值得花：把「只能读英文」升级成「英中对照」，并复用既有四档字幕（全部/英语/隐藏/中文）；
+       分批发送 + 术语原样 + 披露出口，避免把整集一次性发给第三方、也避免 AI 译文被当成范本。
+     · 余量 2.5KB（实测 823.26KiB / 826KB）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 60,      // 实测 60（59 脚本 + 1 样式表；播客导入新增 js/podcast.js）
-  gzTotalKB: 819,        // 实测 816.30KiB（播客导入第 1 批：podcast.js gzip 8,379B + subtitle +319B + index 等约 1.5KB）
-  biggestGzKB: 114       // 实测 app.js 113.71KB（未动）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；AI 中文轨新增 js/subtranslate.js）
+  gzTotalKB: 826,        // 实测 823.26KiB（AI 中文轨：subtranslate.js gzip 6,529B + subtitle +343B + app/storage/index 等约 1KB）
+  biggestGzKB: 114       // 实测 app.js 113.75KB（未动）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

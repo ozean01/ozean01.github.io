@@ -11,14 +11,20 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v142";   /* ★ 播客导入（第 1 批，2026-11-01）：新增 js/podcast.js —— RSS/Atom 订阅源列单集 →
-                              选集载入；单集页面尽力提取音频直链；音频直链直接载入；可选字幕（文本或 .srt/.vtt 链接）。
-                              渲染与播放复用字幕页（cues / 四档 / A-B / 逐句笔记），把本地 objectURL 与远程 URL
-                              收敛到同一 state.mediaUrl；远程音频跨域时**禁用波形并写明原因**（解码需要 CORS）。
-                              抓取顺序：直接 fetch 优先，CORS 失败再走 r.jina.ai（设置页「数据去向」已补一行）。
-                              PRECACHE 67 → 68 条（+./js/podcast.js），按纪律先升 CACHE 再刷新基线。
+const CACHE = "fte-v143";   /* ★ AI 双语字幕（播客第 2 批，2026-11-01）：新增 js/subtranslate.js —— 字幕页「🌐 AI 中文轨」：
+                              缺中文的 cues 分批（每批 18 句，规格 15–20）走唯一传输层 Tutor.callChat → llm.js；
+                              system 无条件追加 FACT_GUARD；提示词要求逐句对应、行业术语原样保留、不解释不加戏；
+                              返回 JSON 字符串数组且长度必须等于本批句数，失败整批可重试。
+                              按 cue 文本 hash 缓存 localStorage（fte-sub-zh-v1，派生数据、backup:false、已登记
+                              storage-keys.js），命中不重复请求；无 Key 时按钮置灰并给「去设置」入口；
+                              长集（>60 句）先二次确认并显示「约 N 句 / 约 X 千字符」；渲染点 aiNoticeHtml 接
+                              window.AIDisclosure（「AI 生成、仅供理解」）。
+                              PRECACHE 68 → 69 条（+./js/subtranslate.js），按纪律先升 CACHE 再刷新基线。
 
                               —— 更早批次（历史记录，仍有效）——
+                              fte-v142 · 播客导入第 1 批（2026-11-01）：新增 js/podcast.js（RSS/Atom 列集 → 选集载入、
+                              单集页面提取音频直链、音频直链、可选字幕）；远程音频跨域禁用波形并写明原因；
+                              PRECACHE 67 → 68 条。
                               fte-v141 · 内容批 C（2026-10-31）：U11 +68 条检测/缺陷/结构/法规词，全站 1000 条；
                               词条 932 → 1000、U11 335 → 403、骨架 1105 → 1173；PRECACHE 清单不变（67 条）。
                              fte-v138 · P1 体验修正批（2026-10-31）：四项审计收口（不新增功能）：
@@ -283,6 +289,7 @@ const PRECACHE = [
   "./js/glossary.js",
   "./js/subtitle.js",
   "./js/podcast.js",
+  "./js/subtranslate.js",
   "./js/material.js",
   "./js/immerse.js",
   "./js/weekly.js",

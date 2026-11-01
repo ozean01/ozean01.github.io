@@ -52,6 +52,7 @@
   _need("术语速查 glossary.js", !!(window.Glossary && window.Glossary.render));
   _need("字幕 subtitle.js", !!window.Subtitle);
   _need("播客导入 podcast.js", !!(window.Podcast && window.Podcast.mount));
+  _need("AI 中文轨 subtranslate.js", !!(window.SubTranslate && window.SubTranslate.mount));
   _need("素材投料口 material.js", !!window.MaterialImport);
   _need("全英模式 immerse.js", !!window.Immerse);
   _need("本周新料 weekly.js", !!window.Weekly);

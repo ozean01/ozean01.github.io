@@ -124,7 +124,7 @@ check("抓取彻底失败时给可执行下一步（RSS / 音频直链），不�
   /页面抓取失败（直连与 r\.jina\.ai 都没成功）/.test(src) && /订阅源抓取失败/.test(src));
 
 const sub = fs.readFileSync(path.join(ROOT, "js", "subtitle.js"), "utf8");
-check("subtitle.js 暴露 loadRemote 供播客载入", /window\.Subtitle = \{ render: render, loadRemote: loadRemote/.test(sub));
+check("subtitle.js 暴露 loadRemote 供播客载入", /window\.Subtitle = \{\s*render: render,\s*loadRemote: loadRemote/.test(sub));
 check("subtitle.js 远程媒资置 remoteNotice（无字幕提示落点）", /state\.remoteNotice = cues\.length \? "" :/.test(sub));
 check("subtitle.js 波形守卫：远程媒资不解码、写明原因", /if \(s\.mediaRemote\) \{[\s\S]{0,200}XO_WAVE_NOTICE/.test(sub));
 check("subtitle.js 挂载播客入口（同一页，不新增路由）", /window\.Podcast\.mount\(document\.getElementById\("podcastEntry"\)\)/.test(sub));

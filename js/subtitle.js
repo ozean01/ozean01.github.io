@@ -93,7 +93,11 @@
 
   /* loadRemote: 播客导入（js/podcast.js）把「远程音频 URL + 字幕文本」交给本页同一套渲染/播放逻辑。
      toast: 供其它模块复用本页提示样式（避免各写一套）。 */
-  window.Subtitle = { render: render, loadRemote: loadRemote, toast: toastMsg, DATA: null };
+  window.Subtitle = {
+    render: render, loadRemote: loadRemote, toast: toastMsg,
+    getCues: function () { return state.cues; }, applyZh: applyZh,
+    DATA: null
+  };
   /* 供自动化测试/诊断使用的解析钩子（不影响运行时） */
   window.Subtitle._t = {
     toSec: toSec, parseSubtitle: parseSubtitle, diff: diff, coloredText: coloredText, guessFormat: guessFormat,
@@ -552,6 +556,7 @@
     </div>
 
     <div class="card sub-modes-card" style="margin-top:12px;padding:12px 14px">${modeBarHtml()}</div>
+    <div id="subTranslate" style="margin-top:12px"></div>
     <div class="sub-list">${cueList}</div>
     <div class="card" style="margin-top:14px;padding:14px 18px;font-size:13px;color:var(--muted)">
       <b>它适合什么场景：</b>① 载入一份<b>外贸/商务</b>字幕（展会、谈判、会议录像）逐句啃；② 载入<b>美剧/演讲</b>字幕磨地道表达；③ 颜色帮你快速分清"这个生词难不难、是不是行业术语"。<b>生词点一下</b>看课程词库解释，没有的会标难度并提示你查词。相关工具：<a href="#/sources">🎧 真实听音源</a> · <a href="#/speak">🎤 听说训练</a> · <a href="#/flash">🃏 单词卡</a>。
@@ -656,6 +661,27 @@
     if (window.Podcast && typeof window.Podcast.mount === "function") {
       window.Podcast.mount(document.getElementById("podcastEntry"));
     }
+    /* 🌐 AI 中文轨（播客第 2 批）：模块只管「哪些句缺中文 → 分批生成 → 写回 cues」，
+       渲染/四档/笔记仍走本页唯一实现；这里只提供读取与写回的窄接口。 */
+    if (window.SubTranslate && typeof window.SubTranslate.mount === "function") {
+      window.SubTranslate.mount(document.getElementById("subTranslate"), {
+        cues: function () { return state.cues; },
+        applyZh: applyZh,
+        toast: toastMsg
+      });
+    }
+  }
+
+  /* AI 中文轨写回：只改 cues[i].zh，然后复用唯一重排出口 applyModeDom()。
+     （不整页 render()——否则会重建 <video> 丢掉播放位置） */
+  function applyZh(map) {
+    if (!map || typeof map !== "object") return;
+    Object.keys(map).forEach(function (k) {
+      var i = parseInt(k, 10);
+      if (isFinite(i) && state.cues[i] && map[k]) state.cues[i].zh = String(map[k]);
+    });
+    state.revealed = {};
+    applyModeDom();
   }
 
   /* 单个 timeupdate 处理器：既高亮当前句，又到句末自动暂停（点读/自动连播共用） */
