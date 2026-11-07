@@ -173,7 +173,7 @@ setTimeout(function () {
     /* 本条是「CACHE 版本 ↔ 预缓存基线」的批次同步快照：每次升 CACHE 的批次随本批同步到当时版本
        （任务1 → fte-v135；任务3 → fte-v136；任务2 → fte-v137；P1 体验修正批 → fte-v138；
        AI 对练功能对齐批（2026-11-01）→ fte-v144，PRECACHE 清单不变（69 条））。 */
-    check("sw.js CACHE 与 precache 基线同步（对练对齐批：fte-v144）", /const CACHE = "fte-v144"/.test(sw) && base.cache === "fte-v144" && base.minVersion === 144);
+    check("sw.js CACHE 与 precache 基线同步（基线：" + base.cache + "）", new RegExp('const CACHE = "' + base.cache + '"').test(sw) && base.minVersion === Number(String(base.cache).replace("fte-v", "")));
 
     console.log(pass ? "\n=== P20 全部通过 ===" : "\n=== P20 有断言失败 ===");
     process.exit(pass ? 0 : 1);

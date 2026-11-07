@@ -163,10 +163,19 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        biggestGzKB 仍 114（app.js 113.75KiB 未动）。
      · 为什么值得花：这四项是把桌面 GLM-Realtime 陪练客户端「卸载后只用本站」所缺的功能补齐
        （场景覆盖真实外贸流程 18 个环节、英中对照不用再手动点翻译、不会说时给可复述的说法、
-       生词当场收卡进复习队列）；体积只涨在 tutor.js 一个文件里，没有新增请求。 */
+       生词当场收卡进复习队列）；体积只涨在 tutor.js 一个文件里，没有新增请求。
+    P15（2026-11-06）第十次上调：gzTotalKB 838 → 839（+1KB，约 +0.12%），理由如下：
+     · 本批是**补库存 + 一个出口按钮**，不是功能膨胀：sources.js 新增 2 条「按句/按短语查读法」
+       音源（SayNative / Forvo，各含 desc + why 两段中文，gzip 约 +0.7KB）并新增领域一格 query；
+       listen-linkers.js 每张卡加「🔗 看这句真人怎么连」按钮 + 复制逻辑 + 页内一句说明（约 +0.9KB）。
+       文案已先压缩一轮（初稿约 +1.2KB gzip，压到 +0.7KB，事实未变）。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条；biggestGzKB 仍 114（app.js 未动）。
+     · 为什么值得花：站内「连读弱读」25 张卡是固定语料、TTS 又按拼写读、念不出真连读——
+       本批给的是「查自己那一句」的出口，补的是这一格，不是又一份目录。
+     · 余量只留约 1.4KB；其余两条上限不放松。 */
 const BUDGET = {
   subResources: 61,      // 实测 61（60 脚本 + 1 样式表；对练对齐批无新脚本、请求数不变）
-  gzTotalKB: 838,        // 实测 834.63KiB（对练对齐：tutor.js gzip +11,380B + css/style.css +267B）
+  gzTotalKB: 839,        // 实测 836.59KiB（P15：sources.js +2 条音源、listen-linkers.js 加出口按钮）
   biggestGzKB: 114       // 实测 app.js 113.75KB（未动）
 };
 

@@ -123,6 +123,15 @@ check("D7 版权纪律：目录仍写明「只作外链引用、不搬运内容�
 check("D8 付费音源明确标 false 而不是假装免费",
   items.filter(function (it) { return it.free === false; }).length >= 1);
 
+/* P15：按句/按短语查读法这一格（整档节目补不了） */
+const qItems = items.filter(function (it) { return (it.domain || []).indexOf("query") !== -1; });
+check("P15 领域包含 query 且至少 2 条（SayNative 按句 / Forvo 按词）",
+  DOMAINS.indexOf("query") !== -1 && qItems.length >= 2, "实得 " + qItems.length);
+check("P15 SayNative 条目存在且为 https 外链、免费",
+  qItems.some(function (it) { return /^https:\/\/saynative\.com\/?$/.test(it.url) && it.free === true; }));
+check("P15 明写「规则化标注 + 合成朗读，不是真人录音」（不把它当真人语料）",
+  qItems.some(function (it) { return /规则化标注/.test(it.desc) && /不是真人录音/.test(it.desc); }));
+
 /* ---------- 接线：新测试必须进统一 runner，否则等于没跑 ---------- */
 const runner = read("tools/test-all.js");
 check("D9 tools/test-p14.js 已注册进 test-all.js（门禁）",

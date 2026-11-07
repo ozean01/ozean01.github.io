@@ -55,6 +55,17 @@ check("保留「不打分」纪律文案（识别≠发音，A/B 是上限）",
 check("保留「TTS 按拼写读 / 真实连读去听音源」的边界说明",
   src.indexOf("按拼写") !== -1 && src.indexOf("真实听音源") !== -1);
 
+/* ---- P15：每张卡一个「查自己那一句」的出口（SayNative）---- */
+check("P15 卡片里有 lk-native 入口，且指向 saynative.com",
+  /data-action="lk-native"/.test(src) && /NATIVE_URL = "https:\/\/saynative\.com\/"/.test(src));
+check("P15 点击 lk-native 是「先复制整句再放行链接」（无公开查询参数，不猜 URL）",
+  /act === "lk-native"/.test(src) && /copyText\(L\.sent\)/.test(src) &&
+  src.indexOf("navigator.clipboard") !== -1);
+check("P15 明写「规则化标注/非真人录音」与「真人录音去真实听音源」两层边界",
+  src.indexOf("不是真人录音") !== -1 && src.indexOf("真实听音源") !== -1);
+check("P15 一个都没少的 25 组语料（出口按钮不得挤掉卡片）",
+  (src.match(/\{ careful:/g) || []).length >= 25);
+
 /* ---------- ③ 接线 ---------- */
 const html = read("index.html");
 const swSrc = read("sw.js");

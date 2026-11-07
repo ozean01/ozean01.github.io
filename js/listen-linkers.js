@@ -10,7 +10,10 @@
         （wanna / gonna / didja——这些是母语者真实说的话的拼写），TTS 能自然读出它们；
         你练的是「完整形怎么弱化成这个形」+「自己能不能说成这样」。
      ③ 例句全部取自外贸场景、人工核对；现象讲解是教学近似，以真实母语者音频为准
-        （真实音频去「🎧 真实听音源」链出去听）。 */
+        （真实音频去「🎧 真实听音源」链出去听）。
+     ④ P15：每张卡的「🔗 看这句真人怎么连」= 先复制整句、再开 SayNative（逐音标注连读/失爆/语调）。
+        它给的是规则化标注 + 合成朗读，**不是真人录音**；那个站也没有公开查询参数，
+        所以是「复制 + 新开标签」而不是带参直达——不假装能一键定位。 */
 (function () {
   "use strict";
 
@@ -46,11 +49,33 @@
   ];
 
   const KEY_OPEN = "ftelk-open";
+  /* P15：TTS 念不出真连读，所以每张卡给一个「查真人怎么读」的出口。
+     首选 SayNative（粘任意句子 → 逐音标注连读‿/失爆/弱读/语调），它没有公开的查询参数，
+     所以做法是「先复制这句 → 再打开站」——不猜 URL 参数，也不假装能带参直达。 */
+  const NATIVE_URL = "https://saynative.com/";
   const S = window.ListenLinkers && window.ListenLinkers._s ? window.ListenLinkers._s : { open: null, rec: null };
   window.ListenLinkers = { render: render, _s: S };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function copyText(t) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); return true; }
+    } catch (e) { /* 落到下面的兜底 */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  function toast(msg) {
+    if (window.FTE_BOOT && window.FTE_BOOT.toast) window.FTE_BOOT.toast(msg);
   }
 
   function speak(text, rate) {
@@ -79,6 +104,10 @@
           '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">' + esc(L.cn) + "</div></div>" +
           '<div style="margin-top:8px;font-size:13px;color:var(--muted)">💡 ' + esc(L.note) + "</div>" +
           '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+          '<a class="btn btn-soft btn-sm" href="' + NATIVE_URL + '" target="_blank" rel="noopener" data-action="lk-native" data-i="' + i + '">🔗 看这句真人怎么连（SayNative）</a>' +
+          '<span class="field-note" style="margin:0">点它会先复制这句、再开新标签——粘进输入框即可逐音看连读 / 失爆 / 语调</span>' +
+          "</div>" +
+          '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
           (rec && rec.busy
             ? '<button class="btn btn-primary btn-sm" data-action="lk-rec-stop" data-i="' + i + '">⏹ 说完了，停止录音</button><span class="field-note" style="margin:0">🔴 录音中…先听常速整句，留半秒跟着说</span>'
             : '<button class="btn btn-outline btn-sm" data-action="lk-rec-start" data-i="' + i + '">🎤 跟读录音（不打分）</button>') +
@@ -101,6 +130,7 @@
       "<h2>🔗 连读弱读 <span class=\"en\">词都认识、连起来听不出——专治这个</span></h2>" +
       '<p style="margin-top:8px;max-width:820px;color:var(--muted)">真实语流里，功能词几乎从不「按拼写」说：want to 说成 <b>wanna</b>、did you 说成 <b>didja</b>。听不懂客户的话，十有八九不是词难，是这些「糊成一团」的形没认过。每组先<b>慢速对照</b>完整形与缩读形，再听<b>常速整句</b>，最后跟读录音回放。</p>' +
       '<p style="margin-top:6px;max-width:820px;color:var(--muted)"><b>诚实边界：</b>本页<b>不打分</b>（识别不等于发音，A/B 对照是诚实的上限）；TTS 按拼写读，真正的母语连读请去「🧰 工具箱 → 真实听音源」链出去听。例句都是外贸场景，缩读形就是母语者实际说的话的拼写。</p>' +
+      '<p style="margin-top:6px;max-width:820px;color:var(--muted)"><b>想查自己那句话？</b>下面 25 组是库存语料，而你真要查的往往是<b>客户来信里的那一句</b>或<b>你要回的那一句</b>。展开任意一张卡点「🔗 看这句真人怎么连」：它会先复制整句，再打开 <b>SayNative</b>（免费免注册，粘进去逐音标出连读‿ / 失爆 / 弱读 / 语调↗↘）。⚠️ 那里给的是<b>规则化标注 + 合成朗读</b>，不是真人录音；真人录音仍请去「🎧 真实听音源」（其中 Forvo 可按词挑多国口音）。</p>' +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
       Object.keys(KINDS).map(function (k) {
         const n = LINKERS.filter(function (L) { return L.kind === k; }).length;
@@ -128,6 +158,12 @@
         const which = el.getAttribute("data-t");
         const rate = parseFloat(el.getAttribute("data-r")) || 1;
         speak(which === "careful" ? L.careful : which === "reduced" ? L.reduced : L.sent, rate);
+      }
+      else if (act === "lk-native") {
+        /* 先复制这句再放行链接：SayNative 没有公开的查询参数，
+           复制是唯一诚实的「带参直达」，不猜 URL 格式。 */
+        const ok = copyText(L.sent);
+        toast(ok ? "📋 已复制这句——粘进 SayNative 输入框再点 Generate" : "请手动复制这句：" + L.sent);
       }
       else if (act === "lk-rec-start") {
         const P = window.Player;
