@@ -228,6 +228,66 @@
       pick: ["contract", "prospect", "price list", "catalyst", "food contact", "defect", "logistics", "packing list"] }
   ];
 
+  /* ---------------- 🔀 同形异音：拼写一个样，重音一挪词性/意思就变 ----------------
+     由来（2026-11-10 用户转来的参考文章：作者用 CMUdict 取「重读音节位置 + 一词多音」）：
+     站内词条**每条只有一个 ipa 字段**，装不下「同一拼写两种读法」；而外贸高频词里
+     contract / import / export / record / project / permit / produce / laminate / compound
+     恰好是「名词重音在前、动词重音在后」（laminate 连元音都变）——报价、合同、索赔时读错词性，
+     客户会直接听成另一个意思。
+     诚实边界（与「连读弱读」同一条）：TTS 按拼写读，**念不出两种重音**，所以这里给的是
+     音标对照 + 例句，🔊 播的是**整句**（语流里听得出词性），不假装能一键播两种读法；
+     音标口径仍是站内统一的美式 GA（重音 ˈ、长音 ː、不用 ɒ/əʊ）。 */
+  const STRESS_PAIRS = [
+    { w: "contract",
+      a: { pos: "n.", ipa: "/ˈkɑːntrækt/", cn: "合同", ex: "We signed the contract last Friday.", exCn: "上周五我们签了合同。" },
+      b: { pos: "v.", ipa: "/kənˈtrækt/", cn: "收缩（薄膜受冷/受热）", ex: "The film contracts when it cools.", exCn: "薄膜冷却时会收缩。" } },
+    { w: "import",
+      a: { pos: "n.", ipa: "/ˈɪmpɔːrt/", cn: "进口（货/业务）", ex: "The import duty on film is 6.5%.", exCn: "薄膜的进口关税是 6.5%。" },
+      b: { pos: "v.", ipa: "/ɪmˈpɔːrt/", cn: "进口（动作）", ex: "We import base film from Korea.", exCn: "我们从韩国进口基膜。" } },
+    { w: "export",
+      a: { pos: "n.", ipa: "/ˈekspɔːrt/", cn: "出口（货/业务）", ex: "Export volume rose last quarter.", exCn: "上季度出口量上升了。" },
+      b: { pos: "v.", ipa: "/ɪkˈspɔːrt/", cn: "出口（动作）", ex: "We export pouches to Germany.", exCn: "我们向德国出口自立袋。" } },
+    { w: "record",
+      a: { pos: "n.", ipa: "/ˈrekərd/", cn: "记录；档案", ex: "The record shows two defects.", exCn: "记录显示有两处缺陷。" },
+      b: { pos: "v.", ipa: "/rɪˈkɔːrd/", cn: "记录（动作）", ex: "We record every batch number.", exCn: "我们记录每个批号。" } },
+    { w: "project",
+      a: { pos: "n.", ipa: "/ˈprɑːdʒekt/", cn: "项目", ex: "This project starts in May.", exCn: "这个项目五月启动。" },
+      b: { pos: "v.", ipa: "/prəˈdʒekt/", cn: "预计（用量/价格）", ex: "We project a 10% growth.", exCn: "我们预计增长 10%。" } },
+    { w: "permit",
+      a: { pos: "n.", ipa: "/ˈpɜːrmɪt/", cn: "许可证", ex: "The import permit takes a week.", exCn: "进口许可证要一周。" },
+      b: { pos: "v.", ipa: "/pərˈmɪt/", cn: "允许", ex: "Our rules do not permit returns.", exCn: "我们的规定不允许退货。" } },
+    { w: "produce",
+      a: { pos: "n.", ipa: "/ˈproʊduːs/", cn: "农产品（生鲜）", ex: "Fresh produce needs cold storage.", exCn: "生鲜农产品需要冷藏。" },
+      b: { pos: "v.", ipa: "/prəˈduːs/", cn: "生产", ex: "We produce 20 tons a day.", exCn: "我们日产 20 吨。" } },
+    { w: "laminate",
+      a: { pos: "n.", ipa: "/ˈlæmɪnət/", cn: "复合膜；层压品", ex: "The laminate has three layers.", exCn: "这个复合膜有三层。" },
+      b: { pos: "v.", ipa: "/ˈlæmɪneɪt/", cn: "复合；贴合", ex: "We laminate film with adhesive.", exCn: "我们用胶把薄膜复合起来。" } },
+    { w: "compound",
+      a: { pos: "n.", ipa: "/ˈkɑːmpaʊnd/", cn: "混合料；化合物", ex: "The compound is pelletized first.", exCn: "混合料先造粒。" },
+      b: { pos: "v.", ipa: "/kəmˈpaʊnd/", cn: "加剧；使复合", ex: "Talc can compound the haze problem.", exCn: "滑石粉会加重雾度问题。" } }
+  ];
+
+  function stressPairsHtml() {
+    const rows = STRESS_PAIRS.map(function (p) {
+      const side = function (s) {
+        return '<div class="spair-side">' +
+          '<span class="spair-pos">' + esc(s.pos) + '</span>' +
+          '<span class="spair-ipa">' + esc(s.ipa) + '</span>' +
+          '<span class="spair-cn">' + esc(s.cn) + '</span>' +
+          '<button class="btn btn-soft btn-sm spair-play" data-action="ph-say" data-w="' + esc(s.ex) + '" title="听例句：语流里听这个词是名词还是动词">🔊</button>' +
+          '</div><div class="spair-ex">' + esc(s.ex) + '<span class="spair-excn">' + esc(s.exCn) + '</span></div>';
+      };
+      return '<div class="spair-card"><div class="spair-word">' + esc(p.w) + '</div>' + side(p.a) + side(p.b) + '</div>';
+    }).join("");
+    return `
+    <div class="card spair-block" style="padding:14px 16px">
+      <div style="font-weight:700">🔀 同形异音：拼写一个样，重音一挪意思就变</div>
+      <p class="field-note" style="margin:6px 0 0">邮件和电话里天天用到，偏偏<b>名词重音在前、动词重音在后</b>（laminate 连元音都换）。读错词性，客户会听成另一个意思：<b>CON</b>tract 是合同，con<b>TRACT</b> 是收缩。</p>
+      <div class="spair-grid">${rows}</div>
+      <div class="field-note" style="margin-top:10px">口径：音标为站内美式 GA（重音在 ˈ 之后）。<b>TTS 按拼写读、念不出两种重音</b>，🔊 播的是整句；听不出以音标为准，拿不准请<b>人工核对</b>词典（如 Merriam-Webster）。</div>
+    </div>`;
+  }
+
   function highRiskHtml() {
     const rows = HIGH_RISK.map(function (g) {
       const ws = g.pick.map(findWord).filter(Boolean);
@@ -510,6 +570,8 @@
 
     ${highRiskHtml()}
 
+    ${stressPairsHtml()}
+
     <!-- 完整音素表默认【折叠】：一线教师评审指出「41 个音素对四级荒废多年的业务员是负担」。
          它真正的用途是**查**（某个音出现在哪些行业词里），不是从头学——故降为参考附录，
          与上面「先练这 10 组」形成明确主次。折叠状态记在 S.fullOpen，
@@ -589,6 +651,7 @@
     tokenize: tokenize, INVENTORY: INVENTORY, SKIP: SKIP,
     PHONEMES: PHONEMES, buildIndex: buildIndex, NAMES: NAMES,
     HIGH_RISK: HIGH_RISK, findWord: findWord, highRiskHtml: highRiskHtml,
+    STRESS_PAIRS: STRESS_PAIRS, stressPairsHtml: stressPairsHtml,
     repOptions: repOptions, gapOptions: gapOptions, shadowWord: shadowWord, REP_BOUNDS: REP_BOUNDS
   };
 })();

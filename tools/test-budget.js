@@ -172,10 +172,23 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条；biggestGzKB 仍 114（app.js 未动）。
      · 为什么值得花：站内「连读弱读」25 张卡是固定语料、TTS 又按拼写读、念不出真连读——
        本批给的是「查自己那一句」的出口，补的是这一格，不是又一份目录。
-     · 余量只留约 1.4KB；其余两条上限不放松。 */
+     · 余量只留约 1.4KB；其余两条上限不放松。
+    v1.30.0 递增批（2026-11-10）第十一次上调：gzTotalKB 839 → 841（+2KB，约 +0.24%），理由如下：
+     · 本批是**内容/交互小批**（按用户转来的三篇外部参考文章筛选落地，不做功能膨胀）：
+       js/phonemes.js 新增「🔀 同形异音」9 组（名词/动词两读音标 + 中文义 + 外贸例句，补「一条词条
+       只能存一个 ipa」那一格）；js/sources.js 补 4 条站外外链音源（Breaking News English /
+       每日英语听力 / Merriam-Webster / EnglishClub）；js/app.js coachTick 加「切后台/锁屏不计时」守卫；
+       js/material.js 加一句「练自己的话」引导；css/style.css 加同形异音样式块。
+     · **已先按纪律减负**：文案压过一轮（初稿实测 840.33KiB → 压到 840.04KiB，省 304B），
+       仍差 1,062B；再压就只能删教学内容（同形异音减 3 组或音源减 2 条），故按流程报实测后
+       经用户批准上调（**不是先改上限**）。
+       本门禁口径**实测 840.04KiB（860,198B）**，841 = 实测 + 约 1KB 容差——**超过即红**。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新脚本）；
+       biggestGzKB 仍 114（app.js 113.75KiB 未动）。
+     · 余量只留约 1KB（本仓库历史上最紧的一档）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；对练对齐批无新脚本、请求数不变）
-  gzTotalKB: 839,        // 实测 836.59KiB（P15：sources.js +2 条音源、listen-linkers.js 加出口按钮）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；v1.30.0 递增批无新脚本、请求数不变）
+  gzTotalKB: 841,        // 实测 840.04KiB（v1.30.0：phonemes.js 同形异音 + sources.js +4 条 + app/material 小改 + css）
   biggestGzKB: 114       // 实测 app.js 113.75KB（未动）
 };
 

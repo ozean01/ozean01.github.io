@@ -11,7 +11,17 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v145";   /* ★ AI 对练功能对齐批（A 层 · 替代桌面 realtime_client，2026-11-01）：
+const CACHE = "fte-v146";   /* ★ v1.30.0 递增批（2026-11-10）：
+                              · 音素页新增「🔀 同形异音」区块（js/phonemes.js + css/style.css）：9 组名词/动词
+                                重音对照（contract / import / export / record / project / permit / produce /
+                                laminate / compound），补「一条词条只能存一个 ipa」那一格；TTS 念不出两种重音，已写明；
+                              · 计时诚实化（js/app.js coachTick）：页面切后台/锁屏时不计学习时长、不推进倒计时；
+                              · 听音源目录 +4 条（js/sources.js：Breaking News English / 每日英语听力 / Merriam-Webster /
+                                EnglishClub），全部站外外链、不搬运内容；
+                              · 素材投料口加一句「练自己的话」引导（js/material.js）。
+                              PRECACHE 清单不变（69 条；本批无新脚本），按纪律升 CACHE 并刷新基线。
+
+                              —— 上一批：AI 对练功能对齐批（A 层 · 替代桌面 realtime_client，2026-11-01）：
                               · 场景库 18 个（10 类：开发客户/询盘报价/谈判/订单单证/生产催货/出货物流/收款售后/
                                 客诉与质量/展会与验厂/技术答疑），每个带老师开场白；入口只在 AI 对练页，不新增路由；
                                 现有快速开始与深度操练话题库扩而不删；

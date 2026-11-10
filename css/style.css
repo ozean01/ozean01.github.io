@@ -2458,3 +2458,17 @@ button.tutor-word:hover{background:rgba(37,99,235,.12)}
 .tutor-opt{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:6px 8px;border:1px dashed var(--line);border-radius:8px;font-size:13px}
 .tutor-help-panel input{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
 .chat-msg.user.help .bubble{background:var(--card);color:var(--text);border:1px solid var(--line)}
+
+/* ============ 🔀 同形异音（v1.30.0 · js/phonemes.js 音素页内区块）============
+   只用既有 token，不新增颜色；与 .sp-*（js/speech.js 自由表达分析）区分开，
+   免得两份样式混在一个前缀里。 */
+.spair-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:10px}
+.spair-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.spair-word{font-weight:700;font-size:15px;color:var(--ink)}
+.spair-side{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.spair-pos{font-size:12px;font-weight:700;color:var(--primary-2);min-width:22px}
+.spair-ipa{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;color:var(--ink)}
+.spair-cn{font-size:12.5px;color:var(--muted)}
+.spair-play{margin-left:auto}
+.spair-ex{font-size:12.5px;color:var(--muted);margin:3px 0 0 28px}
+.spair-excn{display:block;opacity:.9}

@@ -285,6 +285,44 @@
       desc: "真人发音库：同一个词或短语常有英音、美音、印度音等多国母语者各录一遍，可逐条试听、看发音者国籍。免费收听（下载需注册）。",
       why: "站内音标是美国通用音（GA），但**同一个词在印度、中东客户嘴里什么样**音标给不了——这正是外贸最常翻车处。按国籍挑几条真人录音对比。",
       free: true
+    },
+    /* ---- v1.30.0：补 4 条「免费/查得到」的成人向来源（按用户 2026-11-10 转来的参考清单筛过：
+       K-12 与应试向的 Starfall / FunBrain / 21英语网 / LyricsTraining 不收；仍只做外链、不搬运内容）---- */
+    {
+      name: "Breaking News English · 分级新闻课（3600+ 课）",
+      url: "https://breakingnewsenglish.com/",
+      level: "b", domain: ["news", "business"],
+      region: "🌐 多口音（含英美）",
+      desc: "免费新闻教学站：3600+ 课、每周上新，一篇新闻分 7 档难度，配听力、阅读、语法、听写整套练习。",
+      why: "一篇新闻配一整套练习，正好对上站内盲听→精听→听写→复述；商业话题可直接进外贸语境。",
+      free: true
+    },
+    {
+      name: "每日英语听力（欧路）· 分级听力库",
+      url: "https://ting.eudic.net/ting",
+      level: "a", domain: ["news", "textbook"],
+      region: "🌐 多口音（含英美）",
+      desc: "欧路词典听力站：VOA/BBC/CNN/TED 素材，按四六级、考研、雅思托福分类，多配双语字幕。基础免费、部分课程需登录或会员。",
+      why: "查缺补漏的素材库：看商业/经济与 TED 栏目即可，不必跟着考试分类；听完回站内字幕页做精听。",
+      free: false
+    },
+    {
+      name: "Merriam-Webster · 英文释义 + 真人发音",
+      url: "https://www.merriam-webster.com/",
+      level: "c", domain: ["textbook"],
+      region: "🇺🇸 美音",
+      desc: "美国权威词典站：英文释义、真人发音、例句、同义与用法辨析，全部免费。",
+      why: "用英文理解英文，避免中文直译带偏；「🔀 同形异音」与音标拿不准时，用它核对重音和词性。",
+      free: true
+    },
+    {
+      name: "EnglishClub · 语法/发音/写作分区参考",
+      url: "https://www.englishclub.com/",
+      level: "b", domain: ["textbook", "ds"],
+      region: "🌐 多口音（含英美）",
+      desc: "1997 年至今的免费老站：语法/词汇/发音/听力/口语/写作/测验分区清晰，附教师教案。",
+      why: "站内没覆盖的基础语法/发音细节来这查，查完回站内跟读或写作用起来。",
+      free: true
     }
   ];
 

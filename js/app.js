@@ -5205,6 +5205,10 @@
   }
   function coachTick() {
     if (!coachState.running) return;
+    /* 计时诚实化（v1.30.0）：页面切到后台/锁屏时**既不记账也不推进倒计时**——
+       参考「把假学习、走神尽量排除」的口径（用户 2026-11-10 转来的文章）。
+       只影响按秒走的计时器；写作/句型/听说是动作触发 credit，不在此拦截。 */
+    if (typeof document !== "undefined" && document.hidden) { coachRedraw(); return; }
     coachCreditSecs();           // 每走一秒计入今日/累计时长
     coachState.remain--;
     if (coachState.remain < 0) {
