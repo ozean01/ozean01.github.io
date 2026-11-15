@@ -957,6 +957,10 @@
 
     <section class="td-where">
       ${stageBar}
+      <div class="td-where-row td-plan-row">
+        <a href="#/coach" class="td-plan-link">📅 计划与打卡</a>
+        <span class="td-plan-note">打卡手册 · 历史日历 · 打卡记录都在这里（不计成绩）</span>
+      </div>
       <div class="td-where-row">
         <span>🔥 连续 <b>${st.streak}</b> 天</span>
         <span>⏱ 今天 <b>${st.today}</b> 分</span>
@@ -1057,6 +1061,11 @@
       <button class="btn btn-outline btn-sm" data-action="data-export" title="把全部学习进度下载成一个 JSON 备份文件">⬇️ 导出进度备份</button>
       <button class="btn btn-outline btn-sm" data-action="data-import" title="在新设备上选择之前导出的备份文件恢复进度">⬆️ 导入备份</button>
       <span class="field-note">在微信里打开 / 装到桌面 / 分享给同事的办法见 ⚙ 设置页「📱 在微信里打开」。</span>
+    </div>
+
+    <div class="td-map-link">
+      <span>找不到要练的东西？</span>
+      <a href="#/home">🗺 全站地图（6 大区 · 按目标筛选）</a>
     </div>
 
     <details class="td-why-box">

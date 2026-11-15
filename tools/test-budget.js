@@ -220,7 +220,7 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · 本门禁口径**实测 848.09KiB（868442B）**，851 = 实测 + 约 2KB 容差——**超过即红**。 */
 const BUDGET = {
   subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P21 批无新脚本、请求数不变）
-  gzTotalKB: 851,        // 实测 848.09KiB（P25：导航减一 + 去括号，净减字节；P24 时 848.09KiB）
+  gzTotalKB: 851,        // 实测 848.36KiB（P27：今日页补「计划与打卡」「全站地图」页内出口）
   biggestGzKB: 114       // 实测 app.js 113.94KB（本批未改动 app.js）
 };
 
