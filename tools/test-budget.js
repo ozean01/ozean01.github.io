@@ -204,10 +204,18 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        846 = 实测 + 约 2.8KB 容差（与历史上 +2~2.6KB 容差同档）——**超过即红**。
      · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新脚本、无新文件）；
        **biggestGzKB 不升**：app.js 一个字节没动（本批刻意把词关系放进 lookup.js，
-       因为 app.js 距 114KB 上限只剩 65B 余量）；其余两条上限不放松。 */
+       因为 app.js 距 114KB 上限只剩 65B 余量）；其余两条上限不放松。
+    P22 到期词短文批（2026-11-15）第十三次上调：gzTotalKB 846 → 848（+2KB，约 +0.24%），理由如下：
+     · 本批补的是「换个语境再用一次」这一格（FSRS 管什么时候再见，不管能不能在新句子里认出来）：
+       js/today.js 新增到期词短文区块（约 110 行，含 p22DueWords/p22System/p22User/p22Run/
+       p22Body/p22Block）、css/style.css 新增 .td-story 样式块、
+       tools/test-ai-prompt-inventory.js 登记第 13 个 AI 调用点与第 17 个渲染点。
+     · **词表零新增**：到期词从 progress.flash 现取（口径与 countDue 同源），不新增任何数据文件。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条；**biggestGzKB 不升**（app.js 未动）。
+     · 本门禁口径**实测 846.31KiB（866,617B）**，848 = 实测 + 约 1.7KB 容差——**超过即红**。 */
 const BUDGET = {
   subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P21 批无新脚本、请求数不变）
-  gzTotalKB: 846,        // 实测 843.24KiB（P21：player.listenLevel + tutor 插话/判停/语言 + lookup 词族形近 + 数据去向一行）
+  gzTotalKB: 848,        // 实测 846.31KiB（P22：today.js 到期词短文 + css + AI 调用点登记；P21 时为 843.24KiB）
   biggestGzKB: 114       // 实测 app.js 113.94KB（本批未改动 app.js）
 };
 

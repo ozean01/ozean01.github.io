@@ -1039,6 +1039,8 @@
 
     ${tomorrowAnchor()}
 
+    ${p22Block()}
+
     <div class="td-migrate">
       <b>🔄 换电脑 / 换手机？</b>
       <span>学习进度只存在本浏览器（本站没有后端，不上传也不同步）。要接着学，就先把进度带走：</span>
@@ -1059,6 +1061,131 @@
     window.scrollTo(0, 0);
   }
 
+  /* ================= 📖 到期词短文（P22 · 把「今天到期的词」织进一段新语境）=================
+     为什么要它：FSRS 只解决「什么时候再见到这个词」，不解决「换个语境还能不能认出来」。
+     词认得、词卡也到点了，但一进新句子就卡住——这一步站内原来是缺的（外部评估里
+     wordlink 的「引擎」思想值钱也正在这里：调度交给数学，语境交给模型）。
+
+     三条口径（与站内纪律一致，改这里之前先读一遍）：
+      1. **词来自今天真实的到期队列**，不做挑选、不算分——没有到期词就明确说「今天没有」，
+         不拿新词凑数；没配模型就说不配。
+      2. **只作练习**：AI 生成物不计成绩、不作能力证据；渲染必走 AIDisclosure 披露出口。
+      3. **术语与数值仍要人工核对**：FACT_GUARD 无条件追加在 system 最末（取自 tutor.js 唯一来源）。
+     存：不写盘。会话内内存态（刷新即散），因为它是练习产物、不是证据。 */
+  const P22 = (window.Today._p22 = { status: "idle", words: [], text: "", err: "", at: 0 });
+
+  function p22Guard() {
+    if (window.Tutor && window.Tutor.FACT_GUARD) return window.Tutor.FACT_GUARD;
+    return "=== FACT BOUNDARY (always in force; non-negotiable) ===\nNever invent standards, regulation numbers, exact technical figures or test conditions. If unsure, say 请人工核对 and point to the official text / TDS / customs / bank.";
+  }
+  function p22Disclosure() {
+    if (window.AIDisclosure && typeof window.AIDisclosure.html === "function") return window.AIDisclosure.html();
+    return "";
+  }
+  /* 到期词：从 progress.flash 的 due 取（口径与 countDue 同源，不另立一套），
+     再把卡片 id（「单元id-词序号」）还原成词条——只取词，不取短语卡/台词卡。 */
+  function p22DueWords(prog, cap) {
+    const flash = (prog && prog.flash) || {};
+    const now = Date.now();
+    const units = (window.FTE_DATA && window.FTE_DATA.units) || [];
+    const idx = {};
+    units.forEach(function (u) {
+      (u.vocab || []).forEach(function (v, i) { idx[u.id + "-" + i] = v; });
+    });
+    const rows = [];
+    Object.keys(flash).forEach(function (id) {
+      const f = flash[id];
+      if (!f || typeof f.due !== "number" || f.due > now) return;
+      const v = idx[id];
+      if (!v || !v.w) return;
+      rows.push({ w: String(v.w), cn: String(v.cn || ""), over: now - f.due });
+    });
+    rows.sort(function (a, b) { return b.over - a.over; });   // 逾期越久越先出现
+    const seen = {};
+    return rows.filter(function (r) {
+      const k = r.w.toLowerCase();
+      if (seen[k]) return false;
+      seen[k] = 1;
+      return true;
+    }).slice(0, cap || 10);
+  }
+  function p22System() {
+    return "You write a short, natural English passage for a Chinese flexible-packaging foreign-trade learner. " +
+      "Rules: (1) the passage MUST contain every target word exactly as given, used naturally; " +
+      "(2) 120-180 words, business/shop-floor context (films, adhesives, printing, pouch making, documents, logistics); " +
+      "(3) after the English passage add one blank line and a concise Chinese translation of the whole passage; " +
+      "(4) no title, no bullet points, no vocabulary list, no grammar commentary; " +
+      "(5) if a target word is an industry term you are not fully sure about, put [请人工核对：该词] right after it.\n" +
+      p22Guard();
+  }
+  function p22User(words) {
+    const list = words.map(function (x) { return x.w; }).join(", ");
+    const wrapped = (window.Tutor && typeof window.Tutor.wrapUserContent === "function")
+      ? window.Tutor.wrapUserContent(list) : list;
+    return "Target words (use ALL of them, keep this spelling): " + wrapped + "\nWrite the passage now.";
+  }
+  function p22Run() {
+    if (P22.status === "loading") return;
+    const prog = (E().getProgress && E().getProgress()) || {};
+    const words = p22DueWords(prog, 10);
+    P22.words = words;
+    if (!words.length) {
+      P22.status = "empty";
+      P22.err = "今天没有到期词：先去「🃏 单词卡」练几张，到期后这里才会有词可织。";
+      render(); return;
+    }
+    if (!window.Tutor || typeof window.Tutor.callChat !== "function") {
+      P22.status = "error"; P22.err = "AI 模块没有加载：刷新页面重试。"; render(); return;
+    }
+    P22.status = "loading"; P22.err = ""; render();
+    /* 门禁会从调用点往回 40 行找 role:"system"，所以消息数组必须先组装、再调用 */
+    const msgs = [
+      { role: "system", content: p22System() },
+      { role: "user", content: p22User(words) }
+    ];
+    window.Tutor.callChat(msgs, { temperature: 0.7, maxTokens: 900 }).then(function (txt) {
+      const t = String(txt || "").trim();
+      if (!t) throw new Error("模型返回了空内容");
+      P22.status = "done"; P22.text = t; P22.at = Date.now();
+      render();
+    }).catch(function (e) {
+      P22.status = "error";
+      P22.err = (e && e.message === "no-key")
+        ? "还没配置模型：去「AI 对练」填 Key，或选「🖥 本地 Ollama」（免 Key）。"
+        : "生成失败：" + (e && e.message ? e.message : "网络错误");
+      render();
+    });
+  }
+  /* 渲染：AI 输出必须接披露出口（门禁按函数名基线断言） */
+  function p22Body() {
+    const D = p22Disclosure();
+    const bits = String(P22.text || "").split(/\n{2,}/);
+    return '<div class="td-story-body">' +
+      bits.map(function (p) { return '<p>' + esc(p).replace(/\n/g, "<br>") + "</p>"; }).join("") +
+      "</div>" + (D ? '<div class="field-note" style="margin-top:6px">' + D + "</div>" : "");
+  }
+  function p22Block() {
+    const words = P22.words.length ? P22.words : [];
+    const chips = words.map(function (x) {
+      return '<span class="td-story-w" title="' + esc(x.cn) + '">' + esc(x.w) + "</span>";
+    }).join("");
+    const body = P22.status === "done" ? p22Body() : "";
+    const note = P22.status === "loading" ? "正在用今天到期的词写一段…"
+      : (P22.err || "");
+    return '<details class="td-story">' +
+      '<summary><b>📖 换一个语境再用一次</b><span class="td-story-sub">把「今天到期」的词织进一段新短文——认得之后，还要在新句子里认得出来</span></summary>' +
+      '<div class="td-story-in">' +
+      (chips ? '<div class="td-story-words">' + chips + "</div>" : "") +
+      '<div class="td-story-ops">' +
+      '<button class="btn btn-soft btn-sm" data-action="td-story"' + (P22.status === "loading" ? " disabled" : "") + '>📖 ' +
+      (P22.status === "done" ? "换一段" : "用到期词写一段") + "</button>" +
+      '<span class="field-note">只作练习：不计成绩、不作能力证据；行业术语与数值请人工核对。</span>' +
+      "</div>" +
+      (note ? '<div class="td-story-note">' + esc(note) + "</div>" : "") +
+      body +
+      "</div></details>";
+  }
+
   /* ---------------- 事件 ---------------- */
   if (typeof document !== "undefined") document.addEventListener("click", function (e) {
     const el = e.target.closest("[data-action]");
@@ -1067,6 +1194,9 @@
     if (!act || act.indexOf("td-") !== 0) return;
 
     if (act === "td-short") { S.short = !S.short; render(); return; }
+
+    /* 📖 到期词短文（P22）：点击即生成/换一段；状态机在 P22 里，渲染仍走本页 render */
+    if (act === "td-story") { p22Run(); return; }
 
     /* 🌙 明日锚点（P6）：两件都不需要联网或后端 */
     if (act === "td-tm-ics") { downloadTomorrowIcs(); return; }

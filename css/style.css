@@ -2478,3 +2478,15 @@ button.tutor-word:hover{background:rgba(37,99,235,.12)}
 .rd-rel-h{display:block;font-size:12px;opacity:.85;margin-bottom:3px}
 .rd-rel-row{margin-top:2px;line-height:1.6;color:var(--ink)}
 .rd-rel-row b{color:var(--muted);font-weight:600;margin-right:2px}
+
+/* ---- 📖 到期词短文（P22）---- */
+.td-story{margin:10px 0 0;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--bg-soft)}
+.td-story>summary{cursor:pointer;font-size:14px;line-height:1.6}
+.td-story-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.td-story-in{margin-top:8px}
+.td-story-words{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.td-story-w{font-size:12.5px;padding:2px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+.td-story-ops{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.td-story-note{margin-top:6px;font-size:12.5px;color:var(--muted)}
+.td-story-body{margin-top:8px;font-size:14px;line-height:1.75;color:var(--ink)}
+.td-story-body p{margin:0 0 8px}
