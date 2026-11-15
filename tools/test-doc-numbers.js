@@ -146,8 +146,11 @@ if (mIA) {
   check("README 导航入口数 = 实测导航链接数", Number(mIA[1]) === navLinkCount,
     "README " + mIA[1] + " vs 实测 " + navLinkCount + "（改导航必须同步改 README 这一行）");
 }
-check("导航含「能力证据」入口（坚持≠能力分栏纪律在导航层的落点）",
-  navBlock2.indexOf("能力证据") !== -1 && navBlock2.indexOf('data-nav="ability"') !== -1);
+// P25：改前要求「能力证据」字样 + data-nav="ability" 都在导航里；改后该纪律落点改由 #/speaking 页面本身承载
+//（tools/test-boot.js 已断言该页声明自己是能力证据），导航侧加严为「#/speaking 恰好一次、旧重复入口已删」。
+const abilityHits = (navBlock2.match(/href="#\/speaking"/g) || []).length;
+check("口语测评在导航里只挂一个入口（#/speaking 恰好一次；旧的 data-nav=\"ability\" 已删）",
+  abilityHits === 1 && navBlock2.indexOf('data-nav="ability"') === -1, "n=" + abilityHits);
 check("导航无单链接分组（课程仍是直链；P13 起写作/实操 SOP 收进「写 · 用」组，不再单独成组或直链）",
   !/data-group="course"/.test(navBlock2) && !/data-group="writing"/.test(navBlock2));
 

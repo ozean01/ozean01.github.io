@@ -139,8 +139,8 @@ check("app.js 有 earplay 渲染分支", /route\.view === "earplay"\) window\.Ea
 check("app.js 启动完整性校验包含 earplay.js", /_need\("磨耳朵播放器 earplay\.js"/.test(appjs));
 check("入口在「真实商务听音源」页内（真链接，不是导航）", /href="#\/earplay"/.test(sources));
 check("导航里没有 earplay（不新增一级导航）", !/href="#\/earplay"/.test((html.match(/<nav class="main-nav"[\s\S]*?<\/nav>/) || [])[0] || ""));
-check("导航入口仍是 18 个", ((html.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "").match(/<a [^>]*href="#\//g) !== null &&
-  (((html.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "").match(/<a [^>]*href="#\//g) || []).length === 18);
+check("导航入口现为 17 个（P25 删重复入口，只减不增）", ((html.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "").match(/<a [^>]*href="#\//g) !== null &&
+  (((html.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "").match(/<a [^>]*href="#\//g) || []).length === 17);
 
 /* ---------- ④ 离线与预缓存纪律 ---------- */
 const preBlock = (sw.match(/const PRECACHE = \[([\s\S]*?)\];/) || [])[1] || "";

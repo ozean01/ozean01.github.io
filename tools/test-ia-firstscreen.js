@@ -32,10 +32,13 @@ const uniqueHrefs = hrefs.filter(function (h, i) { return hrefs.indexOf(h) === i
 const topLevel = (navBlock.match(/<a class="nav-home-link"/g) || []).length +
   (navBlock.match(/<details class="nav-group"/g) || []).length;
 
-check("导航入口数不超过基线 18（只减不增）", anchors.length <= 18, "n=" + anchors.length + " / 基线 18");
+// P25：基线 18 → 17（只减不增；删重复入口后同一页不再挂两个入口）
+check("导航入口数不超过基线 17（只减不增）", anchors.length <= 17, "n=" + anchors.length + " / 基线 17");
 check("导航一级项不超过基线 6（P13 收敛：9 → 6，只减不增）", topLevel <= 6, "n=" + topLevel + " / 基线 6");
-check("导航唯一目标数不超过基线 17（只减不增；#/speaking 允许重复一次）",
-  uniqueHrefs.length <= 17, "n=" + uniqueHrefs.length + " / 基线 17");
+// P25：加严为「17 个入口且目标全部唯一」，防止重复入口再回来
+check("导航 17 个入口且目标全部唯一（不再有重复入口）",
+  anchors.length === 17 && uniqueHrefs.length === anchors.length,
+  "anchors=" + anchors.length + " / unique=" + uniqueHrefs.length);
 check("导航里不出现「从这里开始 / 新手 / 推荐」类第 19 个起点",
   !/从这里开始|新手|推荐入口/.test(navBlock));
 check("P4：「首页」已改名「全站地图」，且不再是一级直链",

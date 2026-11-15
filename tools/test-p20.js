@@ -166,7 +166,8 @@ setTimeout(function () {
       /function callChat\(messages, opts\)/.test(tutorJs) && /temperature: 0\.7, maxTokens: 600/.test(tutorJs));
     const navHtml = read("index.html");
     const navBlock = (navHtml.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
-    check("不新增导航项（index.html 导航仍是 18 个入口）", (navBlock.match(/<a [^>]*href="#\//g) || []).length === 18);
+    // P25（2026-11-15）：导航 18 → 17（删掉与「练」组重复的 #/speaking 能力证据入口）；冻结常量随之下调，仍守「只减不增」。
+check("不新增导航项（index.html 导航仍是 17 个入口）", (navBlock.match(/<a [^>]*href="#\//g) || []).length === 17);
 
     const sw = read("sw.js");
     const base = JSON.parse(read("tools/precache-baseline.json"));

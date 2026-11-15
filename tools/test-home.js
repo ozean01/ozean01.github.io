@@ -35,8 +35,16 @@ check("分组为任务维度 practice/memory/use/map",
   groups.map(function (x) { return x.id; }).join(",") === "practice,memory,use,map",
   groups.map(function (x) { return x.id; }).join(","));
 check("每组都有入口", groups.every(function (x) { return x.links > 0; }));
-check("「地图 · 进度」组含 3 个入口（全站地图 + 计划打卡 + 能力证据，坚持≠能力分栏纪律的落点）",
-  (groups.filter(function (x) { return x.id === "map"; })[0] || { links: 0 }).links === 3);
+// P25（2026-11-15）：导航 18 → 17——删掉与「练」组重复的 #/speaking（能力证据）。
+// 改前：=== 3（全站地图 + 计划打卡 + 能力证据）；改后：=== 2，并加严断言另两个入口仍在、旧重复入口已消失。
+check("「地图 · 进度」组含 2 个入口（全站地图 + 计划打卡；能力证据并入「练」组的口语测评页，不再重复挂入口）",
+  (function () {
+    const g = groups.filter(function (x) { return x.id === "map"; })[0] || { links: 0 };
+    return g.links === 2 &&
+      /data-group="map"[\s\S]*?href="#\/home"/.test(navBlock) &&
+      /data-group="map"[\s\S]*?href="#\/coach"/.test(navBlock) &&
+      !/data-nav="ability"/.test(navBlock);
+  })());
 console.log("  分组入口数：" + groups.map(function (x) { return x.id + "=" + x.links; }).join(" · "));
 
 /* 一级收敛：9 → 6 = 2 直链（今日 / 课程）+ 4 分组 */
