@@ -29,7 +29,8 @@ let g;
 while ((g = reGroup.exec(navBlock)) !== null) {
   groups.push({ id: g[1], links: (g[2].match(/<a href="#\/[a-z0-9]+"/g) || []).length });
 }
-check("导航为 4 个任务分组（P13：练 / 背与测 / 写·用 / 地图·进度）",
+// P26（2026-11-15，专家结论）：分组名「背与测」→「巩固 · 纠错」。改前/改后原文见下方各条注释。
+check("导航为 4 个任务分组（输入侧·输出侧·巩固纠错·实战，仍 4 组）",
   groups.length === 4, groups.map(function (x) { return x.id; }).join(", "));
 check("分组为任务维度 practice/memory/use/map",
   groups.map(function (x) { return x.id; }).join(",") === "practice,memory,use,map",
@@ -65,12 +66,20 @@ check("「实操 SOP」与「写作」收进「写 · 用」组（工作辅助/�
   !/<a class="nav-home-link" href="#\/sop"/.test(navBlock) &&
   !/<a class="nav-home-link" href="#\/write"/.test(navBlock) &&
   /data-group="use"[\s\S]*?href="#\/write"[\s\S]*?href="#\/sop"/.test(navBlock));
-check("「背与测」命名保留（P0 修订：先输入后检验）", /ng-name">背与测</.test(navBlock) && !/ng-name">记与测</.test(navBlock));
+// P26 改断言（保留防回退意图，只换守卫目标）：
+//   改前：组名必须是「背与测」，且不许是「记与测」。
+//   改后：组名必须含「巩固」，且「记与测」「背与测」两个旧名都进黑名单（加严）。
+//   理由（专家结论）：旧名「背」与「输入」重叠、「测」与「实战/练」争夺检验含义；组内三分之二是
+//   「诊断→纠偏」而非「背」，且「先输入后检验」的线性理由在重排后已失效。
+check("「巩固 · 纠错」命名在位，且旧名「记与测」「背与测」不得再现",
+  /ng-name">巩固 · 纠错</.test(navBlock) &&
+  !/ng-name">记与测</.test(navBlock) &&
+  !/ng-name">背与测</.test(navBlock));
 /* 「背与测」组内顺序：先输入（背）→ 后检验（测）→ 再纠偏（易错点） */
 const memBlk = (navBlock.match(/data-group="memory">([\s\S]*?)<\/details>/) || [])[1] || "";
 const memOrder = (memBlk.match(/href="#\/([a-z0-9]+)"/g) || [])
   .map(function (s) { return s.replace(/.*"#\//, "").replace(/"/, ""); });
-check("背与测组内顺序为 单词卡 → 测验证 → 易错点", memOrder.join(",") === "flash,quiz,mistakes", memOrder.join(","));
+check("巩固 · 纠错组内顺序为 单词卡 → 智能测验 → 易错点", memOrder.join(",") === "flash,quiz,mistakes", memOrder.join(","));
 
 /* ---------------- ② 导航 ↔ 路由 双向对账 ---------------- */
 const blob = (appjs.match(/if \(\[([\s\S]*?)\]\.indexOf\(parts\[0\]\)/) || [])[1] || "";
