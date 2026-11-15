@@ -173,6 +173,39 @@ check("桌面导航一次只展开一个分组（点开新的先收起旧的，�
   /#mainNav details\.nav-group > summary/.test(appjs) &&
   /details\.nav-group\[open\]/.test(appjs) && /removeAttribute\("open"\)/.test(appjs));
 
+/* ---------------- P29 导航视觉改造：结构 + 交互 + 样式契约 ----------------
+   「直观」= 每个分组有一句说明、每个入口有一句副标题（不点开也猜得到里面是什么）；
+   「条理」= 说·写组内用「说 / 写」两段分隔；
+   「美观」= 面板卡片化、右缘两组右对齐不出屏、键盘焦点环；交互补「点外部 / Esc 收起」。 */
+const navCssP29 = fs.readFileSync(path.join(ROOT, "css/style.css"), "utf8");
+const capCount = (navBlock.match(/class="nav-cap"/g) || []).length;
+const secCount = (navBlock.match(/class="nav-sec"/g) || []).length;
+const titleCount = (navBlock.match(/class="nav-t"/g) || []).length;
+const descCount = (navBlock.match(/class="nav-d"/g) || []).length;
+check("每个分组都有 1 句面板说明（4 组 = 4 条）", capCount === 4, "n=" + capCount);
+check("「说 · 写」组内用「说 / 写」两段分隔（顺序：说在前、写在后）",
+  secCount === 2 &&
+  navBlock.indexOf('class="nav-sec">说') !== -1 &&
+  navBlock.indexOf('class="nav-sec">说') < navBlock.indexOf('class="nav-sec">写'));
+check("13 个分组入口都有标题 + 一句副标题（不点开也知道是什么）",
+  titleCount === 13 && descCount === 13, "t=" + titleCount + " / d=" + descCount);
+check("每个入口的图标独立成块（不再混在标题文字里）",
+  (navBlock.match(/class="nav-i"/g) || []).length === 13 &&
+  (navBlock.match(/class="ng-ico"/g) || []).length === 6);
+check("面板入口是两行卡片（grid），且提高特异性防手机端 flex 覆盖",
+  /\.main-nav \.nav-sub a\{/.test(navCssP29) && /display:grid/.test(navCssP29));
+check("靠右两组的面板右对齐（324px 面板向左展开，不出视口）",
+  /\.nav-group:nth-last-child\(-n\+2\) \.nav-sub\{left:auto;right:0\}/.test(navCssP29));
+check("面板超高可滚、不撑破首屏（max-height + overflow）",
+  /\.nav-sub\{[\s\S]*?max-height:min\(70vh/.test(navCssP29) && /\.nav-sub\{[\s\S]*?overflow:auto/.test(navCssP29));
+check("键盘焦点环覆盖一级项 / 分组 / 面板入口",
+  /\.main-nav a:focus-visible,\.nav-group summary:focus-visible,\.nav-sub a:focus-visible\{/.test(navCssP29));
+check("交互：点面板外部收起分组",
+  /!e\.target\.closest\("#mainNav"\)/.test(appjs) && /removeAttribute\("open"\)/.test(appjs));
+check("交互：按 Esc 收起分组", /e\.key === "Escape"/.test(appjs) && /mainNav details\.nav-group\[open\]/.test(appjs));
+check("搜索「页面」取入口标题（.nav-t），不把副标题混进搜索结果",
+  /querySelector\("\.nav-t"\)/.test(pageIdxFn));
+
 /* ---------------- ③ 旧机制不许回来 ---------------- */
 const DEAD_FUNCS = ["homeAnchorBarHtml", "homeGoalPathHtml", "firstStepHtml", "homeTabBarHtml",
   "homeTabNewHtml", "homeTabStudyHtml", "homeTabOpsHtml", "unitCardsByIdsHtml"];

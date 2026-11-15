@@ -451,8 +451,9 @@
     const nav = document.getElementById("mainNav");
     if (nav) nav.querySelectorAll("a[data-nav]").forEach(function (a) {
       const g = a.closest("details.nav-group");
+      const t = a.querySelector(".nav-t");
       out.push({
-        type: "页面", text: a.textContent.trim(),
+        type: "页面", text: (t || a).textContent.trim(),
         sub: g ? "导航 · " + g.querySelector(".ng-name").textContent : "导航 · 一级",
         href: a.getAttribute("href"), hl: ""
       });
@@ -4102,6 +4103,9 @@
       document.querySelectorAll("#mainNav details.nav-group[open]").forEach(function (g) {
         if (g.querySelector("summary") !== navSum) g.removeAttribute("open");
       });
+    } else if (!e.target.closest || !e.target.closest("#mainNav")) {
+      /* P29：点面板外部也收起（键盘 Esc 见下方 keydown）——否则面板会一直挂着挡内容。 */
+      document.querySelectorAll("#mainNav details.nav-group[open]").forEach(function (g) { g.removeAttribute("open"); });
     }
     /* 点卡片任意非按钮区域都能翻面。
        .flash-card 原来是 div[data-action=flash-flip]，但卡片内部的元素自带 data-action
@@ -4644,6 +4648,10 @@
     if (e.key === "Enter" && e.target && e.target.getAttribute("data-action") === "dict-input") {
       const row = e.target.closest(".dict-row");
       if (row) checkDict(parseInt(row.getAttribute("data-li"), 10));
+    }
+    /* P29：Esc 收起展开的导航分组（点面板外部也会收，见点击委托里的 #mainNav 判断）。 */
+    if (e.key === "Escape") {
+      document.querySelectorAll("#mainNav details.nav-group[open]").forEach(function (g) { g.removeAttribute("open"); });
     }
     /* 空格翻面（单词卡界面）。
        旧实现用 `location.hash.indexOf("flash") !== -1` 判断，太粗：
