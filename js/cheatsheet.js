@@ -207,6 +207,53 @@
       '</div>';
   }
 
+  /* ---------------- 🔤 开口骨架词（P23）----------------
+     定位（外部评估后的修正）：这**不是「地基」**——134 个词只覆盖功能词与少量高频实词，
+     缺 A2 语法与 2000 词级常用词，撑不起「地基」这个承诺；它是**把术语连成句的骨架/胶水**：
+       · 复现枢纽：这些词横跨 19 个单元反复出现，术语靠它们才成句；
+       · 最小朗读训练集：短、常见，最适合练连读与语调；
+       · 邮件/电话句式的产出模板；
+       · 最小可用度的诊断探针（这 134 个都不熟，先别急着背专业词）。
+     数据来源：**运行时从既有词表现筛**（js/data*.js 的 vocab × js/difficulty-map.js 的 cefr 字段），
+     不复制、不新增数据文件、不新增词条——单一实现。
+     口径：这是**速查/再认**，不是练习；不计打卡、不计成绩、不作能力证据（与整页页脚一致）。 */
+  function skeletonWords() {
+    const diff = (window.FTE_DIFF && window.FTE_DIFF.words) || {};
+    const out = [];
+    const seen = {};
+    units().forEach(function (u) {
+      (u.vocab || []).forEach(function (v) {
+        const w = String((v && v.w) || "").trim();
+        const key = w.toLowerCase();
+        if (!key || seen[key] || key.indexOf(" ") !== -1) return;   // 只收单词，多词术语不进（那里不是骨架）
+        const d = diff[key];
+        if (!d || !d.cefr || !/^A[12]$|^B1$/.test(String(d.cefr))) return;
+        seen[key] = 1;
+        out.push({ w: w, cn: String(v.cn || ""), cefr: String(d.cefr) });
+      });
+    });
+    out.sort(function (a, b) { return a.cefr === b.cefr ? a.w.localeCompare(b.w) : a.cefr.localeCompare(b.cefr); });
+    return out;
+  }
+  function skeletonHtml() {
+    const list = skeletonWords();
+    if (!list.length) return "";
+    const byCefr = {};
+    list.forEach(function (x) { (byCefr[x.cefr] = byCefr[x.cefr] || []).push(x); });
+    const chips = Object.keys(byCefr).sort().map(function (k) {
+      return "<span class=\"cs-sk-tag\">" + esc(k) + " · " + byCefr[k].length + "</span>";
+    }).join("");
+    const words = list.map(function (x) {
+      return '<button class="cs-sk-w" data-action="cs-say" data-text="' + esc(x.w) + '" title="' + esc(x.cn || "") + ' · 点一下朗读">' + esc(x.w) + "</button>";
+    }).join("");
+    return '<section class="cs-sk" id="csSkeleton">' +
+      '<div class="cs-sk-h"><b>🔤 开口骨架词</b><span class="cs-stage-en">' + list.length + " 个 · 把术语连成句的那些词</span>" + chips + "</div>" +
+      '<p class="cs-sk-note">这些词横跨多个单元反复出现，<b>术语靠它们才成句</b>，也是最省事的连读/语调练习集。' +
+      "它<b>不是「地基」</b>——只覆盖功能词与少量高频实词，A2 语法与 2000 词级常用词不在其中；也<b>不是练习</b>：不计打卡、不计成绩、不作能力证据。点词可朗读。</p>" +
+      '<div class="cs-sk-words">' + words + "</div>" +
+      "</section>";
+  }
+
   function render() {
     const app = document.getElementById("app");
     if (!app) return;
@@ -244,6 +291,7 @@
       <div class="chip-row cs-chips">${chips}</div>
     </div>
     ${sections || '<div class="empty"><div class="e-icon">📭</div>没有匹配的句子。换个关键词，或点「全部」。</div>'}
+    ${skeletonHtml()}
     <p class="cs-foot">入口：实操 SOP 页顶部「📋 一页纸小抄」。打印建议 A4 纵向、默认边距；每阶段自动分页。</p>`;
 
     const input = document.getElementById("csQ");
