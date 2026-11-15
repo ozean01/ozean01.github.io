@@ -87,24 +87,24 @@
       <span class="brand-badge">🌐</span>
       <span class="brand-text">软包装外贸英语<span class="brand-sub">Soft Packaging Foreign Trade English</span></span>
     </a>
-    <!-- 导航按【学习闭环】分组（P28 · 2026-11-15；在 P13 一级收敛之上重排）：
+    <!-- 导航按【学习闭环】分组（P28 2026-11-15；v1.38.1 按用户反馈把组名改直白）：
          P13（2026-10-26）先把 9 个一级项收敛为 6 个：2 个直链（今日 / 课程）+ 4 个任务分组；
-         P28 再把 4 个分组按学习闭环改名并重排成员（练 / 背与测 / 写 · 用 / 地图 · 进度
-         → 输入 / 输出 / 巩固 · 纠错 / 实战），入口 17 → 15：
-           · 「🗺 全站地图」「📅 计划与打卡」移出一级导航，降为今日页顶部/底部页内入口
-             （先建好出口再摘，见 v1.37.0；功能不删，仍可由页内链接与面包屑到达）
-           · 组名只改文案，href 与 data-nav 一个没动，深链与书签不受影响
+         P28 按学习闭环重排并摘掉地图组，入口 17 → 15；v1.38.1 用户反馈「组名太抽象、看不出里面是什么」，
+         组名再改为字面版：听 · 读 / 说 · 写 / 记 · 测 · 纠错 / 实操（`data-group` 仍是 input/output/memory/practice，
+         只改文案，href 与 data-nav 一律未动，深链与书签不受影响）。
+           · 「🗺 全站地图」「📅 计划与打卡」已移出一级导航，降为今日页顶部/底部页内入口
+             （先建好出口再摘，见 v1.37.0；功能不删，仍可由页内链接、面包屑与搜索到达）
          历史约束仍然有效：
            · 「测起点」并入课程页第二 tab（它产出就是「从第几单元开始」）
            · 「辨音·最小音对」并入音素页；「字幕逐句点读」并入素材页（工序上下游）
-           · 「巩固 · 纠错」顺序固定：先背（FSRS）→ 后测（提取）→ 再纠偏（负例）
-           · 「实操 SOP」是工作辅助不是技能训练，归「实战」组，不单独成组
+           · 「记 · 测 · 纠错」顺序固定：先背（FSRS）→ 后测（提取）→ 再纠偏（负例）
+           · 「实操 SOP」是工作辅助不是技能训练，归「实操」组，不单独成组
            · 「首页」改名「全站地图」（P4）：默认落地是「今日」，地图页不是起点 -->
     <nav class="main-nav" id="mainNav">
       <a class="nav-home-link" href="#/today" data-nav="today">📅 今日</a>
       <a class="nav-home-link" href="#/units" data-nav="units">📚 课程</a>
       <details class="nav-group" data-group="input">
-        <summary>🎧<span class="ng-name">输入</span></summary>
+        <summary>🎧<span class="ng-name">听 · 读</span></summary>
         <div class="nav-sub">
           <a href="#/sources" data-nav="sources">🎧 商务听音源</a>
           <a href="#/material" data-nav="material">📥 素材精听</a>
@@ -112,7 +112,7 @@
         </div>
       </details>
       <details class="nav-group" data-group="output">
-        <summary>🗣<span class="ng-name">输出</span></summary>
+        <summary>🗣<span class="ng-name">说 · 写</span></summary>
         <div class="nav-sub">
           <a href="#/speak" data-nav="speak">听说训练</a>
           <a href="#/speaking" data-nav="speaking">📡 口语测评</a>
@@ -122,7 +122,7 @@
         </div>
       </details>
       <details class="nav-group" data-group="memory">
-        <summary>🃏<span class="ng-name">巩固 · 纠错</span></summary>
+        <summary>🃏<span class="ng-name">记 · 测 · 纠错</span></summary>
         <div class="nav-sub">
           <a href="#/flash" data-nav="flash">🃏 记忆单词卡</a>
           <a href="#/quiz" data-nav="quiz">智能测验</a>
@@ -130,7 +130,7 @@
         </div>
       </details>
       <details class="nav-group" data-group="practice">
-        <summary>🧭<span class="ng-name">实战</span></summary>
+        <summary>🧭<span class="ng-name">实操</span></summary>
         <div class="nav-sub">
           <a href="#/sop" data-nav="sop">🧭 实操 SOP</a>
           <a href="#/glossary" data-nav="glossary">🔍 专业术语</a>
