@@ -11,7 +11,7 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v149";   /* ★ v1.30.0 递增批（2026-11-10）：
+const CACHE = "fte-v150";   /* ★ v1.30.0 递增批（2026-11-10）：
                               · 音素页新增「🔀 同形异音」区块（js/phonemes.js + css/style.css）：9 组名词/动词
                                 重音对照（contract / import / export / record / project / permit / produce /
                                 laminate / compound），补「一条词条只能存一个 ipa」那一格；TTS 念不出两种重音，已写明；

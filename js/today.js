@@ -52,6 +52,10 @@
     try { localStorage.setItem(KEY, JSON.stringify({ day: todayStr(), done: done })); } catch (e) { /* ignore */ }
   }
 
+  /* 一轮单词卡会话最多给多少张到期卡（来源：js/flashcards.js 的 buildQueue limit 默认值 30）。
+     写在这里是为了让「还欠多少张」有唯一数字来源——不要在文案里另写一个 30。 */
+  const DUE_SESSION_CAP = 30;
+
   /* ---------------- 到期词数：直接读 FSRS 的 due，不触发建队/不产生副作用 ---------------- */
   function countDue(prog) {
     const now = Date.now();
@@ -538,7 +542,13 @@
     return [
       {
         key: "flash", icon: "🔁", title: "复习到期词", min: 4, href: "#/flash",
-        why: d.due > 0 ? ("FSRS 到期 " + d.due + " 词") : (d.total > 0 ? "今天没有到期的，进度良好" : "还没建卡，先学几个新词"),
+        /* P24：漏学几天后到期卡会积压（一轮只做 DUE_SESSION_CAP 张），把「还欠多少」直接写出来——
+           暗账变成明账，用户才不会觉得自己被"跳过了"。到期 ≤ 一轮上限时不加这句（不制造焦虑）。 */
+        why: d.due > 0
+          ? ("FSRS 到期 " + d.due + " 词" + (d.due > DUE_SESSION_CAP
+            ? " · 本轮先做 " + DUE_SESSION_CAP + " 张，还剩 " + (d.due - DUE_SESSION_CAP) + " 张（会一直留着，不会跳过）"
+            : ""))
+          : (d.total > 0 ? "今天没有到期的，进度良好" : "还没建卡，先学几个新词"),
         /* P1-C · 完成口径（S01）：每一步在 UI 上写明「怎么才算完成、怎么才记账」，
            不再让用户自己猜。四步是**自报**：点「✓ 完成」才计入打卡。 */
         credit: "自报：做完点「✓ 完成」才计入打卡",

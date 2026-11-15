@@ -212,10 +212,15 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        tools/test-ai-prompt-inventory.js 登记第 13 个 AI 调用点与第 17 个渲染点。
      · **词表零新增**：到期词从 progress.flash 现取（口径与 countDue 同源），不新增任何数据文件。
      · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条；**biggestGzKB 不升**（app.js 未动）。
-     · 本门禁口径**实测 846.31KiB（866,617B）**，848 = 实测 + 约 1.7KB 容差——**超过即红**。 */
+     · 本门禁口径**实测 846.31KiB（866,617B）**，848 = 实测 + 约 1.7KB 容差——**超过即红**。
+    P24 漏学积压显式化（2026-11-15）第十四次上调：gzTotalKB 848 → 851，理由如下：
+     · 本批只改 js/today.js 一处文案：到期卡超过一轮上限（DUE_SESSION_CAP=30）时，第 1 步写明
+       「本轮先做 30 张，还剩 N 张（会一直留着，不会跳过）」——把漏学后的暗账变成明账。
+     · 不新增脚本/请求（subResources 仍 61、PRECACHE 仍 69 条）；app.js 未动（biggestGzKB 不升）。
+     · 本门禁口径**实测 848.09KiB（868442B）**，851 = 实测 + 约 2KB 容差——**超过即红**。 */
 const BUDGET = {
   subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P21 批无新脚本、请求数不变）
-  gzTotalKB: 848,        // 实测 846.31KiB（P22：today.js 到期词短文 + css + AI 调用点登记；P21 时为 843.24KiB）
+  gzTotalKB: 851,        // 实测 848.09KiB（P24：today.js 漏学积压文案；P23 时为 847.74KiB）
   biggestGzKB: 114       // 实测 app.js 113.94KB（本批未改动 app.js）
 };
 
