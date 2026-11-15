@@ -186,7 +186,8 @@ const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
 /* 16 → 17：术语速查（#/glossary）是一次**有意**的新增——站内文案多处让用户「到术语库核对」，
    而此前并没有这个页面；它不新增一级入口（挂在「工具箱」分组内），故这里同步门口数。 */
 // P25（2026-11-15）：导航 18 → 17（删掉与「练」组重复的 #/speaking 能力证据入口）；冻结常量随之下调，仍守「只减不增」。
-check("架构冻结：导航仍为 17 项（2026-10-24 IA 修订）", navCount === 17, "n=" + navCount);
+// P28（2026-11-15）：导航 17 → 15（地图组摘除，两项降为今日页内入口）。改前/改后：17 → 15。
+check("架构冻结：导航现为 15 项（P28 摘除地图组后的新基线）", navCount === 15, "n=" + navCount);
 check("未新增路由（复用 #/speak 与 #/flash）",
   !/"sop-practice"/.test(fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")));
 

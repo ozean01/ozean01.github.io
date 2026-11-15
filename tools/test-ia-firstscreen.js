@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /* 验收：首访首屏「一屏一决策」（P12 · 外部反馈「菜单很多 / 找不到重点和如何开始」的落地）
    守的是三件在后续加功能时最容易悄悄回退的事：
-     ① **导航入口只减不增**：顶部导航 18 个入口 / 9 个一级项 / 17 个唯一目标是本次基线，
-        只允许下降（新增功能不许再往导航里塞；要加先减）。
+     ① **导航入口只减不增**：P12 基线为 18 个入口 / 9 个一级项 / 17 个唯一目标；
+        P25 收到 17，P28 摘除地图组后收到 **15 个入口 / 6 个一级项 / 15 个唯一目标**，
+        只允许继续下降（新增功能不许再往导航里塞；要加先减）。
      ② **首次引导只留一个主行动**：横幅里只允许一个 .btn-primary（= 今天第 1 步），
         「测起点」只能是文字链（.ob-bar-alt），不许再有第二个并列按钮（原 ob-unit 已删）。
      ③ **首屏顺序**：五步清单必须在「岗位任务画像 / 记账口径 / 急救 / 连听 / 本周」之前，
@@ -33,17 +34,24 @@ const topLevel = (navBlock.match(/<a class="nav-home-link"/g) || []).length +
   (navBlock.match(/<details class="nav-group"/g) || []).length;
 
 // P25：基线 18 → 17（只减不增；删重复入口后同一页不再挂两个入口）
-check("导航入口数不超过基线 17（只减不增）", anchors.length <= 17, "n=" + anchors.length + " / 基线 17");
+// P28（2026-11-15）：基线 17 → 15（「全站地图」「计划与打卡」降为今日页内入口，导航摘除）。
+check("导航入口数不超过基线 15（只减不增）", anchors.length <= 15, "n=" + anchors.length + " / 基线 15");
 check("导航一级项不超过基线 6（P13 收敛：9 → 6，只减不增）", topLevel <= 6, "n=" + topLevel + " / 基线 6");
-// P25：加严为「17 个入口且目标全部唯一」，防止重复入口再回来
-check("导航 17 个入口且目标全部唯一（不再有重复入口）",
-  anchors.length === 17 && uniqueHrefs.length === anchors.length,
+// P25：加严为「17 个入口且目标全部唯一」；P28 起改为 15（改前/改后：=== 17 → === 15）。
+check("导航 15 个入口且目标全部唯一（不再有重复入口）",
+  anchors.length === 15 && uniqueHrefs.length === anchors.length,
   "anchors=" + anchors.length + " / unique=" + uniqueHrefs.length);
 check("导航里不出现「从这里开始 / 新手 / 推荐」类第 19 个起点",
   !/从这里开始|新手|推荐入口/.test(navBlock));
-check("P4：「首页」已改名「全站地图」，且不再是一级直链",
-  !/>🏠 首页</.test(navBlock) && !/<a class="nav-home-link" href="#\/home"/.test(navBlock) &&
-  /全站地图[\s\S]{0,80}href="#\/home"|href="#\/home"[\s\S]{0,80}全站地图/.test(navBlock));
+/* P28：改前断言「首页改名全站地图，且收进『地图 · 进度』组」。
+   改后组已摘除，守卫目标换成「降级不是消失」：导航里不许再出现，但今日页必须有真链接可达
+   （P3/v1.37.0 已建好出口：顶部「计划与打卡」+ 底部「全站地图」低权链）。 */
+const todaySrcForNav = read("js/today.js");
+check("P28：「全站地图」「计划与打卡」都已移出导航，但今日页有真链接（降级不是消失）",
+  !/data-nav="home"/.test(navBlock) && !/data-nav="coach"/.test(navBlock) &&
+  /href="#\/home"/.test(todaySrcForNav) && /href="#\/coach"/.test(todaySrcForNav));
+check("P4：「首页」不再出现在导航（默认落地仍是「今日」，地图页不是起点）",
+  !/>🏠 首页</.test(navBlock) && !/href="#\/home"/.test(navBlock));
 
 /* ---------------- ② 首次引导横幅：一个主行动 ---------------- */
 const appSrc = read("js/app.js");

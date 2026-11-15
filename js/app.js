@@ -1,12 +1,9 @@
 /* ============ 软包装外贸英语 · 应用主逻辑 ============ */
 /* ---------------------------------------------------------------------
-   本文件是「路由 + 全部页面渲染器 + 交互」单一编排器，引擎模块（player/parser/
-   flashcards/quiz/listen/eval4/sop/export/sources/subtitle/tutor 等）已拆成独立文件。
-   全文件为一个 IIFE，函数间共享 State/progress/DATA/U()/esc 等私有状态，故在
-   「零构建」前提下不再物理拆分（保住 file:// 双击即用与离线 PWA）。
-   说明（2026-10-31 清理，审计 P2-3）：原先按行号维护的分区索引已整体漂移约 2000 行，
-   会误导定位，已删除；找函数请用关键字检索（如 function renderHome / renderUnit /
-   parseHash / renderRoute / setupSettings），不要依赖行号。文件已近体积上限，加代码前先减负。
+   本文件 = 路由 + 全部页面渲染器 + 交互（单一编排器，引擎已拆到独立文件）；
+   一个 IIFE 共享 State/progress/DATA 等私有状态，零构建前提下不物理拆分。
+   找函数请用关键字检索（function renderHome / renderRoute …），不要依赖行号；
+   文件已贴体积上限：加代码前先减负（删注释/死代码），别抬上限。
    --------------------------------------------------------------------- */
 (function () {
   "use strict";
@@ -436,6 +433,7 @@
         });
       });
     });
+    pageEntries().forEach(function (p) { idx.push(p); });
     const MK = window.FTE_MISTAKES;
     if (MK && MK.groups) {
       MK.groups.forEach(function (g) {
@@ -446,11 +444,28 @@
     }
     return idx;
   }
+  /* P28：页面目录也进搜索——导航改名/降级后，用户会直接搜「地图」「打卡」「对练」找页面。
+     清单直接读 #mainNav（导航是唯一真相，不另抄一份），另补两个已降为页内入口的页面。 */
+  function pageEntries() {
+    const out = [];
+    const nav = document.getElementById("mainNav");
+    if (nav) nav.querySelectorAll("a[data-nav]").forEach(function (a) {
+      const g = a.closest("details.nav-group");
+      out.push({
+        type: "页面", text: a.textContent.trim(),
+        sub: g ? "导航 · " + g.querySelector(".ng-name").textContent : "导航 · 一级",
+        href: a.getAttribute("href"), hl: ""
+      });
+    });
+    out.push({ type: "页面", text: "🗺 全站地图", sub: "今日页底部入口 · 6 大区按目标筛选", href: "#/home", hl: "" });
+    out.push({ type: "页面", text: "📅 计划与打卡", sub: "今日页顶部入口 · 连续天数/热力图/手册", href: "#/coach", hl: "" });
+    return out;
+  }
   function queryIndex(q) {
     if (!searchIndex) searchIndex = buildIndex();
     const ql = q.toLowerCase();
     const rank = {
-      "单词": 0, "短语": 1, "对话": 2, "单元": 3, "易错点": 2
+      "页面": 1, "单词": 0, "短语": 1, "对话": 2, "单元": 3, "易错点": 2
     };
     return searchIndex
       .filter(function (it) {
@@ -738,8 +753,6 @@
     const g = HOME_GOALS.find(function (x) { return x.id === homeGoalLoad(); });
     return (g && g.zones) ? g.zones : [];
   }
-  /* 首页「一页式锚点导航」：P1 已移除——首页缩短后不再需要页内锚点条，
-     且它本身就是「多套导航竞争」的一员。 */
   function homeFavsLoad() {
     try { const a = JSON.parse(localStorage.getItem(HOME_FAV_KEY) || "[]"); return Array.isArray(a) ? a : []; }
     catch (e) { return []; }
@@ -798,9 +811,7 @@
       </div>
     </div>`;
   }
-  /* 🎯 三步上手向导：P1 已移除——「该从哪开始」现在由「🎯 今日」独家回答，
-     保留第二套起点向导正是原设计「九套机制互相竞争」的核心病灶。
-     目标筛选本身仍在：它已收进「🗺 全站地图」折叠区，作为浏览时的辅助，不再抢占起点。 */
+  /* 🎯 三步上手向导：P1 已移除（「从哪开始」由「🎯 今日」独家回答）；目标筛选仍在地图折叠区里。 */
   /* ---- 三阶段学习路径：把 16 个单元按能力递进分组，替代纯平铺目录 ---- */
   function pathStagesHtml() {
     const stages = pathStagesData();
@@ -1256,15 +1267,8 @@
       '<circle cx="23" cy="23" r="' + r + '" fill="none" stroke="var(--primary)" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 23 23)"></circle>' +
       '<text x="23" y="27" text-anchor="middle" font-size="11" font-weight="800" fill="var(--primary)">' + Math.round(pct) + '%</text></svg>';
   }
-  /* 首页「我的第一步」：P1 已移除——它的三步（测起点 → 学第 N 单元 → 今日任务）
-     正是「🎯 今日」现在自动生成的内容，且带真实依据。留着就是第二套起点。 */
-
   /* ================= 首页 =================
-     P1 重构：首页从「导航中枢」降级为「全站地图」，不再与「🎯 今日」竞争权威。
-     首屏只让用户做一个决定（去今日）；其余入口收进一个「🗺 全站地图」折叠区。
-     被合并掉的旧机制：锚点条 / 三步上手 / 我的第一步 / 6 大区平铺 + 目标筛选 + 收藏
-     → 全部收进地图折叠；3 个旅程 Tab（新手/学习中/实操）→ 删除，由「今日」按进度自动分流。
-     三阶段学习路径上移为骨架（它本来就对，只是此前被埋在一堆并列机制里）。 */
+     P1：首页从「导航中枢」降为「全站地图」，只留一个决定（去今日），其余收进地图折叠。 */
   function renderHome() {
     const firstTodo = DATA.units.find(function (u) { return !unitDone(u); });
     const nextUnit = firstTodo || DATA.units[0];
@@ -1359,15 +1363,8 @@
     }
   }
 
-  /* 首页用户旅程 Tab 栏 + 三个 Tab 面板：P1 已整体移除。
-     它们存在的意义是「按你是谁分流」，而这件事现在由「🎯 今日」自动完成
-     （按真实进度生成当天清单），再让用户手选一次身份就是第三套分类法。
-     三个面板的内容去向：
-       · 新手面板的三阶段路径 → 上移为首页骨架（renderHome 直接调用 pathStagesHtml）
-       · 学习中面板的趋势/周回顾/数据折叠 → 并入 homeDataCollapseHtml()
-       · 实操面板的 SOP 横幅 → renderHome 直接调用 sopBannerHtml()
-     另：「从第 1 单元开始」的四张卡与「全部单元」网格都已删除——三阶段路径的
-     ps-chip 已完整列出全部 19 个单元，重复列表既是冗余也是「菜单多」的来源。 */
+  /* 首页用户旅程 Tab 栏 + 三个 Tab 面板：P1 已整体移除（去向：三阶段路径上移为首页骨架、
+     学习中数据并入 homeDataCollapseHtml、实操横幅并入 sopBannerHtml；详见 README P1 一节）。 */
 
   /* 「我的进度数据」可折叠面板：把趋势 / 本周回顾 / 掌握度 / 保持率 / 高频词 / 四维口语
      这几个数据仪表盘收纳起来，默认折叠，要看数据的人再展开——减少无关认知负荷。
@@ -1400,9 +1397,7 @@
         ${featureCardsHtml()}`;
   }
 
-  /* Tab ③ 实操面板 + 按 id 渲染单元卡的辅助函数：P1 已移除。
-     实操入口保留为首页的 sopBannerHtml()（一屏一决策，不必再并排一张单元子集网格）；
-     「实操衔接单元 U11–U16」的引导已包含在三阶段路径的第三阶段里。 */
+  /* Tab ③ 实操面板 + 按 id 渲染单元卡的辅助函数：P1 已移除（实操入口 = 首页 sopBannerHtml）。 */
 
   /* 当前进度卡（首页主行动：接着学 / 复习） */
   function currentProgressCardHtml(nextUnit, nextPct, doneCount) {
@@ -1624,6 +1619,7 @@
       <div class="en">${recordUnits().length} 个单元 · 覆盖外贸全流程</div>
       <div class="en uc-progress" title="${esc(UNIT_M_BASIS)}">已完成 ${doneCount} / ${recordUnits().length} 单元</div>
       <p class="uc-progress-note" style="margin-top:8px;max-width:760px;font-size:13px;color:var(--muted)">${esc(UNIT_M_BASIS)}</p>
+      <p class="uc-progress-note" style="margin-top:6px;max-width:760px;font-size:13px;color:var(--muted)">想按「工作目标」自己挑入口？看 <a href="#/home">🗺 全站地图</a>（6 大区 · 目标筛选 · 收藏常用）。</p>
       ${diffLegendHtml()}
       ${outcomeLegendHtml()}
     </div>
@@ -4098,6 +4094,14 @@
        放后面会被提前 return 掉、整类入口点击全部漏记。记录器自身静默失败，不影响后续渲染。 */
     if (window.FTE_TRACE && typeof window.FTE_TRACE.traceClick === "function") {
       try { window.FTE_TRACE.traceClick(e); } catch (e2) { /* 记录失败不影响交互 */ }
+    }
+    /* P28：桌面导航分组一次只开一个——原生 <details> 允许多开，两个面板会并排重叠。
+       点开某个 summary 时，先把其它已展开的分组收起（键盘 Enter 触发 click 也走这里）。 */
+    const navSum = e.target.closest ? e.target.closest("#mainNav details.nav-group > summary") : null;
+    if (navSum) {
+      document.querySelectorAll("#mainNav details.nav-group[open]").forEach(function (g) {
+        if (g.querySelector("summary") !== navSum) g.removeAttribute("open");
+      });
     }
     /* 点卡片任意非按钮区域都能翻面。
        .flash-card 原来是 div[data-action=flash-flip]，但卡片内部的元素自带 data-action

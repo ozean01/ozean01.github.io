@@ -170,7 +170,8 @@ const navBlock = (htmlSrc.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\
 const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
 /* 16 → 17：术语速查（#/glossary）为有意新增；它挂在「工具箱」分组内，不是一级入口。 */
 // P25（2026-11-15）：导航 18 → 17（删掉与「练」组重复的 #/speaking 能力证据入口）；冻结常量随之下调，仍守「只减不增」。
-check("架构冻结：导航入口仍为 17 项（2026-10-24 IA 修订：course/writing 提直链 + progress 补能力证据）", navCount === 17, "n=" + navCount);
+// P28（2026-11-15）：导航 17 → 15（地图组摘除，全站地图与计划打卡降为今日页内入口）。
+check("架构冻结：导航入口现为 15 项（P28 新基线；只减不增）", navCount === 15, "n=" + navCount);
 check("急救未占用独立路由", !/urgent/.test((htmlSrc.match(/mainNav[\s\S]*?<\/nav>/) || [""])[0]));
 check("急救未新增路由表条目", !/"urgent"/.test(appjs));
 

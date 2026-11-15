@@ -151,7 +151,8 @@ if (mIA) {
 const abilityHits = (navBlock2.match(/href="#\/speaking"/g) || []).length;
 check("口语测评在导航里只挂一个入口（#/speaking 恰好一次；旧的 data-nav=\"ability\" 已删）",
   abilityHits === 1 && navBlock2.indexOf('data-nav="ability"') === -1, "n=" + abilityHits);
-check("导航无单链接分组（课程仍是直链；P13 起写作/实操 SOP 收进「写 · 用」组，不再单独成组或直链）",
+// P28（2026-11-15）：写作与实操 SOP 现分属「输出」/「实战」组；断言不变（仍禁 course/writing 单链接分组）。
+check("导航无单链接分组（课程仍是直链；写作在「输出」组、实操 SOP 在「实战」组，不再单独成组或直链）",
   !/data-group="course"/.test(navBlock2) && !/data-group="writing"/.test(navBlock2));
 
 console.log(pass ? "\n=== ALL PASS ===" : "\n=== SOME FAILED ===");

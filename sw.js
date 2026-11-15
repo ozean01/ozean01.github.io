@@ -11,7 +11,17 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v153";   /* ★ v1.30.0 递增批（2026-11-10）：
+const CACHE = "fte-v154";   /* ★ v1.38.0 导航重排批（P28 · 2026-11-15）：
+                              · index.html 导航重组：4 组按学习闭环重排并改名
+                                （练 / 背与测 / 写 · 用 / 地图 · 进度 → 输入 / 输出 / 巩固 · 纠错 / 实战），
+                                `data-group` 依次为 input/output/memory/practice；href 与 data-nav 一律未动；
+                              · 「🗺 全站地图」「📅 计划与打卡」移出一级导航，降为今日页顶部/底部页内入口
+                                （v1.37.0 先建出口，本批才摘；入口 17 → 15、一级项仍 6）。
+                              本批只改 index.html（预缓存内），无新脚本、无新路由；PRECACHE 清单不变（69 条），
+                              按纪律升 CACHE 并刷新基线。
+
+                              —— 更早批次（历史记录，仍有效）——
+                              v1.30.0 递增批（2026-11-10）：
                               · 音素页新增「🔀 同形异音」区块（js/phonemes.js + css/style.css）：9 组名词/动词
                                 重音对照（contract / import / export / record / project / permit / produce /
                                 laminate / compound），补「一条词条只能存一个 ipa」那一格；TTS 念不出两种重音，已写明；

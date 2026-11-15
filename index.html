@@ -87,29 +87,38 @@
       <span class="brand-badge">🌐</span>
       <span class="brand-text">软包装外贸英语<span class="brand-sub">Soft Packaging Foreign Trade English</span></span>
     </a>
-    <!-- 导航按【任务维度】分组（P13 · 2026-10-26 一级收敛）：
-         外部反馈「菜单很多、找不到重点和如何开始」+ IA 实测（18 入口 / 9 个一级项 / 13 项要展开）之后，
-         把 **9 个一级项收敛为 6 个**：2 个直链（今日 / 课程）+ 4 个任务分组（练 / 背与测 / 写 · 用 / 地图 · 进度）。
-         入口总数**没有变**（仍是 18 个；棘轮门禁只许降不许升），变的是「第一眼要先看几项」：
-         首访者面对 6 项而不是 9 项，分组名也从「功能筐」改成动作（练 / 背 / 写·用 / 看地图）。
+    <!-- 导航按【学习闭环】分组（P28 · 2026-11-15；在 P13 一级收敛之上重排）：
+         P13（2026-10-26）先把 9 个一级项收敛为 6 个：2 个直链（今日 / 课程）+ 4 个任务分组；
+         P28 再把 4 个分组按学习闭环改名并重排成员（练 / 背与测 / 写 · 用 / 地图 · 进度
+         → 输入 / 输出 / 巩固 · 纠错 / 实战），入口 17 → 15：
+           · 「🗺 全站地图」「📅 计划与打卡」移出一级导航，降为今日页顶部/底部页内入口
+             （先建好出口再摘，见 v1.37.0；功能不删，仍可由页内链接与面包屑到达）
+           · 组名只改文案，href 与 data-nav 一个没动，深链与书签不受影响
          历史约束仍然有效：
-           · 「测起点」并入课程页第二 tab（它产出就是「从第几单元开始」，独立一级会让
-             「该从哪学」再次分叉，正是 P0 治过的病）
+           · 「测起点」并入课程页第二 tab（它产出就是「从第几单元开始」）
            · 「辨音·最小音对」并入音素页；「字幕逐句点读」并入素材页（工序上下游）
-           · 「背与测」顺序固定：先输入 → 后检验 → 再纠偏
-           · 「实操 SOP」是工作辅助不是技能训练，故与写作/工具同放「写 · 用」
-           · 「首页」改名「全站地图」（P4）：默认落地是「今日」，地图页不是起点；
-             名字要说明它是「逛全站」，而不是「从这里开始」 -->
+           · 「巩固 · 纠错」顺序固定：先背（FSRS）→ 后测（提取）→ 再纠偏（负例）
+           · 「实操 SOP」是工作辅助不是技能训练，归「实战」组，不单独成组
+           · 「首页」改名「全站地图」（P4）：默认落地是「今日」，地图页不是起点 -->
     <nav class="main-nav" id="mainNav">
       <a class="nav-home-link" href="#/today" data-nav="today">📅 今日</a>
       <a class="nav-home-link" href="#/units" data-nav="units">📚 课程</a>
-      <details class="nav-group" data-group="practice">
-        <summary>🎤<span class="ng-name">练</span></summary>
+      <details class="nav-group" data-group="input">
+        <summary>🎧<span class="ng-name">输入</span></summary>
+        <div class="nav-sub">
+          <a href="#/sources" data-nav="sources">🎧 商务听音源</a>
+          <a href="#/material" data-nav="material">📥 素材精听</a>
+          <a href="#/phonemes" data-nav="phonemes">🔤 音素 · 辨音 · 连读</a>
+        </div>
+      </details>
+      <details class="nav-group" data-group="output">
+        <summary>🗣<span class="ng-name">输出</span></summary>
         <div class="nav-sub">
           <a href="#/speak" data-nav="speak">听说训练</a>
           <a href="#/speaking" data-nav="speaking">📡 口语测评</a>
           <a href="#/tutor" data-nav="tutor">🤖 AI 对练</a>
-          <a href="#/phonemes" data-nav="phonemes">🔤 音素 · 辨音 · 连读</a>
+          <a href="#/write" data-nav="write">✍️ 写作专区</a>
+          <a href="#/mysay" data-nav="mysay">🗣 说我想说</a>
         </div>
       </details>
       <details class="nav-group" data-group="memory">
@@ -120,22 +129,11 @@
           <a href="#/mistakes" data-nav="mistakes">⚠️ 高频易错点</a>
         </div>
       </details>
-      <details class="nav-group" data-group="use">
-        <summary>✍️<span class="ng-name">写 · 用</span></summary>
+      <details class="nav-group" data-group="practice">
+        <summary>🧭<span class="ng-name">实战</span></summary>
         <div class="nav-sub">
-          <a href="#/write" data-nav="write">✍️ 写作专区</a>
           <a href="#/sop" data-nav="sop">🧭 实操 SOP</a>
-          <a href="#/mysay" data-nav="mysay">🗣 说我想说</a>
-          <a href="#/material" data-nav="material">📥 素材精听</a>
-          <a href="#/sources" data-nav="sources">🎧 商务听音源</a>
           <a href="#/glossary" data-nav="glossary">🔍 专业术语</a>
-        </div>
-      </details>
-      <details class="nav-group" data-group="map">
-        <summary>🗺<span class="ng-name">地图 · 进度</span></summary>
-        <div class="nav-sub">
-          <a href="#/home" data-nav="home">🗺 全站地图</a>
-          <a href="#/coach" data-nav="coach">📅 计划与打卡</a>
         </div>
       </details>
     </nav>

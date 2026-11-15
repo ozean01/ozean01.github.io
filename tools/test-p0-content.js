@@ -147,7 +147,10 @@ const appSrcForRoutes = read("js/app.js");
    故取「app.js ∪ index.html 里出现过的全部 #/… 字面量」作为"已知路由宇宙"。
    这不追求完备（真正的路由表在 app.js 内部），只用于抓"手抄清单腐化/拼错路由"。 */
 const knownRoutes = {};
-[read("js/app.js"), indexSrcForRoutesNav()].forEach(function (src) {
+/* P28（2026-11-15）：导航里摘掉了 #/home 与 #/coach（降为今日页内入口），这两个路由的
+   「真实引用」现在落在 js/today.js 的页内链接上，故把 today.js 也纳入"已知路由宇宙"的扫描源。
+   守卫意图不变：仍是「冒烟页列出的路由必须在真实代码里出现过」，只是不再只认导航。 */
+[read("js/app.js"), indexSrcForRoutesNav(), read("js/today.js")].forEach(function (src) {
   (src.match(/"#\/[\w\-/]*"/g) || []).forEach(function (s) { knownRoutes[s.slice(1, -1)] = true; });
 });
 /* 不以上述字面量形式出现的路由，显式列出（每条都要能说出为什么）：

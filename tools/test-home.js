@@ -32,20 +32,21 @@ while ((g = reGroup.exec(navBlock)) !== null) {
 // P26（2026-11-15，专家结论）：分组名「背与测」→「巩固 · 纠错」。改前/改后原文见下方各条注释。
 check("导航为 4 个任务分组（输入侧·输出侧·巩固纠错·实战，仍 4 组）",
   groups.length === 4, groups.map(function (x) { return x.id; }).join(", "));
-check("分组为任务维度 practice/memory/use/map",
-  groups.map(function (x) { return x.id; }).join(",") === "practice,memory,use,map",
+// P28（2026-11-15）：按学习闭环重排为 输入/输出/巩固·纠错/实战，分组 id 随之改名。
+// 改前：practice,memory,use,map（练/背与测/写·用/地图·进度）；改后：input,output,memory,practice。
+check("分组为学习闭环 input/output/memory/practice（输入·输出·巩固纠错·实战）",
+  groups.map(function (x) { return x.id; }).join(",") === "input,output,memory,practice",
   groups.map(function (x) { return x.id; }).join(","));
 check("每组都有入口", groups.every(function (x) { return x.links > 0; }));
 // P25（2026-11-15）：导航 18 → 17——删掉与「练」组重复的 #/speaking（能力证据）。
 // 改前：=== 3（全站地图 + 计划打卡 + 能力证据）；改后：=== 2，并加严断言另两个入口仍在、旧重复入口已消失。
-check("「地图 · 进度」组含 2 个入口（全站地图 + 计划打卡；能力证据并入「练」组的口语测评页，不再重复挂入口）",
-  (function () {
-    const g = groups.filter(function (x) { return x.id === "map"; })[0] || { links: 0 };
-    return g.links === 2 &&
-      /data-group="map"[\s\S]*?href="#\/home"/.test(navBlock) &&
-      /data-group="map"[\s\S]*?href="#\/coach"/.test(navBlock) &&
-      !/data-nav="ability"/.test(navBlock);
-  })());
+// P28：地图组整组摘除——「全站地图」「计划与打卡」降为今日页内入口（v1.37.0 已建好出口）。
+// 改前：map 组含 2 个入口；改后：不许有 map 组，且两项都不在导航里（加严：防复辟）。
+check("「地图 · 进度」组已摘除：导航里不再出现全站地图与计划打卡（降为今日页内入口）",
+  groups.every(function (x) { return x.id !== "map"; }) &&
+  !/data-nav="home"/.test(navBlock) &&
+  !/data-nav="coach"/.test(navBlock) &&
+  !/data-nav="ability"/.test(navBlock));
 console.log("  分组入口数：" + groups.map(function (x) { return x.id + "=" + x.links; }).join(" · "));
 
 /* 一级收敛：9 → 6 = 2 直链（今日 / 课程）+ 4 分组 */
@@ -57,15 +58,16 @@ check("一级项总数为 6（2 直链 + 4 分组；P13 目标 3~6，不许回�
   check("「" + k + "」是一级直链（不在任何分组里）",
     new RegExp('<a class="nav-home-link" href="#/' + k + '"').test(navBlock));
 });
-check("「全站地图」（原首页）不再是一级直链，收进「地图 · 进度」组",
-  !/<a class="nav-home-link" href="#\/home"/.test(navBlock) &&
-  /data-group="map"[\s\S]*?href="#\/home"/.test(navBlock));
-check("P4：「首页」标签已改名「全站地图」（默认落地是今日，地图页不是起点）",
-  /🗺 全站地图/.test(navBlock) && !/>🏠 首页</.test(navBlock));
-check("「实操 SOP」与「写作」收进「写 · 用」组（工作辅助/产出不再各自占一个一级项）",
+check("「全站地图」不在导航里（降为今日页底部低权出口）",
+  !/data-nav="home"/.test(navBlock) && /href="#\/home"/.test(require("fs").readFileSync(require("path").join(__dirname, "..", "js", "today.js"), "utf8")));
+check("P4：「首页」不占导航位，且默认落地仍是今日",
+  !/>🏠 首页</.test(navBlock) && !/data-nav="home"/.test(navBlock));
+// P28：闭环重排后写作归「输出」、SOP 归「实战」，两者仍都不是一级直链。
+check("写作在「输出」组、实操 SOP 在「实战」组（都不占一级直链）",
   !/<a class="nav-home-link" href="#\/sop"/.test(navBlock) &&
   !/<a class="nav-home-link" href="#\/write"/.test(navBlock) &&
-  /data-group="use"[\s\S]*?href="#\/write"[\s\S]*?href="#\/sop"/.test(navBlock));
+  /data-group="output"[\s\S]*?href="#\/write"/.test(navBlock) &&
+  /data-group="practice"[\s\S]*?href="#\/sop"/.test(navBlock));
 // P26 改断言（保留防回退意图，只换守卫目标）：
 //   改前：组名必须是「背与测」，且不许是「记与测」。
 //   改后：组名必须含「巩固」，且「记与测」「背与测」两个旧名都进黑名单（加严）。
@@ -131,7 +133,9 @@ const REACHABLE = ALIAS_ROUTES.concat(REDIR_ROUTES);
 const INPAGE_ROUTES = [
   { route: "cheatsheet", file: "js/sop.js", why: "任务1：入口在「实操 SOP」页顶部按钮（2026-10-31）" },
   { route: "lookup", file: "js/material.js", why: "任务3：入口在「素材投料口」页内「查词」按钮；站外由 bookmarklet 带 ?w= 跳入（2026-10-31）" },
-  { route: "earplay", file: "js/sources.js", why: "任务2：入口在「🎧 真实商务听音源」页内卡片「打开播放器 →」（2026-10-31）" }
+  { route: "earplay", file: "js/sources.js", why: "任务2：入口在「🎧 真实商务听音源」页内卡片「打开播放器 →」（2026-10-31）" },
+  { route: "home", file: "js/today.js", why: "P28：全站地图降级——入口在今日页底部「找不到要练的东西？」低权链（v1.37.0）" },
+  { route: "coach", file: "js/today.js", why: "P28：计划与打卡降级——入口在今日页顶部「📅 计划与打卡」常驻行（v1.37.0）" }
 ];
 INPAGE_ROUTES.forEach(function (x) {
   const src = fs.readFileSync(path.join(ROOT, x.file), "utf8");
@@ -146,6 +150,26 @@ const noEntry = ROUTES.filter(function (v) {
 check("每个路由都有导航入口、已并入合并页，或是已登记的页内入口（无孤儿页面）", noEntry.length === 0, noEntry.join(", "));
 console.log("  导航 " + NAV.length + " 项 / 路由 " + ROUTES.length + " 条（参数化：" + PARAM_ROUTES.join(", ") +
   "；别名：" + ALIAS_ROUTES.join(", ") + "；重定向：" + REDIR_ROUTES.join(", ") + "）");
+
+/* ---------------- P28 兜底：降级不是消失 ----------------
+   §4.5 要求「面包屑可达、搜索能搜到、今日页底部链接可见」三件同时成立。
+   今日页两条链接与面包屑由上面 INPAGE_ROUTES 与本文件 ④ 段守；这里补「搜索」与「课程页顶部」，
+   外加一条导航交互守卫（原生 <details> 允许多开，两个面板会叠在一起）。 */
+const pageIdxFn = (appjs.match(/function pageEntries\(\)[\s\S]*?\n  \}/) || [])[0] || "";
+check("搜索索引含「页面」类目（导航改名/降级后仍能搜到页面）",
+  /type: "页面"/.test(appjs) && /pageEntries\(\)\.forEach/.test(appjs));
+check("页面目录直接读 #mainNav（不另抄一份导航清单，导航改名不会漂）",
+  /getElementById\("mainNav"\)/.test(pageIdxFn) && /querySelectorAll\("a\[data-nav\]"\)/.test(pageIdxFn));
+check("页面目录补了两个已降级页面（全站地图 / 计划与打卡）",
+  /href: "#\/home"/.test(pageIdxFn) && /href: "#\/coach"/.test(pageIdxFn) &&
+  /全站地图/.test(pageIdxFn) && /计划与打卡/.test(pageIdxFn));
+check("搜索排序给「页面」明确档位（不落到末尾）", /"页面":\s*1/.test(appjs));
+const unitsFnSrc = (appjs.match(/function renderUnits\(\)[\s\S]*?\n  \}/) || [])[0] || "";
+check("课程页顶部有「全站地图」文字入口（§4.5 归属：地图仍可从课程页进）",
+  /href="#\/home"/.test(unitsFnSrc) && /全站地图/.test(unitsFnSrc));
+check("桌面导航一次只展开一个分组（点开新的先收起旧的，防两个面板叠在一起）",
+  /#mainNav details\.nav-group > summary/.test(appjs) &&
+  /details\.nav-group\[open\]/.test(appjs) && /removeAttribute\("open"\)/.test(appjs));
 
 /* ---------------- ③ 旧机制不许回来 ---------------- */
 const DEAD_FUNCS = ["homeAnchorBarHtml", "homeGoalPathHtml", "firstStepHtml", "homeTabBarHtml",

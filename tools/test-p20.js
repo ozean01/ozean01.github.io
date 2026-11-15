@@ -167,7 +167,8 @@ setTimeout(function () {
     const navHtml = read("index.html");
     const navBlock = (navHtml.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\/nav>/) || [])[1] || "";
     // P25（2026-11-15）：导航 18 → 17（删掉与「练」组重复的 #/speaking 能力证据入口）；冻结常量随之下调，仍守「只减不增」。
-check("不新增导航项（index.html 导航仍是 17 个入口）", (navBlock.match(/<a [^>]*href="#\//g) || []).length === 17);
+// P28（2026-11-15）：导航 17 → 15（地图组摘除；两项降为今日页内入口）。改前/改后：=== 17 → === 15。
+check("不新增导航项（index.html 导航现为 15 个入口，只减不增）", (navBlock.match(/<a [^>]*href="#\//g) || []).length === 15);
 
     const sw = read("sw.js");
     const base = JSON.parse(read("tools/precache-baseline.json"));

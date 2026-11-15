@@ -176,7 +176,9 @@ const navBlock = (htmlSrc.match(/<nav class="main-nav" id="mainNav">([\s\S]*?)<\
 const navCount = (navBlock.match(/<a [^>]*href="#\/[a-z0-9]+"/g) || []).length;
 /* 16 → 17：术语速查（#/glossary）为有意新增（原 16 项是「写作功能未加导航项」的对照基线）。 */
 // P25（2026-11-15）：导航 18 → 17（删掉与「练」组重复的 #/speaking 能力证据入口）；冻结常量随之下调，仍守「只减不增」。
-check("架构冻结：导航仍为 17 项（2026-10-24 IA 修订）", navCount === 17, "n=" + navCount);
+// P28（2026-11-15）：导航 17 → 15（「全站地图」「计划与打卡」降为今日页内入口，v1.37.0 已建好出口）。
+// 改前：navCount === 17，文案「导航仍为 17 项」；改后：navCount === 15（只减不增，冻结值随之下调）。
+check("架构冻结：导航现为 15 项（P28 摘除地图组后的新基线）", navCount === 15, "n=" + navCount);
 check("本功能未新增路由", !/#\/draft/.test(htmlSrc) && !/"draft"/.test(fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")));
 
 /* ---------------- ⑦ AI 留痕与「先自己写」纪律（P7） ----------------
