@@ -330,6 +330,11 @@
       model: "deepseek-chat",
       apiKey: "",
       autoSpeak: true,
+      /* 通话三件套（P21 · 通用地基批）：①插话打断（默认关：不戴耳机会自激）
+         ②静音判停 0=站内原值 1.2s  ③识别语言（单语言引擎，切了才能说中文） */
+      bargeIn: false,
+      recSilence: 0,
+      recLang: "en-US",
       systemPrompt: COACH_PROMPT,
       saved: [],   // 已保存的 Provider 列表 [{label, baseUrl, model, apiKey}]，切换模型不必重填 Key
       profile: { level: "", goal: "", scene: "", useCn: false },
@@ -520,6 +525,17 @@
             <button class="btn btn-primary btn-sm" data-action="tutor-save" title="把上面填写的服务商 / Key / 模型存到本浏览器（不上传，换设备需重新填）">保存设置</button>
             <button class="btn btn-outline btn-sm" data-action="tutor-test" title="用当前填写的 Key 测试接口是否连通">🔍 测试连接</button>
             <label class="step-toggle" title="收到 AI 回复后自动朗读"><input type="checkbox" id="tAutoSpeak" ${cfg.autoSpeak ? "checked" : ""}> 自动朗读回复</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>🛠 通话细节（改完点「保存设置」生效）</label>
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <label class="step-toggle" title="AI 朗读时你也能开口，一说话就掐掉朗读（需要戴耳机，否则麦克风会听到扬声器、自己触发自己）"><input type="checkbox" id="tBargeIn" ${cfg.bargeIn ? "checked" : ""}> 🎧 插话打断</label>
+              <label class="step-toggle" title="免按键通话里「停多久算说完」。卡壳、想词、改口都是正常的，别急着判停">停 <select id="tRecSilence"><option value="0"${!cfg.recSilence ? " selected" : ""}>1.2 秒（默认）</option><option value="2500"${cfg.recSilence === 2500 ? " selected" : ""}>2.5 秒（允许想词）</option><option value="4000"${cfg.recSilence === 4000 ? " selected" : ""}>4 秒（慢慢说）</option></select> 算说完</label>
+              <label class="step-toggle" title="浏览器识别一次只能用一种语言：要夹中文提问就先切中文，说英文再切回来">识别语言 <select id="tRecLang"><option value="en-US"${cfg.recLang !== "zh-CN" ? " selected" : ""}>英语 en-US</option><option value="zh-CN"${cfg.recLang === "zh-CN" ? " selected" : ""}>中文 zh-CN</option></select></label>
+            </div>
+            <p class="field-note" style="margin-top:6px">⚠️ 插话打断会<b>在 AI 朗读期间保持麦克风开启</b>（这是它能插话的前提）：声音实时交给浏览器识别，不进本站服务器、不写盘。不戴耳机时麦克风会收到扬声器，建议平时关着。</p>
           </div>
         </div>
         ${local ? localHintHtml() : ""}
@@ -1453,6 +1469,12 @@
     }
   }
 
+  /* P21：朗读期间的麦克风哨兵（同一时刻只允许一个；用完即关，绝不常驻） */
+  let bargeHandle = null;
+  function bargeStop() {
+    if (bargeHandle) { try { bargeHandle.stop(); } catch (e) { /* ignore */ } bargeHandle = null; }
+  }
+
   function speakReply(reply, onDone) {
     const clean = String(reply)
       .replace(/【[^】]*】/g, " ")
@@ -1460,11 +1482,29 @@
       .replace(/\s+/g, " ")
       .trim();
     if (!clean) { if (onDone) onDone(); return; }
-    E().Player.speak(clean, { rate: cfgRate(), onend: function () { if (onDone) onDone(); } });
+    /* 插话打断：朗读期间挂一个电平哨兵，确认你真的开口了 → 立刻掐掉朗读，直接进「听」。
+       默认关闭（不戴耳机会把扬声器当成你）；取流失败返回 null，静默降级为普通朗读。 */
+    bargeStop();
+    if (cfg.bargeIn && autoMic) {
+      bargeHandle = E().Player.listenLevel({
+        onTrigger: function () {
+          bargeStop();
+          try { E().Player.stop(); } catch (e) { /* ignore */ }
+          toast("🎧 已打断，请说");
+          startAutoMic();
+        }
+      });
+    }
+    E().Player.speak(clean, { rate: cfgRate(), onend: function () { bargeStop(); if (onDone) onDone(); } });
   }
   function cfgRate() {
     const p = E().getProgress();
     return (p && p.rate) || 1;
+  }
+  /* 静音判停的人话文案（0 = 站内默认 1.2s；唯一来源，提示语与设置项共用） */
+  function silText() {
+    const ms = cfg.recSilence || 1200;
+    return (ms / 1000).toFixed(ms % 1000 ? 1 : 0) + " 秒";
   }
 
   /* ---------------- 语音输入（浏览器在线识别，VPN/代理可用时工作） ---------------- */
@@ -1493,7 +1533,7 @@
       if (input) { input.placeholder = "🎙 正在听…请英文说话（说完自动填入）"; input.focus(); }
       latStart();   // P14：从识别真正开始听的那刻计时（权限弹窗时间不算）
       micRec = E().Player.recognize({
-        lang: "en-US",
+        lang: cfg.recLang || "en-US",
         onResult: function (text, isFinal) {
           if (text) latFirstWord();   // P14：第一个识别到的词 = 你开口了
           if (isFinal) {
@@ -1547,11 +1587,12 @@
     }
     autoMic = true;
     render();
-    toast("🔁 免按键已开：直接说英文，停约 1.2 秒自动发送");
+    toast("🔁 免按键已开：直接说，停约 " + silText() + " 自动发送" + (cfg.bargeIn ? "（插话打断已开）" : ""));
     startAutoMic();
   }
   function stopAutoMic() {
     autoMic = false;
+    bargeStop();   // 退出通话模式 → 朗读哨兵一并关掉，不停着占麦克风
     latT0 = 0;   // P14：退出通话模式 → 不再计这一轮
     if (autoMicHandle) { try { autoMicHandle.stop(); } catch (e) { /* ignore */ } autoMicHandle = null; }
     const b = document.querySelector('[data-action="tutor-mic-auto"]');
@@ -1564,10 +1605,11 @@
     const P = E().Player;
     if (!P || !P.recognizeAuto) { stopAutoMic(); return; }
     const inp = document.getElementById("chatInput");
-    if (inp) inp.placeholder = "🎙 免按键：直接说，停 1.2 秒算说完并自动发送…";
+    if (inp) inp.placeholder = "🎙 免按键：直接说，停 " + silText() + " 算说完并自动发送…";
     if (!latT0) latStart();   // P14：afterReply 已开始计时则沿用（含 0.5s 自动开麦间隔），否则从开麦算
     autoMicHandle = P.recognizeAuto({
-      lang: "en-US",
+      lang: cfg.recLang || "en-US",
+      silenceMs: cfg.recSilence || undefined,
       onResult: function (text) {
         if (!autoMic) return;
         if (text) latFirstWord();   // P14
@@ -1959,6 +2001,13 @@
     cfg.model = model.value.trim();
     cfg.apiKey = key.value.trim();
     cfg.autoSpeak = auto.checked;
+    /* P21 通话三件套：插话打断 / 静音判停 / 识别语言（都随设置一起保存，不进导出备份） */
+    const bi = document.getElementById("tBargeIn");
+    if (bi) cfg.bargeIn = bi.checked;
+    const rs = document.getElementById("tRecSilence");
+    if (rs) cfg.recSilence = parseInt(rs.value, 10) || 0;
+    const rl = document.getElementById("tRecLang");
+    if (rl) cfg.recLang = rl.value === "zh-CN" ? "zh-CN" : "en-US";
     if (sys) cfg.systemPrompt = sys.value.trim() || COACH_PROMPT;
     if (!cfg.baseUrl) { toast("请填写 Base URL"); return; }
     if (!cfg.model) { toast("请填写模型名称"); return; }

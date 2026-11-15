@@ -86,6 +86,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-p1-invariants.js"], gate: true, label: "P1 不变量：口音真话 · 分数构念分桶 · 记账口径 · 投料口校验 · .ics RRULE · 发布链 · 只读审计" },
   { cmd: "node", args: ["tools/test-p20.js"], gate: true, label: "P20 落地批：AI 周测/材料理解题（延迟答案·只作练习·FACT_GUARD·披露·挂点·CACHE 同步）" },
   { cmd: "node", args: ["tools/test-v130-increment.js"], gate: true, label: "v1.30.0 递增批：同形异音 9 组（GA 音标/例句含词/两读不同）· 计时切后台不计 · 音源 +4 条（https/口径诚实）· 投料口引导 · PRECACHE 69" },
+  { cmd: "node", args: ["tools/test-p21.js"], gate: true, label: "P21 通用地基批：插话打断（哨兵默认关·触发先掐朗读）· 卡壳容忍/中英切换透传 · 数据去向隐私口径 · 词族形近按需算（零数据文件/零请求）" },
 ];
 
 let failed = 0;

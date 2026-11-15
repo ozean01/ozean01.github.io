@@ -185,11 +185,30 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        本门禁口径**实测 840.04KiB（860,198B）**，841 = 实测 + 约 1KB 容差——**超过即红**。
      · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新脚本）；
        biggestGzKB 仍 114（app.js 113.75KiB 未动）。
-     · 余量只留约 1KB（本仓库历史上最紧的一档）；其余两条上限不放松。 */
+     · 余量只留约 1KB（本仓库历史上最紧的一档）；其余两条上限不放松。
+    P21 通用地基批（2026-11-15）第十二次上调：gzTotalKB 841 → 846（+5KB，约 +0.59%），理由如下：
+     · 本批做的是**需求方明确指出的地基缺口**（评估文档：站的形态是「地基薄 + 骨架强 + 塔尖极高」），
+       三件都落在「通用英语是专业英语的基础」这条判断上，不是功能膨胀：
+       ① js/player.js 新增 listenLevel（朗读期麦克风电平哨兵）+ js/tutor.js 朗读期挂哨兵、
+         触发即 Player.stop() 掐掉朗读 —— 这是"能插话"的**唯一**非 Realtime 实现路径
+         （不引入 WebSocket、不引入依赖、不换识别引擎）；同时把静音判停（1.2/2.5/4s）与
+         识别语言（en-US / zh-CN）做成显式设置，补「允许卡壳」「中英切换」两格。
+       ② js/lookup.js 词卡新增「词族 / 形近」提示：**按需现算、不落关系数据文件**。
+         全量关系表要 +15~25KB gzip（README 口径推算），而本门禁余量只有 1KB，故刻意改成
+         「打开某张词卡时对这一个词算」——复用 js/score.js 的 wordSimilar（单一实现），
+         零新增数据文件、零新增请求。
+       ③ index.html「🔍 数据去向」新增一行：把「插话打断开启时麦克风在朗读期保持开启、
+         声音只在本机做音量判定、随后照常走浏览器在线识别」如实写清（隐私口径不靠口头承诺）。
+     · **已先按纪律减负**：三处新文案都按最短可读写（设置项 title/说明、CSS 只用 4 条规则），
+       仍未压进 841，故按流程报实测：本门禁口径**实测 843.24KiB（863,478B）**，
+       846 = 实测 + 约 2.8KB 容差（与历史上 +2~2.6KB 容差同档）——**超过即红**。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新脚本、无新文件）；
+       **biggestGzKB 不升**：app.js 一个字节没动（本批刻意把词关系放进 lookup.js，
+       因为 app.js 距 114KB 上限只剩 65B 余量）；其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；v1.30.0 递增批无新脚本、请求数不变）
-  gzTotalKB: 841,        // 实测 840.04KiB（v1.30.0：phonemes.js 同形异音 + sources.js +4 条 + app/material 小改 + css）
-  biggestGzKB: 114       // 实测 app.js 113.75KB（未动）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P21 批无新脚本、请求数不变）
+  gzTotalKB: 846,        // 实测 843.24KiB（P21：player.listenLevel + tutor 插话/判停/语言 + lookup 词族形近 + 数据去向一行）
+  biggestGzKB: 114       // 实测 app.js 113.94KB（本批未改动 app.js）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

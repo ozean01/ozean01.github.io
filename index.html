@@ -275,6 +275,7 @@
         · <b>发音朗读（Google 在线音源）</b> → <code>translate.google.com</code>：发送<b>被朗读的英文文本</b>。<br>
         · <b>发音朗读 / 音素级评测（Azure）</b> → <code>&lt;区域&gt;.tts.speech.microsoft.com</code>、<code>&lt;区域&gt;.stt.speech.microsoft.com</code>：发送<b>文本或你的录音</b> + 你填的订阅 Key。<br>
         · <b>跟读评分 / 语音输入（浏览器在线识别）</b> → Google（Chrome）或 Azure（Edge）：发送<b>你的录音</b>（不发送文本）。<br>
+        · <b>免按键通话的「🎧 插话打断」</b>（默认<b>关闭</b>，需你在 AI 陪练设置里手动开启）：开启后<b>AI 朗读期间麦克风保持开启</b>，用来判断你有没有开口；一旦判定开口就掐掉朗读。麦克风声音<b>只在本机做音量判定</b>；随后照常走上面的浏览器在线识别（录音上行到 Google/Azure），<b>不进本站服务器、不写盘</b>。不戴耳机时麦克风会收到扬声器，建议保持关闭。<br>
         · <b>AI 陪练 / 写作批改 / 四维 AI 判分 / 说我想说</b>：发送<b>对话与写作文本</b>到你选择的 <code>Base URL</code>（默认 <code>api.deepseek.com</code>；选 🖥 本地 Ollama 时一步都不出本机）。<br>
         · <b>汇率查询</b> → <code>cdn.jsdelivr.net</code>：只取公开汇率表，不发送任何个人信息。<br>
         · <b>素材投料口 · 粘贴网页链接</b> → <code>r.jina.ai</code>：发送<b>你粘贴的那个网址</b>以取回正文（学习数据与 Key 都不会带上）。<br>

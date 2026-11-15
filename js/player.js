@@ -985,6 +985,56 @@
       !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
       !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   };
+  /* ---------------- 说话中监听（插话打断用的麦克风电平哨兵） ----------------
+     用途：AI 朗读（TTS）期间保持麦克风开着，检测到「你确实开口了」就立刻掐掉朗读。
+     与 VAD 的分工：VAD 管「你说完没有」（阈值 0.02 / 静音 1.2s），这里管「你开始说了没有」，
+     所以阈值更高（默认 0.06）、且要连续 hold 毫秒才算数——因为扬声器的声音一定会被麦克风收进去，
+     不戴耳机时必然自激。故：默认关闭、开启时界面明说需要耳机，不做自动降噪的假设。
+     返回 { stop() }；触发一次即自动停止，不重复回调；取流失败静默降级，不阻断学习。 */
+  Player.listenLevel = function (opts) {
+    opts = opts || {};
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const mdm = navigator && navigator.mediaDevices;
+    if (!Ctx || !mdm || !mdm.getUserMedia) return null;
+    const th = (typeof opts.threshold === "number") ? opts.threshold : 0.06;
+    const holdMs = opts.holdMs || 320;
+    const tickMs = opts.tickMs || 80;
+    const maxMs = opts.maxMs || 60000;
+    let ctx = null, stream = null, analyser = null, buf = null, timer = null, dead = false;
+    let loudMs = 0;
+    const t0 = Date.now();
+    function done(fire) {
+      if (dead) return;
+      dead = true;
+      if (timer) { clearInterval(timer); timer = null; }
+      try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* ignore */ }
+      try { if (ctx && ctx.close) ctx.close(); } catch (e) { /* ignore */ }
+      stream = null; analyser = null; ctx = null;
+      if (fire && opts.onTrigger) opts.onTrigger();
+    }
+    mdm.getUserMedia({ audio: true }).then(function (s) {
+      if (dead) { try { s.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* ignore */ } return; }
+      stream = s;
+      ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(s);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      src.connect(analyser);
+      buf = new Float32Array(analyser.fftSize);
+      timer = setInterval(function () {
+        if (dead) return;
+        analyser.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const rms = Math.sqrt(sum / buf.length);
+        loudMs = (rms >= th) ? (loudMs + tickMs) : 0;
+        if (loudMs >= holdMs) { done(true); return; }
+        if (Date.now() - t0 > maxMs) done(false);
+      }, tickMs);
+    }).catch(function () { done(false); });
+    return { stop: function () { done(false); } };
+  };
+
   /* 在 Player.recognize 之上包一层静音断句。opts 原样透传给 recognize，另加：
      threshold（能量阈值，默认 0.02）/ silenceMs（静音多久算说完，默认 1200ms）/
      maxMs（单轮上限，默认 20s）/ tickMs / onAuto(reason: "silence"|"timeout") */

@@ -124,10 +124,25 @@ const sw = read("sw.js");
 const pre = /const PRECACHE\s*=\s*\[([\s\S]*?)\];/.exec(sw);
 const entries = pre ? (pre[1].match(/"[^"]+"/g) || []) : [];
 check("PRECACHE 仍 69 条（本批无新脚本、不加请求）", entries.length === 69, "n=" + entries.length);
-check("CACHE 已升到 fte-v146", /const CACHE = "fte-v146"/.test(sw));
-check("版本号单一来源：pwa-init.js 与 package.json 同为 1.30.0",
-  /window\.FTE_VERSION = "1\.30\.0"/.test(read("js/pwa-init.js")) &&
-  /"version": "1\.30\.0"/.test(read("package.json")));
+/* P21 批（2026-11-15）改断言说明（按 AGENTS.md §6：只准加严或等价，并给出改前/改后原文）：
+   改前：check("CACHE 已升到 fte-v146", /const CACHE = "fte-v146"/.test(sw));
+   改后：CACHE 数值 ≥ 146。理由：本批之后 CACHE 继续递增是**纪律要求的正常行为**（fte-v147），
+        旧断言把「本批次当时的快照」锁成了永久条件，会在每次正常升版时误报红。等价性：仍要求
+        CACHE 是 fte-v 数字形态且不低于本批次的值（README/PW 两处都不能回退）。
+   改前：版本号 === "1.30.0"；改后：两处**逐字相同**（单一来源这条不放松）且数值 ≥ 1.30.0。
+        等价性：单一来源仍被断言，只把「等于本批次快照」换成「不低于本批次」。 */
+const cacheVer = (function () {
+  const m = /const CACHE = "fte-v(\d+)"/.exec(sw);
+  return m ? parseInt(m[1], 10) : 0;
+})();
+check("CACHE 版本 ≥ fte-v146（本批次基准，且形态合法）", cacheVer >= 146, "实测 fte-v" + cacheVer);
+const vPwa = (/window\.FTE_VERSION = "([^"]+)"/.exec(read("js/pwa-init.js")) || [])[1] || "";
+const vPkg = (/"version": "([^"]+)"/.exec(read("package.json")) || [])[1] || "";
+check("版本号单一来源：pwa-init.js 与 package.json 逐字相同，且不低于 1.30.0",
+  vPwa !== "" && vPwa === vPkg && (function () {
+    const a = vPwa.split(".").map(function (x) { return parseInt(x, 10) || 0; });
+    return a[0] > 1 || (a[0] === 1 && (a[1] > 30 || (a[1] === 30 && (a[2] || 0) >= 0)));
+  })(), vPwa + " / " + vPkg);
 
 console.log(pass ? "\n=== v1.30.0 递增批门禁全部通过 ===" : "\n=== 有断言失败 ===");
 process.exit(pass ? 0 : 1);

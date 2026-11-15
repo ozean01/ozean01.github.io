@@ -222,9 +222,73 @@
       (canMark ? '<button class="btn btn-outline btn-sm" data-action="rd-mark" data-w="' + esc(info.w) + '">✓ 标记已会</button>' : "") +
       '<button class="btn btn-outline btn-sm" data-action="rd-mute" data-w="' + esc(info ? info.w : word) + '">🙈 无需再提示</button>' +
       (!info ? '<button class="btn btn-soft btn-sm" data-action="rd-ai" data-w="' + esc(word) + '">🤖 用 AI 解释</button>' : "") +
-      "</div></div>" +
+      "</div>" + relHintHtml(info ? info.w : word) + "</div>" +
       (!info ? '<div class="rd-ai-out" data-ai-disclosure="1" hidden></div>' : "");
   }
+  /* 词卡里的「词族 / 形近」加分（P21 · 通用地基批）
+     为什么按需算、不落数据文件：全量关系表要十几到二十几 KB gzip，而预算棘轮只剩约 1KB。
+     这里全部在「打开某一张词卡」时对该词现算，代价是毫秒级，体积只有这段逻辑本身。
+     口径诚实：只给**候选**，不做「这两个词是同义」的断言——同义/反义关系数据本站没有，
+     所以词族按「同形词干 + 后缀」推、形近按现成编辑距离排，两者都标「按形状推」。 */
+  var FAM_SUF = ["ings", "ing", "ers", "ion", "ations", "ation", "ment", "ness", "ity", "ed", "er", "ly", "s"];
+  function lkCore(w) {
+    var s = String(w || "").toLowerCase();
+    if (s.length < 5) return "";
+    for (var i = 0; i < FAM_SUF.length; i++) {
+      var suf = FAM_SUF[i];
+      if (s.length - suf.length >= 4 && s.slice(-suf.length) === suf) return s.slice(0, s.length - suf.length);
+    }
+    return s;
+  }
+  function lkWs(w) {
+    var S = window.SpeechScore;
+    if (S && typeof S.wordSimilar === "function") return function (a, b) { return S.wordSimilar(a, b); };
+    /* 降级副本（与 js/score.js 的 wordSimilar 同口径：1 - 编辑距离/较长者长度） */
+    return function (a, b) {
+      a = String(a || "").toLowerCase(); b = String(b || "").toLowerCase();
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      var dp = [];
+      for (var j = 0; j <= b.length; j++) dp[j] = j;
+      for (var i = 1; i <= a.length; i++) {
+        var prev = dp[0];
+        dp[0] = i;
+        for (var j2 = 1; j2 <= b.length; j2++) {
+          var tmp = dp[j2];
+          dp[j2] = Math.min(dp[j2] + 1, dp[j2 - 1] + 1, prev + (a.charAt(i - 1) === b.charAt(j2 - 1) ? 0 : 1));
+          prev = tmp;
+        }
+      }
+      return 1 - dp[b.length] / Math.max(a.length, b.length);
+    };
+  }
+  function relHintHtml(word) {
+    var w = String(word || "").trim();
+    if (!w || w.indexOf(" ") !== -1) return "";
+    var lw = w.toLowerCase();
+    var core = lkCore(lw);
+    var sim = lkWs(lw);
+    var fam = [], near = [];
+    var us = units();
+    var seen = {};
+    for (var i = 0; i < us.length; i++) {
+      var vs = us[i].vocab || [];
+      for (var j = 0; j < vs.length; j++) {
+        var cw = String(vs[j].w || "");
+        var cl = cw.toLowerCase();
+        if (cl === lw || seen[cl] || cl.indexOf(" ") !== -1) continue;
+        if (core && lkCore(cl) === core) { fam.push(cw); seen[cl] = 1; continue; }
+        if (Math.abs(cl.length - lw.length) <= 3 && sim(lw, cl) >= 0.8) { near.push(cw); seen[cl] = 1; }
+      }
+    }
+    if (!fam.length && !near.length) return "";
+    var one = function (arr, cap) { return arr.slice(0, cap).join(" · ") + (arr.length > cap ? " 等 " + arr.length + " 个" : ""); };
+    return '<div class="rd-rel"><span class="rd-rel-h">🧩 词族 / 形近（按词形推，非释义关联）</span>' +
+      (fam.length ? '<div class="rd-rel-row"><b>同族</b>：' + esc(one(fam, 6)) + "</div>" : "") +
+      (near.length ? '<div class="rd-rel-row"><b>形近</b>：' + esc(one(near, 6)) + "</div>" : "") +
+      "</div>";
+  }
+
   /* AI 解释块（渲染点）：AI 输出必须带披露出口 */
   function aiCardHtml(reply) {
     var D = window.AIDisclosure;
