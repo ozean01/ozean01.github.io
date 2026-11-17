@@ -233,6 +233,7 @@
       const now = Date.now();
       if (Player._lastIssueToast && now - Player._lastIssueToast < 30000) return;
       Player._lastIssueToast = now;
+      if (issue && issue.kind === "no-local-voice") { toast(Player.noLocalVoiceToast()); return; }
       toast("⚠️ 在线人声 7 秒未出声（可能断网或音源未就绪）——可在 ⚙ 设置点「试听当前发音人」排查，或改用本地人声");
     };
     Player.onEngineFallback = function () {
@@ -243,6 +244,13 @@
         syncPlayerSettings();
       }
       toast("⚠️ 在线高音质音源不可用，已改用浏览器语音（离线可用）。建议用 Edge 的 Online(Natural) 人声，或在设置里检查 Azure Key / Region");
+    };
+    /* v1.28.1：在线人声 2.5 秒没出声 → 已自动降级本机人声；提示一次（30 秒去重，连听不刷屏） */
+    Player.onVoiceFallback = function (info) {
+      const now = Date.now();
+      if (Player._lastVoiceFallbackToast && now - Player._lastVoiceFallbackToast < 30000) return;
+      Player._lastVoiceFallbackToast = now;
+      toast(Player.voiceFallbackToast(info));
     };
   }
   syncPlayerSettings();

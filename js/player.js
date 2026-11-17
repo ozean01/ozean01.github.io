@@ -92,6 +92,16 @@
   Player.defaultVoiceName = "";
   /* 在线音源自动回退到浏览器语音时的回调（由 app 注入，用于提示用户） */
   Player.onEngineFallback = null;
+  /* 在线人声没起来、临时降级到本机人声时的回调与记录（v1.28.1 修复「点 🔊 没声音」） */
+  Player.onVoiceFallback = null;
+  Player.lastVoiceFallback = null;
+  /* 提示文案放引擎侧（app.js 贴着 114KB 上限，文案别往那边堆） */
+  Player.voiceFallbackToast = function (info) {
+    return "⚠️ 在线人声 2.5 秒没出声，已临时改用本机人声「" + ((info && info.to) || "") + "」。想在设置里固定用它：⚙ 设置 → 发音人";
+  };
+  Player.noLocalVoiceToast = function () {
+    return "⚠️ 在线人声没响，本机也没有可离线使用的英语人声——请用 Edge/Chrome 打开，或在系统里安装「英语（美国）」语音包；⚙ 设置 → 发音人 可查看当前可用人声";
+  };
 
   /* ---------------- 听力口音开关（P7 · 借鉴 ENGSENCE 的双口音） ----------------
      ⚠️ 口径边界（不可越界）：本站音标、词库、审计基线一律保持「美式通用口音 GA」
@@ -169,32 +179,72 @@
       if (Player.onAccentUnsupported) Player.onAccentUnsupported(Player.lastAccentIssue);
     }
 
+    let trySeq = 0;       /* 每次「重新发声」递增；被 cancel 掉的旧 utterance 回调据此作废 */
+    let timers = [];
+    function clearTimers() { timers.forEach(function (t) { clearTimeout(t); }); timers = []; }
+    /* 本机（非在线）英语人声：在线人声没起来时用它兜底。在线人声判定与 qualityInfo 同一口径。 */
+    function pickLocalVoice() {
+      const en = voices.filter(function (x) { return x.lang && x.lang.toLowerCase().indexOf("en") === 0; });
+      const local = en.filter(function (x) { return !HIGH_QUALITY.test(String(x.name || "")); });
+      return local.slice().sort(function (a, b) { return voiceScore(b) - voiceScore(a); })[0] || null;
+    }
+
     function speakNext() {
       if (stopped) return;
       if (idx >= total) {
         if (opts.onend) opts.onend();
         return;
       }
-      const u = new SpeechSynthesisUtterance(parts[idx]);
-      const v = pickVoice();
+      speakPart(idx, null, false);
+    }
+
+    /* 一次发声尝试。forcedVoice 非空 = 降级重播（本机人声）；myTry 守卫保证被 cancel 的旧回调不推进进度。 */
+    function speakPart(i, forcedVoice, fallbackTried) {
+      const myTry = ++trySeq;
+      let startedFlag = false;
+      let didFallback = !!fallbackTried;
+      const u = new SpeechSynthesisUtterance(parts[i]);
+      const v = forcedVoice || pickVoice();
       if (v) u.voice = v;
       noteAccentOnce(v);
       u.rate = clampRate(opts.rate || 1);
       u.pitch = 1;
       u.volume = 1;
+      /* Chrome 桌面版长时间朗读后会把 speechSynthesis 卡在 paused，之后所有 speak 静默不响 */
+      try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch (e) { /* 老浏览器忽略 */ }
       /* 无声 watchdog（语音可靠性批次）：Online Natural 等在线人声依赖网络，首次加载/断网时
          部分浏览器既不播也不报错（onstart/onerror 都不来）——静默失败比失败更糟。
-         7 秒未 started 就记 lastEngineIssue 并通知 UI；不自动重播（避免双声）。 */
-      let startedFlag = false;
+         7 秒未 started 就记 lastEngineIssue 并通知 UI（7 秒判死这一条保持原语义不变）。 */
       const startTimer = setTimeout(function () {
-        if (startedFlag || stopped) return;
-        Player.lastEngineIssue = { at: Date.now(), engine: "native", kind: "no-start", voice: (v && v.name) || "", chunk: idx };
+        if (myTry !== trySeq || startedFlag || stopped) return;
+        Player.lastEngineIssue = { at: Date.now(), engine: "native", kind: "no-start", voice: (v && v.name) || "", chunk: i };
         if (Player.onEngineIssue) { try { Player.onEngineIssue(Player.lastEngineIssue); } catch (e) { /* UI 回调不拖垮朗读 */ } }
       }, 7000);
-      const clearWatch = function () { if (startTimer) { clearTimeout(startTimer); } };
-      u.onstart = function () { startedFlag = true; clearWatch(); if (opts.onstart) opts.onstart(idx, total); };
-      u.onend = function () { clearWatch(); idx++; speakNext(); };
-      u.onerror = function () { clearWatch(); idx++; speakNext(); };
+      /* v1.28.1：在线人声 2.5 秒一声没出 → 自动换成能出声的本机人声重播同一句。
+         这是「点 🔊 完全没声音」的主因（在线音源被拦/断网时浏览器不报错）。
+         重播的前提是「一个字都还没出来」，因此不存在双声。 */
+      const fbTimer = setTimeout(function () {
+        if (myTry !== trySeq || startedFlag || stopped || didFallback) return;
+        if (!v || !HIGH_QUALITY.test(String(v.name || ""))) return;   /* 本来就是本机人声：不重播，等 7 秒判死 */
+        const local = pickLocalVoice();
+        if (!local) {
+          /* 本机一个可离线使用的英语人声都没有（有些环境只装了 Online Natural）：
+             不能假装降级——立刻给可执行的指引，别让用户干等到 7 秒。 */
+          Player.lastEngineIssue = { at: Date.now(), engine: "native", kind: "no-local-voice", voice: v.name, chunk: i };
+          if (Player.onEngineIssue) { try { Player.onEngineIssue(Player.lastEngineIssue); } catch (e) { /* ignore */ } }
+          return;
+        }
+        didFallback = true;
+        Player.lastVoiceFallback = { at: Date.now(), from: v.name, to: local.name };
+        if (Player.onVoiceFallback) { try { Player.onVoiceFallback(Player.lastVoiceFallback); } catch (e) { /* ignore */ } }
+        try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+        speakPart(i, local, true);
+      }, 2500);
+      timers.push(startTimer);
+      timers.push(fbTimer);
+      u.onstart = function () { if (myTry !== trySeq) return; startedFlag = true; clearTimers(); if (opts.onstart) opts.onstart(i, total); };
+      u.onend = function () { if (myTry !== trySeq) return; clearTimers(); idx = i + 1; speakNext(); };
+      u.onerror = function () { if (myTry !== trySeq) return; clearTimers(); idx = i + 1; speakNext(); };
       /* 无神经人声一次性提示：本机只有普通本地音时，首次朗读通知 UI（由 app 决定去重/落存储） */
       if (!noNeuralFired && v && !HIGH_QUALITY.test(String(v.name || ""))) {
         const hasNeural = voices.some(function (x) { return HIGH_QUALITY.test(String(x.name || "")); });
@@ -209,7 +259,7 @@
 
     const handle = {
       engine: "native",
-      stop: function () { stopped = true; window.speechSynthesis.cancel(); },
+      stop: function () { stopped = true; trySeq++; clearTimers(); window.speechSynthesis.cancel(); },
       total: total
     };
     current = handle;

@@ -171,6 +171,14 @@ check("音频包缓存桶已在 storage-keys.js 登记为 media / backup:false�
   /"fte-earpack-v1"[\s\S]*?kind:\s*"media"[\s\S]*?backup:\s*false/.test(storage));
 check("播放器不写 localStorage（离线包全走 CacheStorage，可整包清除）", !/localStorage/.test(player));
 
+/* ---------- ⑤b 播放失败不得静默（v1.28.1 真机缺陷修复） ---------- */
+check("音频元素有 error 监听（4xx/断网/坏缓存不再「点了没反应」）", /addEventListener\("error"/.test(player));
+check("播放失败统一走 playSafe，不再有空 catch 吞掉",
+  /function playSafe/.test(player) && !/\.play\(\)\.catch\(function \(\) \{ \}\)/.test(player));
+check("失败提示含错误码/拦截原因 + 重试指引，并在页内显示",
+  /音频加载失败[\s\S]{0,80}重试/.test(player) && /浏览器拦截了自动播放/.test(player) && /state\.mediaError/.test(player));
+check("失败后再点播放会重新 load（error 态可恢复）", /if \(a\.error\) \{ try \{ a\.load\(\); \}/.test(player));
+
 /* ---------- ⑥ 纯函数行为（vm 直测） ---------- */
 const pc = { console: console, window: null, URL: URL, Date: Date, Math: Math, setInterval: setInterval, clearInterval: clearInterval, setTimeout: setTimeout, Promise: Promise, navigator: {}, document: { baseURI: "https://example.com/index.html" }, Audio: function () { return { addEventListener: function () { } }; } };
 pc.window = pc; pc.self = pc;

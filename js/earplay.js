@@ -25,7 +25,7 @@
     manifest: null, items: [], idx: -1, playing: false, loop: "list", speed: 1,
     cached: 0, downloading: false, dlDone: 0, dlErrors: 0,
     sleepMin: 0, sleepAt: 0, sleepTimer: null, loading: false, error: "",
-    blobUrl: null, bound: false
+    blobUrl: null, bound: false, mediaError: ""
   };
   var audio = null;
 
@@ -86,6 +86,7 @@
     try { audio.preservesPitch = true; } catch (e) { /* 老浏览器忽略 */ }
     audio.addEventListener("play", function () {
       state.playing = true;
+      state.mediaError = "";
       syncPlayState();
       if ("mediaSession" in navigator) { try { navigator.mediaSession.playbackState = "playing"; } catch (e) { } }
     });
@@ -105,6 +106,16 @@
       if (dur) dur.textContent = fmtClock(audio.duration);
     });
     audio.addEventListener("ended", onEnded);
+    /* 加载/解码失败必须出声说明原因：此前没有 error 监听，4xx/断网/坏缓存都表现为「点了没反应」 */
+    audio.addEventListener("error", function () {
+      var code = (audio && audio.error && audio.error.code) || "";
+      var msg = "音频加载失败" + (code ? "（错误码 " + code + "）" : "") + "：检查网络后点「▶ 播放」重试";
+      state.mediaError = msg;
+      state.playing = false;
+      syncPlayState();
+      renderPlayer();
+      toast("⚠️ " + msg);
+    });
     if (!state.bound) { bindMediaSession(); state.bound = true; }
     return audio;
   }
@@ -125,7 +136,7 @@
     if (!("mediaSession" in navigator)) return;
     var ms = navigator.mediaSession;
     var handlers = {
-      play: function () { var a = ensureAudio(); a.play().catch(function () { }); },
+      play: function () { var a = ensureAudio(); playSafe(a); },
       pause: function () { if (audio) audio.pause(); },
       previoustrack: function () { jump(-1); },
       nexttrack: function () { jump(1); },
@@ -170,7 +181,7 @@
     if (state.loop === "one") {
       var a = ensureAudio();
       a.currentTime = 0;
-      a.play().catch(function () { });
+      playSafe(a);
       return;
     }
     var n = nextIndex(state.idx, state.items.length, state.loop);
@@ -207,6 +218,24 @@
     renderPlayer();
   }
 
+  /* ---------------- 播放失败：必须看得见 ---------------- */
+  function playFailMsg(e) {
+    var name = (e && e.name) || "";
+    if (name === "NotAllowedError") return "浏览器拦截了自动播放：点「▶ 播放」开始";
+    /* NotSupportedError 在「请求被网络拦截 / 文件没取到」时也会出现（错误码 4），
+       所以这里不武断说成「格式不支持」，而是给网络与文件两条自查路径。 */
+    if (name === "NotSupportedError") return "音频加载失败（网络中断或文件不可用）：检查网络后点「▶ 播放」重试";
+    return "音频没能播放（" + (name || "未知原因") + "）：点「▶ 播放」重试";
+  }
+  function playSafe(a) {
+    var p = null;
+    try { p = a.play(); } catch (e) { state.mediaError = playFailMsg(e); renderPlayer(); toast("⚠️ " + state.mediaError); return null; }
+    if (p && p.catch) {
+      p.catch(function (e) { state.mediaError = playFailMsg(e); renderPlayer(); toast("⚠️ " + state.mediaError); });
+    }
+    return p;
+  }
+
   /* ---------------- 播放某一句 ---------------- */
   async function playIndex(i, opts) {
     if (!state.items.length) return;
@@ -235,13 +264,15 @@
     renderPlayer();
     renderQueue();
     if (!opts || opts.autoplay !== false) {
-      try { await a.play(); } catch (e) { toast("点「▶ 播放」开始（浏览器拦截了自动播放）"); }
+      try { await a.play(); } catch (e) { state.mediaError = playFailMsg(e); renderPlayer(); toast("⚠️ " + state.mediaError); }
     }
   }
   function togglePlay() {
     if (state.idx < 0) { playIndex(0); return; }
     var a = ensureAudio();
-    if (a.paused) a.play().catch(function () { }); else a.pause();
+    /* 加载失败后再点播放：必须先 load() 重新拉取，否则元素停在 error 态、play() 永远 reject */
+    if (a.error) { try { a.load(); } catch (e) { /* 老浏览器忽略 */ } }
+    if (a.paused) playSafe(a); else a.pause();
   }
 
   /* ---------------- 缓存桶（整包离线） ---------------- */
@@ -396,7 +427,8 @@
       '<div class="ep-row"><span class="ep-k">睡眠定时</span>' + SLEEPS.map(function (m) {
         return '<button class="chip ' + (state.sleepMin === m ? "active" : "") + '" data-ep="sleep" data-v="' + m + '" aria-pressed="' + (state.sleepMin === m) + '">' + m + " 分钟</button>";
       }).join("") + '<button class="chip ' + (state.sleepMin ? "" : "active") + '" data-ep="sleep" data-v="0" aria-pressed="' + (!state.sleepMin) + '">关</button>' +
-        '<span class="field-note" id="epSleep">' + (state.sleepMin ? "剩 " + fmtClock(sleepLeftMs() / 1000) : "") + "</span></div>";
+        '<span class="field-note" id="epSleep">' + (state.sleepMin ? "剩 " + fmtClock(sleepLeftMs() / 1000) : "") + "</span></div>" +
+      (state.mediaError ? '<div class="field-note ep-err" role="status">⚠️ ' + esc(state.mediaError) + "</div>" : "");
     syncPlayState();
   }
   function renderQueue() {
