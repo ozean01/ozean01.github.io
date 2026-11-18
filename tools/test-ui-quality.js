@@ -59,6 +59,15 @@ check("P2-3：☰ 按钮按媒体查询显隐，并维护 aria-expanded",
 check("P2-3：触控目标 ≥44px（一级项与二级项）",
   /\.main-nav a,\.nav-group summary\{min-height:44px/.test(css) && /\.nav-sub a\{min-height:44px\}/.test(css));
 check("P2-3：点导航项后自动收起", /closeNav\(\)/.test(appCode));
+/* v1.39.2：成排图标钮的命中区不得向横向扩张（否则点 🔊 会命中右边的 🎙 → 弹出录音）。
+   按钮视觉 32px、间距 6px，故透明 ::after 横向必须 = 32px（不扩），纵向仍 44px。 */
+check("v1.39.2：图标钮命中区横向 32px（不盖住邻居）/ 纵向 44px",
+  /\.play-btn::after,\.learn-toggle::after\{content:""[^}]*width:32px;height:44px/.test(css) &&
+  !/\.play-btn::after[^}]*width:44px/.test(css));
+check("v1.39.2：点发音类按钮先收跟读面板（不再残留「随后自动开始录音」）",
+  /function closeShadowForPlayback\(\)[\s\S]{0,400}\.shadow-out/.test(appCode) &&
+  /closeShadowForPlayback\(\);/.test(appCode) &&
+  /State\.shadowStop/.test(appCode));
 
 /* ============ P2-4 键盘与 ARIA ============ */
 check("P2-4：字幕行可键盘触达（role=button + tabindex=0 + aria-label）",

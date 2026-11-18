@@ -539,11 +539,10 @@ kbd{background:var(--track);border:1px solid var(--line);border-bottom-width:2px
   position:relative;width:32px;height:32px;border-radius:50%;border:none;background:var(--primary-soft);color:var(--primary-text);
   font-size:13px;display:inline-flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;
 }
-/* 触控目标 ≥44px（与 .dlg-line .side .rec 同一手法）：视觉仍是 32px 圆钮，
-   用透明 ::after 把**命中区**撑到 44×44，不改变任何布局/信息密度。
-   为什么不能直接把 width/height 改成 44：这些圆钮成排出现（word-row.actions、
-   mail-drill、单元词表…），改成 44px 会把行高顶大、每屏能看的内容变少。 */
-.play-btn::after,.learn-toggle::after{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+/* 触控命中区：视觉 32px 圆钮，透明 ::after 只向上/下扩到 44（横向不扩）。
+   原因：图标钮成排出现、间距仅 6px，命中区一旦向横向扩张就会盖住右侧邻居——实测点 🔊 右侧
+   会命中右边那个 🎙（弹出录音/跟读），v1.39.2 改回横向 32：点按钮外侧不再触发任何邻居动作。 */
+.play-btn::after,.learn-toggle::after{content:"";position:absolute;left:50%;top:50%;width:32px;height:44px;transform:translate(-50%,-50%)}
 .play-btn:hover{background:var(--primary);color:#fff}
 .play-btn.speaking{background:var(--primary);color:#fff;animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.4)}50%{box-shadow:0 0 0 7px rgba(37,99,235,0)}}

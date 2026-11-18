@@ -2209,24 +2209,13 @@
     });
   }
 
-  /* ============ 🎤 跟读闭环（**不需要**语音识别就成立）+ 可选的逐词评分 ============
-     两轮真实反馈，同一句话：
-       第一次「单词及句子我只能听系统播放，我还需要跟读及评分以帮助我纠正发音，这个功能缺失」
-       第二次「跟读按钮放出的仍是系统声音，不是让我录音，也没有我的语音与标准语音之间的评测」
-     第二次说明第一次的修法没解决问题。真机复核后确认两个根因：
-       ① `Player.repeat()` 的跟读窗口从**开始朗读**算起而不是**读完**算起（见 player.js 的修复说明），
-          于是录音在系统朗读还没结束时就开录，麦克风把扬声器里的标准音一起录了进去 ——
-          用户回放"我的录音"听到的当然还是系统声音；
-       ② 识别这条路当时被本机离线识别拖住（自检失败把开关永久关掉）；该功能最终在 2026-10-12
-          被整体移除（小模型在行业术语上错得太多，给的分会误导人，见 README §6-8）。
-     因此本轮把闭环重做成**五步、每步在界面上看得见**：
-       ① 听标准音（第 k/N 遍）→ ② 录音中（实时电平表 + 计时 + 「⏹ 我说完了」）
-       → ③ 回放你的 → ④ 再放标准音 → ⑤ 对比与评分
-     三条口径：
-       · **开录前硬停一切 TTS**，保证录进去的只有你的声音；
-       · 逐词评分走**浏览器语音识别**（Edge 走 Azure 国内可达）；拿不到识别时
-       · 没有识别能力时**照样给节奏/音量反馈**（这两项本来就不需要识别），
-         并把"要拿逐词分该怎么办"写清楚 —— 绝不假装评了分。 */
+  /* ============ 🎤 跟读闭环（不需要语音识别就成立）+ 可选逐词评分 ============
+     来历：两轮反馈（「只有系统播放、没有跟读评分」→「跟读放出的仍是系统声音」）。
+     根因：repeat 的跟读窗口从开始朗读算起，录音在朗读结束前就开录、把标准音录了进去；
+     离线识别小模型在行业术语上错得太多，2026-10-12 已整体移除（见 README §6-8）。
+     现行闭环五步可见：听标准音 → 录音中（电平+计时+「⏹ 我说完了」）→ 回放你的 →
+     再放标准音 → 对比评分。口径：开录前硬停一切 TTS；逐词分走浏览器识别（Edge 走 Azure）；
+     没有识别能力也照样给节奏/音量反馈，并把「要拿逐词分该怎么办」写清楚 —— 绝不假装评了分。 */
   function shadowBoxFor(el) {
     const anchor = el.closest(".word-row, .phrase-row, .flash-card, .dict-row, .dlg-line") || el.parentElement || el;
     let box = anchor.nextElementSibling;
@@ -4097,6 +4086,13 @@
   }
 
   /* ================= 事件委托 ================= */
+  /* v1.39.2：点「发音」前先收跟读面板：面板不自闭会一直写着「随后自动开始录音」（像点发音弹出录音），
+     且录音中放 TTS 会把系统声音录进去。只收 UI 与停本轮识别，不动已录回放。 */
+  function closeShadowForPlayback() {
+    try { if (State.shadowStop) State.shadowStop(); } catch (e2) { /* 停不掉也不拦播放 */ }
+    const boxes = document.querySelectorAll(".shadow-out");
+    for (let i = 0; i < boxes.length; i++) { boxes[i].hidden = true; boxes[i].innerHTML = ""; }
+  }
   document.addEventListener("click", function (e) {
     /* P1-D 前置·只读行为埋点：判断这次点击是不是「在某个非主线入口上点了去主线单元的链接」。
        必须放在下面那行 return 之前 —— 普通 <a href="#/unit/N"> 没有 data-action，
@@ -4130,6 +4126,8 @@
     const el = e.target.closest("[data-action]");
     if (!el) return;
     const act = el.getAttribute("data-action");
+    /* 发音类动作统一先收跟读面板（v1.39.2，见 closeShadowForPlayback） */
+    if (/^(play-word|play-sentence|play-text|play-line|play-dlg|step-play|dict-play|quiz-listen|flash-say)$/.test(act)) closeShadowForPlayback();
     const id = el.getAttribute("data-id");
     const idx = el.getAttribute("data-idx");
     const li = el.getAttribute("data-li");
