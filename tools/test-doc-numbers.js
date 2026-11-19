@@ -109,8 +109,17 @@ claimSites("单元数（全站）", n.units, [
   /(\d+)\s*单元(?=[\s·/（(、，,])/
 ]);
 
-/* 最容易被顺手改掉的那一行（全站合计） */
-check("README 的「全站合计」一行与实测一致",
+/* 音源目录规模（P30 补这一格）：README 的「N 条成人向听音源」曾长期写 **11**，
+   而 js/sources.js 实测已 **31** 条（P14 +14、v1.30.0 +4、P15 +2 …）——一直没人守，
+   因为 claimSites 只覆盖词/短语/对话/骨架/单元，不覆盖"目录规模"。
+   口径：sources.js 每个条目恰好一个 `name:` 字段（渲染与门禁都靠它），故按行计数；
+   找不到任何 `name:` 时先报红，避免"计数口径失效 → 0 条也恒过"。 */
+const sourcesSrc = fs.readFileSync(path.join(ROOT, "js", "sources.js"), "utf8");
+const sourceCount = (sourcesSrc.match(/^\s+name:\s+"/gm) || []).length;
+check("js/sources.js 能数出音源条数（口径失效时先红，不恒真）", sourceCount > 0, String(sourceCount));
+claimSites("音源目录条数", sourceCount, [/(\d+)\s*条成人向听音源/]);
+
+/* 最容易被顺手改掉的那一行（全站合计） */check("README 的「全站合计」一行与实测一致",
   readme.indexOf(v + " 词汇 / " + p + " 短语 / " + d + " 段对话") !== -1,
   "实测：" + v + " 词汇 / " + p + " 短语 / " + d + " 段对话");
 

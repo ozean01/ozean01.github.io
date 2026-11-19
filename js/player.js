@@ -869,7 +869,16 @@
     return { x0: x0, x1: x1 };
   };
 
-  /* 内部唯一绘制实现：高亮带先铺底，振幅棒画在上面 */
+  /* 纯函数：waveSegRange 的**逆映射** —— 画布 x 像素 → 秒（P30 音块打点用）。
+     为什么也放这里：区间→像素与像素→区间必须是同一套口径；放到调用方就会出现
+     「画的带子」与「点到的位置」差半个身位，而且没人能一眼看出是两套算法。 */
+  Player.waveTimeAt = function (x, width, duration) {
+    if (typeof x !== "number" || !isFinite(x)) return null;
+    if (!(width > 0) || !(duration > 0)) return null;
+    return Math.max(0, Math.min(duration, x / width * duration));
+  };
+
+  /* 内部唯一绘制实现：高亮带先铺底，振幅棒画在上面，最后压 A/B 打点竖线 */
   function drawWave(audioBuf, canvas, opts) {
     const o = opts || {};
     const data = audioBuf.getChannelData(0);
@@ -900,6 +909,18 @@
       const top = mid - max * H * 0.45;
       const hgt = Math.max(1, (max - min) * H * 0.45);
       g.fillRect(x, top, 1, hgt);
+    }
+    /* P30 音块打点：A/B 竖线画在振幅棒之上，否则会被灰带吃掉看不出在哪儿。
+       marks = [{ t: 秒, label: "A" }]，非法项跳过（脏数据不得让整条波形画不出来）。 */
+    if (Array.isArray(o.marks)) {
+      g.fillStyle = "#b45309";
+      g.font = "10px sans-serif";
+      o.marks.forEach(function (m) {
+        if (!m || typeof m.t !== "number" || !isFinite(m.t)) return;
+        const x = Math.round(Math.max(0, Math.min(audioBuf.duration, m.t)) / audioBuf.duration * W);
+        g.fillRect(Math.max(0, x - 1), 0, 2, H);
+        if (m.label) g.fillText(String(m.label), Math.min(W - 7, x + 2), 11);
+      });
     }
     return true;
   }

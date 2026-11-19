@@ -470,7 +470,20 @@
     <div class="card" style="margin-top:18px;padding:14px 18px;font-size:13px;color:var(--muted)">
       <b>优先级建议：</b>基础弱 → 从 VOA / ELLLO（A 级）开始，每天 15 分钟，先磨耳朵；A2–B1 → ELLLO + VOA + News in Levels，一套真实、一套分级；B1–B2 → BBC 6 Minute English / Randall（英音 + 场景），开始接触专业与商务；B2+ → NPR Marketplace / HBR / Economist / FT，用英语学真实的商业世界。
       <span style="display:block;margin-top:8px">⚠️ 页面可能有广告，自行辨别；付费音源以官网为准。真实音频授权与可访问性由各官网决定，本站仅作目录引用。</span>
-    </div>`;
+    </div>
+
+    <details class="card" style="margin-top:12px;padding:12px 18px">
+      <summary style="cursor:pointer;font-size:13px"><b>🧭 入门音源怎么挑（可理解性输入五条）</b>
+        <span class="field-note" style="margin-left:8px">按这五条筛，不按"有名"筛</span></summary>
+      <ul style="margin:8px 0 0 18px;padding:0;font-size:13px;color:var(--muted);line-height:1.9">
+        <li><b>语速受控</b>：慢于同水平母语者，不是"拼命跟"才跟得上；</li>
+        <li><b>词频受控</b>：刻意用高频词，不炫生僻词；</li>
+        <li><b>画面支持理解</b>：一个声音对应一个画面/动作，听不懂也猜得出；</li>
+        <li><b>单人独白或双人慢速</b>：不是群戏、不是快剪；</li>
+        <li><b>有可用字幕</b>：能分档、能复制出来——否则接不上站内引擎。</li>
+      </ul>
+      <div class="field-note" style="margin-top:8px">找到这样一条 10–20 分钟的 vlog 之后：<b>先开英文字幕看一遍</b>（只求懂、不查词）→ 复制字幕文本 → 粘进 <a href="#/material">📥 素材投料口</a> → 自动拆句进五阶段（盲听→精听跟读→听写→复述）。这比"再收一个外链"有用：你练的是真实声音，用的是站内引擎；一期只留 3–5 个卡点进今日错题。</div>
+    </details>`;
 
     /* 模块内事件绑定（自包含，不污染 app.js 的大 switch） */
     app.querySelectorAll("[data-s]").forEach(function (el) {

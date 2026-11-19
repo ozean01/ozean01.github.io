@@ -217,11 +217,26 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
      · 本批只改 js/today.js 一处文案：到期卡超过一轮上限（DUE_SESSION_CAP=30）时，第 1 步写明
        「本轮先做 30 张，还剩 N 张（会一直留着，不会跳过）」——把漏学后的暗账变成明账。
      · 不新增脚本/请求（subResources 仍 61、PRECACHE 仍 69 条）；app.js 未动（biggestGzKB 不升）。
-     · 本门禁口径**实测 848.09KiB（868442B）**，851 = 实测 + 约 2KB 容差——**超过即红**。 */
+     · 本门禁口径**实测 848.09KiB（868442B）**，851 = 实测 + 约 2KB 容差——**超过即红**。
+    P30 音块级精听批（2026-11-19）第十五次上调：gzTotalKB 851 → 860（+9KB，约 +1.06%），理由如下：
+     · 本批补的是「句子内部再往下切的音频粒度」——外部材料评估里唯一精确指出的站内空档：
+       站内 A-B 只能整句循环，而丢单点在词缝里那 1~2 秒（thickness/sickness、连读弱读、吞音）。
+       js/subtitle.js 新增波形打点（复用 abWindowOf 已存在但从未接 UI 的 markA/markB）、
+       clampToCue、marksOf/abWindowNow、片段库（读盘净化 + 上限 200 + 只存时间点）与整块 UI；
+       js/player.js 新增 waveTimeAt（waveSegRange 的逆映射，同一套口径）+ 波形画 A/B 竖线；
+       css/style.css 加 .sub-clip 片段行；js/storage-keys.js 登记 fte-seg-clips-v1（进备份）。
+     · **已先按纪律减负**：注释按最短可读写压过一轮，仍压不进 851（本批是**新增一层能力**，
+       不是文案微调），故按流程报实测：本门禁口径**实测 856.66KiB（877,219B）**，
+       860 = 实测 + 约 3.3KB 容差（与历史 +2~2.8KB 同档略宽，因本批改动面跨三个文件）——**超过即红**。
+     · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（本批无新文件）；
+       **biggestGzKB 不升**：app.js 一个字节没动（js/subtitle.js 由 19,877B → 24,952B gzip，
+       是最大单文件之外的第二档，budget 只盯最大单文件，故此项不触发）。
+     · 已守单一数据源：`abTick` 调用点仍 1 处、`abWindowOf` 定义仍 1 处、绘制仍只有 drawWave 一份、
+       subtitle.js 仍无 getContext；新增的只有“哪两个秒数”和“存不存下来”。 */
 const BUDGET = {
-  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P21 批无新脚本、请求数不变）
-  gzTotalKB: 851,        // 实测 848.36KiB（P27：今日页补「计划与打卡」「全站地图」页内出口）
-  biggestGzKB: 114       // 实测 app.js 113.94KB（本批未改动 app.js）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P30 批无新脚本、请求数不变）
+  gzTotalKB: 860,        // 实测 856.66KiB（P30 音块级精听：subtitle.js +5.08KB / style.css +6 行）
+  biggestGzKB: 114       // 实测 app.js 113.75KB（本批未改动 app.js）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

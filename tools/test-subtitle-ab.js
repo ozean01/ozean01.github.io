@@ -137,7 +137,11 @@ ok("waveSegRange 只有 1 个函数定义", countP(/waveSegRange = function/g) =
 ok("drawWave 只有 1 个绘制实现", countP(/function drawWave\(/g) === 1, "n=" + countP(/function drawWave\(/g));
 ok("drawWave 只有 1 个调用点（定义 1 + 调用 1）", countP(/return drawWave\(/g) === 1, "调用点 " + countP(/return drawWave\(/g) + " 处");
 ok("subtitle.js 不自己画 canvas（绘制唯一在 player.js）", !/getContext\(/.test(src));
-ok("subtitle.js 只传时间区间，不传像素", /seg:\s*\{\s*start:\s*cue\.start,\s*end:\s*cue\.end\s*\}/.test(src));
+/* 意图不变（只传时间区间、不传像素），基线随 P30 打点更新：
+   seg 的端点从「整句」改为「有打点用打点、否则整句」——传的仍然是秒，不是像素。 */
+ok("subtitle.js 只传时间区间，不传像素（P30 打点后仍是秒）",
+  /seg:\s*\{\s*start:\s*w \? w\.a : cue\.start,\s*end:\s*w \? w\.b : cue\.end\s*\}/.test(src) &&
+  !/x0:|x1:/.test(src));
 ok("waveform 签名向后兼容（录音回放仍可不传 opts）", /Player\.waveform = function \(url, canvas, opts\)/.test(playerSrc));
 
 /* 接线 */
@@ -241,6 +245,81 @@ ok("点输入框 → 解析为输入框动作（不得触发行播放）", aInpu
 ok("点普通行 → null（原有行播放路径完全不受影响）", t.noteActionOf(el({ "data-idx": 3 })) === null);
 ok("点生词 → null（原有查词路径不受影响）", t.noteActionOf(el({ "data-w": "price" }, rowEl)) === null);
 ok("noteActionOf 容错：null / 无 closest 不抛错", t.noteActionOf(null) === null && t.noteActionOf({}) === null);
+
+console.log("\n---- ✂️ T4 音块打点 + 片段库（P30）----");
+
+/* ⓪ 纯函数在测试钩子上暴露 */
+ok("_t 暴露 clampToCue", typeof t.clampToCue === "function");
+ok("_t 暴露 clipOk", typeof t.clipOk === "function");
+ok("_t 暴露 loadClips（读盘净化）", typeof t.loadClips === "function");
+ok("_t 暴露 clipsOfFile（只列本集）", typeof t.clipsOfFile === "function");
+ok("_t 暴露 cueIdxOfKey（片段 → 句子定位）", typeof t.cueIdxOfKey === "function");
+ok("_t 暴露 CLIP_MAX / CLIP_MAX_LEN", t.CLIP_MAX === 200 && t.CLIP_MAX_LEN === 30);
+
+/* ① 打点必须夹进本句：波形上点到隔壁句子，不得把窗口挪出这句 */
+ok("clampToCue 下夹到句首", t.clampToCue(1, { start: 5, end: 8 }) === 5);
+ok("clampToCue 上夹到句末", t.clampToCue(20, { start: 5, end: 8 }) === 8);
+const cw = t.abWindowOf({ start: 5, end: 8 }, 1, 20);
+ok("越界打点被夹进本句（不会变成上一句尾巴+这一句头）", cw && cw.a === 5 && cw.b === 8, JSON.stringify(cw));
+const cw2 = t.abWindowOf({ start: 5, end: 8 }, 5.5, 6.2);
+ok("句内打点原样生效", cw2 && cw2.a === 5.5 && cw2.b === 6.2, JSON.stringify(cw2));
+
+/* ② 单一数据源：窗口算法仍只有一份，回绕判定仍只有一处 */
+ok("abWindowOf 只有 1 个函数定义", count(/function abWindowOf\(/g) === 1);
+ok("abTick 调用点仍为 1 处（打点没有新写回绕判定）", count(/=\s*abTick\(/g) === 1);
+ok("abWindowNow 复用 abWindowOf（不另算一份窗口）",
+  /function abWindowNow\(idx\) \{[\s\S]{0,240}?abWindowOf\(/.test(src));
+ok("toggleAb 用 abWindowNow（不再是整句硬编码）", /const w = abWindowNow\(s\.current\)/.test(src));
+ok("playCue 换句用 abWindowNow", /if \(s\.ab\) \{ const w = abWindowNow\(idx\)/.test(src));
+ok("换句清掉上一句的打点（打点属于句身份）", /if \(s\.marks && s\.marks\.idx !== idx\) s\.marks = null;/.test(src));
+ok("换字幕/远程载入都清打点", count(/state\.marks = null;/g) >= 2, "n=" + count(/state\.marks = null;/g));
+
+/* ③ 像素→秒的唯一逆映射在 player.js（subtitle 不自己算时间） */
+ok("Player 暴露 waveTimeAt（waveSegRange 的逆）", typeof P.waveTimeAt === "function");
+const back = P.waveTimeAt(480, 960, 120);
+ok("waveTimeAt 中点 = 时长一半", Math.abs(back - 60) < 1e-9, String(back));
+ok("waveTimeAt 夹取端点（不得越过媒资时长）", P.waveTimeAt(-10, 960, 100) === 0 && P.waveTimeAt(2000, 960, 100) === 100);
+ok("waveTimeAt 非法输入 → null",
+  P.waveTimeAt("5", 960, 100) === null && P.waveTimeAt(5, 0, 100) === null && P.waveTimeAt(5, 960, 0) === null);
+const roundTrip = P.waveTimeAt(P.waveSegRange(25, 40, 100, 1000).x0, 1000, 100);
+ok("逆映射与 waveSegRange 同一口径（往返不漂 > 0.1s）", Math.abs(roundTrip - 25) <= 0.1, String(roundTrip));
+ok("subtitle.js 走 Player.waveTimeAt 换算，不自己乘时长", /Player\.waveTimeAt/.test(src));
+
+/* ④ 片段库：只存时间点，脏值必须被净化（备份文件是外部输入） */
+ok("clipOk 正常段通过", t.clipOk(1, 2.2) === true);
+ok("clipOk 拒绝零/负长度", t.clipOk(2, 2) === false && t.clipOk(3, 2) === false);
+ok("clipOk 拒绝超长（>30 秒不是音块）", t.clipOk(0, t.CLIP_MAX_LEN + 0.1) === false);
+ok("clipOk 拒绝非数字与负起点", t.clipOk("1", 2) === false && t.clipOk(-1, 2) === false && t.clipOk(1, NaN) === false);
+ok("片段只存 a/b/plays/at（不存句子文本，避免两份真相）", /out\[k\] = \{ a: a, b: b, plays:/.test(src));
+ok("读盘净化脏值（范围不对一律丢，不让它变成 currentTime）", /if \(!clipOk\(a, b\)\) return;/.test(src));
+ok("clipsOfFile 只列本集（前缀 = 当前文件名 + @）", /const s = state, pre = String\(fileName \|\| ""\) \+ "@"/.test(src));
+ok("片段身份键复用 cueKeyOf（不另造一套）", /const key = cueKeyOf\(s\.fileName, cue\)/.test(src));
+ok("写入失败明确报错，不假承诺", /片段没能写入本机存储/.test(src));
+ok("片段键字面量只有 1 处（单一来源）", count(/"fte-seg-clips-v1"/g) === 1, "n=" + count(/"fte-seg-clips-v1"/g));
+ok("片段键已在 storage-keys.js 登记（备份才会带上它）", /key:\s*"fte-seg-clips-v1"/.test(skSrc));
+ok("片段键没有被塞进 NON_STORAGE 白名单绕过门禁", secSrc.indexOf("fte-seg-clips-v1") === -1);
+
+/* ⑤ UI 与接线 */
+ok("字幕页有音块卡片", /id="diClipCard"/.test(src));
+ok("有「设 A / 设 B」按钮", /data-clip="markA"/.test(src) && /data-clip="markB"/.test(src));
+ok("有「存片段 / 复位 / 清空」按钮", /data-clip="save"/.test(src) && /data-clip="reset"/.test(src) && /data-clip="clear"/.test(src));
+ok("列表动态重画但走容器事件委托（不逐行绑定，否则重画即失效）", /clipCard\.addEventListener\("click"/.test(src));
+ok("波形点击定位走 onWaveSeek", /if \(wave\) wave\.addEventListener\("click", onWaveSeek\)/.test(src));
+ok("片段文本与键都经 esc 后才进 innerHTML", /esc\(txt\)/.test(src) && /esc\(c\.key\)/.test(src));
+ok("新控件无内联事件处理器（严格 CSP）", !/onclick=/.test(src) && !/onchange=/.test(src));
+ok("无媒资时明说打点不可用（不假装能抠合成音）", /TTS 朗读没有时间轴可抠/.test(src));
+ok("A/B 竖线交给唯一绘制实现（marks 传参，subtitle 不画 canvas）",
+  /marks: marks/.test(src) && /Array\.isArray\(o\.marks\)/.test(playerSrc) && !/getContext\(/.test(src));
+ok("打点后 A-B 按钮文案跟着变（不是永远写「本句」）", /复读这一小段（A→B）/.test(src));
+ok("片段命中次数有上限（9999，防脏值撑爆渲染）", /Math\.min\(9999/.test(src));
+ok("打点即改按钮文案（不等 A-B 开关才改）", /if \(s\.ab && w\) \{ s\.ab\.a = w\.a; s\.ab\.b = w\.b; \}\s*\n\s*applyAbDom\(\);/.test(src));
+/* 真机烟测脚本必须在（它守的是纯逻辑测不到的那类静默失败：fetch(blob:) 被 CSP 挡掉）。
+   ⚠️ 不进 npm test（无浏览器环境不得判红），但**不许被悄悄删掉**。 */
+const smokePath = path.join(ROOT, "tools", "smoke-p30-clips.js");
+ok("真机烟测脚本 tools/smoke-p30-clips.js 存在（不接入 npm test，但缺了要报）", fs.existsSync(smokePath));
+ok("烟测脚本在找不到浏览器时安全跳过（不把环境缺失当失败）", fs.existsSync(smokePath) && /没有找到 Chrome\/Edge/.test(fs.readFileSync(smokePath, "utf8")));
+ok("烟测脚本只在本次运行内造媒资，不写进仓库（临时 profile + 内存 WAV）",
+  fs.existsSync(smokePath) && /dsh-p30-profile-/.test(fs.readFileSync(smokePath, "utf8")));
 
 console.log("\nRESULT: pass=" + pass + " fail=" + fail);
 process.exit(fail ? 1 : 0);

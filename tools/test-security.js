@@ -92,6 +92,14 @@ check("CSP 的 script-src 不含 'unsafe-inline'（否则注入的内联处理�
   !!csp && !/script-src[^;]*'unsafe-inline'/.test(csp));
 check("CSP 的 script-src 允许自身与外置 vendor 源", !!csp && /script-src[^;]*'self'/.test(csp) && /script-src[^;]*cdn\.jsdelivr\.net/.test(csp));
 check("CSP 保留 wasm（音素 IPA 需要）", !!csp && /'wasm-unsafe-eval'/.test(csp));
+/* ★ connect-src 必须显式含 blob: —— 2026-11-19 真机实测抓到的静默失败：
+   本地媒资（<input type=file>）拿到的是 blob: URL，字幕页的「原声波形」要
+   fetch(blob:) 再 decodeAudioData 才能画；而 CSP 的 `*` **只匹配网络 scheme**
+   （http/https/ws/wss），**不匹配 blob:**——于是波形永远走进「解不出音轨」那条降级文案，
+   看起来像"这个文件没音轨"，其实是被 CSP 挡了，且控制台只有一条 net::ERR 级别的拒绝。
+   blob: URL 由本页自己 createObjectURL 产生、天然同源，放开它不扩大攻击面。 */
+check("CSP 的 connect-src 显式允许 blob:（本地媒资波形要 fetch(blob:) 解码；`*` 不匹配 blob:）",
+  !!csp && /connect-src[^;]*blob:/.test(csp));
 /* ★ script-src 不含 'unsafe-eval' —— 这条守卫的历史值得留一行，免得有人"顺手加回来"：
    本站 2026-10-11 一度集成本地离线识别（vosk-browser），它的 Kaldi 引擎跑在 **blob: Worker** 里，
    而 blob Worker **继承本文档的 CSP**；worker 内的 Emscripten 胶水要执行字符串形式的 JS，

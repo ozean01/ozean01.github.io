@@ -39,11 +39,13 @@
   const AB_SLOW_RATE = 0.75; // 复读慢速（听不清时先降速听顺，再回原速）
 
   /* 纯函数：由 cue 算出循环窗口。markA / markB 为可选手动标记（秒），未给则用整句。
-     返回 { a, b }（已夹取到合法区间）；cue 无效返回 null。 */
+     打点一律**夹进本句区间**：波形上点到隔壁句子也不得把窗口挪出这句，否则循环会
+     悄悄变成"上一句尾巴 + 这一句头"。返回 { a, b }（已夹取到合法区间）；cue 无效返回 null。 */
+  function clampToCue(v, cue) { return Math.max(cue.start, Math.min(cue.end, v)); }
   function abWindowOf(cue, markA, markB) {
     if (!cue || typeof cue.start !== "number" || typeof cue.end !== "number") return null;
-    let a = (typeof markA === "number" && isFinite(markA)) ? markA : cue.start;
-    let b = (typeof markB === "number" && isFinite(markB)) ? markB : cue.end;
+    let a = (typeof markA === "number" && isFinite(markA)) ? clampToCue(markA, cue) : cue.start;
+    let b = (typeof markB === "number" && isFinite(markB)) ? clampToCue(markB, cue) : cue.end;
     if (a < 0) a = 0;
     if (b < a + AB_MIN) b = a + AB_MIN;
     return { a: a, b: b };
@@ -91,6 +93,87 @@
     catch (e) { return false; }
   }
 
+  /* ---------------- ✂️ 音块片段库（P30 · 波形上点 A/B + 存下"我卡的那 1–2 秒"） ----------------
+     为什么补它：站内 A-B 原本只能整句循环，而外贸听力的丢单点常在「词缝里那一小段」
+     （thickness/sickness、连读弱读、数字与交期的吞音）；整句 3–5 秒一起磨，听了前面忘后面。
+     三条约束（与 📝 逐句笔记同一套口径，别各写一份）：
+       · 身份键**复用 cueKeyOf**（文件名 + 起始秒）：下标会在换字幕/重排后串位，串位比不存更糟；
+       · 打点只是 abWindowOf 的可选覆盖参数（markA/markB），**不新写第二份窗口算法与回绕判定**；
+       · 只存时间点与命中次数，**不存句子文本**（文本永远从 cues 取，避免两份真相）。
+     ⚠️ 学理边界：音块只在**真实媒资**上成立。TTS 按拼写读、念不出真连读，把合成音慢放
+     只是"更假的朗读"——所以没有媒资时打点直接说明不可用，不假装能抠。 */
+  const CLIPS_KEY = "fte-seg-clips-v1";
+  const CLIP_MAX = 200;      // 上限：片段库是"回看卡点"，不是素材仓库
+  const CLIP_MAX_LEN = 30;   // 单段上限（秒）：超过 30 秒就不是音块了，该用整句 A-B
+
+  function clipOk(a, b) {
+    return typeof a === "number" && typeof b === "number" && isFinite(a) && isFinite(b) &&
+      a >= 0 && b > a && (b - a) <= CLIP_MAX_LEN;
+  }
+  /* 读盘一律净化：备份文件是**外部输入**，脏值绝不能变成 currentTime（同 export.js 的字段级校验口径） */
+  function loadClips() {
+    try {
+      const raw = localStorage.getItem(CLIPS_KEY);
+      const o = raw ? JSON.parse(raw) : null;
+      if (!o || typeof o !== "object" || Array.isArray(o)) return {};
+      const out = {};
+      let n = 0;
+      Object.keys(o).forEach(function (k) {
+        const v = o[k];
+        if (n >= CLIP_MAX || !v || typeof v !== "object") return;
+        const a = Number(v.a), b = Number(v.b);
+        if (!clipOk(a, b)) return;
+        out[k] = { a: a, b: b, plays: Math.max(0, Math.min(9999, Number(v.plays) || 0)), at: Number(v.at) || 0 };
+        n++;
+      });
+      return out;
+    } catch (e) { return {}; }
+  }
+  function saveClips() {
+    try { localStorage.setItem(CLIPS_KEY, JSON.stringify(state.clips || {})); return true; }
+    catch (e) { return false; }
+  }
+  /* 存一段（同一句再存即覆盖）；超上限按"最久没碰过的先丢"，不静默丢新的 */
+  function clipPut(key, a, b) {
+    const s = state;
+    const old = s.clips[key];
+    s.clips[key] = { a: a, b: b, plays: (old && old.plays) || 0, at: Date.now() };
+    const keys = Object.keys(s.clips);
+    if (keys.length > CLIP_MAX) {
+      keys.sort(function (x, y) { return (s.clips[x].at || 0) - (s.clips[y].at || 0); });
+      keys.slice(0, keys.length - CLIP_MAX).forEach(function (k) { delete s.clips[k]; });
+    }
+  }
+  /* 只列"本集"的片段：跨集混在一起会让人点开才发现句子不在当前字幕里 */
+  function clipsOfFile(fileName) {
+    const s = state, pre = String(fileName || "") + "@";
+    const out = [];
+    Object.keys(s.clips).forEach(function (k) {
+      if (k.indexOf(pre) !== 0) return;
+      const v = s.clips[k];
+      if (!v || !clipOk(v.a, v.b)) return;
+      out.push({ key: k, a: v.a, b: v.b, plays: v.plays || 0 });
+    });
+    out.sort(function (x, y) { return x.a - y.a; });
+    return out;
+  }
+  function cueIdxOfKey(key) {
+    const s = state;
+    for (let i = 0; i < s.cues.length; i++) if (cueKeyOf(s.fileName, s.cues[i]) === key) return i;
+    return -1;
+  }
+  /* 手动打点只对"这一句"有效：句身份变了，那两个秒数就不再对应同一段话 */
+  function marksOf(idx) {
+    const m = state.marks;
+    return (m && m.idx === idx) ? m : null;
+  }
+  function abWindowNow(idx) {
+    const cue = state.cues[idx];
+    if (!cue) return null;
+    const m = marksOf(idx);
+    return abWindowOf(cue, m && m.a, m && m.b);
+  }
+
   /* loadRemote: 播客导入（js/podcast.js）把「远程音频 URL + 字幕文本」交给本页同一套渲染/播放逻辑。
      toast: 供其它模块复用本页提示样式（避免各写一套）。 */
   window.Subtitle = {
@@ -103,7 +186,10 @@
     toSec: toSec, parseSubtitle: parseSubtitle, diff: diff, coloredText: coloredText, guessFormat: guessFormat,
     hasCJK: hasCJK, splitBilingual: splitBilingual, buildCue: buildCue,
     modeOrder: MODE_ORDER, modeHint: modeHint, effModeOf: effModeOf,
-    abWindowOf: abWindowOf, abTick: abTick, AB_MIN: AB_MIN,
+    abWindowOf: abWindowOf, abTick: abTick, AB_MIN: AB_MIN, AB_SLOW_RATE: AB_SLOW_RATE,
+    clampToCue: clampToCue, marksOf: marksOf, abWindowNow: abWindowNow,
+    clipOk: clipOk, loadClips: loadClips, clipsOfFile: clipsOfFile, clipPut: clipPut,
+    cueIdxOfKey: cueIdxOfKey, CLIPS_KEY: CLIPS_KEY, CLIP_MAX: CLIP_MAX, CLIP_MAX_LEN: CLIP_MAX_LEN,
     cueKeyOf: cueKeyOf, noteOf: noteOf, NOTE_MAX: NOTE_MAX, noteActionOf: noteActionOf
   };
   const state = window.Subtitle.state = {
@@ -113,6 +199,8 @@
     mode: loadMode(),        // "" = 自动（有中文轨→全部，否则→英语）
     revealed: {},            // 中文档下「已对照英文」的句子下标（本次载入内有效）
     ab: null,                // 🔂 A-B 复读状态：{ a, b, idx, slow, seq }；null = 关闭
+    marks: null,             // ✂️ 当前句的手动打点：{ idx, a, b }；null = 未打点（窗口退回整句）
+    clips: loadClips(),      // ✂️ 片段库：{ [cueKey]: { a, b, plays, at } }，跨字幕载入保留
     notes: loadNotes(),      // 📝 逐句笔记：{ [cueKey]: 文本 }，跨字幕载入保留
     noteOpen: -1             // 正在编辑笔记的句子下标（-1 = 没有）
   };
@@ -544,6 +632,23 @@
       </div>
     </div>
 
+    <div class="card" id="diClipCard" style="margin-top:8px;padding:12px 14px" ${s.cues.length ? "" : "hidden"}>
+      <div class="sub-modes-row">
+        <b style="font-size:13px">✂️ 音块精听</b>
+        <button class="btn btn-outline btn-sm" data-clip="markA" title="把 A 点设在当前播放位置（先在波形上点一下定位）">⏱ 设 A</button>
+        <button class="btn btn-outline btn-sm" data-clip="markB" title="把 B 点设在气口处；A→B 之间就是循环窗口">⏱ 设 B</button>
+        <button class="btn btn-primary btn-sm" data-clip="save" disabled title="把 A→B 这一段存进片段库，下次点它直接回到这里">💾 存片段</button>
+        <button class="btn btn-outline btn-sm" data-clip="reset" title="清掉打点，A-B 回到整句">↺ 复位整句</button>
+        <span class="field-note" id="diClipNote"></span>
+      </div>
+      <div class="sub-modes-row" style="margin-top:10px">
+        <b style="font-size:13px" id="diClipSum">✂️ 我的片段</b>
+        <button class="btn btn-outline btn-sm" data-clip="clear">🗑 清空本集</button>
+        <span class="field-note">存的是「哪一秒到哪一秒」，不存句子：换字幕不串位，句子对不上时会明说。</span>
+      </div>
+      <div id="diClipList"></div>
+    </div>
+
     <div class="card" style="margin-top:12px;padding:12px">
       <button class="btn btn-soft btn-sm" id="diPlay" data-pl="play">▶ 播放当前句</button>
       <button class="btn btn-soft btn-sm" id="diPrev" data-pl="prev">⏮ 上一句</button>
@@ -653,8 +758,28 @@
       /* 重新渲染会重建 <video>：A-B 复读若仍在进行，把倍速恢复回去（否则慢速复读静默变原速） */
       if (s.ab) { try { s.mediaEl.playbackRate = s.ab.slow ? AB_SLOW_RATE : 1; } catch (_) { /* ignore */ } }
     }
+    /* ✂️ 音块：波形点击定位 + 打点/片段。列表是动态重画的（innerHTML 整块替换），
+       所以走「容器上的事件委托」而不是逐行绑定——否则重画一次就全失效。
+       打点/复位复用 A-B 的同一窗口函数，不新写循环、不新写第二条播放路径。 */
+    const wave = document.getElementById("diWave");
+    if (wave) wave.addEventListener("click", onWaveSeek);
+    const clipCard = document.getElementById("diClipCard");
+    if (clipCard) clipCard.addEventListener("click", function (e) {
+      const hit = e.target && e.target.closest ? e.target.closest("[data-clip]") : null;
+      if (!hit) return;
+      const k = hit.getAttribute("data-clip"), key = hit.getAttribute("data-key");
+      if (k === "markA") setMark("a");
+      else if (k === "markB") setMark("b");
+      else if (k === "save") saveClip();
+      else if (k === "reset") { s.marks = null; applyAbDom(); renderClipBar(); toastMsg("↺ 已复位：A-B 回到整句"); }
+      else if (k === "play") playClip(key);
+      else if (k === "del") delClip(key);
+      else if (k === "clear") clearClips();
+    });
     applyAbDom();
     if (s.mediaUrl && !s.mediaRemote) drawSrcWave();   // 重建后补画原声波形（本地媒资才解码；远程跨域已禁用，见 drawSrcWave）
+    renderClipNote();
+    renderClipList();
 
     /* 🎙 播客导入（第 1 批）：入口挂在字幕页顶部，不新增导航/路由。
        模块只负责「链接 → 音频 URL + 字幕文本」，渲染与播放复用本页。 */
@@ -688,6 +813,7 @@
   function onTime() {
     const s = state;
     const t = s.mediaEl ? s.mediaEl.currentTime : 0;
+    renderClipNote();   // 只改一行文字，不重画波形（波形在换句/打点时才重画）
     /* 🔂 A-B 复读优先于句末暂停：到 B 立即回到 A，不参与点读/连播推进。
        判定只有 abTick 一处；这里只负责执行回绕。 */
     if (s.ab && s.mediaEl) {
@@ -733,6 +859,7 @@
       state.revealed = {};   /* 换字幕即清空「已对照」标记 */
       state.noteOpen = -1;   /* 收起笔记编辑器（笔记本身按 文件名+起始秒 存，换字幕必须在） */
       stopAb(true);          /* 换字幕 = 换句身份，旧的 A-B 窗口不再成立，静默关闭 */
+      state.marks = null;    /* 同上：打点属于旧字幕的句身份 */
       toastMsg("✓ 已载入 " + cues.length + " 句字幕：" + file.name +
         (cues.some(function (c) { return c.zh; }) ? "（识别到中英双语轨）" : ""));
       render();
@@ -777,6 +904,7 @@
     state.revealed = {};
     state.noteOpen = -1;
     stopAb(true);
+    state.marks = null;
     state.mediaUrl = String(o.audioUrl || "").trim() || null;
     state.mediaRemote = !!state.mediaUrl;
     state.remoteNotice = cues.length ? "" :
@@ -811,8 +939,10 @@
     if (idx < 0 || !s.cues.length) return;
     const cue = s.cues[idx];
     s.current = idx;
-    /* A-B 复读进行中：换句即换窗口（窗口始终由 cue 派生，不另做一套定位逻辑） */
-    if (s.ab) { const w = abWindowOf(cue); if (w) { s.ab.a = w.a; s.ab.b = w.b; s.ab.idx = idx; } }
+    /* 换句即失效：打点属于上一句，带过去就变成"两句拼一段" */
+    if (s.marks && s.marks.idx !== idx) s.marks = null;
+    /* A-B 复读进行中：换句即换窗口（窗口始终由 cue + 本句打点派生，不另做一套定位逻辑） */
+    if (s.ab) { const w = abWindowNow(idx); if (w) { s.ab.a = w.a; s.ab.b = w.b; s.ab.idx = idx; } }
     highlightCue(idx);
     updateCounter();
     if (s.mediaEl && s.mediaUrl && typeof s.mediaEl.currentTime === "number") {
@@ -874,7 +1004,7 @@
     if (s.ab) { stopAb(false); return; }
     const cue = s.cues[s.current];
     if (!cue) { toastMsg("先点一句开始点读，再开 A-B 复读"); return; }
-    const w = abWindowOf(cue);
+    const w = abWindowNow(s.current);
     if (!w) return;
     s.ab = { a: w.a, b: w.b, idx: s.current, slow: !!slow, seq: 0 };
     s.auto = false;          // 互斥：关掉连播，避免两套推进逻辑抢同一个 timeupdate
@@ -908,13 +1038,140 @@
     const ab = document.querySelector('#app [data-pl="ab"]');
     if (ab) {
       ab.classList.toggle("cur", !!s.ab);
-      ab.textContent = s.ab ? "🔂 A-B 复读中（点此关闭）" : "🔂 A-B 复读本句";
+      const marked = !!(marksOf(s.current));
+      ab.textContent = s.ab ? "🔂 A-B 复读中（点此关闭）" : (marked ? "🔂 复读这一小段（A→B）" : "🔂 A-B 复读本句");
+      ab.title = marked
+        ? "按你打的 A/B 循环这一小段；点「↺ 复位整句」可退回整句"
+        : "同一句循环复读：播到句末自动回到句首，适合抠报价/交期/异议处理的节奏";
     }
     const slow = document.querySelector('#app [data-pl="ab-slow"]');
     if (slow) {
       slow.classList.toggle("cur", !!(s.ab && s.ab.slow));
       slow.textContent = (s.ab && s.ab.slow) ? "🐢 慢速复读中" : "🐢 慢速 0.75x";
     }
+  }
+
+  /* ---------------- ✂️ 音块：打点 / 存片段 / 片段列表 ----------------
+     全部动作都经由既有窗口函数（abWindowOf）与既有播放路径（playCue / toggleAb）——
+     这里只负责"把哪两个秒数交给它们"，不新写循环、不新写第二条播放路径。 */
+  function clipNoteText() {
+    const s = state;
+    const cue = s.cues[s.current];
+    const m = marksOf(s.current);
+    const pos = (s.mediaEl && isFinite(s.mediaEl.currentTime)) ? fmtSec(s.mediaEl.currentTime) : "--";
+    if (!cue) return "点一句字幕再开始。";
+    if (!s.mediaUrl) return "音块打点需要真实音/视频：TTS 按拼写读、念不出真连读，慢放合成音没有意义。";
+    if (!m) return "当前 " + pos + " · 点波形定位 →「设 A」→ 播到气口 →「设 B」，循环窗口就是 A→B";
+    return "当前 " + pos + " · A " + (m.a == null ? "未设" : fmtSec(m.a)) + " · B " + (m.b == null ? "未设" : fmtSec(m.b)) +
+      (m.a != null && m.b != null ? "（窗口 " + (m.b - m.a).toFixed(2) + " 秒）" : "");
+  }
+  function renderClipNote() {
+    const el = document.getElementById("diClipNote");
+    if (el) el.textContent = clipNoteText();
+    const save = document.querySelector('#app [data-clip="save"]');
+    const m = marksOf(state.current);
+    if (save) save.disabled = !(m && m.a != null && m.b != null);
+  }
+  function renderClipBar() { renderClipNote(); drawSrcWave(); }
+
+  function setMark(which) {
+    const s = state;
+    const cue = s.cues[s.current];
+    if (!cue) { toastMsg("先点一句字幕开始点读"); return; }
+    if (!s.mediaEl || !s.mediaUrl) { toastMsg("音块打点需要真实音/视频 —— TTS 朗读没有时间轴可抠"); return; }
+    const t = Number(s.mediaEl.currentTime);
+    if (!isFinite(t)) return;
+    const cur = marksOf(s.current);
+    const mark = { idx: s.current, a: cur ? cur.a : null, b: cur ? cur.b : null };
+    if (which === "a") mark.a = clampToCue(t, cue); else mark.b = clampToCue(t, cue);
+    /* A 必须早于 B：顺序反了就清掉旧的那个点，而不是偷偷交换（交换会让人以为点对了） */
+    if (mark.a != null && mark.b != null && mark.b <= mark.a) {
+      if (which === "a") mark.b = null; else mark.a = null;
+      toastMsg("⚠️ B 要晚于 A —— 已清掉反序的那个点，请重设");
+    }
+    s.marks = mark;
+    const w = abWindowOf(cue, mark.a, mark.b);
+    if (s.ab && w) { s.ab.a = w.a; s.ab.b = w.b; }
+    applyAbDom();       /* 打点后 A-B 按钮要立刻改成「复读这一小段」——不等开关打开才改 */
+    renderClipBar();
+  }
+
+  function saveClip() {
+    const s = state;
+    const cue = s.cues[s.current];
+    const m = marksOf(s.current);
+    if (!cue) return;
+    if (!m || m.a == null || m.b == null) { toastMsg("先设 A 和 B 再存 —— 存的是「这一段」，不是整句"); return; }
+    const w = abWindowOf(cue, m.a, m.b);
+    const key = cueKeyOf(s.fileName, cue);
+    if (!w || !key || !clipOk(w.a, w.b)) { toastMsg("这一段超出可存范围（最长 " + CLIP_MAX_LEN + " 秒，或字幕没载入文件名），没有存"); return; }
+    clipPut(key, w.a, w.b);
+    if (!saveClips()) { toastMsg("⚠️ 片段没能写入本机存储（隐私模式或空间已满）—— 先导出备份再试"); return; }
+    renderClipList();
+    toastMsg("✂️ 已存 " + fmtSec(w.a) + "–" + fmtSec(w.b) + "（" + (w.b - w.a).toFixed(2) + " 秒）");
+  }
+
+  function delClip(key) { delete state.clips[key]; saveClips(); renderClipList(); renderClipNote(); }
+  function clearClips() {
+    const list = clipsOfFile(state.fileName);
+    list.forEach(function (c) { delete state.clips[c.key]; });
+    saveClips(); renderClipList();
+    toastMsg(list.length ? "已清空本集 " + list.length + " 个片段" : "本集还没有片段");
+  }
+  /* 点片段 ▶：恢复打点 → 走既有 playCue → 确保 A-B 开着（与手点 A-B 完全同一条路径） */
+  function playClip(key) {
+    const s = state;
+    const idx = cueIdxOfKey(key);
+    const v = s.clips[key];
+    if (idx < 0 || !v) { toastMsg("这个片段对应的句子不在当前字幕里（换过字幕？）—— 时间点还在，但没法定位到句"); return; }
+    s.marks = { idx: idx, a: v.a, b: v.b };
+    playCue(idx);
+    if (!s.ab) toggleAb(false);
+    s.clips[key].plays = Math.min(9999, (v.plays || 0) + 1);
+    saveClips();
+    renderClipList(); renderClipNote(); applyAbDom();
+  }
+
+  function renderClipList() {
+    const box = document.getElementById("diClipList");
+    if (!box) return;
+    const s = state;
+    const list = clipsOfFile(s.fileName);
+    const all = Object.keys(s.clips).length;
+    const sum = document.getElementById("diClipSum");
+    if (sum) sum.textContent = "✂️ 我的片段（本集 " + list.length + " 条" + (all > list.length ? " · 全部 " + all + " 条" : "") + "）";
+    if (!list.length) {
+      box.innerHTML = '<div class="field-note">还没有片段。用法：点波形定位 →「设 A」→ 播到气口 →「设 B」→「💾 存片段」。整句 3–5 秒一起磨容易听了前面忘后面，1–2 秒一段才记得住。</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (c) {
+      const idx = cueIdxOfKey(c.key);
+      const full = idx >= 0 ? String(s.cues[idx].text || "") : "";
+      const txt = full ? (full.length > 40 ? full.slice(0, 40) + "…" : full) : "（句子不在当前字幕）";
+      return '<div class="sub-clip">' +
+        '<span class="sub-clip-t">' + fmtSec(c.a) + "–" + fmtSec(c.b) + "</span>" +
+        '<span class="sub-clip-x">' + esc(txt) + "</span>" +
+        '<span class="field-note">' + (c.plays || 0) + ' 次</span>' +
+        '<button class="btn btn-primary btn-sm" data-clip="play" data-key="' + esc(c.key) + '">▶ 练</button>' +
+        '<button class="btn btn-outline btn-sm" data-clip="del" data-key="' + esc(c.key) + '" title="删除这个片段">✕</button>' +
+        "</div>";
+    }).join("");
+  }
+
+  /* 波形点一下 = 跳到那个位置（不是直接打点：先听准，再设 A/B，避免误点就改窗口）。
+     像素→秒走 Player.waveTimeAt（与 waveSegRange 同一套口径的唯一逆映射），这里不自己算时间。 */
+  function onWaveSeek(e) {
+    const s = state;
+    if (!s.mediaEl || !(s.mediaEl.duration > 0)) return;
+    const cv = e.currentTarget;
+    const W = cv.width || 960;
+    const rect = cv.getBoundingClientRect ? cv.getBoundingClientRect() : null;
+    if (!rect || !(rect.width > 0)) return;
+    const t = (window.Player && window.Player.waveTimeAt)
+      ? window.Player.waveTimeAt((e.clientX - rect.left) / rect.width * W, W, s.mediaEl.duration) : null;
+    if (t == null) return;
+    try { s.mediaEl.currentTime = t; } catch (_) { /* ignore */ }
+    renderClipNote();
   }
 
   /* ---------------- 🌊 原声波形对照（P8 · 借鉴 English Anchor 的波形对照） ----------------
@@ -944,9 +1201,15 @@
     }
     const P = window.Player;
     if (!P || !P.waveform) { note.textContent = "当前环境不支持波形绘制 —— 不影响逐句点读。"; return; }
+    /* 高亮带 = 真正在循环的窗口（有打点就是 A→B，没打点就是整句）；A/B 竖线另画在上面 */
+    const m = marksOf(s.current);
+    const w = abWindowOf(cue, m && m.a, m && m.b);
+    const marks = [];
+    if (m && m.a != null) marks.push({ t: m.a, label: "A" });
+    if (m && m.b != null) marks.push({ t: m.b, label: "B" });
     const my = ++waveSeq;
-    const label = "灰色高亮 = 第 " + (s.current + 1) + " 句（" + fmtSec(cue.start) + "–" + fmtSec(cue.end) + "）；下方可对照你的录音波形。";
-    P.waveform(s.mediaUrl, cv, { color: "#94a3b8", seg: { start: cue.start, end: cue.end } })
+    const label = (w && (m && m.a != null) ? "橙色 = 你打的 A/B（" + fmtSec(w.a) + "–" + fmtSec(w.b) + "，循环这一段）" : "灰色高亮 = 第 " + (s.current + 1) + " 句（" + fmtSec(cue.start) + "–" + fmtSec(cue.end) + "）") + "；下方可对照你的录音波形。";
+    P.waveform(s.mediaUrl, cv, { color: "#94a3b8", seg: { start: w ? w.a : cue.start, end: w ? w.b : cue.end }, marks: marks })
       .then(function (drawn) {
         if (my !== waveSeq) return;   // 已有更新的一次重画在跑，放弃这次结果
         note.textContent = drawn

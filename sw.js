@@ -11,7 +11,13 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v158";   /* ★ v1.39.0 导航直观/美观/条理改造（P29 · 2026-11-15）：
+const CACHE = "fte-v159";   /* ★ v1.40.0 音块级精听（P30 · 2026-11-19）：
+                              · js/subtitle.js：波形上点 A/B 打点（复用 abWindowOf 的 markA/markB）
+                                + ✂️ 片段库（键 fte-seg-clips-v1，按 文件名+起始秒，最多 200 条）；
+                              · js/player.js：新增 waveTimeAt（waveSegRange 的逆映射）+ 波形画 A/B 竖线；
+                              · css/style.css：.sub-clip 片段行样式；js/storage-keys.js 登记新键。
+                              本批无新脚本、无新路由、无新导航项；PRECACHE 清单与指纹不变（仍 69 条）。
+                              ── 上一批：v1.39.0 导航直观/美观/条理改造（P29 · 2026-11-15）：
                               · index.html：每个分组加一句面板说明（nav-cap）、每个入口拆成
                                 图标 + 标题（nav-t）+ 一句副标题（nav-d），说·写组内用 nav-sec 分「说/写」两段；
                                 链接数仍是 15、层级仍是 6、data-nav / href 一个没动。
