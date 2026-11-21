@@ -1,7 +1,7 @@
 {
   "units": 19,
-  "vocab": 1000,
-  "ipa": 1000,
+  "vocab": 1023,
+  "ipa": 1023,
   "phrases": 174,
   "dialogs": 47,
   "lines": 451,
@@ -81,8 +81,8 @@
     {
       "id": 13,
       "title": "海运操作与货代术语",
-      "vocab": 52,
-      "ipa": 52
+      "vocab": 75,
+      "ipa": 75
     },
     {
       "id": 14,

@@ -60,7 +60,35 @@
       { w: "direct shipment", ipa: "/dəˈrekt ˈʃɪpmənt/", pos: "n.", cn: "直达船／直达运输（Direct Shipment）", ex: "The customer pays extra for a direct shipment to avoid transshipment damage.", exCn: "客户愿意加钱走直达船，以免中转造成破损。" },
       { w: "multimodal transport", ipa: "/ˌmʌltiˈmoʊdl ˈtrænspɔːt/", pos: "n.", cn: "多式联运（Multimodal Transport）", ex: "Multimodal transport covers sea, rail and truck under one bill of lading.", exCn: "多式联运用一份提单涵盖海运、铁路和卡车。" },
       { w: "miss the cut-off", ipa: "/mɪs ðə ˈkʌt ɔːf/", pos: "v.", cn: "错过截关时间", ex: "If we miss the cut-off, the cargo rolls to next week.", exCn: "一旦错过截关，这批货就要甩到下周。" },
-      { w: "consolidate the cargo", ipa: "/kənˈsɑːlɪdeɪt ðə ˈkɑːrɡoʊ/", pos: "v.", cn: "拼货；集中装运", ex: "We can consolidate the cargo into one container.", exCn: "我们可以把货拼进一个柜。" }
+      { w: "consolidate the cargo", ipa: "/kənˈsɑːlɪdeɪt ðə ˈkɑːrɡoʊ/", pos: "v.", cn: "拼货；集中装运", ex: "We can consolidate the cargo into one container.", exCn: "我们可以把货拼进一个柜。" },
+      /* ---- 船务术语补丁批（2026-11-21）：按 UCP 600 / ICC 单证说明 / 通行实务重建，非搬运第三方清单 ----
+         A 提单种类：每条写清「与普通提单的区别」；依据 UCP 600 第 20/27 条与船公司公开单证说明。 */
+      { w: "original bill of lading", ipa: "/əˈrɪdʒənl bɪl əv ˈleɪdɪŋ/", pos: "n.", cn: "正本提单（承运人签发的全套可转让正本，凭以提货与结汇；与副本的区别：只有正本可提货、可转让）", ex: "Send the three original bills of lading by courier once the balance is paid.", exCn: "收到尾款后，用快递把三份正本提单寄出。" },
+      { w: "copy bill of lading", ipa: "/ˈkɑːpi bɪl əv ˈleɪdɪŋ/", pos: "n.", cn: "副本提单（注明 COPY、不可转让，只作存档或核对；提货必须用正本或电放）", ex: "Keep one copy bill of lading in our export file for the customs audit.", exCn: "留一份副本提单在出口档案里，备海关核查。" },
+      { w: "shipped on board B/L", ipa: "/ˈʃɪpt ɑːn bɔːrd ˌbiː ˈel/", pos: "n.", cn: "已装船提单（承运人证明货物已装上指定船舶，装船日即装运日；UCP 600 第20条项下银行要求）", ex: "The carrier stamped \"shipped on board\" on the bill, so the shipment date is the sixteenth.", exCn: "承运人在提单上盖了「已装船」章，所以装运日是十六日。" },
+      { w: "received for shipment B/L", ipa: "/rɪˈsiːvd fər ˈʃɪpmənt ˌbiː ˈel/", pos: "n.", cn: "待运提单（承运人已收货但尚未装船；必须加注已装船批注才满足 UCP 600 第20条）", ex: "A received for shipment bill needs an on board notation before the bank will accept it.", exCn: "待运提单要加已装船批注，银行才会接受。" },
+      { w: "through B/L", ipa: "/ˌθruː ˌbiː ˈel/", pos: "n.", cn: "联运提单（同一承运人签发、覆盖含转运的全程运输；与普通提单的区别：责任区间延伸到目的港）", ex: "The carrier issued a through bill covering the feeder leg and the mother vessel.", exCn: "承运人签发了覆盖支线船与大船的联运提单。" },
+      { w: "direct B/L", ipa: "/dəˈrekt ˌbiː ˈel/", pos: "n.", cn: "直达提单（同一船舶从装货港直达卸货港、不转船；与联运提单的区别：没有中转段）", ex: "Ask for a direct bill of lading if the buyer cannot accept transshipment.", exCn: "买方不接受转船时，就要求出直达提单。" },
+      { w: "combined transport B/L", ipa: "/kəmˈbaɪnd ˈtrænspɔːrt ˌbiː ˈel/", pos: "n.", cn: "多式联运提单（至少两种运输方式、由多式联运经营人签发并对全程负责；与普通海运提单的区别：责任覆盖陆运段）", ex: "For door delivery we use a combined transport bill covering sea and rail.", exCn: "门到门交货时，我们用覆盖海运和铁路的多式联运提单。" },
+      { w: "liner B/L", ipa: "/ˈlaɪnər ˌbiː ˈel/", pos: "n.", cn: "班轮提单（班轮公司按班轮条款签发的提单，区别于租船合同项下的提单）", ex: "Liner bills are used for our regular weekly service to Hamburg.", exCn: "我们每周到汉堡的班轮服务用班轮提单。" },
+      { w: "clean B/L", ipa: "/kliːn ˌbiː ˈel/", pos: "n.", cn: "清洁提单（提单上没有货物或包装不良的批注；UCP 600 第27条：无此类批注即视为清洁）", ex: "The bank needs a clean bill of lading, so any torn bags must be re-packed before loading.", exCn: "银行要清洁提单，破损的袋子必须在装柜前重新包装。" },
+      { w: "foul (unclean) B/L", ipa: "/faʊl ˌbiː ˈel/", pos: "n.", cn: "不清洁提单（承运人加注货物或包装有缺陷；与清洁提单的区别：银行通常拒收）", ex: "Wet cartons would get us a foul bill, so we always add a moisture barrier.", exCn: "纸箱受潮会被批注成不清洁提单，所以我们一直加防潮层。" },
+      /* B 集装箱与堆场（补站内缺的两类美国航线运输模式） */
+      { w: "mini land bridge (MLB)", ipa: "/ˈmɪni lænd brɪdʒ/", pos: "n.", cn: "小陆桥（先在美西港口卸船，再经铁路或公路转运到内陆或美东，属海陆联运）", ex: "MLB routing via Long Beach is faster than all water for Chicago.", exCn: "到芝加哥走长滩的小陆桥，比全水路快。" },
+      { w: "all water (A/W)", ipa: "/ˌɔːl ˈwɔːtər/", pos: "n.", cn: "全水路（全程海运，例如经巴拿马运河直达美东，不经过陆桥）", ex: "All water is cheaper but takes about a week longer than MLB.", exCn: "全水路便宜，但比小陆桥大约多一周。" },
+      /* C 运费计费与附加费（只写计费基础，不写具体金额或某港费率） */
+      { w: "weight ton (W/T)", ipa: "/ˈweɪt tʌn/", pos: "n.", cn: "重量吨（按重量计费的计量单位，公制为 1000 千克；与尺码吨的区别：只量重量不量体积）", ex: "Resin is charged by weight ton because it is heavy for its volume.", exCn: "树脂按重量吨计费，因为它体积小、分量重。" },
+      { w: "measurement ton (M/T)", ipa: "/ˈmeʒərmənt tʌn/", pos: "n.", cn: "尺码吨（按体积计费，1 立方米；轻泡货用这一档）", ex: "Foam inserts move by measurement ton since one ton takes over three cubic metres.", exCn: "泡沫内衬按尺码吨走，因为一吨要占三立方米以上。" },
+      { w: "weight or measurement (W/M)", ipa: "/ˈweɪt ɔːr ˈmeʒərmənt/", pos: "n.", cn: "重量或尺码（分别按重量与体积算出运费，取大者计费；拼箱常用）", ex: "LCL is quoted per W/M, so we compare the weight and the volume first.", exCn: "拼箱按重量或尺码取大计费，所以先比较重量和体积。" },
+      /* D 装运条款用语（UCP 600 第 3/31 条口径：immediate/prompt 银行不予理会） */
+      { w: "partial shipment", ipa: "/ˈpɑːrʃl ˈʃɪpmənt/", pos: "n.", cn: "分批装运（一张合同或信用证分几次装运；UCP 600 第31(a)：除信用证另有规定，允许分批）", ex: "Partial shipment is allowed, so we can send the first pallet next week.", exCn: "允许分批装运，所以下周可以先发一托。" },
+      { w: "immediate shipment", ipa: "/ɪˈmiːdiət ˈʃɪpmənt/", pos: "n.", cn: "立即装运（装运期用语；UCP 600 第3条规定不宜使用，如使用银行将不予理会——不要自己换算成天数）", ex: "The buyer wrote \"immediate shipment\", but the bank will disregard it; agree on a real date.", exCn: "买方写了「立即装运」，但银行不会理会；还是约定具体日期。" },
+      { w: "prompt shipment", ipa: "/prɑːmpt ˈʃɪpmənt/", pos: "n.", cn: "即期装运（与 immediate shipment 同：UCP 600 第3条下银行不予理会，实务必须写具体最迟装运日）", ex: "Replace \"prompt shipment\" with \"shipment not later than 15 December\".", exCn: "把「即期装运」改成「不迟于 12 月 15 日装运」。" },
+      { w: "optional port", ipa: "/ˈɑːpʃənl pɔːrt/", pos: "n.", cn: "选择港（合同约定可在两三个港口中选一个卸货，通常须在开船前通知）", ex: "The contract gives the buyer optional ports: Rotterdam or Antwerp.", exCn: "合同给买方选择港：鹿特丹或安特卫普。" },
+      { w: "optional charges", ipa: "/ˈɑːpʃənl ˈtʃɑːrdʒɪz/", pos: "n.", cn: "选港费（因选择卸货港或中途改港产生的额外费用，按约定由提出选择的一方承担）", ex: "Optional charges apply if the buyer changes the port after booking.", exCn: "订舱后买方改港，就要收选港费。" },
+      { w: "shipment not later than", ipa: "/ˈʃɪpmənt nɑːt ˈleɪtər ðæn/", pos: "n.", cn: "不迟于…装运（写明最迟装运日的表述；以提单装船日或装运日为准）", ex: "The credit requires shipment not later than 20 November.", exCn: "信用证要求不迟于 11 月 20 日装运。" },
+      { w: "in two equal lots", ipa: "/ɪn ˈtuː ˈiːkwəl lɑːts/", pos: "n.", cn: "平均分两批（分批装运的常见约定：两批数量相同）", ex: "We will ship in two equal lots, one in March and one in April.", exCn: "我们平均分两批，三月一批、四月一批。" },
+      { w: "monthly shipments", ipa: "/ˈmʌnθli ˈʃɪpmənts/", pos: "n.", cn: "分月装运（按月的分批装运安排，合同里常约定每月等量）", ex: "Monthly shipments of one container keep the buyer's stock level steady.", exCn: "每月发一个柜，能让买方库存保持稳定。" }
     ],
     phrases: [
       { p: "book shipping space", cn: "订舱", ex: "Please book shipping space at least ten days before the film reels are ready.", exCn: "请在薄膜卷备好前至少十天订舱。" },

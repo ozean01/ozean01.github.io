@@ -87,6 +87,7 @@ const JOBS = [
   { cmd: "node", args: ["tools/test-p20.js"], gate: true, label: "P20 落地批：AI 周测/材料理解题（延迟答案·只作练习·FACT_GUARD·披露·挂点·CACHE 同步）" },
   { cmd: "node", args: ["tools/test-v130-increment.js"], gate: true, label: "v1.30.0 递增批：同形异音 9 组（GA 音标/例句含词/两读不同）· 计时切后台不计 · 音源 +4 条（https/口径诚实）· 投料口引导 · PRECACHE 69" },
   { cmd: "node", args: ["tools/test-p21.js"], gate: true, label: "P21 通用地基批：插话打断（哨兵默认关·触发先掐朗读）· 卡壳容忍/中英切换透传 · 数据去向隐私口径 · 词族形近按需算（零数据文件/零请求）" },
+  { cmd: "node", args: ["tools/test-shipping-terms.js"], gate: true, label: "船务术语补丁批：U13 +23 条（提单种类/集装箱/计费/装运条款）· GA 音标 · 去重 · 材料错误拒收 · 依据文件 100% · 无金额" },
 ];
 
 let failed = 0;

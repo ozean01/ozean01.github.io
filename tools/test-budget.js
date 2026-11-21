@@ -232,11 +232,22 @@ const kb = function (n) { return Math.round(n / 1024) + "KB"; };
        **biggestGzKB 不升**：app.js 一个字节没动（js/subtitle.js 由 19,877B → 24,952B gzip，
        是最大单文件之外的第二档，budget 只盯最大单文件，故此项不触发）。
      · 已守单一数据源：`abTick` 调用点仍 1 处、`abWindowOf` 定义仍 1 处、绘制仍只有 drawWave 一份、
-       subtitle.js 仍无 getContext；新增的只有“哪两个秒数”和“存不存下来”。 */
+       subtitle.js 仍无 getContext；新增的只有“哪两个秒数”和“存不存下来”。
+    内容批（U13 船务术语，2026-11-21）第十六次上调：gzTotalKB 860 → 862（+2KB，约 +0.23%），理由如下：
+      · 本批是**内容批**：js/data-ocean.js（U13）追加 23 条船务术语——提单种类 10、箱型运输模式 2
+        （MLB / A-W）、计费单位 3（W/T、M/T、W/M）、装运条款 8；每条含中英释义与外贸例句，
+        UCP 600 第 3/20/27/31 条口径写进文案（immediate/prompt 银行不予理会，不换算天数）。
+      · **已先按纪律减负**：data 文件本身无注释/死代码可删；压缩例句译文会伤教学内容，
+        故按流程报实测。本门禁口径**实测 860.51KiB（881,158B）**，
+        862 = 实测 + 约 1.5KB 容差——**超过即红**。
+      · **不新增脚本/请求**：subResources 仍 61、PRECACHE 仍 69 条（新增的只是数据与门禁文件，
+        不进 index.html 子资源、不进 PRECACHE）；biggestGzKB 仍 114（app.js 未动，实测 113.97KiB）。
+      · 依据：tools/vocab-shipping-sources.json（23 条 100% 覆盖 + 11 条材料错误拒收）；
+        新门禁 tools/test-shipping-terms.js。其余两条上限不放松。 */
 const BUDGET = {
-  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；P30 批无新脚本、请求数不变）
-  gzTotalKB: 860,        // 实测 856.66KiB（P30 音块级精听：subtitle.js +5.08KB / style.css +6 行）
-  biggestGzKB: 114       // 实测 app.js 113.75KB（本批未改动 app.js）
+  subResources: 61,      // 实测 61（60 脚本 + 1 样式表；U13 船务术语批无新脚本、请求数不变）
+  gzTotalKB: 862,        // 实测 860.51KiB（U13 船务术语 +23 条：data-ocean.js gzip +约 3.2KB）
+  biggestGzKB: 114       // 实测 app.js 113.97KB（本批未改动 app.js）
 };
 
 check("引用子资源数 ≤ " + BUDGET.subResources, subResources <= BUDGET.subResources,

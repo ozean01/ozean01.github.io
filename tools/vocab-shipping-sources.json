@@ -1,0 +1,172 @@
+{
+  "note": "U13 船务术语补丁批（2026-11-21）逐条依据。材料来源类别只允许：Incoterms 2020 官方 / ICC / 船公司公开单证说明 / 通用实务。第三方二手清单（论坛整理版）**未被用作事实来源**，只在「借覆盖面」时参考其条目范围；其中错误条目见 rejected。",
+  "terms": {
+    "original bill of lading": {
+      "source": "船公司公开单证说明 / ICC（UCP 600 第20条）",
+      "note": "正本提单：承运人签发的全套可转让正本，凭以提货与结汇；UCP 600 第20条要求提单表明货物由具名船只装运、并符合正本份数/签署要求。与副本的区别是只有正本可提货、可转让。",
+      "ref": "https://iccwbo.org/wp-content/uploads/sites/3/2023/03/Set-of-Guidance-Papers-on-Recommended-Principles-and-Usages-around-UCP600-Rules.pdf"
+    },
+    "copy bill of lading": {
+      "source": "船公司公开单证说明 / 通用实务",
+      "note": "副本提单：注明 COPY、不可转让，只作存档或核对；提货必须用正本或电放。",
+      "ref": ""
+    },
+    "shipped on board B/L": {
+      "source": "ICC（UCP 600 第20条 + ICC 已装船批注建议）",
+      "note": "已装船提单：承运人证明货物已装上指定船舶，装船日即装运日。UCP 600 第20条与 ICC 关于已装船批注的建议文件均以该单据为银行接受的海运提单标准形态。",
+      "ref": "https://iccwbo.org/wp-content/uploads/sites/3/2023/03/Set-of-Guidance-Papers-on-Recommended-Principles-and-Usages-around-UCP600-Rules.pdf"
+    },
+    "received for shipment B/L": {
+      "source": "ICC（UCP 600 第20条 + 银行实务解读）",
+      "note": "待运提单：承运人已收货但尚未装船；必须加注 dated on board notation 才满足 UCP 600 第20条。与已装船提单的区别是装运日的认定方式（批注日 vs 签发日）。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "through B/L": {
+      "source": "船公司公开单证说明 / 通用实务",
+      "note": "联运提单：同一承运人签发、覆盖含转运的全程运输，责任区间延伸到目的港；与普通提单的区别是覆盖支线/转运段。",
+      "ref": ""
+    },
+    "direct B/L": {
+      "source": "船公司公开单证说明 / 通用实务",
+      "note": "直达提单：同一船舶从装货港直达卸货港、不转船；与联运提单的区别是没有中转段。",
+      "ref": ""
+    },
+    "combined transport B/L": {
+      "source": "ICC（UCP 600 第19条多式联运单据 + 银行实务解读）",
+      "note": "多式联运提单：至少两种运输方式，由多式联运经营人签发并对全程负责（实务中也称 multimodal transport document / MMTD）；与普通海运提单的区别是责任覆盖陆运段。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "liner B/L": {
+      "source": "船公司公开单证说明 / 通用实务",
+      "note": "班轮提单：班轮公司按班轮条款签发的提单，区别于租船合同项下的提单（charter party B/L）。",
+      "ref": ""
+    },
+    "clean B/L": {
+      "source": "ICC（UCP 600 第27条 + 银行实务解读）",
+      "note": "清洁提单：提单上没有货物或包装不良的批注。UCP 600 第27条明确：运输单据未载明货物/包装缺陷批注即视为清洁，且无需写明 clean 字样。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "foul (unclean) B/L": {
+      "source": "ICC（UCP 600 第27条）",
+      "note": "不清洁提单：承运人对货物或包装缺陷加注的提单。与清洁提单的区别是银行通常拒收（除信用证另有规定）。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "mini land bridge (MLB)": {
+      "source": "通用实务（美国航线运输模式）",
+      "note": "小陆桥：先在美西港口卸船，再经铁路或公路转运到内陆或美东，属海陆联运；与全水路的区别是中间有陆路段。",
+      "ref": "http://ejc56.com/News/DetailPage-46171.html"
+    },
+    "all water (A/W)": {
+      "source": "通用实务（美国航线运输模式）",
+      "note": "全水路：全程海运，例如经巴拿马运河直达美东，不经过陆桥；与 MLB 的区别是不含陆运段、通常更慢但更便宜。",
+      "ref": "http://ejc56.com/News/DetailPage-46171.html"
+    },
+    "weight ton (W/T)": {
+      "source": "通用实务（运费计费）",
+      "note": "重量吨：按重量计费的计量单位，公制为 1000 千克；与尺码吨的区别是只量重量不量体积。具体按公吨还是长吨以承运人运价表口径为准。",
+      "ref": ""
+    },
+    "measurement ton (M/T)": {
+      "source": "通用实务（运费计费）",
+      "note": "尺码吨：按体积计费，1 立方米（部分运价表按 40 立方英尺）；轻泡货适用。",
+      "ref": ""
+    },
+    "weight or measurement (W/M)": {
+      "source": "通用实务（运费计费）",
+      "note": "重量或尺码：分别按重量与体积计算运费后取大者（即 revenue ton 概念）；拼箱常用。",
+      "ref": "https://tgimex.com/en/2026/07/17/what-are-w-m-and-revenue-ton-how-to-calculate-lcl-freight/"
+    },
+    "partial shipment": {
+      "source": "ICC（UCP 600 第31(a)条）",
+      "note": "分批装运：UCP 600 第31(a) 明确除信用证另有规定外允许分批；禁止分批必须在信用证中明确写出。",
+      "ref": "https://iccwbo.org/wp-content/uploads/sites/3/2023/03/Set-of-Guidance-Papers-on-Recommended-Principles-and-Usages-around-UCP600-Rules.pdf"
+    },
+    "immediate shipment": {
+      "source": "ICC（UCP 600 第3条）",
+      "note": "立即装运：UCP 600 第3条明确「prompt / immediately / as soon as possible」这类表述不宜使用；如使用，银行将不予理会。故实务必须约定具体最迟装运日，不能自行换算成天数。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "prompt shipment": {
+      "source": "ICC（UCP 600 第3条）",
+      "note": "即期装运：同 immediate shipment——UCP 600 第3条下银行不予理会；实务改为具体最迟装运日（shipment not later than …）。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "optional port": {
+      "source": "通用实务（合同/信用证装运条款）",
+      "note": "选择港：合同约定可在两三个港口中选一个卸货，通常须在开船前通知；与固定卸货港的区别是卸货港留待买方选择。",
+      "ref": ""
+    },
+    "optional charges": {
+      "source": "通用实务（合同/信用证装运条款）",
+      "note": "选港费：因选择卸货港或中途改港产生的额外费用，按约定由提出选择的一方承担；只写定义与承担方，不写具体金额。",
+      "ref": ""
+    },
+    "shipment not later than": {
+      "source": "ICC（UCP 600 第20条 / 最迟装运日规则）",
+      "note": "不迟于…装运：写明最迟装运日的表述；装运日以提单装船日或装运日为准（UCP 600 第20条项下的装运日期认定）。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "in two equal lots": {
+      "source": "ICC（UCP 600 第31条分批装运）/ 通用实务",
+      "note": "平均分两批：分批装运的常见约定（两批数量相同）；与 partial shipment 同属 31 条框架，具体批次与数量必须在合同/信用证写明。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    },
+    "monthly shipments": {
+      "source": "ICC（UCP 600 第31条分批装运）/ 通用实务",
+      "note": "分月装运：按月的分批装运安排，合同里常约定每月等量；具体月份与数量必须写明。",
+      "ref": "https://www.nordea.no/Images/57-67599/documentary-credits-in-practice.pdf"
+    }
+  },
+  "rejected": [
+    {
+      "item": "ETD = Estimated time of delivery",
+      "reason": "错：ETD 是 Estimated Time of Departure（预计开船时间），不是 delivery；站内 ETD/ETA 条目已按 departure 口径收录。"
+    },
+    {
+      "item": "ORC (Origen Recevie Charges)",
+      "reason": "两处拼错：应为 Origin Receiving Charge(s)；本批未沿用材料拼写（站内已有 ORC 条目，口径正确）。"
+    },
+    {
+      "item": "PSS (Peak Season Sucharges)",
+      "reason": "拼错：应为 Peak Season Surcharge(s)；未沿用材料拼写（站内已有 PSS 条目）。"
+    },
+    {
+      "item": "FCL = FULL CONTAINER CARGO LOAD",
+      "reason": "全称错误：FCL = Full Container Load（整箱）；材料里的 CARGO 是错的。"
+    },
+    {
+      "item": "LCL = LESS THAN ONECONTAINER CARGO LOAD",
+      "reason": "全称错误：LCL = Less than Container Load（拼箱）；材料里有多余 CARGO 与 ONECONTAINER 连写错误。"
+    },
+    {
+      "item": "partial shipment not unacceptable",
+      "reason": "双重否定导致意思相反；按 UCP 600 第31(a) 只收「除信用证另有规定外允许分批」这一个口径。"
+    },
+    {
+      "item": "DAF / DES / DEQ / DDU",
+      "reason": "Incoterms 2000 术语，已被 2010/2020 版取代；2020 版只有 11 个术语，站内已按 2020 版收录，新增即倒退，故不收。"
+    },
+    {
+      "item": "S/O 的三种互相冲突的解释（Shipping Order / 装货通知书 / 装货指示书）",
+      "reason": "同一缩写三种口径互相冲突；只收 Shipping Order（订舱单／装货单）一个口径，且站内已有该条目。"
+    },
+    {
+      "item": "DDC、IAC 直航附加费",
+      "reason": "混写：DDC 是 Destination Delivery Charge（目的港交货费），不是直航附加费；站内 DDC 口径正确，未按材料改。"
+    },
+    {
+      "item": "notice party（作为标准术语）",
+      "reason": "非标准写法：提单栏目标准英文是 notify party；而 notify party 站内 U12 已有（通知人），本批不重复收录，故该条整体不收。"
+    },
+    {
+      "item": "house B/L / master B/L（材料作为独立两条）",
+      "reason": "站内 U13 已有「MB/L & HB/L」合并条目覆盖船东/货代两类提单，重复收录会造成同一概念两条；故不再单列。"
+    }
+  ],
+  "deferred": [
+    {
+      "item": "place of delivery",
+      "note": "因与 U14「point of delivery」近义，本批暂不收，待复核后再定；**不是**判定重复——外贸单证里 Place of Delivery 是提单/箱单固定栏位，与侧重地点的 point of delivery 语义不完全等同。"
+    }
+  ]
+}

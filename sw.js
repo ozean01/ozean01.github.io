@@ -11,7 +11,18 @@
      iOS 配额吃紧时外壳可能被连带淘汰。
    更新流程：改动文件后把 CACHE 版本号 +1；新 SW 安装完成会通知页面弹「有新版本」。 */
 
-const CACHE = "fte-v159";   /* ★ v1.40.0 音块级精听（P30 · 2026-11-19）：
+const CACHE = "fte-v160";   /* ★ v1.41.0 船务术语补丁批（2026-11-21）：
+                              · js/data-ocean.js（U13）末尾追加 23 条船务术语：提单种类 10（正本/副本/已装船/
+                                待运/联运/直达/多式联运/班轮/清洁/不清洁）、箱型运输模式 2（MLB / A-W）、
+                                计费单位 3（W/T、M/T、W/M）、装运条款 8（partial / immediate / prompt /
+                                optional port / optional charges / shipment not later than / in two equal lots /
+                                monthly shipments）；每条字段齐全、GA 音标、去重后实收。
+                              · 依据文件 tools/vocab-shipping-sources.json（23 条 100% 覆盖 + 11 条材料错误拒收）；
+                                新增门禁 tools/test-shipping-terms.js。第三方二手清单未被用作事实来源。
+                              · 本批无新脚本、无新路由、无新导航项；PRECACHE 清单与指纹不变（仍 69 条），
+                                按纪律升 CACHE 并刷新基线。
+
+                              —— 上一批：v1.40.0 音块级精听（P30 · 2026-11-19）——
                               · js/subtitle.js：波形上点 A/B 打点（复用 abWindowOf 的 markA/markB）
                                 + ✂️ 片段库（键 fte-seg-clips-v1，按 文件名+起始秒，最多 200 条）；
                               · js/player.js：新增 waveTimeAt（waveSegRange 的逆映射）+ 波形画 A/B 竖线；
